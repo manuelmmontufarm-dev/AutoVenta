@@ -259,6 +259,13 @@ export interface PerfilDeNegocio {
   /** Sin esto no salen pre-facturas mensuales (negocio sin servicio facturado). */
   facturacion?: Facturacion;
   /**
+   * El INCLUYE con el que arranca la tabla `benefits` de una base de este
+   * negocio (migración 032, una sola vez: después manda Ajustes → Promociones).
+   * `minQuantity` = solo aplica comprando esa cantidad o más. Depot no lo
+   * declara: su INCLUYE lo sembró 008_benefits.
+   */
+  beneficiosDeArranque?: Array<{ text: string; minQuantity?: number }>;
+  /**
    * Valores NUMÉRICOS del perfil que todavía son un supuesto y no pueden llevar
    * la marca `[PENDIENTE]` (coordenadas, garantías en 0). `faltantesDelPerfil`
    * los suma a la lista para que el panel los muestre junto a los textos.

@@ -66,10 +66,10 @@ const tema = resolveTheme("depotRojo", "exo");
 const FECHA = "04 / 11 / 2026";
 
 describe("con NEGOCIO=mundillantas el perfil SÍ tiene pendientes (si no, la prueba no prueba nada)", () => {
-  it("el vendedor, el teléfono y los pies están en [PENDIENTE]", () => {
+  it("el vendedor y el precio sin descuento siguen en [PENDIENTE]", () => {
     expect(negocio.vendedor.nombre.startsWith(MARCA)).toBe(true);
-    expect(negocio.telefono.startsWith(MARCA)).toBe(true);
-    expect(negocio.piezas.condiciones.startsWith(MARCA)).toBe(true);
+    // El teléfono y lo que incluye la compra llegaron el 8-nov (Jenny).
+    expect(negocio.piezas.precioSinDescuento?.startsWith(MARCA)).toBe(true);
   });
 });
 
@@ -83,11 +83,11 @@ describe("el saludo", () => {
 });
 
 describe("la leyenda y el pie de las piezas", () => {
-  it("omiten lo pendiente, incluido el local sin nombre", () => {
+  it("omiten lo pendiente y nombran los tres locales confirmados el 6-nov", () => {
     expect(leyendaDelEncabezado(negocio)).toBe("SANTO DOMINGO");
-    expect(localesEnUnaLinea(negocio)).toBe("Matriz · Competimotor");
-    expect(pieDeLocales(negocio)).toBe("Matriz · Competimotor");
-    expect(localesConfirmados(negocio).map((l) => l.slug)).toEqual(["matriz", "competimotor"]);
+    expect(localesEnUnaLinea(negocio)).toBe("Mundillantas Falken · Mundillantas Kenda · Competimotor");
+    expect(pieDeLocales(negocio)).not.toContain(MARCA);
+    expect(localesConfirmados(negocio).map((l) => l.slug)).toEqual(["matriz", "local2", "competimotor"]);
   });
 });
 
@@ -130,10 +130,10 @@ describe("las piezas, en las dos identidades y las dos plantillas", () => {
   it("la pieza de Competimotor lista solo su local al pie", () => {
     const texto = textoDe(optionsPoster({ dateLabel: FECHA, identidad: "competimotor", sizeLabel: "205/55R16", lines: [linea()] }, tema));
     expect(texto).toContain("Competimotor");
-    expect(texto).not.toContain("Matriz");
+    expect(texto).not.toContain("Mundillantas Kenda");
   });
 
-  it("y renderiza de verdad, sin el logo todavía (cae al nombre en texto)", async () => {
+  it("y renderiza de verdad, con el logo combinado de las dos marcas", async () => {
     const png = await renderQuoteImage({
       number: "COT-1", dateLabel: FECHA, identidad: "competimotor",
       lines: [await toRenderLine(producto, 4)], subtotal: 240, iva: 36, total: 276,
@@ -150,7 +150,8 @@ describe("la pregunta de local (Sprint Final)", () => {
     const { PREGUNTA_DE_LOCAL, LOCALES_COMO_ALTERNATIVA } = await import("../src/domain/storeSelection.js");
     expect(PREGUNTA_DE_LOCAL).not.toContain(MARCA);
     expect(LOCALES_COMO_ALTERNATIVA).not.toContain(MARCA);
-    expect(PREGUNTA_DE_LOCAL).toContain("*Matriz*");
+    expect(PREGUNTA_DE_LOCAL).toContain("*Mundillantas Falken*");
+    expect(PREGUNTA_DE_LOCAL).toContain("*Mundillantas Kenda*");
     expect(PREGUNTA_DE_LOCAL).toContain("*Competimotor*");
   });
 });
@@ -180,8 +181,10 @@ describe("lo que Depot promete no se cuela en las piezas de otro negocio", () =>
       const cotizacion = textoDe(quotePosterDiaNoche({ number: "COT-1", dateLabel: FECHA, line: linea({ pvpConIva: 90 }), total: 276 }, modo));
       const opciones = textoDe(optionsPosterDiaNoche({ dateLabel: FECHA, sizeLabel: "205/55R16", lines: [linea()] }, modo));
       for (const texto of [cotizacion, opciones]) {
+        // Sin `piezas.cuotasSinIntereses` no se calcula ninguna cuota. El pie
+        // sí dice «hasta 6 meses sin intereses»: eso lo confirmó Jenny el 6-nov.
         expect(texto).not.toMatch(/cuotas/i);
-        expect(texto).not.toMatch(/sin intereses/i);
+        expect(texto).not.toMatch(/3 y 6 meses|\b3 meses/i);
       }
       expect(cotizacion).not.toContain("SU COMPRA ESTÁ RESPALDADA");
     }

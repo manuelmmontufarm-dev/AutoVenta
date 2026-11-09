@@ -198,10 +198,11 @@ describe("la política comercial (R-11)", () => {
     expect(politica.asesorEnReglas).toBe("Manuel");
   });
 
-  it("faltantesDeLaPolitica: Depot y la plantilla completas; Mundillantas avisa que faltan las formas de pago", () => {
+  it("faltantesDeLaPolitica: Depot, la plantilla y Mundillantas (formas de pago del 6-nov) completas", () => {
     expect(faltantesDeLaPolitica(POLITICA_DEPOT)).toEqual([]);
     expect(faltantesDeLaPolitica(POLITICA_EJEMPLO)).toEqual([]);
-    expect(faltantesDeLaPolitica(POLITICA_MUNDILLANTAS).join(" ")).toMatch(/formas de pago/);
+    expect(faltantesDeLaPolitica(POLITICA_MUNDILLANTAS)).toEqual([]);
+    expect(faltantesDeLaPolitica({ ...POLITICA_MUNDILLANTAS, formasDePago: [] }).join(" ")).toMatch(/formas de pago/);
     expect(faltantesDeLaPolitica({ ...POLITICA_EJEMPLO, cuotasSinIntereses: "[PENDIENTE] cuántos meses" }))
       .toContain("Política · cuotas sin intereses");
   });
@@ -231,8 +232,13 @@ describe("pagos según la política (R-12)", () => {
   it("Depot: la frase de siempre; plantilla: solo las formas; sin formas: nada", () => {
     expect(datos.politicaDePagos(POLITICA_DEPOT)).toBe(datos.politicaDePagos());
     expect(datos.politicaDePagos(POLITICA_EJEMPLO)).toBe("Se acepta efectivo, tarjeta y transferencia.");
-    expect(datos.politicaDePagos(POLITICA_MUNDILLANTAS)).toBe("");
-    expect(datos.hayPoliticaDePagos(POLITICA_MUNDILLANTAS)).toBe(false);
+    // Mundillantas (Jenny, 6-nov): las tres formas, pero SIN «no sube con
+    // tarjeta» — dijo «6 meses sin intereses», no que la tarjeta cueste igual
+    // que el efectivo. Por eso es «tarjeta de crédito» y no «tarjeta».
+    expect(datos.politicaDePagos(POLITICA_MUNDILLANTAS)).toBe("Se acepta efectivo, transferencia y tarjeta de crédito.");
+    expect(datos.politicaDePagos(POLITICA_MUNDILLANTAS)).not.toMatch(/no sube|mismo precio/i);
+    expect(datos.hayPoliticaDePagos(POLITICA_MUNDILLANTAS)).toBe(true);
+    expect(datos.politicaDePagos({ ...POLITICA_MUNDILLANTAS, formasDePago: [] })).toBe("");
     expect(datos.hayDescuentoEnEfectivo(POLITICA_EJEMPLO)).toBe(false);
   });
 

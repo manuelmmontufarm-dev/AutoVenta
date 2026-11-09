@@ -37,7 +37,7 @@ async function baseNuevaCon(negocio: string | null) {
   const [marca] = await sql<{ n: number }[]>`select count(*)::int as n from settings where key = 'brand_profiles_seeded_v1'`;
   const beneficios = await sql<{ text: string }[]>`select text from benefits order by position`;
   await sql.end({ timeout: 5 });
-  return { marcas: marcas.map((m) => m.brand), sembrado: marca.n === 1, beneficios: beneficios.length };
+  return { marcas: marcas.map((m) => m.brand), sembrado: marca.n === 1, beneficios: beneficios.length, textos: beneficios.map((b) => b.text) };
 }
 
 afterAll(async () => {
@@ -49,16 +49,20 @@ afterAll(async () => {
 
 describe("008_benefits y 009_brand_profiles siembran según el negocio", () => {
   it("con NEGOCIO=ejemplo, una base vacía queda sin perfiles de marca (y marcada)", async () => {
-    expect(await baseNuevaCon("ejemplo")).toEqual({ marcas: [], sembrado: true, beneficios: 0 });
+    expect(await baseNuevaCon("ejemplo")).toMatchObject({ marcas: [], sembrado: true, beneficios: 0 });
   });
 
   it("Depot (NEGOCIO sin definir) siembra las tres de siempre", async () => {
-    expect(await baseNuevaCon(null)).toEqual({ marcas: ["FALKEN", "KENDA", "WINRUN"], sembrado: true, beneficios: 4 });
+    expect(await baseNuevaCon(null)).toMatchObject({ marcas: ["FALKEN", "KENDA", "WINRUN"], sembrado: true, beneficios: 4 });
   });
 
   // 008_benefits: el «INCLUYE» de Depot (seguro contra golpes, mantenimiento
   // cada 10.000 km) salía en las piezas y el PDF de Mundillantas, que no lo ofrece.
-  it("Mundillantas arranca sin las promesas de Depot en el INCLUYE", async () => {
-    expect((await baseNuevaCon("mundillantas")).beneficios).toBe(0);
+  // 032 (8-nov): arranca con SU INCLUYE, el que dijo Jenny, y nada de Depot.
+  it("Mundillantas arranca sin las promesas de Depot en el INCLUYE, y con las suyas", async () => {
+    expect((await baseNuevaCon("mundillantas")).textos).toEqual([
+      "Enllantaje, balanceo y nitrógeno",
+      "Alineación (comprando las 4 llantas)",
+    ]);
   });
 });

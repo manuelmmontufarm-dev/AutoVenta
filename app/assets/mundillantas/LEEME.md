@@ -1,23 +1,34 @@
 # Archivos de marca de Mundillantas / Competimotor
 
-Esta carpeta es la de `NEGOCIO=mundillantas`. Las piezas buscan acá los logos.
-Si un archivo falta, la pieza dibuja el nombre de la marca en texto. No se rompe,
-pero se ve menos profesional.
+Esta carpeta es la de `NEGOCIO=mundillantas`. Las piezas y los PDF buscan acá los logos.
 
-## Faltan (pedírselos a Jenny, fila 18 de `docs/clientes/mundillantas-arranque.md`)
+## Lo que hay (6-nov-2026)
+
+Manuel pidió que **se lean las dos marcas en todo**, Competimotor primero. Por eso
+hay un solo logo combinado y NO hay `logo-mundillantas.png` ni
+`logo-competimotor.png`: sin ellos, las dos identidades caen a `logo-blanco.png`
+(ver `depotLogo` en `src/render/assets.ts`) y cada pieza y cada PDF lleva las dos.
 
 | Archivo | Qué es | Dónde se usa |
 |---|---|---|
-| `logo-mundillantas.png` | Logo de Mundillantas para fondo oscuro, PNG con fondo transparente | Encabezado de las piezas y del PDF de los 2 locales de Mundillantas |
-| `logo-competimotor.png` | Logo de Competimotor para fondo oscuro, PNG con fondo transparente | Encabezado de las piezas y del PDF del local de Competimotor |
-| `logo-blanco.png` | Respaldo si falta el logo de una marca (puede ser una copia de `logo-mundillantas.png`) | Encabezado cuando no se conoce la marca |
-| `logo.png` | Versión para fondo claro | Plantilla día y noche en modo día |
+| `logo-blanco.png` | Competimotor (blanco, horizontal) │ Mundillantas (amarillo), fondo transparente, 2630×300 | Encabezado oscuro de las piezas y de los PDF |
+| `logo.png` | Lo mismo para fondo claro: Competimotor rojo │ Mundillantas azul | Plantilla día y noche en modo día |
 
-Cada logo puede tener su propia proporción. El ancho y el alto se leen del
-archivo, así que no hace falta recortarlo a 422×132 como el de Depot. Solo hay
-que recortarlo al contenido, sin márgenes vacíos.
+Si algún día cada local tiene que salir solo con su marca, basta con agregar
+`logo-competimotor.png` y `logo-mundillantas.png` acá; no hay que tocar código.
 
-## Otros archivos que esta carpeta va a tener (los carga el Sprint 4)
+## De dónde salen (`fuentes/`)
+
+- `competimotor-rojo.png`, `competimotor-blanco.png`: los que mandó Jenny el 6-nov
+  (1080×1080, transparentes). La versión horizontal separa el ícono de puntos y
+  la palabra y los pone lado a lado.
+- `mundillantas-captura.png`: **captura de 270×130** del logo «MUNDI LLANTAS ONLINE»
+  sobre círculo azul. El texto amarillo se recortó de ahí. Se ve bien al tamaño del
+  encabezado, pero es de baja resolución: **pedirle a Jenny el archivo original de
+  Mundillantas** (PNG o PDF/AI) y rehacer los dos logos.
+
+Colores: Competimotor rojo `#E42629`; Mundillantas amarillo `#F5D000` sobre azul `#3D508E`.
+
+## Otros archivos
 
 `escalera-precio.json`, `conocimiento-marcas.json` y `base_llantas_tipos.json`.
-Mientras falten, se usan los de `app/assets/` comunes.

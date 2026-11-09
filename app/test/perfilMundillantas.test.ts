@@ -2,7 +2,7 @@
  * EL PERFIL DE MUNDILLANTAS / COMPETIMOTOR (R-03, R-06, R-07).
  *
  * Corre el bot con `NEGOCIO=mundillantas`: fija que el perfil tenga SOLO lo
- * confirmado en el pitch del 4-nov, que se presente con las dos marcas, que
+ * confirmado en el pitch del 4-nov y en las respuestas de Jenny del 6-nov, que se presente con las dos marcas, que
  * los detectores reconozcan las dos y que su cupón vaya y vuelva por caja.
  */
 import { describe, expect, it } from "vitest";
@@ -34,9 +34,22 @@ describe("Mundillantas · solo lo confirmado", () => {
     expect(negocio.moneda).toBe("USD");
   });
 
-  it("lunes a sábado 08:00–18:00, domingo cerrado", () => {
-    for (const dia of [1, 2, 3, 4, 5, 6]) expect(negocio.horasPorDia[dia]).toEqual({ open: "08:00", close: "18:00" });
+  it("lunes a viernes 08:00–18:00, sábado 08:00–16:00, domingo cerrado (Jenny, 8-nov)", () => {
+    for (const dia of [1, 2, 3, 4, 5]) expect(negocio.horasPorDia[dia]).toEqual({ open: "08:00", close: "18:00" });
+    expect(negocio.horasPorDia[6]).toEqual({ open: "08:00", close: "16:00" });
     expect(negocio.horasPorDia[0]).toBeNull();
+  });
+
+  it("el bot usa el número de Competimotor que dio Jenny el 8-nov", () => {
+    expect(negocio.telefono).toBe("+593 99 124 4698");
+  });
+
+  it("INCLUYE: enllantaje, balanceo y nitrógeno siempre; alineación solo con 4 (Jenny, 8-nov)", () => {
+    expect(negocio.beneficiosDeArranque).toEqual([
+      { text: "Enllantaje, balanceo y nitrógeno" },
+      { text: "Alineación (comprando las 4 llantas)", minQuantity: 4 },
+    ]);
+    expect(negocio.piezas.todasIncluyen.startsWith("[PENDIENTE]")).toBe(false);
   });
 
   it("dos marcas: Mundillantas (2 locales) y Competimotor (1)", () => {
@@ -44,20 +57,39 @@ describe("Mundillantas · solo lo confirmado", () => {
       { id: "mundillantas", nombre: "Mundillantas", locales: ["matriz", "local2"] },
       { id: "competimotor", nombre: "Competimotor", locales: ["competimotor"] },
     ]);
-    expect(negocio.presentacion).toEqual({ modo: "combinada", frase: "Mundillantas y Competimotor" });
+    expect(negocio.presentacion).toEqual({ modo: "combinada", frase: "Competimotor y Mundillantas" });
   });
 
-  it("la matriz en la Av. Quevedo km 1, con el pin del Plus Code PRQ7+887", () => {
-    const matriz = negocio.locales.find((l) => l.slug === "matriz")!;
-    expect(matriz.direccion).toBe("Av. Quevedo km 1, Santo Domingo");
-    // 67F2PRQ7+887 decodificado: dentro de Santo Domingo de los Tsáchilas.
-    expect(matriz.lat).toBeCloseTo(-0.2617, 3);
-    expect(matriz.lng).toBeCloseTo(-79.1867, 3);
+  it("los tres locales con la dirección que dio Jenny (6-nov)", () => {
+    const por = (slug: string) => negocio.locales.find((l) => l.slug === slug)!;
+    expect(por("matriz").nombre).toBe("Mundillantas Falken");
+    expect(por("matriz").direccion).toContain("Vía Quevedo km 2 y Manuel Borrero");
+    expect(por("matriz").lat).toBeCloseTo(-0.26177, 5);
+    expect(por("matriz").lng).toBeCloseTo(-79.186684, 5);
+    expect(por("local2").nombre).toBe("Mundillantas Kenda");
+    expect(por("local2").direccion).toContain("a una cuadra del Banco Pichincha");
+    expect(por("competimotor").direccion).toContain("Juan León Mera #834");
+    expect(por("competimotor").lat).toBeCloseTo(-0.259614, 5);
+    expect(por("competimotor").lng).toBeCloseTo(-79.183052, 5);
+    for (const l of negocio.locales) expect(l.nombreCorto.length).toBeLessThanOrEqual(20);
   });
 
-  it("nada inventado: sin sectores, sin marcas, sin facturación, garantías en 0", () => {
+  it("nombrar una marca de llanta o la Vía Quevedo no elige local", () => {
+    const eligen = (texto: string) => negocio.locales.filter((l) => l.comoLoNombran.test(texto)).map((l) => l.slug);
+    for (const texto of ["quiero unas falken", "tiene kenda", "estoy por la via quevedo", "vivo en pichincha"]) {
+      expect(eligen(texto)).toEqual([]);
+    }
+    expect(eligen("voy al de mundillantas falken")).toEqual(["matriz"]);
+    expect(eligen("el de manuel borrero")).toEqual(["matriz"]);
+    expect(eligen("el mundi kenda")).toEqual(["local2"]);
+    expect(eligen("el que esta cerca del banco pichincha")).toEqual(["local2"]);
+    expect(eligen("en competimotor")).toEqual(["competimotor"]);
+    expect(eligen("juan leon mera")).toEqual(["competimotor"]);
+  });
+
+  it("nada inventado: sin sectores, sin facturación, garantías en 0", () => {
     expect(negocio.sectores).toEqual([]);
-    expect(negocio.marcas).toEqual([]);
+    expect(negocio.marcas).toEqual(["Kenda", "Falken", "Winrun", "Maxxis"]);
     expect(negocio.facturacion).toBeUndefined();
     expect(negocio.garantias).toEqual({ default: { golpesMeses: 0, fabricaAnios: 0 } });
     expect(negocio.vendedor.nombre.startsWith("[PENDIENTE]")).toBe(true);
@@ -67,13 +99,13 @@ describe("Mundillantas · solo lo confirmado", () => {
 
 describe("Mundillantas · cómo se presenta", () => {
   it("con las dos marcas, y sin el nombre pendiente del vendedor", () => {
-    expect(FIRMA_DE_PRESENTACION).toBe("Soy el asistente de Mundillantas y Competimotor");
+    expect(FIRMA_DE_PRESENTACION).toBe("Soy el asistente de Competimotor y Mundillantas");
     expect(firmaDePresentacion(negocio)).toBe(FIRMA_DE_PRESENTACION);
-    expect(presentacionDeApertura("Jenny")).toContain("¡Hola, Jenny! 👋 Soy el asistente de Mundillantas y Competimotor.");
+    expect(presentacionDeApertura("Jenny")).toContain("¡Hola, Jenny! 👋 Soy el asistente de Competimotor y Mundillantas.");
   });
 
   it("reconoce su presentación por cualquiera de las dos marcas", () => {
-    expect(ES_PRESENTACION_DEL_NEGOCIO.test("soy el asistente de mundillantas y competimotor")).toBe(true);
+    expect(ES_PRESENTACION_DEL_NEGOCIO.test("soy el asistente de competimotor y mundillantas")).toBe(true);
     expect(ES_PRESENTACION_DEL_NEGOCIO.test("soy el asistente de competimotor")).toBe(true);
     // La de Depot no es la suya.
     expect(ES_PRESENTACION_DEL_NEGOCIO.test("soy martin, de depot tire")).toBe(false);
@@ -93,22 +125,24 @@ describe("Mundillantas · los detectores conocen las dos marcas", () => {
     const reales = negocio.locales.map((l) => l.nombre);
     expect(localesInventados("Puede pasar por Competimotor Norte", reales)).toContain("Norte");
     expect(localesInventados("Puede pasar por Mundillantas Chone", reales)).toContain("Chone");
-    expect(localesInventados("Puede pasar por Mundillantas Matriz", reales)).toEqual([]);
+    expect(localesInventados("Puede pasar por Mundillantas Kenda", reales)).toEqual([]);
   });
 });
 
 describe("Mundillantas · un prefijo de cupón por negocio", () => {
   it("las iniciales de la presentación, sin el «y»", () => {
-    expect(inicialesDelNegocio(negocio)).toBe("MC");
-    expect(PREFIJO_CUPON).toBe("MC-");
+    // «Competimotor y Mundillantas» (6-nov) → CM. Con el bot apagado no salió
+    // ningún cupón MC-, así que el cambio de orden no deja cupones huérfanos.
+    expect(inicialesDelNegocio(negocio)).toBe("CM");
+    expect(PREFIJO_CUPON).toBe("CM-");
   });
 
   it("ida y vuelta por caja, como lo dicte el cliente", () => {
     const codigo = generarCodigoCupon(() => 0.5);
-    expect(codigo.startsWith("MC-")).toBe(true);
+    expect(codigo.startsWith("CM-")).toBe(true);
     expect(normalizarCodigoCupon(codigo)).toBe(codigo);
     const cuerpo = codigo.slice(3);
-    expect(normalizarCodigoCupon(`mc ${cuerpo.toLowerCase()}`)).toBe(codigo);
+    expect(normalizarCodigoCupon(`cm ${cuerpo.toLowerCase()}`)).toBe(codigo);
     expect(normalizarCodigoCupon(cuerpo)).toBe(codigo);
   });
 });

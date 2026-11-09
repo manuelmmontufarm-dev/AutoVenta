@@ -13,7 +13,7 @@ import { lonasDelProducto, politicaDePagos } from "../domain/datosDelNegocio.js"
 import { z } from "zod";
 import { business } from "../config.js";
 import { negocio, localPorNombre } from "../negocio/index.js";
-import { identidadDeLaConversacion } from "../negocio/identidad.js";
+import { identidadDeLaPieza } from "../negocio/identidad.js";
 import { PREGUNTA_DE_CIERRE } from "../domain/preguntaPendiente.js";
 import {
   catalogCandidates,
@@ -821,11 +821,12 @@ function dateLabel(): string {
  * identidad del local elegido (`conversations.nearest_store`) o, sin local, la
  * de la presentación. Depot tiene una sola, así que sus piezas no cambian.
  */
-async function identidadDelChat(conversationId: number): Promise<string> {
+async function identidadDelChat(conversationId: number): Promise<string | undefined> {
   const [fila] = await sql<{ nearest_store: string | null }[]>`
     select nearest_store from conversations where id=${conversationId}
   `;
-  return identidadDeLaConversacion(negocio, fila?.nearest_store ?? null).id;
+  // Sin local y con presentación combinada: undefined = todas las marcas.
+  return identidadDeLaPieza(negocio, fila?.nearest_store ?? null);
 }
 
 /**
@@ -2365,8 +2366,12 @@ export function buildTools(ctx: AgentContext) {
       const sizeLabel = medidasMostradas.length === 1 ? sizeLabelActual : null;
       // Los beneficios vigentes van a la FRANJA de la pieza (P-07): la imagen
       // los dice resaltados y el texto ya no los repite cuando la imagen salió.
+      // Con la cantidad resuelta (sin cantidad dicha = el juego): un beneficio
+      // con mínimo de unidades —la alineación de Mundillantas, solo con 4— sin
+      // ella nunca entraba a la franja de opciones.
       const beneficiosPieza = await applicableBenefitTexts({
         brands: products.map((product) => product.brand),
+        quantity: cantidadResuelta.cantidad,
       });
       const visual = await sendVisual(
         ctx.conversation.id,
@@ -2515,7 +2520,7 @@ export function buildTools(ctx: AgentContext) {
         ? await buildBenefitsBlockOnce(
             ctx.conversation.id,
             ctx.conversation.current_cycle,
-            { brands: products.map((product) => product.brand) },
+            { brands: products.map((product) => product.brand), quantity: cantidadResuelta.cantidad },
             clientePidioIncluye,
           )
         : null;

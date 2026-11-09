@@ -139,9 +139,9 @@ describe("el candado de lo pendiente (R-10), en frío", () => {
   });
 
   it("un vendedor pendiente se presenta como asistente", () => {
-    expect(firmaDePresentacion(MUNDILLANTAS)).toBe("Soy el asistente de Mundillantas y Competimotor");
+    expect(firmaDePresentacion(MUNDILLANTAS)).toBe("Soy el asistente de Competimotor y Mundillantas");
     const conNombre = { ...MUNDILLANTAS, vendedor: { nombre: "Carla" } };
-    expect(firmaDePresentacion(conNombre)).toBe("Soy Carla, de Mundillantas y Competimotor");
+    expect(firmaDePresentacion(conNombre)).toBe("Soy Carla, de Competimotor y Mundillantas");
   });
 
   it("combinada sin frase une las marcas con «y»", () => {
@@ -158,15 +158,15 @@ describe("faltantesDelPerfil", () => {
 
   it("Mundillantas lista cada hueco con una ruta legible", () => {
     const faltantes = faltantesDelPerfil(MUNDILLANTAS);
-    expect(faltantes).toContain("teléfono");
+    // El teléfono (8-nov) y lo que incluye la compra (8-nov) ya llegaron.
+    expect(faltantes).not.toContain("teléfono");
     expect(faltantes).toContain("vendedor · nombre");
-    expect(faltantes).toContain("piezas · condiciones de las piezas");
-    expect(faltantes).toContain("local2 · nombre");
-    expect(faltantes).toContain("local2 · dirección");
-    expect(faltantes).toContain("Competimotor · dirección");
+    expect(faltantes).not.toContain("piezas · qué incluye toda compra");
     // Los numéricos declarados también van.
     expect(faltantes.some((f) => f.startsWith("garantías por marca"))).toBe(true);
-    // Lo confirmado NO aparece.
-    expect(faltantes).not.toContain("Matriz · dirección");
+    // Lo que Jenny confirmó el 6-nov NO aparece.
+    expect(faltantes).not.toContain("piezas · condiciones de las piezas");
+    expect(faltantes).not.toContain("local2 · dirección");
+    expect(faltantes).not.toContain("Competimotor · dirección");
   });
 });

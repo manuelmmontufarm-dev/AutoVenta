@@ -83,6 +83,26 @@ export function identidadDeLaConversacion(
   return identidadDelLocal(perfil, nearestStore) ?? identidadDePresentacion(perfil);
 }
 
+/**
+ * La identidad con la que se DIBUJA una pieza (encabezado y pie de locales).
+ *
+ * Igual que `identidadDeLaConversacion`, salvo un caso: con presentación
+ * COMBINADA y sin local elegido, la pieza habla por todas las marcas
+ * (`undefined` = el logo combinado y los locales de todas). Antes caía en la
+ * primera identidad, y la pieza de Mundillantas/Competimotor salía con el logo
+ * de las dos pero el pie «Mundillantas Falken · Mundillantas Kenda», sin
+ * Competimotor — justo la marca del número del bot (8-nov-2026).
+ */
+export function identidadDeLaPieza(
+  perfil: PerfilDeNegocio,
+  nearestStore: string | null | undefined,
+): string | undefined {
+  const delLocal = identidadDelLocal(perfil, nearestStore);
+  if (delLocal) return delLocal.id;
+  if (perfil.presentacion?.modo === "combinada" && identidades(perfil).length > 1) return undefined;
+  return identidadDePresentacion(perfil).id;
+}
+
 /** Todos los nombres con los que el negocio se presenta, uno por identidad. */
 export function nombresDelNegocio(perfil: PerfilDeNegocio): string[] {
   return identidades(perfil).map((i) => i.nombre);

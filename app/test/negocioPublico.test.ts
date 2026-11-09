@@ -50,7 +50,7 @@ describe("armarNegocioPublico · la forma", () => {
       { id: "competimotor", nombre: "Competimotor", locales: ["competimotor"] },
     ]);
     expect(pub.locales.map((l) => l.slug)).toEqual(["matriz", "local2", "competimotor"]);
-    expect(pub.faltantes.length).toBeGreaterThan(5);
+    expect(pub.faltantes.length).toBeGreaterThan(2);
     expect(pub.faltantes).toContain("vendedor · nombre");
   });
 
@@ -59,7 +59,7 @@ describe("armarNegocioPublico · la forma", () => {
     pub.identidades[0].locales.push("otro");
     pub.marcas.push("otra");
     expect(MUNDILLANTAS.identidades![0].locales).toEqual(["matriz", "local2"]);
-    expect(MUNDILLANTAS.marcas).toEqual([]);
+    expect(MUNDILLANTAS.marcas).toEqual(["Kenda", "Falken", "Winrun", "Maxxis"]);
   });
 });
 

@@ -26,6 +26,13 @@ process.env.WHATSAPP_PHONE_ID ||= "test";
 process.env.DATABASE_URL ||= "postgresql://manue@localhost/postgres";
 
 const DE_DEPOT = /Depot|Cumbayá|Quito|quiteño|Falken|Kenda|Winrun|3 y 6 meses/;
+// Falken, Kenda y Winrun también son de Mundillantas (Jenny, 6-nov: garantía y
+// seguro en Kenda, Falken, Winrun y Maxxis; dos locales se llaman «Mundillantas
+// Falken» y «Mundillantas Kenda»). En su perfil esas palabras son suyas.
+const DE_DEPOT_PARA: Record<string, RegExp> = {
+  mundillantas: /Depot|Cumbayá|Quito|quiteño|3 y 6 meses/,
+};
+let deDepot = DE_DEPOT;
 const ETAPAS = ["nuevo", "medida_confirmada", "seleccionando", "cotizacion_enviada", "seguimiento_venta", "ganado", "perdido"] as const;
 const TONOS = ["calido", "neutral", "formal"] as const;
 
@@ -58,7 +65,7 @@ const ctxDeHerramientas = {
 } as never;
 
 function sinDepot(texto: string, donde: string) {
-  const hallado = DE_DEPOT.exec(texto);
+  const hallado = deDepot.exec(texto);
   expect(hallado ? `${donde}: «…${texto.slice(Math.max(0, hallado.index - 60), hallado.index + 40)}…»` : null).toBeNull();
 }
 
@@ -66,8 +73,9 @@ function casos(id: string, saltar: boolean) {
   describe.skipIf(saltar)(`NEGOCIO=${id}`, () => {
     let m: Cargado;
     const negocioAntes = process.env.NEGOCIO;
-    beforeAll(async () => { m = await cargarComo(id); });
+    beforeAll(async () => { deDepot = DE_DEPOT_PARA[id] ?? DE_DEPOT; m = await cargarComo(id); });
     afterAll(() => {
+      deDepot = DE_DEPOT;
       if (negocioAntes === undefined) delete process.env.NEGOCIO; else process.env.NEGOCIO = negocioAntes;
       vi.resetModules();
     });

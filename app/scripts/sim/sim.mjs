@@ -537,11 +537,28 @@ async function copiarConfiguracionDeProduccion(urlProd) {
       const json = await columnasJson(tabla);
       await sql`delete from ${sql(tabla)}`;
       for (const fila of filas) await sql`insert into ${sql(tabla)} ${sql(paraInsertar(fila, json))}`;
+      await adelantarContador(tabla);
       console.log(`   · ${tabla}: ${filas.length}`);
     }
   } finally {
     await prod.end();
   }
+}
+
+/**
+ * Las filas se copian CON su id, y eso no mueve el contador (`bigserial`) de
+ * la tabla: el primer insert normal después —una migración que siembra, un
+ * beneficio nuevo desde Ajustes— reusaba un id copiado y el bot se moría al
+ * arrancar (8-nov, 032 sembrando el INCLUYE de Mundillantas: «Key (id)=(3)
+ * already exists»). En producción no pasa: allá los ids salieron del contador.
+ */
+async function adelantarContador(tabla) {
+  const [fila] = await sql`select pg_get_serial_sequence(${tabla}, 'id') as secuencia`.catch(() => [null]);
+  if (!fila?.secuencia) return;
+  await sql.unsafe(
+    `select setval($1, greatest(coalesce((select max(id) from "${tabla.replace(/"/g, '""')}"), 0), 1))`,
+    [fila.secuencia],
+  );
 }
 
 /**
