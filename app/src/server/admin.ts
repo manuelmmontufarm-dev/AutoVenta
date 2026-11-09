@@ -1193,7 +1193,7 @@ export function createAdminRouter(): express.Router {
           number: String(meta.quoteNumber ?? ""), dateLabel: fecha,
           lines: [await toRenderLine(producto, Number(item?.quantity ?? 1))],
           subtotal: Number(quote.subtotal), iva: Number(quote.tax), total: Number(quote.total),
-          benefits: await applicableBenefitTexts({ brands: [producto.brand] }),
+          benefits: await applicableBenefitTexts({ brands: [producto.brand], quantity: Number(item?.quantity ?? 1) }),
           ...tema,
         });
       } else {
@@ -1533,7 +1533,7 @@ export function createAdminRouter(): express.Router {
         subtotal: quote.subtotal,
         iva: quote.tax,
         total: quote.total,
-        benefits: await applicableBenefitTexts({ brands: [product.brand] }),
+        benefits: await applicableBenefitTexts({ brands: [product.brand], quantity }),
         ...(await temaDePiezas()),
       });
       enviarPng(res, png, `Cotizacion-${business.name.replace(/\s/g, "")}-${quote.number}.png`);
@@ -2209,7 +2209,9 @@ export function createAdminRouter(): express.Router {
       const promocion = req.query.promocion ? String(req.query.promocion) : undefined;
       const beneficios = req.query.beneficios
         ? String(req.query.beneficios).split("|").map((b) => b.trim()).filter(Boolean)
-        : await applicableBenefitTexts();
+        // La vista previa dibuja un juego completo: con esa cantidad entran
+        // también los beneficios con mínimo (alineación de Mundillantas).
+        : await applicableBenefitTexts({ quantity: politica.juegoCompleto });
       const png = await comoVistaPrevia(() => renderPreviewPiece({ pieza, paleta, fuente, plantilla, modo, promocion, beneficios }));
       res.setHeader("Content-Type", "image/png");
       res.setHeader("Cache-Control", "no-store");

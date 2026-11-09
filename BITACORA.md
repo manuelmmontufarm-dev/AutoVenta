@@ -1,3 +1,11 @@
+## 8-nov-2026 · Mundillantas: tres huecos del INCLUYE por cantidad (revisión del PR #38)
+
+- **Qué:** el Cotizador del panel, el re-dibujo de cotización y la vista previa de piezas no pasaban la
+  cantidad al filtro del INCLUYE (con 4 llantas no salía la alineación). El reenvío de cotización seguía
+  listando solo los dos Mundillantas en el pie cuando el cliente no había elegido local.
+- **Por qué:** quedaron fuera del arreglo anterior; salieron al revisar el código publicado.
+- **Depot:** sin cambio (una sola marca, ningún beneficio con mínimo). ~0,5 h.
+
 ## 8-nov-2026 · Mundillantas: respuestas de Jenny del 8-nov (número, horario, qué incluye, asesores)
 
 - **Qué cambió:** el bot usa el número de Competimotor **+593 99 124 4698**; horario L–V 8:00–18:00 y
