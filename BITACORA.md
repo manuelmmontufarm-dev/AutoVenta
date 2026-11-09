@@ -1,3 +1,15 @@
+## 9-nov-2026 · Festejo a los asesores cuando llega la factura de una venta del bot
+
+- **Qué:** aviso nuevo `venta_confirmada` («🎉 ¡VENTA DEL BOT!»). Cuando el cruce de facturas (cada
+  10 min) liga una factura de hoy o ayer a un chat que atendió el bot, sale a los asesores con monto,
+  llantas, local y cuántos días tardó en comprar. Una vez por chat y día (dedupe en
+  `advisor_notifications`); el histórico desde agosto no se festeja.
+- **Por qué:** pedido de Manuel (8-nov). La venta se cerraba en el local y el equipo nunca se enteraba
+  de que había venido del bot; solo se veía en Métricas.
+- **Ojo:** los niveles que Depot guardó no tenían la categoría «Ventas», así que un aviso nuevo no le
+  llegaba a nadie. Entra encendido en cada nivel (`EVENTOS_ENCENDIDOS_AL_LLEGAR`) hasta que alguien lo
+  desmarque en Ajustes → Avisos y guarde (`saveNivelesAviso` anota `vistos`). ~1 h.
+
 ## 8-nov-2026 · Mundillantas: tres huecos del INCLUYE por cantidad (revisión del PR #38)
 
 - **Qué:** el Cotizador del panel, el re-dibujo de cotización y la vista previa de piezas no pasaban la
