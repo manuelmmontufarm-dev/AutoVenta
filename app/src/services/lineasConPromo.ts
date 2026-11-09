@@ -14,6 +14,7 @@
 import { sql } from "../db/client.js";
 import { cantidadDeLaSegunda, promocionVigente, segundaGuardadaVigente, type SegundaLlanta } from "../domain/promocionDeTemporada.js";
 import { politica } from "../negocio/politica.js";
+import { cantidadValidaDeLaFicha } from "../domain/cantidadGrande.js";
 import { cantidadDelTexto } from "../domain/salesIntent.js";
 import type { LineaConPromo } from "../domain/sinPrecioPorLlantaConPromo.js";
 
@@ -101,7 +102,7 @@ export async function cantidadDelCliente(
   const [fila] = await sql<{ selected_quantity: number | null; current_cycle: number }[]>`
     select selected_quantity, current_cycle from conversations where id = ${conversationId}
   `.catch(() => []);
-  const ficha = Number(fila?.selected_quantity) >= 1 ? Number(fila!.selected_quantity) : null;
+  const ficha = cantidadValidaDeLaFicha(fila?.selected_quantity);
   // Los mensajes del ciclo en las DOS direcciones, del más nuevo al más viejo: para leer lo que dijo
   // el cliente hay que saber a qué CONTESTABA. Sin el saliente anterior, el «3» que elige la 3 del
   // menú «¿Le cotizo la 1, la 2 o la 3?» se lee como 3 llantas (ronda 3: reabría la familia original).

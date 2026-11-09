@@ -1,5 +1,6 @@
 import { sql } from "../db/client.js";
 import { config } from "../config.js";
+import { cantidadValidaDeLaFicha } from "../domain/cantidadGrande.js";
 import { isStage, type Stage } from "../domain/pipeline.js";
 import { franjaHoraria } from "../domain/diasEnEspanol.js";
 import { esMismaVisitaPorSilencio } from "../domain/medidaPedida.js";
@@ -636,7 +637,7 @@ export async function updateConversationFacts(
       vehicle = coalesce(${facts.vehicle ?? null}, vehicle),
       vehicle_year = coalesce(${facts.vehicleYear ?? null}, vehicle_year),
       selected_product_code = coalesce(${facts.selectedProductCode ?? null}, selected_product_code),
-      selected_quantity = coalesce(${facts.selectedQuantity ?? null}, selected_quantity),
+      selected_quantity = coalesce(${cantidadValidaDeLaFicha(facts.selectedQuantity)}, selected_quantity),
       location_label = coalesce(${facts.locationLabel ?? null}, location_label),
       nearest_store = coalesce(${facts.nearestStore ?? null}, nearest_store),
       pickup_date = coalesce(${facts.pickupDate ?? null}, pickup_date),

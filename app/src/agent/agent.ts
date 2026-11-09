@@ -3,6 +3,7 @@
  * Ejecuta las tools locales y devuelve los resultados al modelo hasta obtener
  * una respuesta final para WhatsApp.
  */
+import { cantidadValidaDeLaFicha } from "../domain/cantidadGrande.js";
 import { obligacionDeMostrarEquivalentes } from "../domain/equivalentesPorMostrar.js";
 import { opcionPorPosicion, posicionElegida } from "../domain/listaDeOpciones.js";
 import { precioDeLaOpcionGuardada, type SegundaLlanta } from "../domain/promocionDeTemporada.js";
@@ -1287,7 +1288,7 @@ export async function getAgentSalesFacts(conversationId: number): Promise<AgentS
     vehicle: row?.vehicle ?? null,
     vehicleYear: inferredYear,
     selectedProductCode: row?.selected_product_code ?? null,
-    selectedQuantity: row?.selected_quantity ?? null,
+    selectedQuantity: cantidadValidaDeLaFicha(row?.selected_quantity),
     nearestStore: row?.nearest_store ?? null,
     visitDate: row?.visit_date ?? null,
     visitTimeLabel: row?.visit_time_label ?? null,

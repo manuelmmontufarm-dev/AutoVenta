@@ -1,5 +1,5 @@
 import type { SegundaLlanta } from "./promocionDeTemporada.js";
-import { cantidadGrandePedida } from "./cantidadGrande.js";
+import { cantidadValidaDeLaFicha, cantidadGrandePedida } from "./cantidadGrande.js";
 import { comproEnOtroLugar } from "./cierrePerdido.js";
 /** Guardas deterministas del flujo: el LLM no puede saltárselas. */
 
@@ -418,6 +418,28 @@ function cantidadDeOpcionesNumeradas(menu: string | null | undefined): number {
   return new Set([...menu.matchAll(/(?:^|\n)\s*([123])\s*[).·]/g)].map((m) => m[1])).size;
 }
 
+/**
+ * «Las 1-2-3 por favor», «las 1, 2 y 3», «la 1 y la 3»: una ENUMERACIÓN de posiciones
+ * del menú. El cliente pide ver o comparar varias; ningún número de ahí es una cantidad
+ * (chat 39535, 9-nov: «Las 1-2-3» se guardó como 1 llanta y salió una cotización por 1).
+ * Dos o más cifras 1–3 unidas por guion, coma, «y», «o», «e», «con» o «+». Si la última
+ * va pegada a «llantas» («2 y 3 llantas») ya es una cantidad dicha con su unidad.
+ */
+const ENUMERACION_DE_POSICIONES =
+  /\b[1-3]\s*(?:-|,|\/|\+|\b(?:y|e|o|con))\s*(?:(?:la|las|el|los)\s+)?[1-3]\b(?!\s*(?:llantas?|unidades?))/;
+
+/** ¿El texto enumera posiciones de un menú que tenemos arriba? Nunca es una cantidad. */
+export function esEnumeracionDePosiciones(
+  text: string,
+  ultimoMensajeNuestro: string | null | undefined,
+  mensajeCitado?: string | null,
+): boolean {
+  // Sobre el texto crudo: `normalize` convierte guiones y comas en espacios y borra la enumeración.
+  if (!ENUMERACION_DE_POSICIONES.test(text.toLowerCase())) return false;
+  const menu = mensajeCitado != null ? mensajeCitado : ultimoMensajeNuestro;
+  return traeMarcaDelMenu(menu) || cantidadDeOpcionesNumeradas(menu) >= 2;
+}
+
 /** Nombra varias opciones del menú, por lo que nunca es una cantidad. */
 export function esReferenciaPluralAlMenu(
   text: string,
@@ -492,6 +514,7 @@ export function cantidadDelTexto(
   mensajeCitado?: string | null,
 ): number | null {
   if (esRespuestaDelMenuDePreferencia(texto, previousOutbound, mensajeCitado)) return null;
+  if (esEnumeracionDePosiciones(texto, previousOutbound, mensajeCitado)) return null;
   return extractExplicitQuantity(texto);
 }
 
@@ -517,6 +540,7 @@ export function cantidadPedidaPorElCliente(
 ): number | null {
   if (esReferenciaPluralAlMenu(text, ultimoMensajeNuestro)) return null;
   if (esRespuestaDelMenuDePreferencia(text, ultimoMensajeNuestro, mensajeCitado)) return null;
+  if (esEnumeracionDePosiciones(text, ultimoMensajeNuestro, mensajeCitado)) return null;
   return cantidadGrandePedida(text) ?? extractExplicitQuantity(text);
 }
 
@@ -540,8 +564,11 @@ export function cantidadParaPrepararOpciones(input: {
   /** El saliente al que el cliente le hizo reply, si WhatsApp lo informó. */
   mensajeCitado?: string | null;
 }): { cantidad: number; origen: OrigenDeCantidad; guardar: boolean } {
-  if (Number.isInteger(input.declarada) && Number(input.declarada) >= 1) {
-    return { cantidad: Number(input.declarada), origen: "herramienta", guardar: true };
+  // Declarada y guardada pasan por el mismo filtro (entero entre 1 y 100): un 235 declarado por
+  // error del modelo, o sucio en la ficha, no es una cantidad.
+  const declarada = cantidadValidaDeLaFicha(input.declarada);
+  if (declarada !== null) {
+    return { cantidad: declarada, origen: "herramienta", guardar: true };
   }
   const respaldo = cantidadPedidaPorElCliente(
     input.textoActual, input.ultimoMensajeNuestro, input.mensajeCitado,
@@ -549,8 +576,9 @@ export function cantidadParaPrepararOpciones(input: {
   if (respaldo !== null) {
     return { cantidad: respaldo, origen: "respaldo_textual", guardar: true };
   }
-  if (Number.isInteger(input.guardada) && Number(input.guardada) >= 1) {
-    return { cantidad: Number(input.guardada), origen: "ficha", guardar: false };
+  const guardada = cantidadValidaDeLaFicha(input.guardada);
+  if (guardada !== null) {
+    return { cantidad: guardada, origen: "ficha", guardar: false };
   }
   return { cantidad: 4, origen: "default", guardar: false };
 }

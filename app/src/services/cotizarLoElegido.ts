@@ -23,6 +23,7 @@
 import { sql } from "../db/client.js";
 import { buildTools, type AgentContext } from "../agent/tools.js";
 import { getAgentSalesFacts } from "../agent/agent.js";
+import { cantidadValidaDeLaFicha, conLaCantidadDicha } from "../domain/cantidadGrande.js";
 import { eleccionDeLaVitrina, type OpcionDeVitrina } from "../domain/eleccionDeVitrina.js";
 import { mencionaVehiculo } from "../domain/vehiculoEnTexto.js";
 import {
@@ -319,7 +320,7 @@ export async function tryCotizarLoElegido(ctx: CotizarLoElegidoContext, texto: s
   const producto = findByCode(elegido.codigo);
   if (!producto) return null;
   // El número que eligió el escalón no es una cantidad (chat 18134).
-  const cantidad = cantidadDelTexto(texto, ctx.previousOutbound, ctx.mensajeCitado) ?? facts.selectedQuantity ?? 4;
+  const cantidad = cantidadDelTexto(texto, ctx.previousOutbound, ctx.mensajeCitado) ?? cantidadValidaDeLaFicha(facts.selectedQuantity) ?? 4;
   const contextoDeHerramienta: AgentContext = {
     conversation: ctx.conversation,
     customerPhone: ctx.customerPhone,
@@ -373,12 +374,19 @@ export async function tryCotizarLoElegido(ctx: CotizarLoElegidoContext, texto: s
   // la misma decisión que el cierre de generar_cotizacion.
   const sinVisita = await porQueNoPasaPorElLocal(ctx.conversation.id, ctx.conversation.current_cycle, texto);
   const mapas = sinVisita || preguntamosElLocal(ctx.previousOutbound) ? "" : await buildStoreLinksBlockOnce(ctx.conversation.id);
-  return composeBlocks(
+  // La cantidad que multiplica el total se NOMBRA cuando no es el juego (1, 2, 3 o más de 8):
+  // la misma regla del aviso de `generar_cotizacion`. Esta ruta arma su propio texto y no lo
+  // traía, así que el menú de UNA llanta se cotizaba sin decir «1 llanta» (chat 39519, 9-nov).
+  const confirmacion = conLaCantidadDicha(
     elegido.posicion
       ? confirmacionDeLaOpcion(elegido.posicion, `${producto.brand} ${producto.design}`, precioDicho)
       : elegido.etiqueta
       ? `La opción ${elegido.etiqueta} es la *${producto.brand} ${producto.design}*${precio}. Le dejo la cotización 👍`
       : `Listo, le cotizo la *${producto.brand} ${producto.design}*${precio} 👍`,
+    cantidad,
+  );
+  return composeBlocks(
+    confirmacion,
     mapas ? `Puede pasar sin compromiso a verlas y probarlas en su vehículo.\n${mapas}` : null,
     ...(sinVisita ? cierreSinVisita(sinVisita) : []),
   );

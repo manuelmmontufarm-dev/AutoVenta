@@ -34,8 +34,32 @@ import { enmascararMedidas } from "./tireSize.js";
 export const MINIMO_NORMAL = 4;
 export const MAXIMO_NORMAL = 8;
 
-/** Más de esto ya no es un cliente con un cero de más: es otra conversación. */
-const TOPE_ABSURDO = 500;
+/**
+ * Más de esto ya no es un cliente con un cero de más: es otra conversación.
+ * Bajó de 500 a 100 el 9-nov-2026: con 500, el ancho de la medida (235, 255, 265…)
+ * entraba como «235 llantas» (chats 39337, 33574). 100 llantas ya es una flota;
+ * 125 es el ancho más angosto de una llanta de carro.
+ */
+export const TOPE_ABSURDO = 100;
+
+/**
+ * UN SOLO LECTOR DE LA CANTIDAD DE LA FICHA (`conversations.selected_quantity`).
+ *
+ * La ficha tiene siete filas sucias en producción (185, 205, 103, 16, 97, 235, 235:
+ * anchos, aros y montos que un día se leyeron como cantidad). Esas filas NO se
+ * limpian; se leen con este filtro: lo que no sea un entero entre 1 y 100 es «sin
+ * cantidad», nunca un número que viaja al prompt, al candado o a la cuenta.
+ */
+export function cantidadValidaDeLaFicha(valor: unknown): number | null {
+  if (valor === null || valor === undefined || valor === "") return null;
+  const n = Number(valor);
+  return Number.isInteger(n) && n >= 1 && n <= TOPE_ABSURDO ? n : null;
+}
+
+/** ¿Es una medida de ancho válida (125–355, múltiplo de 5)? Esa cifra es de la medida, no de la compra. */
+export function esAnchoDeLlanta(n: number): boolean {
+  return Number.isInteger(n) && n >= 125 && n <= 355 && n % 5 === 0;
+}
 
 const NUMERO_GRANDE =
   /\b(\d{1,3})\s*(?:llantas?|unidades?|neum[áa]ticos?)\b|\b(?:quiero|necesito|deme|dame|dele|cotiza(?:me)?|ser[íi]an?|son|llevo|p[oó]ngame|mandeme)\s+(?:las?\s+|los\s+)?(\d{1,3})\b/i;
@@ -84,7 +108,15 @@ export function cantidadGrandePedida(text: string): number | null {
   if (/\b(?:promocion|descuento|rebaja)\b/.test(normalizado)
     && !/\b(?:llantas?|unidades?|neumaticos?)\b/.test(normalizado)) return null;
   const n = Number(crudo);
-  if (!Number.isFinite(n) || n <= MAXIMO_NORMAL || n > TOPE_ABSURDO) return null;
+  if (!Number.isFinite(n) || n <= MAXIMO_NORMAL || n > TOPE_ABSURDO || esAnchoDeLlanta(n)) return null;
+  // Sin nombrar la unidad («son 16, creo, la número en 65»), un número que convive con otras
+  // cifras de 2–3 dígitos es parte de una medida o de un aro, no una compra. Con «llantas»
+  // pegado («quiero 16 llantas») sí es cantidad aunque haya más cifras.
+  const nombraLaUnidad = /^\s*(?:llantas?|unidades?|neum[áa]ticos?)\b/i.test(despues) || /\b(?:llantas?|unidades?|neum[áa]ticos?)\s*$/i.test(m[0]);
+  if (!nombraLaUnidad) {
+    const otras = (antes + " " + despues).match(/(?<![\d$.,])\d{2,3}(?![\d%])/g) ?? [];
+    if (otras.length > 0) return null;
+  }
   return n;
 }
 
@@ -105,4 +137,20 @@ export function esCantidadInusual(cantidad: number): boolean {
  */
 export function avisoDeCantidad(cantidad: number): string {
   return `Aquí le mando la cotización con *${cantidad} ${cantidad === 1 ? "llanta" : "llantas"}* 👍`;
+}
+
+/**
+ * La confirmación de la ruta directa («La opción 1, *X* — $… Le dejo la cotización 👍») con la
+ * cantidad dicha, cuando no es el juego: «Le dejo la cotización por *1 llanta* 👍». Va DENTRO de la
+ * frase y no como una segunda línea «Aquí le mando la cotización con…»: el Guardián tomaba las dos
+ * por la misma oferta repetida y borraba ambas (simulador, 9-nov, 3.4), y el cliente se quedaba sin
+ * leer cuántas llantas se cotizaron. Si la frase no trae la cola conocida, el aviso va en su línea.
+ */
+export function conLaCantidadDicha(confirmacion: string, cantidad: number): string {
+  if (!esCantidadInusual(cantidad)) return confirmacion;
+  const unidad = `*${cantidad} ${cantidad === 1 ? "llanta" : "llantas"}*`;
+  const cola = /Le dejo la cotización 👍\s*$/;
+  return cola.test(confirmacion)
+    ? confirmacion.replace(cola, `Le dejo la cotización por ${unidad} 👍`)
+    : `${confirmacion}\n${avisoDeCantidad(cantidad)}`;
 }
