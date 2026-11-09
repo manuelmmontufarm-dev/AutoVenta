@@ -63,7 +63,16 @@
   **Límites conocidos:** (1) con un cambio real de cantidad (turno 3, cotización vigente de 4) los hechos del
   Guardián traen a la vez la cotización de 4 y la línea de 3; (2) «quiero la 2» sin menú en pantalla lo lee como 2
   llantas el propio bot (`generar_cotizacion`, Sprint 3), no este candado.
-- **Horas:** 3,5 + 1,5 de la ronda 1 + 2 de la ronda 2 + 1 de la ronda 3
+- **Ronda 4 (verificación final):** (bloqueante) con el texto del turno, el «mensaje anterior» era el saliente más
+  nuevo de la base; pero en el turno que contesta el menú `generar_cotizacion` ya guardó «Cotización COT-… enviada» antes
+  de que corra el candado, así que el «3» se leía como 3 llantas y el «$X c/u» del vendedor salía sin corregir (39615,
+  40082). Ahora el anterior es el saliente previo al ÚLTIMO entrante del cliente (el mismo criterio del historial).
+  (m1) el freno del menú mira hasta 4 burbujas del bot entre el menú y la respuesta (mapas, «Quedo atento…»), y se
+  corta en el primer mensaje del cliente. (m2) `mensajeCitado` entra a `cantidadDelCliente` desde las búsquedas
+  (`tools.ts`). (m3) `cantidadDeLaFicha` no consulta la base si la promo no corre (diciembre, Mundillantas).
+  **Límite conocido:** el mensaje citado no se guarda en la fila del entrante; el candado y el Guardián (que no lo reciben
+  en su contexto) solo lo usan si el llamador lo pasa, o sea hoy solo las búsquedas.
+- **Horas:** 3,5 + 1,5 de la ronda 1 + 2 de la ronda 2 + 1 de la ronda 3 + 0,5 de la ronda 4
 
 ## 8-nov-2026 · Mundillantas: tres huecos del INCLUYE por cantidad (revisión del PR #38)
 

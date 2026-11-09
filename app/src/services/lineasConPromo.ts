@@ -96,6 +96,7 @@ function deLaPieza(escalones: unknown): LineaConPromo[] {
 export async function cantidadDelCliente(
   conversationId: number,
   textoDelTurno?: string | null,
+  mensajeCitado?: string | null,
 ): Promise<{ cantidad: number | null; ficha: number | null; turno: number | null; historial: number | null; vetos: number[] }> {
   const [fila] = await sql<{ selected_quantity: number | null; current_cycle: number }[]>`
     select selected_quantity, current_cycle from conversations where id = ${conversationId}
@@ -112,28 +113,49 @@ export async function cantidadDelCliente(
         order by created_at desc, id desc limit 60
       `.catch(() => [] as Fila[])
     : [];
-  const salienteDespuesDe = (i: number) => {
-    for (let j = i; j < filas.length; j++) if (filas[j].direction === "outbound") return filas[j];
-    return null;
+  const esDelCliente = (m: Fila) => m.direction === "inbound" && (m.author_kind ?? "customer") === "customer";
+  /** Lo que el bot dijo justo ANTES del mensaje en la posición `i` (la 0 es el más nuevo). */
+  const previoDe = (i: number) => {
+    let inmediato: Fila | null = null;
+    let menu = false;
+    let vistos = 0;
+    for (let j = i + 1; j < filas.length && vistos < 4; j++) {
+      // Un mensaje del cliente en medio: lo anterior ya fue contestado, no es de este.
+      if (filas[j].direction === "inbound") break;
+      if (filas[j].direction !== "outbound") continue;
+      vistos++;
+      inmediato ??= filas[j];
+      // Hasta 4 burbujas del bot entre el menú y la respuesta (mapas, «Quedo atento…»).
+      if (filas[j].clase === "menu") menu = true;
+    }
+    return { content: inmediato?.content ?? null, menu };
   };
-  // Un entrante del CLIENTE (nunca del asesor ni del bot), con el saliente que lo precedió.
+  // Un entrante del CLIENTE (nunca del asesor ni del bot), con lo que lo precedió.
   const entrantes = filas
     .map((m, i) => ({ m, i }))
-    .filter(({ m }) => m.direction === "inbound" && (m.author_kind ?? "customer") === "customer")
+    .filter(({ m }) => esDelCliente(m))
     .slice(0, 12)
-    .map(({ m, i }) => ({ texto: m.content, previo: salienteDespuesDe(i + 1) }));
+    .map(({ m, i }) => ({ texto: m.content, previo: previoDe(i) }));
+  // El mensaje de ESTE turno: si ya está guardado es el último entrante y se lee contra lo que lo
+  // precedió (NO contra el saliente más nuevo: para cuando corre el candado, `generar_cotizacion` ya
+  // guardó «Cotización … enviada»). Si todavía no está guardado, lo anterior es lo último que se dijo.
+  const ultimo = filas.findIndex(esDelCliente);
+  const previoDelTurno = ultimo >= 0 && (filas[ultimo].content ?? "").trim() === (textoDelTurno ?? "").trim()
+    ? previoDe(ultimo)
+    : previoDe(-1);
   // Contestar el menú es elegir, no pedir llantas: lo dice el HECHO guardado en el saliente
   // (`oferta.clase = "menu"`), aunque el cliente escriba «quiero la 2»; la excepción es que
-  // nombre la unidad («mejor quiero 3 llantas»). Además rige el freno de texto del lector.
-  const leer = (texto: string | null | undefined, previo: Fila | null): number | null => {
+  // nombre la unidad («mejor quiero 3 llantas»). Además rige el freno de texto del lector, que
+  // también mira el mensaje que el cliente citó, si lo hay.
+  const leer = (texto: string | null | undefined, previo: { content: string | null; menu: boolean }, citado: string | null = null): number | null => {
     if (!texto) return null;
-    if (previo?.clase === "menu" && !/\b(?:llantas?|unidad(?:es)?)\b/i.test(texto)) return null;
-    return cantidadDelTexto(texto, previo?.content ?? null, null);
+    if (previo.menu && !/\b(?:llantas?|unidad(?:es)?)\b/i.test(texto)) return null;
+    return cantidadDelTexto(texto, previo.content, citado);
   };
   // Lo último que dijo el cliente manda siempre (su mensaje de este turno o, si el llamador no lo
   // pasa, el más reciente de la base). El resto del ciclo se mira solo con la ficha vacía.
   const turno = textoDelTurno
-    ? leer(textoDelTurno, salienteDespuesDe(0))
+    ? leer(textoDelTurno, previoDelTurno, mensajeCitado)
     : entrantes[0] ? leer(entrantes[0].texto, entrantes[0].previo) : null;
   let historial: number | null = null;
   if (ficha === null) {

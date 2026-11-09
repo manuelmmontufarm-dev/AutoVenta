@@ -376,3 +376,63 @@ describe.sequential("ronda 3: contestar el menú no es pedir llantas", () => {
       .toBe(`La Falken queda en ${cuenta4}.`);
   });
 });
+
+// ===========================================================================
+// RONDA 4: el turno que contesta el menú ya guardó la cotización; burbujas en medio; mensaje citado; búsquedas sin promo
+// ===========================================================================
+describe.sequential("ronda 4: el «mensaje anterior» es el anterior al ÚLTIMO entrante", () => {
+  const { cantidadDelCliente } = lineasMod;
+  const segunda4 = { porcentaje: 60, unidades: 2, precioNormalConIva: 100, precioConIva: 40, ahorroConIva: 120, totalConIva: 280, nombre: "Black Friday" };
+  const cuenta4 = "2 × $100.00 + 2 × $40.00 = $280.00 (−60 % en la 2.ª llanta)";
+  const MENU = "¿Le cotizo la 1, la 2 o la 3?";
+  const menu: ["out", string, object] = ["out", MENU, { oferta: { tipo: "oferta_de_cotizar", clase: "menu", opciones: 3 } }];
+  const pieza: ["out", string, object] = ["out", "Opciones enviadas", { piece: "options", cantidad: 4, escalones: { economica: { codigo: "C-FALKEN", nombre: "FALKEN ZE310", precio_con_iva: 75, segunda_llanta: segunda4 }, equilibrada: null, premium: null } }];
+  const cotizacion: ["out", string, object] = ["out", "Cotización COT-MW6YSMYU enviada por $280.00", { piece: "quote", quoteNumber: "COT-MW6YSMYU" }];
+
+  async function hilo(ficha: number | null, mensajes: Array<["in" | "out", string, object?]>) {
+    const { fila, phone } = await conversacion();
+    await sql`update conversations set selected_quantity = ${ficha} where id = ${fila.id}`;
+    for (const [dir, texto, metadata] of mensajes) {
+      if (dir === "in") {
+        await sql`insert into messages (conversation_id, cycle, role, direction, author_kind, content, type) values (${fila.id}, 1, 'user', 'inbound', 'customer', ${texto}, 'text')`;
+      } else {
+        await sql`insert into messages (conversation_id, cycle, role, direction, author_kind, content, type, metadata) values (${fila.id}, 1, 'assistant', 'outbound', 'bot', ${texto}, 'text', ${sql.json((metadata ?? {}) as never)})`;
+      }
+    }
+    return { fila, phone };
+  }
+
+  it("BLOQUEANTE · pieza → menú → «3» → la cotización que el turno YA guardó: con textoDelTurno «3» el candado reescribe con la cuenta de 4", async () => {
+    const { fila, phone } = await hilo(null, [["in", "Hola, 225/70/16"], pieza, menu, ["in", "3"], cotizacion]);
+    expect((await cantidadDelCliente(fila.id, "3")).turno).toBeNull();
+    expect(await paso.aplicar("La opción 3, FALKEN ZE310 — $75.00 c/u con IVA.", { ...salida(fila, phone, "respuesta"), textoDelCliente: "3" }))
+      .toBe(`La opción 3, FALKEN ZE310 — ${cuenta4}.`);
+  });
+
+  it("burbuja entre el menú y la respuesta (mapas, «Quedo atento…»): el «2» sigue siendo la opción 2", async () => {
+    const { fila } = await hilo(4, [["in", "Hola, 225/70/16"], menu, ["out", "Puede pasar sin compromiso a verlas"], ["out", "📍 Depot Tire Cumbayá: https://maps.app"], ["in", "2"]]);
+    const q = await cantidadDelCliente(fila.id);
+    expect(q.turno).toBeNull();
+    expect(q.vetos).toEqual([4]);
+  });
+
+  it("…pero un «2» MUCHO después, ya contestado el menú y con la cotización de por medio, sí es una cantidad", async () => {
+    const { fila } = await hilo(null, [["in", "Hola, 225/70/16"], menu, ["in", "3"], cotizacion, ["in", "2"]]);
+    expect((await cantidadDelCliente(fila.id)).turno).toBe(2);
+  });
+
+  it("mensaje citado: un «2» que cita el menú NO es cantidad, aunque haya otra burbuja en medio", async () => {
+    const { fila } = await hilo(null, [["in", "Hola, 225/70/16"], ["out", MENU], ["out", "Perfecto 👍"], ["in", "2"]]);
+    expect((await cantidadDelCliente(fila.id, "2", MENU)).turno).toBeNull();
+    expect((await cantidadDelCliente(fila.id, "2", null)).turno).toBe(2);
+  });
+
+  it("las búsquedas no consultan la base fuera de la promo (1-dic): la ficha en 3 da el juego; en noviembre da 3", async () => {
+    const { cantidadDeLaFicha } = await import("../src/agent/tools.js");
+    const { fila } = await hilo(3, []);
+    vi.setSystemTime(new Date("2026-12-01T17:00:00Z"));
+    expect(await cantidadDeLaFicha({ conversation: { id: fila.id } })).toBe(4);
+    vi.setSystemTime(new Date("2026-11-15T17:00:00Z"));
+    expect(await cantidadDeLaFicha({ conversation: { id: fila.id } })).toBe(3);
+  });
+});

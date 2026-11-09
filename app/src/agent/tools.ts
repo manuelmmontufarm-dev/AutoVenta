@@ -117,7 +117,7 @@ import {
   medidaEstaPedida, medidasDeProductos, medidasPermitidas, mensajesDeLaVisitaActual,
 } from "../domain/medidaPedida.js";
 import { ahorroDeLaCotizacion } from "../domain/ahorro.js";
-import { CAMPO_PRECIO_POR_LLANTA_SIN_PROMO, cantidadParaLaCuenta, precioDelProducto, segundaLlantaDe } from "../domain/promocionDeTemporada.js";
+import { CAMPO_PRECIO_POR_LLANTA_SIN_PROMO, cantidadParaLaCuenta, precioDelProducto, promocionVigente, segundaLlantaDe } from "../domain/promocionDeTemporada.js";
 import { cantidadDelCliente } from "../services/lineasConPromo.js";
 import { avisoDeCantidad, esCantidadInusual } from "../domain/cantidadGrande.js";
 import { claseDeVehiculoEnTexto, TIPOS_DE_CAMIONETA } from "../domain/claseDeVehiculo.js";
@@ -4396,9 +4396,11 @@ function buildTechnicalGuidance(
  * Con un tope: una ficha sucia en 235 no se convierte en «118 × … + 117 × …».
  */
 export async function cantidadDeLaFicha(
-  ctx: { conversation: { id: number }; currentUserText?: string | null },
+  ctx: { conversation: { id: number }; currentUserText?: string | null; mensajeCitado?: string | null },
 ): Promise<number> {
-  const { cantidad } = await cantidadDelCliente(ctx.conversation.id, ctx.currentUserText);
+  // Fuera de la promo (diciembre, Mundillantas) la cuenta no existe: ni se consulta la base.
+  if (!promocionVigente(politica.promocionDeTemporada)) return politica.juegoCompleto;
+  const { cantidad } = await cantidadDelCliente(ctx.conversation.id, ctx.currentUserText, ctx.mensajeCitado);
   return cantidadParaLaCuenta(cantidad, politica.juegoCompleto);
 }
 
