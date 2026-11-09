@@ -266,18 +266,76 @@ export function searchCatalog(
   // que no existe en stock).
   if (!queryTokens.length && !acotadoPorMedida) return [];
 
-  return pool
-    .map((item) => ({ item, score: scoreItem(item, normalizedQuery, compactQuery, compactSize, queryTokens) }))
-    .filter((entry) => entry.score > 0)
-    .sort((a, b) => {
-      if (b.score !== a.score) return b.score - a.score;
-      const availability = availabilityRank(a.item.availability) - availabilityRank(b.item.availability);
-      if (availability !== 0) return availability;
-      if (a.item.price !== b.item.price) return a.item.price - b.item.price;
-      return a.item.name.localeCompare(b.item.name, "es");
-    })
-    .slice(0, Math.max(1, Math.min(limit, 60)))
-    .map((entry) => entry.item);
+  const ordenar = (tokens: string[], exigirCodigoODiseno: boolean): CatalogItem[] =>
+    pool
+      .map((item) => ({
+        item,
+        score: scoreItem(item, normalizedQuery, compactQuery, compactSize, tokens, exigirCodigoODiseno),
+      }))
+      .filter((entry) => entry.score > 0)
+      .sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        const availability = availabilityRank(a.item.availability) - availabilityRank(b.item.availability);
+        if (availability !== 0) return availability;
+        if (a.item.price !== b.item.price) return a.item.price - b.item.price;
+        return a.item.name.localeCompare(b.item.name, "es");
+      })
+      .slice(0, Math.max(1, Math.min(limit, 60)))
+      .map((entry) => entry.item);
+
+  const estrictos = ordenar(queryTokens, false);
+  if (estrictos.length || !queryTokens.length) return estrictos;
+
+  // PALABRA QUE EL CATÁLOGO NO CONOCE (auditoría 9-nov, convs 39845 y 39615): el
+  // anuncio dice «Kenda Klever KR601» y en el catálogo es «KENDA … KR601»;
+  // «klever» no está en ningún producto y exigirla dejaba la búsqueda en 0 — el
+  // vendedor recibía la orden de decir «no aparece ese modelo» y minutos
+  // después cotizaba esa misma llanta. Solo se llega aquí si la búsqueda
+  // estricta no encontró NADA: se descartan las palabras que no existen en
+  // ningún producto y se busca con el resto. Para no devolver otra marca por
+  // un nombre mal escrito, el resto tiene que casar con el código o el diseño
+  // del producto (la marca sola no alcanza), y si no quedan palabras
+  // conocidas la respuesta sigue siendo «nada».
+  const vocabulario = vocabularioDelCatalogo(items);
+  const conocidos = queryTokens.filter((token) => vocabulario.conoce(token));
+  if (!conocidos.length || conocidos.length === queryTokens.length) return estrictos;
+  return ordenar(conocidos, true);
+}
+
+/**
+ * Todo lo que el catálogo dice, en las dos formas en que se busca (normal y
+ * compacta), para saber si una palabra existe en ALGÚN producto. Se arma una
+ * vez por catálogo cargado: la clave es el arreglo mismo, y cuando el catálogo
+ * se recarga llega un arreglo nuevo.
+ */
+interface VocabularioDelCatalogo {
+  conoce(token: string): boolean;
+}
+const vocabularios = new WeakMap<readonly CatalogItem[], VocabularioDelCatalogo>();
+
+function vocabularioDelCatalogo(items: readonly CatalogItem[]): VocabularioDelCatalogo {
+  const guardado = vocabularios.get(items);
+  if (guardado) return guardado;
+  const normal: string[] = [];
+  const compacto: string[] = [];
+  for (const item of items) {
+    const blob = textoBuscableDe(item);
+    normal.push(blob);
+    compacto.push(compactCatalogText(blob));
+  }
+  // El espacio separa productos: un token (sin espacios) no puede casar a
+  // caballo de dos.
+  const todoNormal = normal.join(" ");
+  const todoCompacto = compacto.join(" ");
+  const vocabulario: VocabularioDelCatalogo = {
+    conoce: (token) => todoNormal.includes(token) || todoCompacto.includes(compactCatalogText(token)),
+  };
+  vocabularios.set(items, vocabulario);
+  return vocabulario;
+}
+
+function textoBuscableDe(item: CatalogItem): string {
+  return `${normalizeCatalogText(item.code)} ${normalizeCatalogText(item.brand)} ${normalizeCatalogText(item.design)} ${normalizeCatalogText(item.name)} ${item.sizeLabel ?? ""}`;
 }
 
 /** Lo que responde el catálogo cuando se le pregunta por una llanta. */
@@ -419,6 +477,8 @@ function scoreItem(
   compactQuery: string,
   compactSize: string | null,
   queryTokens: string[],
+  /** Búsqueda relajada: además de las palabras, alguna debe casar con el código o el diseño. */
+  exigirCodigoODiseno = false,
 ): number {
   const code = normalizeCatalogText(item.code);
   const design = normalizeCatalogText(item.design);
@@ -427,6 +487,14 @@ function scoreItem(
   const size = compactCatalogText(item.sizeLabel ?? "");
   const blob = `${code} ${brand} ${design} ${name} ${item.sizeLabel ?? ""}`;
   const compactBlob = compactCatalogText(blob);
+  if (exigirCodigoODiseno) {
+    const codigoODiseno = `${code} ${design}`;
+    const compactoCodigoODiseno = compactCatalogText(codigoODiseno);
+    const casa = queryTokens.some(
+      (token) => codigoODiseno.includes(token) || compactoCodigoODiseno.includes(compactCatalogText(token)),
+    );
+    if (!casa) return 0;
+  }
   // Cada token se busca también en forma COMPACTA (sin espacios ni signos).
   // La gente escribe «at4» y el catálogo dice «A/T4W»: normalizado con
   // espacios eso es «a t4w» y el token «at4» no aparece contiguo — así fue

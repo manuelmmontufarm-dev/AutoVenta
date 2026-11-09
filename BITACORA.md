@@ -1,3 +1,19 @@
+## 9-nov-2026 · Sprint 4c · «Kenda Klever KR601»: el buscador ya no se rinde por una palabra que el catálogo no conoce
+
+- **Qué:** quien llegaba por el anuncio de la «Kenda Klever KR601» (convs 39845 y 39615) recibía «por ahora
+  no me aparece ese modelo exacto en catálogo» y minutos después el bot le cotizaba esa misma KR601.
+  `searchCatalog` exigía TODAS las palabras y «klever» no está en ningún producto: 0 resultados, y la
+  herramienta le ordenaba al vendedor «dilo claro».
+- **Cómo:** en `domain/catalog.ts`, si la búsqueda estricta no encuentra NADA, se descartan las palabras
+  que no existen en ningún producto (vocabulario del catálogo armado una vez por catálogo cargado) y se
+  busca con el resto, que además tiene que casar con el código o el diseño: una marca mal escrita sin
+  modelo («Kendaa», «Klever Kenda») sigue dando vacío, y la marca sola no trae todas sus llantas. Lo que ya
+  encontraba no cambia. La orden «dilo claro» vive en `agent/tools.ts` (archivo de otro sprint): no se tocó.
+- **Probado:** `test/catalogoPalabraAjena.test.ts` (7; en rojo antes: «Kenda Klever KR601» daba 0, ahora las
+  6 KR601) y contra la foto real del catálogo (9 KR601). Simulador, mismo mensaje 3 veces: antes «no me
+  aparece coincidencia en catálogo» 3 de 3; ahora «Sí, manejamos Kenda Klever KR601… desde $158.06 con IVA»
+  3 de 3. Sano: «Precio de la KR601 en 235/75R15» sale igual que antes. ~1 h.
+
 ## 8-nov-2026 · Mundillantas: tres huecos del INCLUYE por cantidad (revisión del PR #38)
 
 - **Qué:** el Cotizador del panel, el re-dibujo de cotización y la vista previa de piezas no pasaban la
