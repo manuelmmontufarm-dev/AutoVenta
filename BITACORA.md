@@ -48,6 +48,18 @@
   y el texto igual invita a «¿Le cotizo la 1, la 2 o la 3?», incluida la opción sin juego; tampoco se mira
   `producto.active`. (3) 39282 («Ninguna gracias, necesito llantas doble propósito») cancela TODO el seguimiento; lo que
   proponía el análisis era no reenviar el menú, no callar.
+- **Ronda 2 de la revisión:** (B1) la propuesta de venta ya no es una lista cerrada de verbos: cuenta cualquier pregunta
+  «¿…?», «si desea/quiere/gusta… le vendo/cotizo/dejo…» y los verbos de venta sueltos, SALVO la pregunta que vuelve al menú
+  («¿le cotizo la 1 o la 2?») o al juego completo («juego de 4», «las 4»). Se frenan «no puedo ofrecerle la cuarta; ¿le
+  interesan las 3?» y «…pero si quiere le vendo esas 2», y salen las correcciones buenas «no puedo ofrecerla. ¿Le cotizo la 1
+  o la 2?». (B2) el rechazo del cliente no cuenta si DESPUÉS hubo una pieza `options` (lámina nueva: «Ninguna gracias, quiero
+  ver otras marcas»); se lee de la base, no del texto. (Sprint 3) `followUps.ts` lee `selected_quantity` por
+  `cantidadDeLaFicha` (entero 1..100 o null; 4 lecturas) — reemplazar por `cantidadValidaDeLaFicha` del Sprint 3 al
+  integrar; con ficha 235 el seguimiento ya no dice «no me alcanza para el juego».
+- **Límites conocidos (ronda 2):** «le cotizo las 3 que hay» pasa (la regla exige «llanta/unidad» tras el número; es viejo,
+  de la base); «está muy lejos» + silencio cancela aunque el bot haya ofrecido el local del sur (decisión de Manuel); la
+  alerta `seguimiento_cancelado_por_rechazo` casi nunca salta porque lo común es cancelar al AGENDAR
+  (`cancelPendingFollowUps`), sin alerta.
 
 ## 9-nov-2026 · Black Friday: el texto ya no dice un «$X c/u» que contradice la lámina (auditoría 9-nov, sprint 1)
 

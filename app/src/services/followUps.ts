@@ -270,6 +270,17 @@ export function juegoEnLaMedida(tireSize: string | null | undefined, cantidad: n
   return searchBySize(medida).some((item) => item.stock >= necesarias);
 }
 
+/**
+ * La cantidad de la ficha, solo si es un entero entre 1 y 100. Una ficha con
+ * `selected_quantity = 235` (dato basura) decía «no me alcanza para el juego» o
+ * «235 llantas». TODO: reemplazar por `cantidadValidaDeLaFicha` del Sprint 3
+ * (`claude/s3-cantidades-e618b2`) al integrar; es la misma regla.
+ */
+function cantidadDeLaFicha(q: number | null | undefined): number | null {
+  const n = Number(q);
+  return Number.isInteger(n) && n >= 1 && n <= 100 ? n : null;
+}
+
 /** Los locales, para preguntar a cuál va quien todavía no eligió. */
 const nombresDeLocales = () => business.stores.map((store) => store.name);
 
@@ -388,23 +399,33 @@ export async function porQueNoQuiereSeguimiento(
   if (!ultimo?.content) return null;
   // La última racha del cliente: sus mensajes seguidos, sin que el bot hable
   // en medio. Las respuestas del bot que vinieron DESPUÉS no la cortan.
-  const recientes = await sql<{ direction: string; content: string | null }[]>`
-    select direction, content from messages
+  const recientes = await sql<{ direction: string; content: string | null; created_at: Date }[]>`
+    select direction, content, created_at from messages
     where conversation_id = ${conversationId} and cycle = ${cycle}
     order by created_at desc, id desc limit 30
   `;
-  const racha: string[] = [];
+  const racha: Array<{ content: string; created_at: Date }> = [];
   let enRacha = false;
   for (const m of recientes) {
     if (m.direction === "inbound") {
       enRacha = true;
-      if (m.content) racha.push(m.content);
+      if (m.content) racha.push({ content: m.content, created_at: m.created_at });
     } else if (enRacha) break;
   }
+  // Un rechazo de antes de una lámina NUEVA no vale: el bot ya ofreció otra cosa
+  // («Ninguna gracias, quiero ver otras marcas» → lámina nueva). Es un HECHO de
+  // la base (pieza `options` posterior), no una lectura del texto del bot.
+  const [ultimaPieza] = await sql<{ created_at: Date }[]>`
+    select created_at from messages
+    where conversation_id = ${conversationId} and cycle = ${cycle}
+      and direction = 'outbound' and metadata->>'piece' = 'options'
+    order by created_at desc, id desc limit 1
+  `;
+  const vigentes = ultimaPieza ? racha.filter((m) => m.created_at > ultimaPieza.created_at) : racha;
   return motivoParaNoSeguir({
     ultimo: ultimo.content,
     anterior: anterior?.content ?? null,
-    rachaDelCliente: racha,
+    rachaDelCliente: vigentes.map((m) => m.content),
     sinVisita: await porQueNoPasaPorElLocal(conversationId, cycle, null),
     hayCotizacion: await hayCotizacionEnElCiclo(conversationId, cycle),
   });
@@ -432,7 +453,7 @@ export function buildFollowUpPreview(
     juegoEnSuMedida: opciones.juegoEnSuMedida ?? null,
     optionsEquivalentes: opciones.optionsEquivalentes ?? false,
     storeNames: nombresDeLocales(),
-    selectedQuantity: conversation.selected_quantity,
+    selectedQuantity: cantidadDeLaFicha(conversation.selected_quantity),
     name: conversation.name,
     stage: conversation.stage,
     tireSize: conversation.tire_size,
@@ -559,7 +580,7 @@ export async function scheduleConversationFollowUps(
     return;
   }
   const contextoOpciones = await contextoDeOpciones(conversationId, conversation.current_cycle, {
-    tireSize: conversation.tire_size, cantidad: conversation.selected_quantity,
+    tireSize: conversation.tire_size, cantidad: cantidadDeLaFicha(conversation.selected_quantity),
   });
 
   const relevantAt = conversation.last_assistant_message_at.getTime() >= conversation.last_customer_message_at.getTime()
@@ -1121,7 +1142,7 @@ function jobCopyContext(context: FollowUpJobContext) {
     tireSize: context.tire_size,
     selectedProductCode: context.selected_product_code,
     selectedProductLabel: etiquetaDelProducto(context.selected_product_code),
-    selectedQuantity: context.selected_quantity,
+    selectedQuantity: cantidadDeLaFicha(context.selected_quantity),
     nearestStore: context.nearest_store,
     customerCommitment: commitmentCycle === context.current_cycle ? context.customer_commitment : null,
     visitDate: context.visit_date,
@@ -1161,7 +1182,7 @@ export async function ensureFollowUpJobCopy(input: {
   const copyContext = {
     ...jobCopyContext(context),
     ...(await contextoDeOpciones(context.id, context.current_cycle, {
-      tireSize: context.tire_size, cantidad: context.selected_quantity,
+      tireSize: context.tire_size, cantidad: cantidadDeLaFicha(context.selected_quantity),
     }, now)),
   };
   // Al modelo, los hechos SIN los links: las URLs de Maps son exactamente el

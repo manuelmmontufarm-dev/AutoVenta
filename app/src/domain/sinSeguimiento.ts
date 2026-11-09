@@ -116,7 +116,9 @@ export function motivoParaNoSeguir(input: {
   const ultimo = input.ultimo?.trim() ?? "";
   if (!ultimo) return null;
   const racha = (input.rachaDelCliente ?? []).map((m) => m?.trim() ?? "").filter(Boolean);
-  if (rachaRechaza(racha.length ? racha : [ultimo])) return "rechazo_del_cliente";
+  // Con `rachaDelCliente` (aunque venga vacía: el cliente ya vio una lámina NUEVA después
+  // de rechazar) manda la racha; sin ella, solo el último mensaje.
+  if (rachaRechaza(input.rachaDelCliente ? racha : [ultimo])) return "rechazo_del_cliente";
   const anterior = input.anterior?.trim() || null;
   // El «ok» que sigue a la despedida no la deshace: se mira lo de antes.
   // El dueño de «esto es un acuse» es `esAcuseSimple` (ofertaAceptada.ts).

@@ -43,6 +43,7 @@ vi.mock("../src/services/catalog.js", async (importOriginal) => {
     ...real,
     findByCode: (codigo: string) => (cat.cargado ? cat.items.get(codigo) : undefined),
     catalogCandidates: (referencia: string) => (cat.cargado && cat.items.has(referencia) ? [cat.items.get(referencia)] : []),
+    searchBySize: () => (cat.cargado ? [...cat.items.values()] : []),
     catalogStatus: () => ({ ...real.catalogStatus(), items: cat.cargado ? cat.items.size : 0, error: null }),
   };
 });
@@ -171,9 +172,19 @@ function escalonesConPromo(ahora: Date) {
  */
 async function ciclo(opts: { escalones?: object; ultimoDelCliente?: string; stage?: string } = {}) {
   const conv = await conversacion(opts.stage);
-  await mensaje(conv.id, "cliente", opts.ultimoDelCliente ?? "Necesito llantas 265/65R18 para camioneta", HACE(180));
-  await lamina(conv.id, (opts.escalones ?? ESCALONES_VIEJOS) as never, HACE(179));
-  await mensaje(conv.id, "bot", "¿Le cotizo la 1, la 2 o la 3?", HACE(178));
+  if (opts.ultimoDelCliente === undefined) {
+    await mensaje(conv.id, "cliente", "Necesito llantas 265/65R18 para camioneta", HACE(180));
+    await lamina(conv.id, (opts.escalones ?? ESCALONES_VIEJOS) as never, HACE(179));
+    await mensaje(conv.id, "bot", "¿Le cotizo la 1, la 2 o la 3?", HACE(178));
+  } else {
+    // Orden real de los chats: medida → lámina → menú → lo que el cliente DICE DESPUÉS (rechazo,
+    // pregunta…) → una respuesta del bot sin lámina nueva → silencio.
+    await mensaje(conv.id, "cliente", "Necesito llantas 265/65R18 para camioneta", HACE(190));
+    await lamina(conv.id, (opts.escalones ?? ESCALONES_VIEJOS) as never, HACE(189));
+    await mensaje(conv.id, "bot", "¿Le cotizo la 1, la 2 o la 3?", HACE(188));
+    await mensaje(conv.id, "cliente", opts.ultimoDelCliente, HACE(180));
+    await mensaje(conv.id, "bot", "Entendido, quedo atento.", HACE(178));
+  }
   await sql`
     update conversations set last_customer_message_at = ${HACE(180)}, last_assistant_message_at = ${HACE(178)} where id = ${conv.id}
   `;
@@ -395,6 +406,23 @@ describe.sequential("recordatorios automáticos · sprint 2", () => {
   });
 
   // =========================================================================
+  // La cantidad de la ficha: solo enteros 1..100 (Sprint 3 lo unifica)
+  // =========================================================================
+  describe("cantidad de la ficha", () => {
+    it("ficha con selected_quantity = 235 (dato basura) → el seguimiento no dice «235 llantas» ni «no alcanza»", async () => {
+      const conv = await conversacion("medida_confirmada");
+      await sql`update conversations set selected_quantity = 235 where id = ${conv.id}`;
+      await mensaje(conv.id, "cliente", "Necesito llantas 265/65R18", HACE(180));
+      await mensaje(conv.id, "bot", "Con gusto, ya tengo su medida.", HACE(178));
+      await sql`update conversations set last_customer_message_at = ${HACE(180)}, last_assistant_message_at = ${HACE(178)} where id = ${conv.id}`;
+      const [texto] = await procesar(conv.id);
+      expect(texto).not.toBeNull();
+      expect(texto).not.toMatch(/235/);
+      expect(texto).not.toMatch(/no me alcanza para el juego/);
+    });
+  });
+
+  // =========================================================================
   // 2c1 · el gate previo
   // =========================================================================
   describe("2c1 · porQueNoQuiereSeguimiento mira todo lo que el cliente dijo desde el último mensaje del bot", () => {
@@ -424,6 +452,17 @@ describe.sequential("recordatorios automáticos · sprint 2", () => {
       // Ni se agenda (el gate lo ve al programar) ni, si hubiera un job viejo, sale.
       expect((await procesar(conv.id)).filter(Boolean)).toHaveLength(0);
       expect((await jobsDeEnvio(conv.id)).filter((j) => j.status === "sent")).toHaveLength(0);
+    });
+
+    it("«Ninguna gracias, quiero ver otras marcas» → el bot manda una lámina NUEVA → esas opciones SÍ reciben seguimiento", async () => {
+      const conv = await ciclo({ ultimoDelCliente: "Ninguna gracias, quiero ver otras marcas" });
+      // Después del rechazo, el bot respondió con una lámina distinta (un hecho: pieza `options`).
+      await lamina(conv.id, escalonesConPromo(AHORA) as never, HACE(170));
+      await mensaje(conv.id, "bot", "¿Le cotizo la 1, la 2 o la 3?", HACE(169));
+      await sql`update conversations set last_customer_message_at = ${HACE(180)}, last_assistant_message_at = ${HACE(169)} where id = ${conv.id}`;
+      expect(await followUps.porQueNoQuiereSeguimiento(conv.id, 1)).toBeNull();
+      const [texto] = await procesar(conv.id);
+      expect(texto).toMatch(/KENDA KR601/);
     });
 
     it("guarda · «Está lejos pero voy» sigue siendo venta viva", async () => {

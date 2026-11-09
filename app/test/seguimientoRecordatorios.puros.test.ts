@@ -87,6 +87,27 @@ describe("2d · ofreceJuegoIncompleto no lee una negación como oferta", () => {
     expect(r.motivos).toContain("juego_incompleto");
   });
 
+  // Revisión ronda 2: la propuesta no puede depender de una lista cerrada de verbos.
+  it.each([
+    "Tengo 3 llantas, no puedo ofrecerle la cuarta; ¿le interesan las 3?",
+    "Hay 2 unidades disponibles, no puedo cotizarle el juego, pero si quiere le vendo esas 2.",
+    "Quedan 2 llantas de esa, no puedo cotizarle el juego completo. ¿Las aparta?",
+  ])("guarda · sigue siendo oferta con cualquier verbo de propuesta: %s", (correccion) => {
+    const r = frenarHechosNuevosDelGuardian("En 195/55R15 no tengo stock disponible ahora mismo.", correccion, [], "", []);
+    expect(r.bloqueado).toBe(true);
+  });
+
+  // Y las correcciones BUENAS que explican y vuelven al menú o al juego completo salen.
+  it.each([
+    "Hoy solo hay 2 llantas de la Wildpeak, así que no puedo ofrecerla. ¿Le cotizo la 1 o la 2 del menú?",
+    "De la Wildpeak hay 1 unidad, no se la puedo cotizar para juego. La KR50 sí está en juego de 4: ¿le cotizo la 1?",
+    "Hoy solo hay 1 unidad de la Wildpeak, no puedo ofrecerla. ¿Le cotizo la 1 o la 2?",
+    "Hay 2 unidades de esa, no puedo ofrecerlas; ¿le cotizo el juego de 4 de la KR50?",
+  ])("la corrección buena sale: %s", (correccion) => {
+    const r = frenarHechosNuevosDelGuardian(MENU_39282, correccion, [], MENU_39282);
+    expect(r.motivos).not.toContain("juego_incompleto");
+  });
+
   // GUARDA — lo que el candado SÍ debe frenar (caso 11972 y variantes).
   it.each([
     ["11972: ofrece 1 KENDA a un precio",

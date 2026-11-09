@@ -126,8 +126,29 @@ function preciosConocidos(
  *     juego». Un «no» cualquiera («no alcanzan», «no le puedo hacer descuento»)
  *     no cuenta.
  */
-const PROPUESTA_DE_VENTA =
-  /\b(?:le|se\s+la|se\s+las|se\s+lo|se\s+los|te)\s+(?:cotizo|sirve|dejo|consigo|armo|preparo|separo|reservo)\b|\bcotizo\s+(?:esas?|esos?|las|los|la|lo)\b|\bsi\s+(?:desea|quiere|gusta|le\s+parece)[^.?!]{0,30}\b(?:cotizo|dejo|consigo|armo)\b/;
+/**
+ * Qué cuenta como PROPUESTA de venta (revisión del sprint 2, rondas 1 y 2): no
+ * una lista cerrada de verbos —la próxima redacción del Guardián usa otro— sino
+ * (a) cualquier PREGUNTA «¿…?», (b) «si desea/quiere/gusta… le vendo/cotizo/
+ * dejo…» y (c) los verbos de venta sueltos. Se exceptúa la pregunta que vuelve
+ * al menú («¿le cotizo la 1 o la 2?») o al juego completo («¿le cotizo el juego
+ * de 4?»): esa no ofrece las 1–3 llantas, las descarta.
+ */
+const PREGUNTA_DE_MENU_O_JUEGO =
+  /\bla\s+[1-9]\b|\bopci[oó]n\s+[1-9]\b|\bjuego\s+(?:completo|de\s+(?:[4-9]|cuatro))\b|\blas?\s+(?:4|cuatro)\b|\blos\s+(?:4|cuatro)\b|\bel\s+juego\b/i;
+const VERBO_DE_PROPUESTA =
+  /\b(?:le|se\s+la|se\s+las|se\s+lo|se\s+los|te)\s+(?:cotizo|sirve|dejo|consigo|armo|preparo|separo|reservo|vendo|aparto|ofrezco)\b|\b(?:cotizo|vendo|aparto)\s+(?:esas?|esos?|las|los|la|lo)\b|\bsi\s+(?:desea|quiere|gusta|prefiere|le\s+parece)\b[^.?!]{0,40}\b(?:cotizo|dejo|consigo|armo|vendo|ofrezco|aparto|esas?|esos?|las|los)\b/i;
+
+/** Una pregunta: con «¿…?» o, sin apertura, la oración que termina en «?». */
+const PREGUNTA = /¿[^?]*\?|[^.!?\n¿]*\?/g;
+
+function hayPropuestaDeVenta(texto: string): boolean {
+  // Las preguntas que vuelven al menú o al juego completo no son propuesta, ni
+  // tampoco los verbos que van dentro de ellas.
+  const sinPreguntasDeMenu = texto.replace(PREGUNTA, (pregunta) => (PREGUNTA_DE_MENU_O_JUEGO.test(pregunta) ? " " : pregunta));
+  if (sinPreguntasDeMenu.includes("?")) return true;
+  return VERBO_DE_PROPUESTA.test(sinPreguntasDeMenu);
+}
 
 const RECHAZO_DE_LA_OFERTA =
   /\bno\s+(?:(?:le|la|lo|se|les|las|los|me)\s+){0,2}(?:puedo|podemos|ofrezc\w*|ofrec\w*|cotiz\w*|vend\w*|manej\w*)\b|\bno\s+(?:hay|tengo|tenemos|queda\w*|existe\w*)\s+(?:el\s+|un\s+)?juego\b|\bsin\s+(?:el\s+)?juego\b/;
@@ -138,7 +159,7 @@ const OFERTA_DE_1_A_3 = [
 ];
 
 function ofreceJuegoIncompleto(texto: string): boolean {
-  const hayPropuesta = PROPUESTA_DE_VENTA.test(normalizeCatalogText(texto));
+  const hayPropuesta = hayPropuestaDeVenta(texto);
   return texto
     .split(/[.!?¿\n;]+|\b(?:pero|sino|aunque)\b/i)
     .some((clausula) => {
