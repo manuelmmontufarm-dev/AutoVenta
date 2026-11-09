@@ -18,6 +18,7 @@ import { yaPasoElDiaDeLaVisita } from "../domain/fechaDeVisita.js";
 import { authorizeConversationOutbound } from "./whatsappPolicy.js";
 import { emitLiveEvent } from "./liveEvents.js";
 import { prepararSalida } from "./prepararSalida.js";
+import { conElTelefonoDelTurno } from "./temporadaDelTurno.js";
 import { sendApprovedTemplate, sendCustomerText } from "../wa/client.js";
 
 interface ProcessorDependencies {
@@ -174,6 +175,25 @@ export async function processFollowUpJob(
     if (sinSeguimiento) {
       await markFollowUpJobCancelled(job.id, `no_quiere_seguimiento:${sinSeguimiento}`);
       console.log(`🤐 Seguimiento ${job.id} de la conv ${context.id} cancelado: ${sinSeguimiento}.`);
+      // El rechazo se lee de frases del cliente, no de una regla exacta: si se
+      // equivoca, que el asesor pueda verlo (una alerta baja por ciclo con lo que dijo).
+      if (sinSeguimiento === "rechazo_del_cliente") {
+        const [dicho] = await sql<{ content: string | null }[]>`
+          select content from messages
+          where conversation_id = ${context.id} and cycle = ${context.current_cycle} and direction = 'inbound'
+          order by created_at desc, id desc limit 1
+        `;
+        await createBotAlert({
+          conversationId: context.id,
+          cycle: context.current_cycle,
+          type: "seguimiento_cancelado_por_rechazo",
+          priority: "low",
+          summary: "No se mandó el seguimiento: el cliente dijo que no sigue",
+          exactReason: `Último mensaje del cliente: «${(dicho?.content ?? "").slice(0, 160)}».`,
+          suggestedAction: "Solo revisa si el cliente en realidad seguía interesado: el seguimiento no se envió.",
+          dedupeKey: `seguimiento_rechazo:${context.id}:${context.current_cycle}`,
+        }).catch(() => undefined);
+      }
       emitLiveEvent("follow_up", context.id);
       return;
     }
@@ -281,9 +301,11 @@ export async function processFollowUpJob(
 
   // Último momento: ya pasaron todos los portones, este mensaje sí se envía.
   // Recién aquí se paga la redacción con IA (si el asesor no la generó antes).
-  const redactado = isPostWindow
-    ? String(context.job_payload.preview ?? "").trim()
-    : (await ensureFollowUpJobCopy({ context, policy, now })).text;
+  const copia = isPostWindow
+    ? { text: String(context.job_payload.preview ?? "").trim(), listaConPrecios: null }
+    : await conElTelefonoDelTurno(context.phone, () => ensureFollowUpJobCopy({ context, policy, now }));
+  const redactado = copia.text;
+  const listaConPrecios = copia.listaConPrecios ?? null;
 
   // LA MISMA CADENA QUE LAS OTRAS PUERTAS, con los pasos que le tocan a un
   // seguimiento. Ver services/prepararSalida.ts.
@@ -311,10 +333,11 @@ export async function processFollowUpJob(
     // El teléfono viaja para que el Guardián del seguimiento respete el canary por cliente.
     conversation: { id: context.id, current_cycle: context.current_cycle, stage: context.stage, phone: context.phone },
     tipo: isPostWindow ? "plantilla" : "seguimiento",
+    jobId: job.id,
     // Un seguimiento no escala a nadie: «ya avisé al asesor» no puede salir aquí.
     inicioDelTurno: new Date(),
   };
-  const salida = await prepararSalida(redactado, ctxSalida);
+  const salida = await conElTelefonoDelTurno(context.phone, () => prepararSalida(redactado, ctxSalida));
   // LA CADENA PUEDE DECIR «NO MANDES NADA» (auditoría 2-6 sep, familia A).
   //
   // Hasta hoy un `null` de la cadena se tapaba con el borrador («?? redactado»)
@@ -396,7 +419,11 @@ export async function processFollowUpJob(
     await appendMessage(context.id, "assistant", content, providerId, {
       authorKind: "bot",
       status: "sent",
-      metadata: { followUpJobId: job.id, followUpAttemptId: Number(attempt.id), ...metadatoDeOferta },
+      metadata: {
+        followUpJobId: job.id, followUpAttemptId: Number(attempt.id), ...metadatoDeOferta,
+        // El hecho «salió la lista con precios» (lo lee el siguiente seguimiento; nunca se recupera del texto).
+        ...(listaConPrecios ? { listaConPrecios } : {}),
+      },
       occurredAt: now,
     });
     await sql.begin(async (tx) => {

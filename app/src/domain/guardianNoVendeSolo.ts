@@ -106,10 +106,69 @@ function preciosConocidos(
   ]);
 }
 
+/**
+ * LA FRASE QUE NIEGA O EXPLICA NO ES UNA OFERTA (auditoría 9-nov, 2d).
+ *
+ * «Hoy solo hay 1 unidad, así que no puedo ofrecerla para juego de 4» (39282,
+ * dos veces) y «hoy aparecen 3 unidades y para juego de 4 no la manejo» (40097)
+ * decían lo contrario de vender, y la regex de abajo las leía como «hay 1
+ * unidad… ofrecer»: el candado restauraba el borrador que el propio Guardián
+ * acababa de marcar como error.
+ *
+ * Dos reglas, y la segunda manda sobre la primera (revisión del sprint 2):
+ *  1. Una PROPUESTA de venta en cualquier parte del texto («¿le cotizo las 3?»,
+ *     «le cotizo esas 2», «¿le sirve?», «se las dejo», «le consigo la cuarta»)
+ *     hace que «N llantas disponibles» siga siendo una oferta, diga lo que diga
+ *     alrededor («no alcanzan para el juego, ¿le cotizo las 3?» es 11972).
+ *  2. Sin propuesta, la cláusula (se parte en puntos, «;» y «pero/sino/aunque»)
+ *     que trae «N llantas» no es oferta si la NEGACIÓN RIGE EL VERBO DE OFRECER:
+ *     «no puedo ofrecerla», «no se la puedo cotizar», «no la manejo», «no hay
+ *     juego». Un «no» cualquiera («no alcanzan», «no le puedo hacer descuento»)
+ *     no cuenta.
+ */
+/**
+ * Qué cuenta como PROPUESTA de venta (revisión del sprint 2, rondas 1 y 2): no
+ * una lista cerrada de verbos —la próxima redacción del Guardián usa otro— sino
+ * (a) cualquier PREGUNTA «¿…?», (b) «si desea/quiere/gusta… le vendo/cotizo/
+ * dejo…» y (c) los verbos de venta sueltos. Se exceptúa la pregunta que vuelve
+ * al menú («¿le cotizo la 1 o la 2?») o al juego completo («¿le cotizo el juego
+ * de 4?»): esa no ofrece las 1–3 llantas, las descarta.
+ */
+const PREGUNTA_DE_MENU_O_JUEGO =
+  /\bla\s+[1-9]\b|\bopci[oó]n\s+[1-9]\b|\bjuego\s+(?:completo|de\s+(?:[4-9]|cuatro))\b|\blas?\s+(?:4|cuatro)\b|\blos\s+(?:4|cuatro)\b|\bel\s+juego\b/i;
+/** Una pregunta que nombra «las 3», «con las 2», «esas 2» NO vuelve al menú: ofrece las 1–3 llantas. */
+const NOMBRA_1_A_3 = /\b(?:las|los|con|esas?|esos?)\s+(?:[1-3]|dos|tres)\b/i;
+const VERBO_DE_PROPUESTA =
+  /\b(?:le|se\s+la|se\s+las|se\s+lo|se\s+los|te)\s+(?:cotizo|sirve|dejo|consigo|armo|preparo|separo|reservo|vendo|aparto|ofrezco)\b|\b(?:le|les|te)\s+interes\w+|\b(?:cotizo|vendo|aparto)\s+(?:esas?|esos?|las|los|la|lo)\b|\bsi\s+(?:desea|quiere|gusta|prefiere|le\s+parece)\b[^.?!]{0,40}\b(?:cotizo|dejo|consigo|armo|vendo|ofrezco|aparto|esas?|esos?|las|los)\b/i;
+
+/** Una pregunta: con «¿…?» o, sin apertura, la oración que termina en «?». */
+const PREGUNTA = /¿[^?]*\?|[^.!?\n¿]*\?/g;
+
+function hayPropuestaDeVenta(texto: string): boolean {
+  // Las preguntas que vuelven al menú o al juego completo no son propuesta, ni
+  // tampoco los verbos que van dentro de ellas.
+  const sinPreguntasDeMenu = texto.replace(PREGUNTA, (pregunta) => (PREGUNTA_DE_MENU_O_JUEGO.test(pregunta) && !NOMBRA_1_A_3.test(pregunta) ? " " : pregunta));
+  if (sinPreguntasDeMenu.includes("?")) return true;
+  return VERBO_DE_PROPUESTA.test(sinPreguntasDeMenu);
+}
+
+const RECHAZO_DE_LA_OFERTA =
+  /\bno\s+(?:(?:le|la|lo|se|les|las|los|me)\s+){0,2}(?:puedo|podemos|ofrezc\w*|ofrec\w*|cotiz\w*|vend\w*|manej\w*)\b|\bno\s+(?:hay|tengo|tenemos|queda\w*|existe\w*)\s+(?:el\s+|un\s+)?juego\b|\bsin\s+(?:el\s+)?juego\b/;
+
+const OFERTA_DE_1_A_3 = [
+  /\b(?:tengo|hay|quedan|cuento\s+con|disponible(?:s)?|ofrezco|ofrecer\w*|cotizo|cotizar\w*|vendo|vender\w*)\b.{0,64}\b[1-3]\s+(?:llantas?|unidad(?:es)?)\b/,
+  /\b[1-3]\s+(?:llantas?|unidad(?:es)?)\b.{0,64}\b(?:disponible(?:s)?|ofrezco|ofrecer\w*|cotizo|cotizar\w*|vendo|vender\w*)\b/,
+];
+
 function ofreceJuegoIncompleto(texto: string): boolean {
-  const normalizado = normalizeCatalogText(texto);
-  return /\b(?:tengo|hay|quedan|cuento\s+con|disponible(?:s)?|ofrezco|ofrecer\w*|cotizo|cotizar\w*|vendo|vender\w*)\b.{0,64}\b[1-3]\s+(?:llantas?|unidad(?:es)?)\b/.test(normalizado)
-    || /\b[1-3]\s+(?:llantas?|unidad(?:es)?)\b.{0,64}\b(?:disponible(?:s)?|ofrezco|ofrecer\w*|cotizo|cotizar\w*|vendo|vender\w*)\b/.test(normalizado);
+  const hayPropuesta = hayPropuestaDeVenta(texto);
+  return texto
+    .split(/[.!?¿\n;]+|\b(?:pero|sino|aunque)\b/i)
+    .some((clausula) => {
+      const normalizada = normalizeCatalogText(clausula);
+      if (!OFERTA_DE_1_A_3.some((patron) => patron.test(normalizada))) return false;
+      return hayPropuesta || !RECHAZO_DE_LA_OFERTA.test(normalizada);
+    });
 }
 
 /**

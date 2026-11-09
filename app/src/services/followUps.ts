@@ -26,7 +26,9 @@ import { motivoParaNoSeguir, sinVisitaDelSeguimiento, type MotivoSinSeguimiento 
 import { parseTireSize } from "../domain/tireSize.js";
 import { generateFollowUpCopy } from "./followUpCopy.js";
 import { catalogStatus, findByCode, searchBySize } from "./catalog.js";
-import { listaDeLaPieza } from "../domain/listaDeOpciones.js";
+import { lineaDeLista, listaDeLaPieza } from "../domain/listaDeOpciones.js";
+import { cantidadValidaDeLaFicha } from "../domain/cantidadGrande.js";
+import { listaVigenteDeLaPieza } from "./listaVigente.js";
 import { asesoresActivos, notifyAdvisor } from "./advisorNotifications.js";
 
 export type FollowUpJobStatus =
@@ -237,6 +239,12 @@ function etiquetaDelProducto(codigo: string | null | undefined): string | null {
 export interface ContextoDeOpciones {
   optionsCount: number | null;
   optionsList?: FollowUpMessageContext["optionsList"];
+  /** Los nombres de la lista, en el orden que el cliente leyó (para el seguimiento sin precios). */
+  optionsNames?: string[];
+  /** Esta misma lista ya salió en un seguimiento anterior del ciclo (2b): no se reenvía. */
+  listaYaEnviada?: boolean;
+  /** Algún precio de la lista vigente difiere del que vio con la lámina (la cabecera no puede decir «que le mostré»). */
+  preciosDeHoy?: boolean;
   preferenceAnswered: boolean;
   customerHasNoTireSize: boolean;
   /** Pidió precio o cotización en el ciclo (ver `domain/cotizarLaUnica.ts`). */
@@ -280,6 +288,7 @@ async function contextoDeOpciones(
   conversationId: number,
   cycle: number,
   ficha: { tireSize?: string | null; cantidad?: number | null } = {},
+  ahora: Date = new Date(),
 ): Promise<ContextoDeOpciones> {
   const [pieza] = await sql<{ id: number; created_at: Date; codes: unknown; metadata: { escalones?: unknown; cantidad?: unknown; equivalentes?: unknown } | null }[]>`
     select id, created_at, metadata->'codes' as codes, metadata from messages
@@ -312,11 +321,52 @@ async function contextoDeOpciones(
     await porQueNoPasaPorElLocal(conversationId, cycle, null),
     await hayCotizacionEnElCiclo(conversationId, cycle),
   );
+  // La lista VIGENTE (precio y promo de hoy), no los números que quedaron
+  // guardados con la lámina (familia 2a). Y si esa misma lista ya salió en un
+  // seguimiento anterior del ciclo, el siguiente solo nombra las opciones (2b).
+  const vigente = listaVigenteDeLaPieza(pieza?.metadata, ahora);
+  // ¿Alguna línea de hoy dice otra cosa que la que el cliente vio con la lámina?
+  const guardada = listaDeLaPieza(pieza?.metadata);
+  const preciosDeHoy = Boolean(vigente?.lista && guardada && vigente.lista.some((l) => {
+    const antes = guardada.lista.find((g) => g.n === l.n);
+    return !antes || lineaDeLista(antes, guardada.cantidad) !== lineaDeLista(l, vigente.cantidad);
+  }));
+  const listaYaEnviada = vigente?.lista ? await listaYaSalioEnUnSeguimiento(conversationId, cycle, vigente.lista) : false;
   return {
-    optionsCount, optionsList: listaDeLaPieza(pieza?.metadata), preferenceAnswered, customerHasNoTireSize,
+    optionsCount,
+    optionsList: vigente?.lista && !listaYaEnviada ? { lista: vigente.lista, cantidad: vigente.cantidad } : null,
+    ...(vigente ? { optionsNames: vigente.nombres } : {}),
+    ...(listaYaEnviada ? { listaYaEnviada } : {}),
+    ...(preciosDeHoy ? { preciosDeHoy } : {}),
+    preferenceAnswered, customerHasNoTireSize,
     customerAskedPrice, sinVisita, juegoEnSuMedida: pieza ? null : juegoEnLaMedida(ficha.tireSize, ficha.cantidad),
     optionsEquivalentes: Array.isArray(pieza?.metadata?.equivalentes) && pieza.metadata.equivalentes.length > 0,
   };
+}
+
+/**
+ * ¿La lista CON PRECIOS de estas opciones ya salió en un seguimiento anterior de
+ * este ciclo? Se lee del HECHO que `followUpProcessor` escribe en la metadata
+ * del mensaje al enviar (`listaConPrecios: { codigos, cantidad }`), nunca del
+ * texto del bot: si el Guardián reescribió una línea o el catálogo movió un
+ * precio entre el 1.º y el 2.º, el hecho sigue siendo cierto (regla 9). El 2.º
+ * recordatorio solo cambiaba la cabecera y el filtro de calco exacto no lo veía
+ * (24 chats). La lista del turno normal no cuenta: el primer seguimiento puede
+ * traerla una vez.
+ */
+async function listaYaSalioEnUnSeguimiento(
+  conversationId: number,
+  cycle: number,
+  lista: readonly import("../domain/listaDeOpciones.js").LineaDeLista[],
+): Promise<boolean> {
+  const previos = await sql<{ lista: { codigos?: unknown } | null }[]>`
+    select metadata->'listaConPrecios' as lista from messages
+    where conversation_id = ${conversationId} and cycle = ${cycle}
+      and direction = 'outbound' and metadata ? 'listaConPrecios'
+  `;
+  const codigos = lista.map((l) => String(l.codigo ?? "")).sort().join("|");
+  return previos.some((p) =>
+    Array.isArray(p.lista?.codigos) && p.lista.codigos.map(String).sort().join("|") === codigos);
 }
 
 /**
@@ -337,9 +387,35 @@ export async function porQueNoQuiereSeguimiento(
   `;
   const [ultimo, anterior] = ultimos;
   if (!ultimo?.content) return null;
+  // La última racha del cliente: sus mensajes seguidos, sin que el bot hable
+  // en medio. Las respuestas del bot que vinieron DESPUÉS no la cortan.
+  const recientes = await sql<{ direction: string; content: string | null; created_at: Date }[]>`
+    select direction, content, created_at from messages
+    where conversation_id = ${conversationId} and cycle = ${cycle}
+    order by created_at desc, id desc limit 30
+  `;
+  const racha: Array<{ content: string; created_at: Date }> = [];
+  let enRacha = false;
+  for (const m of recientes) {
+    if (m.direction === "inbound") {
+      enRacha = true;
+      if (m.content) racha.push({ content: m.content, created_at: m.created_at });
+    } else if (enRacha) break;
+  }
+  // Un rechazo de antes de una lámina NUEVA no vale: el bot ya ofreció otra cosa
+  // («Ninguna gracias, quiero ver otras marcas» → lámina nueva). Es un HECHO de
+  // la base (pieza `options` posterior), no una lectura del texto del bot.
+  const [ultimaPieza] = await sql<{ created_at: Date }[]>`
+    select created_at from messages
+    where conversation_id = ${conversationId} and cycle = ${cycle}
+      and direction = 'outbound' and metadata->>'piece' = 'options'
+    order by created_at desc, id desc limit 1
+  `;
+  const vigentes = ultimaPieza ? racha.filter((m) => m.created_at > ultimaPieza.created_at) : racha;
   return motivoParaNoSeguir({
     ultimo: ultimo.content,
     anterior: anterior?.content ?? null,
+    rachaDelCliente: vigentes.map((m) => m.content),
     sinVisita: await porQueNoPasaPorElLocal(conversationId, cycle, null),
     hayCotizacion: await hayCotizacionEnElCiclo(conversationId, cycle),
   });
@@ -367,7 +443,7 @@ export function buildFollowUpPreview(
     juegoEnSuMedida: opciones.juegoEnSuMedida ?? null,
     optionsEquivalentes: opciones.optionsEquivalentes ?? false,
     storeNames: nombresDeLocales(),
-    selectedQuantity: conversation.selected_quantity,
+    selectedQuantity: cantidadValidaDeLaFicha(conversation.selected_quantity),
     name: conversation.name,
     stage: conversation.stage,
     tireSize: conversation.tire_size,
@@ -494,7 +570,7 @@ export async function scheduleConversationFollowUps(
     return;
   }
   const contextoOpciones = await contextoDeOpciones(conversationId, conversation.current_cycle, {
-    tireSize: conversation.tire_size, cantidad: conversation.selected_quantity,
+    tireSize: conversation.tire_size, cantidad: cantidadValidaDeLaFicha(conversation.selected_quantity),
   });
 
   const relevantAt = conversation.last_assistant_message_at.getTime() >= conversation.last_customer_message_at.getTime()
@@ -1056,7 +1132,7 @@ function jobCopyContext(context: FollowUpJobContext) {
     tireSize: context.tire_size,
     selectedProductCode: context.selected_product_code,
     selectedProductLabel: etiquetaDelProducto(context.selected_product_code),
-    selectedQuantity: context.selected_quantity,
+    selectedQuantity: cantidadValidaDeLaFicha(context.selected_quantity),
     nearestStore: context.nearest_store,
     customerCommitment: commitmentCycle === context.current_cycle ? context.customer_commitment : null,
     visitDate: context.visit_date,
@@ -1071,6 +1147,9 @@ function jobCopyContext(context: FollowUpJobContext) {
   };
 }
 
+/** El hecho que un seguimiento deja en su mensaje cuando la plantilla llevó la lista con precios. */
+export interface ListaConPrecios { codigos: Array<string | null | undefined>; cantidad: number }
+
 /**
  * Devuelve el texto definitivo del seguimiento, redactándolo con IA solo si
  * todavía está pendiente (`aiPending`). El resultado se persiste en el payload
@@ -1083,18 +1162,18 @@ export async function ensureFollowUpJobCopy(input: {
   force?: boolean;
   /** El reloj del trabajo. Ver `generateFollowUpCopy`. */
   now?: Date;
-}): Promise<{ text: string; generated: boolean }> {
+}): Promise<{ text: string; generated: boolean; listaConPrecios?: ListaConPrecios | null }> {
   const { context, policy, force = false, now = new Date() } = input;
   const stored = String(context.job_payload.preview ?? "").trim();
   const kind = followUpJobCopyKind(context.job_type);
   if (!kind || (!context.job_payload.aiPending && !force)) {
-    return { text: stored, generated: false };
+    return { text: stored, generated: false, listaConPrecios: (context.job_payload.listaConPrecios as ListaConPrecios | null | undefined) ?? null };
   }
   const copyContext = {
     ...jobCopyContext(context),
     ...(await contextoDeOpciones(context.id, context.current_cycle, {
-      tireSize: context.tire_size, cantidad: context.selected_quantity,
-    })),
+      tireSize: context.tire_size, cantidad: cantidadValidaDeLaFicha(context.selected_quantity),
+    }, now)),
   };
   // Al modelo, los hechos SIN los links: las URLs de Maps son exactamente el
   // tipo de string que un LLM copia mal, y una mutilada en el chat es peor
@@ -1111,14 +1190,23 @@ export async function ensureFollowUpJobCopy(input: {
       now,
     );
   const text = conMapasPegados(copy.text.trim() || stored, copyContext, kind);
+  // EL HECHO «salió la lista con precios»: se decide acá, donde se sabe qué
+  // rama de la plantilla se usó, y viaja al mensaje enviado. Una redacción con
+  // IA nunca lleva precios (`isSafeCopy`), así que solo cuenta la plantilla.
+  const salida: { conLista?: boolean } = {};
+  buildContextualFollowUpMessage(copyContext, kind, now, salida);
+  const listaConPrecios = copy.source === "fallback" && salida.conLista && copyContext.optionsList
+    ? { codigos: copyContext.optionsList.lista.map((l) => l.codigo).filter(Boolean), cantidad: copyContext.optionsList.cantidad }
+    : null;
   await sql`
     update follow_up_jobs
     set payload = payload
       || jsonb_build_object('preview', ${text}::text, 'aiPending', false,
-                            'copySource', ${copy.source}::text, 'aiGeneratedAt', now())
+                            'copySource', ${copy.source}::text, 'aiGeneratedAt', now(),
+                            'listaConPrecios', ${sql.json(listaConPrecios as never)})
     where id = ${context.job_id}
   `;
-  return { text, generated: true };
+  return { text, generated: true, listaConPrecios };
 }
 
 /** Genera el texto bajo demanda desde el panel (botón «Generar»). */

@@ -51,6 +51,7 @@ import { cantidadDelCliente } from "./lineasConPromo.js";
 import { lineaDeLaCotizacionVigente, type ItemDeCotizacion } from "../domain/hechoDeCotizacionVigente.js";
 import { medidaEstaPedida, mensajesDeLaVisitaActual } from "../domain/medidaPedida.js";
 import { hechoDeLaLista, listaDeLaPieza } from "../domain/listaDeOpciones.js";
+import { listaVigenteDeLaPieza } from "./listaVigente.js";
 import { hechosDeRestricciones, restriccionesDeLlanta } from "../domain/restriccionesLlanta.js";
 import { comproADistanciaSegunLoDicho } from "../domain/compraADistancia.js";
 import { hechoDelAvisoAlAsesor } from "../domain/avisoAlAsesor.js";
@@ -625,7 +626,13 @@ export async function armarContexto(
   const variasMedidasEnPantalla = medidasEnPantalla.size > 1;
   // Los precios y totales de la lista escrita que salió con la lámina. Sin este
   // hecho el revisor no los encuentra en ninguna cotización y los borra.
-  const listaEnPantalla = listaDeLaPieza(ultimaPieza?.metadata);
+  // En el turno normal, la que el cliente VIO. En un seguimiento, la VIGENTE
+  // (precio y promo de hoy): la misma que escribió la plantilla, para que el
+  // revisor no dé por bueno un número viejo como «dato duro» (familia 2a).
+  const vigente = opciones.tipo === "seguimiento" ? listaVigenteDeLaPieza(ultimaPieza?.metadata) : null;
+  const listaEnPantalla = opciones.tipo === "seguimiento"
+    ? (vigente?.lista ? { lista: vigente.lista, cantidad: vigente.cantidad } : null)
+    : listaDeLaPieza(ultimaPieza?.metadata);
 
   // Los dos últimos turnos, sueltos: son la materia prima de los hechos de
   // despedida y de oferta aceptada. `mensajes` viene del más nuevo al más viejo.
@@ -910,7 +917,7 @@ export async function armarContexto(
     respaldados.length
       ? `Servicios y beneficios respaldados (lo ÚNICO que el bot puede prometer como incluido): ${respaldados.join(" · ")}`
       : "Servicios y beneficios respaldados: ninguno cargado — el borrador no puede prometer nada como incluido",
-    listaEnPantalla ? hechoDeLaLista(listaEnPantalla.lista, listaEnPantalla.cantidad) : null,
+    listaEnPantalla ? hechoDeLaLista(listaEnPantalla.lista, listaEnPantalla.cantidad, opciones.tipo === "seguimiento") : null,
     opciones.avisoRegistrado === undefined ? null : hechoDelAvisoAlAsesor(opciones.avisoRegistrado),
     ...(catalogoHoy.length ? ["", ...catalogoHoy] : []),
     "",

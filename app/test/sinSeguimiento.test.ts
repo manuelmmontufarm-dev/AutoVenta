@@ -76,7 +76,7 @@ describe("motivoParaNoSeguir — lo que SÍ lleva seguimiento", () => {
       sinVisita: sinVisitaDelSeguimiento("fuera_de_cobertura", true),
       storeLinks: "📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/x",
     }, "in_window_first");
-    expect(texto).toMatch(/pago y envío/);
+    expect(texto).toMatch(/pago y (?:el )?envío/);
     expect(texto).not.toMatch(/qu[eé] d[ií]a|cu[aá]l local|maps\.app/i);
   });
 

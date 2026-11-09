@@ -1,6 +1,7 @@
 import type { Stage } from "./pipeline.js";
 import { lineaDeLista, preguntaDeLaLista, type LineaDeLista } from "./listaDeOpciones.js";
-import { CIERRE_COMPRA_A_DISTANCIA, type SinVisita } from "./compraADistancia.js";
+import { nombreSaludable } from "./saludo.js";
+import { INVITACION_COMPRA_A_DISTANCIA, type SinVisita } from "./compraADistancia.js";
 import { esElDiaDeLaVisita, yaPasoElDiaDeLaVisita } from "./fechaDeVisita.js";
 
 export type FollowUpMessageKind =
@@ -62,6 +63,17 @@ export interface FollowUpMessageContext {
    * (~25 chats, caso +593 99 571 0785). `null` = la pieza no las guardó.
    */
   optionsList?: { lista: readonly LineaDeLista[]; cantidad: number } | null;
+  /**
+   * Los nombres de las opciones, en el orden que el cliente leyó (1, 2, 3).
+   * Cuando no hay lista con precios —no se pudo decir un precio fiable (sin
+   * stock, catálogo sin cargar) o la lista ya salió en un seguimiento
+   * anterior— el texto nombra las opciones sin decir un número.
+   */
+  optionsNames?: readonly string[];
+  /** La lista con precios ya salió en un seguimiento anterior del ciclo. */
+  listaYaEnviada?: boolean;
+  /** Algún precio de la lista vigente difiere del que el cliente vio con la lámina. */
+  preciosDeHoy?: boolean;
   /**
    * El cliente ya contestó el menú Costo/Equilibrio/Premium (o eligió por
    * nombre). Con esto en true, preguntarle «¿qué prioriza?» o «¿cuál le
@@ -166,13 +178,9 @@ export function inferProductCode(text?: string | null): string | null {
   ) ?? null;
 }
 
-function firstName(name?: string | null): string | null {
-  const value = name?.trim().split(/\s+/)[0];
-  return value && value.length <= 30 ? value : null;
-}
-
 function questionPrefix(context: FollowUpMessageContext, kind: FollowUpMessageKind): string {
-  const name = firstName(context.name);
+  // Solo un nombre de pila de verdad: un perfil como «Hannan&Jahir😍» o «PITSTOP» no se saluda.
+  const name = nombreSaludable(context.name);
   // Solo el contacto tardío vuelve a usar un saludo; dentro de una conversación
   // activa se continúa el hilo sin reiniciar la conversación.
   return kind === "post_window" && name ? `Hola, ${name} 👋 ` : "";
@@ -200,8 +208,10 @@ export function buildContextualFollowUpMessage(
   context: FollowUpMessageContext,
   kind: FollowUpMessageKind,
   now = new Date(),
+  /** Si se pasa, el constructor anota aquí si el texto llevó la lista CON PRECIOS (el hecho que se guarda al enviar). */
+  salida?: { conLista?: boolean },
 ): string {
-  const texto = redactarSeguimiento(context, kind, now);
+  const texto = redactarSeguimiento(context, kind, now, salida);
   return followUpNeedsStoreLinks(context, kind)
     ? `${texto}\n${context.storeLinks!.trim()}`
     : texto;
@@ -211,6 +221,7 @@ function redactarSeguimiento(
   context: FollowUpMessageContext,
   kind: FollowUpMessageKind,
   now: Date,
+  salida?: { conLista?: boolean },
 ): string {
   const prefix = questionPrefix(context, kind);
   const size = context.tireSize ? ` ${context.tireSize}` : "";
@@ -229,10 +240,14 @@ function redactarSeguimiento(
   // Compra a distancia: lo pendiente es el pago y el envío, que coordina el
   // asesor. Ni visita, ni local, ni día (conv 21766).
   if (context.sinVisita === "compra_a_distancia" && (kind === "in_window_first" || kind === "in_window_second")) {
+    // El seguimiento NO afirma una compra: el cliente pudo pedir la cotización
+    // y nada más («Quedó en marcha su compra…» se lo leyó a 21106 sin que lo
+    // hubiera anunciado). Habla de SU COTIZACIÓN y ofrece al asesor para el pago
+    // y el envío.
     const que = product || size ? ` de${product}${size}` : "";
     return kind === "in_window_second"
-      ? `😊 Sigo pendiente de su compra${que}. ${CIERRE_COMPRA_A_DISTANCIA}`
-      : `${prefix}🛞 Quedó en marcha su compra${que}. ${CIERRE_COMPRA_A_DISTANCIA}`;
+      ? `😊 Sigo atento a su cotización${que}; ${INVITACION_COMPRA_A_DISTANCIA}. 🤝`
+      : `${prefix}🛞 Quedo atento a su cotización${que}; ${INVITACION_COMPRA_A_DISTANCIA}. 🤝`;
   }
 
   if (context.activeDiscountAmount && context.activeDiscountCondition && context.activeDiscountFinalTotal) {
@@ -389,6 +404,15 @@ function redactarSeguimiento(
     if (lista && lista.lista.length >= 2) {
       const bloque = lista.lista.map((l) => lineaDeLista(l, lista.cantidad)).join("\n");
       const pregunta = preguntaDeLaLista(lista.lista.length);
+      if (salida) salida.conLista = true;
+      // Si algún precio ya no es el que el cliente vio (la promo cambió, el
+      // catálogo se movió), NO se dice «que le mostré»: sube o baja el número y
+      // se afirmaría que es el de la lámina.
+      if (context.preciosDeHoy) {
+        return kind === "in_window_second"
+          ? `😊 Le dejo otra vez las opciones${deLaLamina}, con los precios de hoy:\n${bloque}\n${pregunta}`
+          : `${prefix}🛞 Con los precios de hoy, sus opciones${deLaLamina}:\n${bloque}\n${pregunta}`;
+      }
       return kind === "in_window_second"
         ? `😊 Le dejo otra vez las opciones${deLaLamina}:\n${bloque}\n${pregunta}`
         : `${prefix}🛞 Estas son las opciones${deLaLamina} que le mostré:\n${bloque}\n${pregunta}`;
@@ -396,6 +420,17 @@ function redactarSeguimiento(
     const comparar = opciones !== null && opciones > 2
       ? "compararla con las otras opciones"
       : "compararla con la otra opción";
+    // Sin precios fiables (o con la lista ya enviada en un seguimiento anterior)
+    // se NOMBRAN las opciones, en el orden que el cliente leyó, sin decir un número.
+    const nombres = context.optionsNames && context.optionsNames.length >= 2
+      ? context.optionsNames.map((nombre, i) => `${i + 1} · ${nombre}`).join("\n")
+      : null;
+    if (nombres) {
+      const pregunta = preguntaDeLaLista(context.optionsNames!.length);
+      return kind === "in_window_second"
+        ? `😊 Sigo pendiente de las opciones${deLaLamina}:\n${nombres}\n${pregunta}`
+        : `${prefix}🛞 Ya le mostré las opciones${deLaLamina}:\n${nombres}\n${pregunta}`;
+    }
     if (kind === "in_window_second") return `😊 De las opciones que vimos${deLaLamina}, ${preguntaDeLaLista(cuantas)}`;
     // Sin una llanta elegida no hay «la opción» de la que hablar: la pregunta
     // es cuál le cotiza, y deja el hecho de oferta «menú» (sprint 1).

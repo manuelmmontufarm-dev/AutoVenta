@@ -1,3 +1,72 @@
+## 9-nov-2026 · Recordatorios automáticos: ni precio viejo, ni lista repetida, ni borrador malo (auditoría 9-nov, sprint 2)
+
+- **Qué:** (2a) el seguimiento ya no copia los precios guardados con la lámina: 26 seguimientos en 17 chats
+  (39168…) decían «KENDA KR601 $194.85 c/u · 4 = $779.40» cuando valía «2 × $259.80 + 2 × $103.92 = $727.44»; el
+  1-dic habrían dicho «−60 %» sin promo. (2b) el 2.º recordatorio no reenvía la misma lista con otra cabecera (24
+  chats: 39194, 39208, 39258…). (2c1) el gate «este cliente no quiere seguimiento» entiende «Ninguna gracias…»
+  (39282), «Está muy lejos le agradezco» (38924), «No nos espere» + «Gracias» + «Muy amable» y «Encontramos las
+  BFGoodrich» (39667), sin cortar «está muy lejos PERO voy». (2c3) el texto fijo de compra a distancia ya no afirma
+  una compra («Quedó en marcha su compra…», 21106): «Quedo atento a su cotización de X; si desea coordinar el pago y
+  el envío, un asesor le ayuda». (2d/2c2) un borrador que el Guardián marcó con severidad alta y cuya corrección el
+  candado bloquea ya no vuelve: el seguimiento se suprime (39282, dos veces).
+- **Cómo:** `services/listaVigente.ts` (NUEVO): con los códigos, la cantidad y el ORDEN guardados en la pieza vuelve a
+  pedir el precio de hoy al catálogo y la promo de hoy con `precioDelProducto` (Sprint 1); sin stock para el juego,
+  sin precio o sin catálogo cargado → lista sin precios, con nombres. La leen los DOS lectores del seguimiento
+  (`followUps.contextoDeOpciones` y `guardian.armarContexto` con `tipo: "seguimiento"`); el turno normal sigue con
+  `listaDeLaPieza` (lo que el cliente VIO). 2b: la plantilla no reenvía una lista cuyas líneas ya salieron en un
+  seguimiento anterior (`listaYaEnviada`) y `sin_calco_del_hilo` suprime por líneas lo que reescriba el Guardián
+  (motivo `lista_ya_enviada`). 2d: `ofreceJuegoIncompleto` mira cláusula por cláusula y no dispara si la misma dice
+  «no puedo ofrecerla / no la manejo / no hay juego»; `guardian_no_vende_solo` suprime el seguimiento con motivo
+  `guardian_rechazo_sin_salida`; la clave de la alerta lleva el job (`ctx.jobId`) o la hora. 2c1: `rachaDelCliente`
+  (los mensajes seguidos del cliente antes de que el bot contestara) + `rechazaSeguir` en `domain/sinSeguimiento.ts`
+  (motivo `rechazo_del_cliente`). `firstName` → `nombreSaludable` (pedido del Sprint 4).
+- **Por qué:** el seguimiento se escribía mirando la ficha y los números guardados, no lo que valía o lo que dijo el
+  cliente; el Guardián recibía esos números como «dato duro» y los daba por buenos (21 de 26 `aprobar`).
+- **Probado:** 3 archivos de prueba nuevos (`seguimientoRecordatorios.*.test.ts`, 47 pruebas, 30 en rojo antes) con
+  `processFollowUpJob` real contra Postgres; simulador (39168 copiado con `--copiar-conv`; 39282 para el gate).
+  Re-fijados: `seguimientoCompraADistancia` y `sinSeguimiento` (el texto nuevo de compra a distancia).
+- **Falta / ojo:** el simulador solo dispara el seguimiento si se reabre el job a mano en su base (`aiPending`,
+  `due_at`, `never_outside_hours`); la supresión 2d con el Guardián real no se pudo provocar (depende de que el modelo
+  escriba esa corrección), está cubierta por integración. Con una opción sin stock hoy, la lista sale con los
+  nombres de TODAS las opciones de la lámina y sin precios.
+- **Ronda 1 de la revisión (misma fecha):** (B1) `ofreceJuegoIncompleto`: la negación tiene que regir el VERBO de
+  ofrecer («no puedo ofrecerla», «no se la puedo cotizar», «no la manejo», «no hay juego»), no un «no» cualquiera, y
+  una propuesta de venta en cualquier cláusula («¿le cotizo las 3?», «le cotizo esas 2», «¿le sirve?», «le consigo la
+  cuarta») sigue siendo oferta: vuelven a frenarse las cinco variantes de 11972 que se habían colado. (B2)
+  `rechazo_del_cliente` no aplica si el mismo mensaje pregunta, pide (cotiza, precio, tienen, mejora…) o habla hacia
+  adelante (mañana, el sábado, voy, vamos…); un rechazo de la racha solo vale si ningún mensaje POSTERIOR la reactiva; y
+  la cancelación deja una alerta baja (`seguimiento_cancelado_por_rechazo`, con lo que dijo el cliente). (B3) el hecho
+  «la lista con precios ya salió» se escribe al enviar (`metadata.listaConPrecios = { codigos, cantidad }`, decidido donde
+  se sabe qué rama de la plantilla se usó) y se lee de ahí, no del texto del bot; `sin_calco_del_hilo` conserva su
+  comparación por líneas del borrador. (B4) si algún precio vigente difiere del que el cliente vio con la lámina, la
+  cabecera dice «Con los precios de hoy, sus opciones…» / «…con los precios de hoy:», nunca «que le mostré». Menores: el
+  hecho del Guardián dice «recalculada HOY…» en el seguimiento; el seguimiento corre dentro de `conElTelefonoDelTurno`
+  (modo «pruebas»); la prueba de 39168 usa la lámina real (144.44 / 194.85 / 213.50).
+- **Límites conocidos (no se arreglan acá):** (1) el turno normal sigue leyendo la lista GUARDADA (`agent.ts:522,682,1409`,
+  `cotizarLoElegido.ts:104`, `guardian.ts` en la rama de respuesta) y puede contradecir a un seguimiento recalculado
+  («$194.85 c/u» después de un seguimiento con $727.44). (2) Una sola opción sin stock quita los precios de TODA la lista
+  y el texto igual invita a «¿Le cotizo la 1, la 2 o la 3?», incluida la opción sin juego; tampoco se mira
+  `producto.active`. (3) 39282 («Ninguna gracias, necesito llantas doble propósito») cancela TODO el seguimiento; lo que
+  proponía el análisis era no reenviar el menú, no callar.
+- **Ronda 2 de la revisión:** (B1) la propuesta de venta ya no es una lista cerrada de verbos: cuenta cualquier pregunta
+  «¿…?», «si desea/quiere/gusta… le vendo/cotizo/dejo…» y los verbos de venta sueltos, SALVO la pregunta que vuelve al menú
+  («¿le cotizo la 1 o la 2?») o al juego completo («juego de 4», «las 4»). Se frenan «no puedo ofrecerle la cuarta; ¿le
+  interesan las 3?» y «…pero si quiere le vendo esas 2», y salen las correcciones buenas «no puedo ofrecerla. ¿Le cotizo la 1
+  o la 2?». (B2) el rechazo del cliente no cuenta si DESPUÉS hubo una pieza `options` (lámina nueva: «Ninguna gracias, quiero
+  ver otras marcas»); se lee de la base, no del texto. (Sprint 3) `followUps.ts` lee `selected_quantity` por
+  `cantidadDeLaFicha` (entero 1..100 o null; 4 lecturas) — reemplazar por `cantidadValidaDeLaFicha` del Sprint 3 al
+  integrar; con ficha 235 el seguimiento ya no dice «no me alcanza para el juego».
+- **Límites conocidos (ronda 2):** «le cotizo las 3 que hay» pasa (la regla exige «llanta/unidad» tras el número; es viejo,
+  de la base); «está muy lejos» + silencio cancela aunque el bot haya ofrecido el local del sur (decisión de Manuel); la
+  alerta `seguimiento_cancelado_por_rechazo` casi nunca salta porque lo común es cancelar al AGENDAR
+  (`cancelPendingFollowUps`), sin alerta.
+- **Ronda 3 de la revisión:** `followUps.ts` usa `cantidadValidaDeLaFicha` (Sprint 3) y se borró la copia local. La excepción
+  «la pregunta vuelve al menú» ya no vale si la pregunta nombra 1–3 llantas («las 3», «con las 2», «esas 2»), y «le
+  interesa(n)» es verbo de propuesta («¿Le cotizo las 3 de la opción 2?» y «Si le interesan, me avisa.» vuelven a frenarse).
+  **39667:** en el chat real el bot contestó entre «Gracias» y «Muy amable», así que la última racha del cliente es solo
+  «Muy amable» y el filtro NO la frena; ese seguimiento lo calló el Guardián (`insiste_tras_rechazo`, job 52004), no el
+  filtro. La prueba lo documenta con el orden real; la racha de tres sin el bot en medio sí cancela.
+
 ## 9-nov-2026 · Cantidades, ronda 2 de la revisión del sprint 3: lo dicho antes solo le gana a la ficha si es posterior a la pieza que la fijó
 
 - **Qué:** mi cambio de la ronda 1 dejaba que un mensaje VIEJO del cliente le ganara a la ficha, pero ese lector solo entiende hasta 8
