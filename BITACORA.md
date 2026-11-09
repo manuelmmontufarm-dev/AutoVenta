@@ -1,3 +1,111 @@
+## 9-nov-2026 · Sprint 4 ronda 2 · «general» suelta no es una marca
+
+- **Qué:** al unificar las marcas (ronda 1) entró «general» como palabra suelta y `marcaPreguntada` detectaba la
+  marca GENERAL en «¿Cuánto cuestan en general las 205/55R16?», «¿Qué precios tienen en general?», «por lo
+  general cuanto cuesta…», «precio general de…»: el bot decía «De GENERAL no tengo disponibilidad» y
+  `ultimaMarcaPedida` se quedaba en GENERAL.
+- **Cómo:** `domain/marcasDeLlanta.ts` sin «general» (queda «general tire») y sin «sunoco» (lo había agregado yo:
+  no es marca de llanta y «aceite sunoco» no debe forzar la búsqueda de llantas). Una marca que también es una
+  palabra común no puede ir suelta (nota en el archivo).
+- **Qué ganó o perdió cada lector con la lista única** (contra `2e3465d`): `consultaConRespaldo` ganó apollo,
+  aeolus, chaoyang, goodrich y bf goodrich; no perdió ninguna. `firstContact` ganó 35 (achilles, aplus, aptany,
+  arivo, atturo, bf goodrich, comforser, compasal, cooper, delinte, doublestar, durun, farroad, federal, general
+  tire, giti, goodrich, goodride, haida, jinyu, kapsen, landsail, lanvigator, laufenn, mastercraft, maxtrek,
+  nankang, nitto, ovation, sumitomo, sunfull, uniroyal, venom, wanli…); no perdió ninguna, y en la práctica no
+  cambia nada: solo se mira la lista cuando todo el resto del mensaje son palabras de relleno, y cualquier otra
+  palabra ya lo hace «no genérico». El buscador usa la lista única más las marcas que declara el catálogo.
+  Quedan sueltas, como ya estaban en `consultaConRespaldo`, «cooper» y «federal» (palabras comunes en otros
+  contextos pero casi nunca en un chat de llantas, y solo disparan con señal de disponibilidad).
+- **Probado:** `test/marcasComunes.test.ts` (10; en rojo antes: 8): las 4 frases del informe y una más dan null,
+  «tienen General Tire en 205/55R16» sigue dando GENERAL TIRE, apollo/aeolus/chaoyang/goodrich/bf goodrich solo
+  disparan nombrados, «aceite sunoco» da null. Simulador: «¿Cuánto cuestan en general las 205/55R16?» →
+  opciones (WINRUN R330, KENDA KR20, FALKEN ZE310R) sin mencionar General. ~0,5 h.
+
+## 9-nov-2026 · Sprint 4 ronda 1 · El buscador relajado ya no devuelve otra marca como exacta
+
+- **Qué:** la revisión midió que la relajación de «Klever» era demasiado ancha: «Michelin Primacy 4» pasaba de 0 a
+  8 Winrun «exactas» (el «4» casaba con un código de Contífico), «Goodyear Wrangler AT 265/70R17» devolvía la
+  Winrun Maxclaw, «llantas Michelin rin 16» una 165/65R13, «Michelin KR601» las KR601 sin decir que no son
+  Michelin. El mismo camino alimenta `resolveCatalogCandidates` (la llanta que se va a cotizar).
+- **Cómo (`domain/catalog.ts`):** (a) una marca nombrada nunca se descarta: si el catálogo no la tiene, vacío
+  como siempre (lista única en `domain/marcasDeLlanta.ts`, que ahora leen también `firstContact.ts` y
+  `consultaConRespaldo.ts`, antes dos copias; más las marcas que el propio catálogo declara); (b) solo se ignora
+  un nombre comercial (4+ letras, no un tipo): un número, un tipo («mt») o un código que no existe («kr610»)
+  cancelan la relajación; el ancla es un código de modelo (3+, letras y dígitos, no `at`/`ht`/`4x4`/`r16`) igual,
+  como palabra entera, a una palabra del diseño o del código; (c) rastro: `buscarConEscalera` devuelve
+  **`palabrasIgnoradas: string[]`** (p. ej. `["klever"]`; vacío si la búsqueda fue estricta) para que el
+  vendedor pueda decir «en catálogo figura como KR601». `agent/tools.ts` no se tocó: queda para el Sprint 5.
+- **Menores:** `nombreSaludable` saluda sin nombre si otra palabra del perfil es de negocio («Mercedes Benz
+  Repuestos», «Victoria Motors», «Henry Auto Lujos»); 24 nombres comunes más y sin duplicados; el log del pedido
+  omitido solo sale si de verdad se calló el pedido; nota del canary en la entrada del saludo.
+- **Probado:** `test/catalogoMarcaAjena.test.ts` (57; contra la foto real del catálogo cuando está, un fixture
+  siempre, y un catálogo de ejemplo de Mundillantas: Kenda, Falken, Winrun, Maxxis). Simulador: «vi el anuncio de
+  la Kenda Klever KR601…» 3 de 3 muestra las KR601; «tienen Michelin Primacy 4?» → «no tengo disponibilidad…
+  alternativas en Falken o Kenda»; «Goodyear Wrangler AT 265/70R17» → «De GOODYEAR no tengo disponibilidad en esta
+  medida… estas son las alternativas». ~2 h.
+
+## 9-nov-2026 · Sprint 4a · El saludo fijo ya no le pide la medida a quien la acaba de mandar
+
+- **Qué:** el cliente manda «Hola», el bot espera 12 s y arranca el turno del saludo (texto fijo). Si el cliente
+  escribe mientras salen la presentación y la promo, el turno no se entera y suelta «Puede mandarme la medida
+  escrita…» a quien ya la mandó (10 chats: 39899, 39971, 40064, 40017, 40046, 39515, 39759, 1750, 39675,
+  39834). 10,4 % de las bienvenidas antes del 6-nov; 18,6 % desde que la promo sale como 2.º mensaje y el
+  texto fijo pasaba por el Ángel Guardián (+3-4 s de ventana).
+- **Cómo:** (1) `index.ts`: antes de mandar CADA bloque de la respuesta fija de primer contacto se mira si el
+  cliente ya escribió (`services/saludoFijo.ts`, que también es ahora la única definición de «escribió de
+  nuevo» para los bloques de cierre) y, si sí, el pedido de medida no sale (`sinElPedidoDeMedida` en
+  `domain/firstContact.ts`; la presentación y la promo sí, una vez). Si es la bienvenida entera en un solo
+  bloque, sale la presentación sin el pedido. (2) `suprimirEmpujeComercial` también para el saludo
+  genérico: una constante no pasa por el Guardián (igual que la despedida; en el 7-nov aprobó todas) y la
+  ventana se acorta unos 3 s. El turno siguiente contesta la medida con todo el historial.
+- **Probado:** simulador con las mismas 8 esperas (12,6 a 15,5 s entre «Hola» y «Precio en 245/75/16»): antes
+  el pedido pisó al cliente en 7 de 8 (el 8.º salió antes de que escribiera); después en 0 de 8 (4 veces
+  el cliente escribió dentro de la ventana y no hubo pedido; 4 veces escribió después del pedido, que es
+  legítimo). Un «Hola» pelado sigue recibiendo presentación, promo y pedido; tres mensajes dentro de los
+  12 s (40074) siguen siendo un solo turno sin re-pregunta. `test/saludoFijo.integration.test.ts` (7, con la
+  línea de tiempo de la 39899 y el debounce de 12 s con reloj controlado) y `test/pedidoDeMedidaSaludo.test.ts`.
+- **Para el canary (fase III, lectura del 20-nov):** el saludo fijo dejó de pasar por el Guardián, así que la tasa de
+  aprobación y el costo del Guardián cambian el día del deploy en los dos grupos por igual: la lectura tiene que
+  cortar en la hora del deploy o excluir `route=first_contact`.
+- **No cubre:** la medida que viene en un audio (40017) entra a la base ~10 s después y no se ve desde acá; el
+  cliente que escribe DESPUÉS de que el pedido salió ve el pedido (no hay forma de saberlo antes). ~2 h.
+
+## 9-nov-2026 · Sprint 4b · El nombre del perfil de WhatsApp solo se usa si es un nombre de pila
+
+- **Qué:** el saludo tomaba la primera palabra del perfil tal cual: «Hola La» (La Brocheta Burguer), «Hola
+  Tapicería», «Hola Mmmmmm», «Hola Lagophone», «Hola CAMBICOL»… 16 de 69 saludos del 6–8 nov no eran una
+  persona. Solo se verificaba que fueran letras.
+- **Cómo:** `nombreSaludable` (`domain/saludo.ts`) es la fuente única y ahora exige: perfil de ≤ 4 palabras
+  sin sufijo de empresa (S.A.S, Cía, Ltda…), primera palabra solo letras (los emojis de cola se ignoran),
+  sin una letra repetida 4+ veces, no toda en mayúsculas y que esté en la lista de nombres de pila
+  (`domain/nombresDePila.ts`, ~450 nombres de Ecuador, con o sin tilde, más diminutivos: «Miguelito»). En la
+  duda, «¡Hola!» sin nombre. Lo leen la presentación de apertura (`index.ts`) y el saludo/presentación que
+  antepone `wa/client.ts` (retomada y rutas directas): no hubo que tocar nada más.
+- **Anotado para la coordinadora:** `domain/followUpMessages.ts:169` (`firstName`, el «Hola, <nombre> 👋» del
+  seguimiento tardío) es OTRO lector del nombre que no filtra nada; es de otro sprint y no se tocó. Hay que
+  cambiarlo por `nombreSaludable(context.name)` (ya exportado).
+- **Probado:** `test/nombreDePerfil.test.ts` (27; en rojo antes: 25 fallaban) con los perfiles reales del
+  análisis; pasadas las 135 fichas de la auditoría por el filtro, las 68 que quedan con nombre son todas personas (los nombres poco comunes —«Yady», «Moly», «Yillian»— y los escritos en MAYÚSCULAS —«JOSÉ»— se saludan sin nombre, a propósito). Simulador,
+  8 perfiles: «La Brocheta Burguer», «Tapicería Multimarcas», «mmmmmm», «Lagophone», «CAMBICOL S.A.S» →
+  «¡Hola!» (antes «¡Hola, La!», «¡Hola, Tapicería!»…); «Carlos», «Paul Escobar», «Miguelito» se siguen
+  usando. ~1 h.
+
+## 9-nov-2026 · Sprint 4c · «Kenda Klever KR601»: el buscador ya no se rinde por una palabra que el catálogo no conoce
+
+- **Qué:** quien llegaba por el anuncio de la «Kenda Klever KR601» (convs 39845 y 39615) recibía «por ahora
+  no me aparece ese modelo exacto en catálogo» y minutos después el bot le cotizaba esa misma KR601.
+  `searchCatalog` exigía TODAS las palabras y «klever» no está en ningún producto: 0 resultados, y la
+  herramienta le ordenaba al vendedor «dilo claro».
+- **Cómo:** en `domain/catalog.ts`, si la búsqueda estricta no encuentra NADA, se descartan las palabras
+  que no existen en ningún producto (vocabulario del catálogo armado una vez por catálogo cargado) y se
+  busca con el resto, que además tiene que casar con el código o el diseño: una marca mal escrita sin
+  modelo («Kendaa», «Klever Kenda») sigue dando vacío, y la marca sola no trae todas sus llantas. Lo que ya
+  encontraba no cambia. La orden «dilo claro» vive en `agent/tools.ts` (archivo de otro sprint): no se tocó.
+- **Probado:** `test/catalogoPalabraAjena.test.ts` (7; en rojo antes: «Kenda Klever KR601» daba 0, ahora las
+  6 KR601) y contra la foto real del catálogo (9 KR601). Simulador, mismo mensaje 3 veces: antes «no me
+  aparece coincidencia en catálogo» 3 de 3; ahora «Sí, manejamos Kenda Klever KR601… desde $158.06 con IVA»
+  3 de 3. Sano: «Precio de la KR601 en 235/75R15» sale igual que antes. ~1 h.
+
 ## 8-nov-2026 · Mundillantas: tres huecos del INCLUYE por cantidad (revisión del PR #38)
 
 - **Qué:** el Cotizador del panel, el re-dibujo de cotización y la vista previa de piezas no pasaban la

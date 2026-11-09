@@ -1,3 +1,4 @@
+import { MARCAS_DE_LLANTA_CONOCIDAS } from "./marcasDeLlanta.js";
 import { extractFlotationSizes, extractTireSizes, formatFlotationSize, medidaCanonica, type TireSize } from "./tireSize.js";
 import { resolveCatalogMedia } from "./catalogMedia.js";
 import { extractLoadSpeed, type TireLoadSpeed } from "./tireSpecs.js";
@@ -201,9 +202,25 @@ export function searchCatalog(
   query: string,
   limit = 40,
 ): CatalogItem[] {
+  return buscarEnCatalogo(items, query, limit).resultados;
+}
+
+/** Lo que encontró la búsqueda por texto y qué palabras tuvo que ignorar para encontrarlo. */
+export interface BusquedaDetallada {
+  resultados: CatalogItem[];
+  /** Palabras de la consulta que ningún producto tiene y se descartaron («klever»). Vacío = búsqueda estricta. */
+  palabrasIgnoradas: string[];
+}
+
+export function buscarEnCatalogo(
+  items: readonly CatalogItem[],
+  query: string,
+  limit = 40,
+): BusquedaDetallada {
+  const sinNada: BusquedaDetallada = { resultados: [], palabrasIgnoradas: [] };
   const normalizedQuery = normalizeCatalogText(query);
   const compactQuery = compactCatalogText(query);
-  if (!normalizedQuery || !compactQuery) return [];
+  if (!normalizedQuery || !compactQuery) return sinNada;
 
   // LA MEDIDA SE DECODIFICA PRIMERO y manda como FILTRO, no como texto.
   //
@@ -264,20 +281,147 @@ export function searchCatalog(
   // Sin palabras y sin medida acotada no hay búsqueda posible: devolver todo
   // el catálogo sería peor que devolver nada («tienen llantas», o una medida
   // que no existe en stock).
-  if (!queryTokens.length && !acotadoPorMedida) return [];
+  if (!queryTokens.length && !acotadoPorMedida) return sinNada;
 
-  return pool
-    .map((item) => ({ item, score: scoreItem(item, normalizedQuery, compactQuery, compactSize, queryTokens) }))
-    .filter((entry) => entry.score > 0)
-    .sort((a, b) => {
-      if (b.score !== a.score) return b.score - a.score;
-      const availability = availabilityRank(a.item.availability) - availabilityRank(b.item.availability);
-      if (availability !== 0) return availability;
-      if (a.item.price !== b.item.price) return a.item.price - b.item.price;
-      return a.item.name.localeCompare(b.item.name, "es");
-    })
-    .slice(0, Math.max(1, Math.min(limit, 60)))
-    .map((entry) => entry.item);
+  const ordenar = (tokens: string[], anclas: string[] | false): CatalogItem[] =>
+    pool
+      .map((item) => ({
+        item,
+        score: scoreItem(item, normalizedQuery, compactQuery, compactSize, tokens, anclas),
+      }))
+      .filter((entry) => entry.score > 0)
+      .sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        const availability = availabilityRank(a.item.availability) - availabilityRank(b.item.availability);
+        if (availability !== 0) return availability;
+        if (a.item.price !== b.item.price) return a.item.price - b.item.price;
+        return a.item.name.localeCompare(b.item.name, "es");
+      })
+      .slice(0, Math.max(1, Math.min(limit, 60)))
+      .map((entry) => entry.item);
+
+  const estrictos = ordenar(queryTokens, false);
+  if (estrictos.length || !queryTokens.length) return { resultados: estrictos, palabrasIgnoradas: [] };
+
+  // PALABRA QUE EL CATÁLOGO NO CONOCE (auditoría 9-nov, convs 39845 y 39615): el
+  // anuncio dice «Kenda Klever KR601» y en el catálogo es «KENDA … KR601»;
+  // «klever» no está en ningún producto y exigirla dejaba la búsqueda en 0 — el
+  // vendedor recibía la orden de decir «no aparece ese modelo» y minutos
+  // después cotizaba esa misma llanta.
+  //
+  // Solo se llega aquí si la búsqueda estricta no encontró NADA, y la relajación
+  // es MUY estrecha (ronda 1 del sprint: la primera versión devolvía otra marca
+  // como «exacta»: «Michelin Primacy 4» daba 8 Winrun porque el «4» casaba con
+  // un código):
+  //  · UNA MARCA NOMBRADA NUNCA SE DESCARTA. Si el cliente nombra una que no
+  //    está en el catálogo, la respuesta es la de siempre: nada.
+  //  · Solo se ignoran palabras que ningún producto tiene.
+  //  · Lo que queda tiene que traer un CÓDIGO DE MODELO (palabra entera de 3+
+  //    con letras y dígitos, como `kr601`) igual a una palabra del diseño o del
+  //    código del producto — nunca un número suelto, una letra o un tipo
+  //    (at, ht, mt, 4x4, 16).
+  const vocabulario = vocabularioDelCatalogo(items);
+  const marcasPedidas = marcasNombradasEn(normalizedQuery, items);
+  if (marcasPedidas.some((marca) => !vocabulario.tieneLaMarca(marca))) return sinNada;
+  const ignoradas = queryTokens.filter((token) => !vocabulario.conoce(token));
+  if (!ignoradas.length) return { resultados: estrictos, palabrasIgnoradas: [] };
+  // Solo se ignora un NOMBRE COMERCIAL (una palabra de 4+ letras, «klever»).
+  // Un tipo («mt»: no se le muestra una A/T a quien pidió M/T), un número o
+  // un código que el catálogo no tiene («kr610») son pedidos concretos: si
+  // alguno falta, no hay relajación.
+  if (!ignoradas.every(esNombreComercialIgnorable)) return sinNada;
+  const conservadas = queryTokens.filter((token) => vocabulario.conoce(token));
+  const codigos = conservadas.filter(esCodigoDeModelo);
+  if (!codigos.length) return sinNada;
+  const relajados = ordenar(conservadas, codigos);
+  return relajados.length
+    ? { resultados: relajados, palabrasIgnoradas: ignoradas }
+    : sinNada;
+}
+
+/**
+ * Todo lo que el catálogo dice, en las dos formas en que se busca (normal y
+ * compacta), para saber si una palabra existe en ALGÚN producto. Se arma una
+ * vez por catálogo cargado: la clave es el arreglo mismo, y cuando el catálogo
+ * se recarga llega un arreglo nuevo.
+ */
+interface VocabularioDelCatalogo {
+  conoce(token: string): boolean;
+  /** ¿Hay en el catálogo algún producto de esta marca (palabra entera, en la marca o en el nombre)? */
+  tieneLaMarca(marca: string): boolean;
+  /** Las marcas que el propio catálogo declara (campo `brand`), normalizadas. */
+  marcasDelCatalogo: ReadonlySet<string>;
+}
+const vocabularios = new WeakMap<readonly CatalogItem[], VocabularioDelCatalogo>();
+
+function vocabularioDelCatalogo(items: readonly CatalogItem[]): VocabularioDelCatalogo {
+  const guardado = vocabularios.get(items);
+  if (guardado) return guardado;
+  const normal: string[] = [];
+  const compacto: string[] = [];
+  for (const item of items) {
+    const blob = textoBuscableDe(item);
+    normal.push(blob);
+    compacto.push(compactCatalogText(blob));
+  }
+  // El espacio separa productos: un token (sin espacios) no puede casar a
+  // caballo de dos.
+  const todoNormal = normal.join(" ");
+  const todoCompacto = compacto.join(" ");
+  const marcasDelCatalogo = new Set<string>();
+  const marcasYNombres: string[] = [];
+  for (const item of items) {
+    const marca = normalizeCatalogText(item.brand);
+    if (marca && marca !== "sin marca") marcasDelCatalogo.add(marca);
+    marcasYNombres.push(`${marca} ${normalizeCatalogText(item.name)}`);
+  }
+  const textoDeMarcas = ` ${marcasYNombres.join(" | ")} `;
+  const textoDeMarcasCompacto = compactCatalogText(textoDeMarcas);
+  const vocabulario: VocabularioDelCatalogo = {
+    conoce: (token) => todoNormal.includes(token) || todoCompacto.includes(compactCatalogText(token)),
+    tieneLaMarca: (marca) =>
+      textoDeMarcas.includes(` ${marca} `) || textoDeMarcasCompacto.includes(compactCatalogText(marca)),
+    marcasDelCatalogo,
+  };
+  vocabularios.set(items, vocabulario);
+  return vocabulario;
+}
+
+
+/**
+ * Las marcas que el cliente nombró en la consulta: las de la lista única
+ * (`marcasDeLlanta.ts`) y las que el propio catálogo declara. Palabra entera,
+ * así «general» no casa con «generalmente» ni «toyo» con «toyota».
+ */
+function marcasNombradasEn(consultaNormalizada: string, items: readonly CatalogItem[]): string[] {
+  const dicha = ` ${consultaNormalizada} `;
+  const todas = new Set<string>([...MARCAS_DE_LLANTA_CONOCIDAS, ...vocabularioDelCatalogo(items).marcasDelCatalogo]);
+  return [...todas].filter((marca) => dicha.includes(` ${marca} `));
+}
+
+/** Una palabra de solo letras, 4+, que no es un tipo: lo único que la relajación puede ignorar. */
+function esNombreComercialIgnorable(palabra: string): boolean {
+  return /^[a-z]{4,}$/.test(palabra) && !ES_TIPO.test(palabra);
+}
+
+/** at, ht, mt, rt, st, ct, xt, a/t4w (t4w)…: el tipo de uso, no el nombre del modelo. */
+const ES_TIPO = /^(?:[ahmrsc]|xt)?t\d*w?$/;
+
+/**
+ * ¿Esta palabra es el código de un modelo (`kr601`) y no un número, una letra o
+ * un tipo? 3+ caracteres, con letras Y dígitos, y que no sea un tipo (at, ht,
+ * mt, a/t4w), un aro (r16) ni un índice de carga y velocidad (91v).
+ */
+function esCodigoDeModelo(palabra: string): boolean {
+  if (!/^[a-z0-9]{3,}$/.test(palabra)) return false;
+  if (!/[a-z]/.test(palabra) || !/\d/.test(palabra)) return false;
+  if (ES_TIPO.test(palabra)) return false;
+  if (/^r\d+$/.test(palabra) || /^\d+[a-z]$/.test(palabra) || /^\d+x\d+$/.test(palabra)) return false;
+  return true;
+}
+
+function textoBuscableDe(item: CatalogItem): string {
+  return `${normalizeCatalogText(item.code)} ${normalizeCatalogText(item.brand)} ${normalizeCatalogText(item.design)} ${normalizeCatalogText(item.name)} ${item.sizeLabel ?? ""}`;
 }
 
 /** Lo que responde el catálogo cuando se le pregunta por una llanta. */
@@ -289,6 +433,12 @@ export interface ResultadoEscalera {
   medidaPedida: string | null;
   /** Qué SÍ hay en la medida que pidió, cuando su modelo no está. */
   enEsaMedida: CatalogItem[];
+  /**
+   * Palabras de la consulta que ningún producto tiene y se descartaron para
+   * encontrar el modelo («klever» en «Kenda Klever KR601»). Vacío = la búsqueda
+   * fue estricta. Quien responde puede decir «en catálogo figura como KR601».
+   */
+  palabrasIgnoradas: string[];
   /** En qué medidas SÍ existe el modelo que pidió, cuando su medida no está. */
   modeloEnOtrasMedidas: CatalogItem[];
 }
@@ -316,7 +466,7 @@ export function buscarConEscalera(
   consulta: string,
   limit = 8,
 ): ResultadoEscalera {
-  const crudos = searchCatalog(items, consulta, limit);
+  const { resultados: crudos, palabrasIgnoradas } = buscarEnCatalogo(items, consulta, limit);
   const medidaPedida = extractCatalogSizeLabel(consulta).sizeLabel;
   const compactPedida = medidaPedida ? compactCatalogText(medidaPedida) : null;
   const enLaMedida = compactPedida
@@ -330,6 +480,7 @@ export function buscarConEscalera(
       medidaPedida,
       enEsaMedida: [],
       modeloEnOtrasMedidas: [],
+      palabrasIgnoradas,
     };
   }
 
@@ -348,6 +499,7 @@ export function buscarConEscalera(
     resultados: [],
     sinCoincidenciaExacta: true,
     medidaPedida,
+    palabrasIgnoradas: [],
     enEsaMedida: medidaPedida ? searchCatalog(items, medidaPedida, limit) : [],
     // `crudos` ya trae el modelo en otras medidas cuando la pedida no existe.
     modeloEnOtrasMedidas: crudos.length
@@ -419,6 +571,8 @@ function scoreItem(
   compactQuery: string,
   compactSize: string | null,
   queryTokens: string[],
+  /** Búsqueda relajada: alguna de estas palabras (códigos de modelo) debe ser, entera, una palabra del diseño o del código. */
+  anclas: string[] | false = false,
 ): number {
   const code = normalizeCatalogText(item.code);
   const design = normalizeCatalogText(item.design);
@@ -427,6 +581,10 @@ function scoreItem(
   const size = compactCatalogText(item.sizeLabel ?? "");
   const blob = `${code} ${brand} ${design} ${name} ${item.sizeLabel ?? ""}`;
   const compactBlob = compactCatalogText(blob);
+  if (anclas) {
+    const palabrasDelModelo = new Set(`${design} ${code}`.split(" ").filter(Boolean));
+    if (!anclas.some((ancla) => palabrasDelModelo.has(ancla))) return 0;
+  }
   // Cada token se busca también en forma COMPACTA (sin espacios ni signos).
   // La gente escribe «at4» y el catálogo dice «A/T4W»: normalizado con
   // espacios eso es «a t4w» y el token «at4» no aparece contiguo — así fue
