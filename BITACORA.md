@@ -1,3 +1,16 @@
+## 9-nov-2026 · `buscar_catalogo` dice la palabra que no figura y distingue la marca (pedido del Sprint 4, sprint 5)
+
+- **Qué:** «Wrangler KR601» / «Kenda Klever KR601» devolvía la Kenda KR601 como coincidencia exacta con el rastro solo
+  en `palabrasIgnoradas` de la escalera; y el «Ni el modelo ni la medida están en el catálogo: ahí sí dilo claro» se
+  aplicaba igual a una marca que no se vende, a una que sí y a un apodo del anuncio.
+- **Cómo:** (a) con `palabrasIgnoradas`, la respuesta lleva primero `palabras_que_no_figuran` y `regla_de_nombre` («en
+  catálogo figura como «KENDA KR601»; confirma que es la que busca»). (b) `reglaSinModeloNiMedida` con la lista única
+  `marcasDeLlanta.ts`: marca que no se vende → «no la manejamos» claro; marca que sí → «SÍ la manejamos, lo que no
+  aparece es ese modelo» (prohibido «no tenemos KENDA»); sin marca conocida → no se afirma que no existe, se pide la
+  medida. Solo `agent/tools.ts`; el buscador (`domain/catalog.ts`) no se toca.
+- **Probado:** `s5eBuscarCatalogoNombre.test.ts` (5, 4 en rojo antes).
+- **Falta / ojo:** no se probó en el simulador con un chat real (los siete del sprint no pasan por acá).
+
 ## 9-nov-2026 · La corrección del Guardián con su alternativa y su pregunta (auditoría 9-nov, sprint 5d)
 
 - **Qué:** 40017 («En labrado mixto», tenía cotizada la Falken ZIEX CT60 A/S, H/T): el Guardián
