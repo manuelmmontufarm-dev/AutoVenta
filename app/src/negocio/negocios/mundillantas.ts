@@ -7,7 +7,7 @@
  * elige local, habla y cotiza con la marca de ese local.
  *
  * Acá va SOLO lo confirmado en el pitch, en las respuestas de Jenny del
- * 6-nov-2026 (`docs/clientes/mundillantas-arranque.md`) y en la ficha
+ * 6-nov y del 8-nov-2026 (`docs/clientes/mundillantas-arranque.md`) y en la ficha
  * (`docs/clientes/mundillantas.md`).
  * Lo que falta se escribe `[PENDIENTE] <qué falta>` y NUNCA llega a un
  * cliente (candado `sinPendiente`, R-10); lo numérico sin confirmar va en
@@ -23,7 +23,6 @@ import type { PerfilDeNegocio } from "../perfil.js";
 export const PENDIENTES_NUMERICOS = [
   "Mundillantas Kenda · pin (Jenny reenvió el mismo de Falken el 6-nov; puesto el de Falken)",
   "garantías por marca: meses del seguro contra impacto y años de fábrica (en 0 hasta que Jenny los dé)",
-  "domingo cerrado es un SUPUESTO del pitch (lunes–sábado confirmado)",
 ];
 
 /**
@@ -39,10 +38,14 @@ export const MUNDILLANTAS: PerfilDeNegocio = {
   id: "mundillantas",
   nombre: "Mundillantas",
   ciudad: "Santo Domingo",
-  telefono: "[PENDIENTE] número de WhatsApp del bot (Jenny dio los de los asesores, no el del bot)",
-  // Confirmado en el pitch: lunes a sábado 8:00–18:00 (8–12:30 y 12:30–18).
-  // Domingo cerrado es un supuesto registrado en PENDIENTES_NUMERICOS.
-  horarioEnPalabras: "Lunes a sábado, 8:00–18:00",
+  // Jenny, 8-nov: «El número que usaría sería el de Competimotor que le pasé:
+  // +593 99-124-4698». OJO: el celular de Carlos (Competimotor) que dio el
+  // 6-nov es 0985487924, otro número; vale el que dijo ahora para el bot.
+  telefono: "+593 99 124 4698",
+  // Jenny, 8-nov: los tres locales atienden igual, «de lunes a viernes de 8am
+  // hasta las 6pm y los sábados de 8am hasta las 4pm». El domingo no lo nombró
+  // en ninguna respuesta (ni en el pitch): cerrado.
+  horarioEnPalabras: "Lunes a viernes 8:00–18:00 y sábados 8:00–16:00",
   horasPorDia: {
     0: null,
     1: { open: "08:00", close: "18:00" },
@@ -50,7 +53,7 @@ export const MUNDILLANTAS: PerfilDeNegocio = {
     3: { open: "08:00", close: "18:00" },
     4: { open: "08:00", close: "18:00" },
     5: { open: "08:00", close: "18:00" },
-    6: { open: "08:00", close: "18:00" },
+    6: { open: "08:00", close: "16:00" },
   },
   // Las cuatro con garantía y seguro contra impacto (Jenny, 6-nov). Los
   // letreros muestran más (Toyo, BFGoodrich, Aeolus); el catálogo manda.
@@ -124,16 +127,24 @@ export const MUNDILLANTAS: PerfilDeNegocio = {
     // hasta 6 meses sin intereses; hasta 1 año con intereses.
     mediosDePago: "Efectivo, transferencia o tarjeta de crédito: hasta 6 meses sin intereses",
     mediosDePagoDiaNoche: "Efectivo · transferencia · tarjeta hasta 6 meses sin intereses",
-    // [PENDIENTE] hasta que Jenny aclare su respuesta 4: «por la compra de las
-    // 4 llantas incluye todo el servicio y mantenimiento cada 10 mil km […]
-    // todo menos alineación». Falta qué es «todo el servicio», si vale con 1–2
-    // llantas y por cuánto tiempo el mantenimiento.
-    todasIncluyen: "[PENDIENTE] qué incluye la compra de 4 (Jenny: «todo el servicio menos alineación» + mantenimiento cada 10.000 km)",
+    // Jenny, 8-nov (aclara la respuesta ambigua del 6-nov): «comprando las 4
+    // llantas incluye alineación, balanceo, nitrógeno y enllantaje, y si llevan
+    // una sola llanta incluye solo balanceo, nitrógeno y enllantaje». Es el
+    // texto de reserva de la franja; lo que se imprime sale de la tabla
+    // `benefits`, filtrado por cantidad (`beneficiosDeArranque`, abajo).
+    todasIncluyen: "Enllantaje, balanceo y nitrógeno · alineación comprando las 4",
     impuestosIncluidos: "IVA incluido",
     precioSinDescuento: "[PENDIENTE] frase bajo el precio sin descuento",
     notaDePrecios: "Precios por unidad incluyen IVA.",
     notaDePrecioUnitario: "Precio incluye IVA.",
   },
   // Sin `facturacion` no salen pre-facturas: correcto durante la prueba.
+  // La alineación SOLO con 4 llantas (Jenny, 8-nov): «alineación no porque
+  // solo se da cuando lleva las 4 llantas». El mantenimiento cada 10.000 km
+  // del 6-nov no lo repitió: no se promete.
+  beneficiosDeArranque: [
+    { text: "Enllantaje, balanceo y nitrógeno" },
+    { text: "Alineación (comprando las 4 llantas)", minQuantity: 4 },
+  ],
   pendientesNumericos: PENDIENTES_NUMERICOS,
 };

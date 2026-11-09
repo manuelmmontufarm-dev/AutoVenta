@@ -34,9 +34,22 @@ describe("Mundillantas · solo lo confirmado", () => {
     expect(negocio.moneda).toBe("USD");
   });
 
-  it("lunes a sábado 08:00–18:00, domingo cerrado", () => {
-    for (const dia of [1, 2, 3, 4, 5, 6]) expect(negocio.horasPorDia[dia]).toEqual({ open: "08:00", close: "18:00" });
+  it("lunes a viernes 08:00–18:00, sábado 08:00–16:00, domingo cerrado (Jenny, 8-nov)", () => {
+    for (const dia of [1, 2, 3, 4, 5]) expect(negocio.horasPorDia[dia]).toEqual({ open: "08:00", close: "18:00" });
+    expect(negocio.horasPorDia[6]).toEqual({ open: "08:00", close: "16:00" });
     expect(negocio.horasPorDia[0]).toBeNull();
+  });
+
+  it("el bot usa el número de Competimotor que dio Jenny el 8-nov", () => {
+    expect(negocio.telefono).toBe("+593 99 124 4698");
+  });
+
+  it("INCLUYE: enllantaje, balanceo y nitrógeno siempre; alineación solo con 4 (Jenny, 8-nov)", () => {
+    expect(negocio.beneficiosDeArranque).toEqual([
+      { text: "Enllantaje, balanceo y nitrógeno" },
+      { text: "Alineación (comprando las 4 llantas)", minQuantity: 4 },
+    ]);
+    expect(negocio.piezas.todasIncluyen.startsWith("[PENDIENTE]")).toBe(false);
   });
 
   it("dos marcas: Mundillantas (2 locales) y Competimotor (1)", () => {

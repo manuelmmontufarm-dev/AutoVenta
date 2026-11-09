@@ -29,7 +29,9 @@ export const POLITICA_MUNDILLANTAS: PoliticaComercial = {
   // pero un gentilicio equivocado no promete nada — solo da tono al prompt.
   gentilicio: "santodomingueño",
   variedadDeEspanol: "Español natural de Ecuador",
-  // El juego de 4 es el estándar del mercado; Mundillantas no pidió otro.
+  // Jenny, 8-nov: «se vende cualquier número de llantas» (1, 2 o 3). El bot
+  // ya cotiza la cantidad que pide el cliente; el 4 es solo lo que asume
+  // cuando no la dice, y es además el mínimo de la alineación incluida.
   juegoCompleto: 4,
   // ~10 marcas que la escalera no conoce: el escalón premium/equilibrio/
   // económica sale del precio dentro del conjunto (decidido en §3.3 punto 2).

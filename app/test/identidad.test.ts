@@ -158,9 +158,10 @@ describe("faltantesDelPerfil", () => {
 
   it("Mundillantas lista cada hueco con una ruta legible", () => {
     const faltantes = faltantesDelPerfil(MUNDILLANTAS);
-    expect(faltantes).toContain("teléfono");
+    // El teléfono (8-nov) y lo que incluye la compra (8-nov) ya llegaron.
+    expect(faltantes).not.toContain("teléfono");
     expect(faltantes).toContain("vendedor · nombre");
-    expect(faltantes).toContain("piezas · qué incluye toda compra");
+    expect(faltantes).not.toContain("piezas · qué incluye toda compra");
     // Los numéricos declarados también van.
     expect(faltantes.some((f) => f.startsWith("garantías por marca"))).toBe(true);
     // Lo que Jenny confirmó el 6-nov NO aparece.

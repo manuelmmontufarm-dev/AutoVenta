@@ -1,3 +1,22 @@
+## 8-nov-2026 · Mundillantas: respuestas de Jenny del 8-nov (número, horario, qué incluye, asesores)
+
+- **Qué cambió:** el bot usa el número de Competimotor **+593 99 124 4698**; horario L–V 8:00–18:00 y
+  sábado 8:00–16:00 en los tres locales (domingo cerrado). INCLUYE por cantidad: con 4 llantas
+  alineación, balanceo, nitrógeno y enllantaje; con 1–3, todo menos alineación. Se vende cualquier
+  número de llantas (el bot ya lo hacía; el 4 es solo lo que asume si no dicen).
+- **Cómo:** perfil `beneficiosDeArranque` + migración `032_beneficios_de_arranque` (siembra una vez por
+  base; Depot no declara nada). La pieza de opciones ahora filtra el INCLUYE por la cantidad resuelta
+  (antes un beneficio con mínimo nunca entraba). El vendedor recibe la línea «INCLUIDO SEGÚN CUÁNTAS
+  LLEVA» con el mínimo (Depot no tiene beneficios condicionados: su prompt no cambia). Con presentación
+  combinada y sin local elegido, la pieza ya no toma la identidad de Mundillantas: el pie lista los tres
+  locales (antes omitía Competimotor). El simulador adelanta el contador de ids al copiar tablas.
+- **Probado en el simulador** (`--perfil mundillantas`, Excel real): 2 llantas → «La alineación va
+  incluida solo comprando 4 llantas o más»; 4 → la cotización imprime la alineación; «¿el sábado hasta
+  qué hora?» → 16:00 en los tres locales.
+- **Falta:** acceso de administrador a Meta (Jenny dejó el 2 en blanco), pin de Kenda (dijo que manda
+  los 3), meses de garantía, nombre del vendedor. En la base de producción de Mundillantas: sábado a las
+  16:00 y cargar a Carlos (Competimotor) y Moroni (los dos Mundillantas) como asesores.
+
 ## 7-nov-2026 · Mundillantas: respuestas de Jenny cargadas y decisión del número del bot
 
 - **Qué cambió:** el perfil de Mundillantas tiene los 3 locales reales (Falken, Kenda, Competimotor) con

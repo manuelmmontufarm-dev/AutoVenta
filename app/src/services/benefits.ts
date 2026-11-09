@@ -160,9 +160,10 @@ export function debeLlevarIncluyeEnTexto(imagenOk: boolean, clienteLoPidio: bool
  * a una marca o a un mínimo de unidades no es un hecho de toda compra.
  */
 export async function activeBenefitFactsBlock(ahora: Date = new Date()): Promise<string | null> {
-  const [textos, piezas] = await Promise.all([
+  const [textos, piezas, porCantidad] = await Promise.all([
     applicableBenefitTexts(),
     getPiecesConfig().catch(() => DEFAULT_PIECES_CONFIG),
+    beneficiosPorCantidad(),
   ]);
   // La promoción en 3x4 (26-oct, feriado): el vendedor tiene que poder decir
   // «sí, y se aplica en la cotización» cuando preguntan «¿tienen el 3x4?»
@@ -173,13 +174,38 @@ export async function activeBenefitFactsBlock(ahora: Date = new Date()): Promise
   // como hecho, o el vendedor no puede decir «$20 la alineación» y el
   // revisor la tacha. Fuera de fechas o sin promo en la política, null.
   const temporada = hechoDeTemporadaParaElVendedor({ beneficios: textos, ahora });
-  if (!textos.length) return [promocion, temporada].filter(Boolean).join("\n") || null;
+  const condicionados = lineaDeBeneficiosPorCantidad(porCantidad);
+  if (!textos.length) return [condicionados, promocion, temporada].filter(Boolean).join("\n") || null;
   return [
     `INCLUIDO CON LA COMPRA (fuente determinística): ${textos.join("; ")}.`,
     "Si el cliente pregunta si algo está incluido (alineación, balanceo, instalación…): lo que está en esta lista se AFIRMA con seguridad — es exactamente lo que imprime su cotización. PROHIBIDO decir que algo de esta lista «es aparte», «tiene costo» o «se lo confirma el asesor». Lo que NO está en la lista ni se afirma ni se niega: «se lo confirma el asesor en tienda», y sigues con la venta en la misma respuesta.",
+    condicionados,
     promocion,
     temporada,
   ].filter(Boolean).join("\n");
+}
+
+/**
+ * Los beneficios que dependen SOLO de cuántas llantas lleva (sin marca ni
+ * local), con su mínimo. Mundillantas, 8-nov-2026 (Jenny): «comprando las 4
+ * llantas incluye alineación […] si llevan una sola llanta incluye solo
+ * balanceo, nitrógeno y enllantaje». Sin esta línea el vendedor no sabía de la
+ * alineación (el bloque de arriba solo afirma lo incondicional) y contestaba
+ * «se lo confirma el asesor» a la pregunta más común.
+ */
+async function beneficiosPorCantidad(): Promise<Benefit[]> {
+  try {
+    return (await getActiveBenefits()).filter((b) => b.minQuantity != null && b.minQuantity > 1 && !b.brand && !b.store);
+  } catch {
+    return [];
+  }
+}
+
+/** La línea de HECHO para el vendedor, o null si no hay beneficios por cantidad. */
+export function lineaDeBeneficiosPorCantidad(beneficios: readonly Benefit[]): string | null {
+  if (!beneficios.length) return null;
+  const partes = beneficios.map((b) => `${b.text} → SOLO comprando ${b.minQuantity} llantas o más`);
+  return `INCLUIDO SEGÚN CUÁNTAS LLEVA (fuente determinística): ${partes.join("; ")}. Con menos llantas eso NO va incluido: si preguntan, dilo claro y con el mínimo, sin inventarle un precio aparte.`;
 }
 
 /** Pedido explícito que autoriza volver a mostrar el bloque. */

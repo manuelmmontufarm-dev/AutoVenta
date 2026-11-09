@@ -66,11 +66,10 @@ const tema = resolveTheme("depotRojo", "exo");
 const FECHA = "04 / 11 / 2026";
 
 describe("con NEGOCIO=mundillantas el perfil SÍ tiene pendientes (si no, la prueba no prueba nada)", () => {
-  it("el vendedor, el teléfono y los pies están en [PENDIENTE]", () => {
+  it("el vendedor y el precio sin descuento siguen en [PENDIENTE]", () => {
     expect(negocio.vendedor.nombre.startsWith(MARCA)).toBe(true);
-    expect(negocio.telefono.startsWith(MARCA)).toBe(true);
-    // Las condiciones ya llegaron (Jenny, 6-nov); lo que incluye la compra no.
-    expect(negocio.piezas.todasIncluyen.startsWith(MARCA)).toBe(true);
+    // El teléfono y lo que incluye la compra llegaron el 8-nov (Jenny).
+    expect(negocio.piezas.precioSinDescuento?.startsWith(MARCA)).toBe(true);
   });
 });
 

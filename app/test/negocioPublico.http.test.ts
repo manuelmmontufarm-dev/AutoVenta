@@ -75,7 +75,7 @@ describe("GET /api/negocio · el contrato exacto de §3.2", () => {
       id: "mundillantas",
       nombre: "Mundillantas",
       ciudad: "Santo Domingo",
-      telefono: "[PENDIENTE] número de WhatsApp del bot (Jenny dio los de los asesores, no el del bot)",
+      telefono: "+593 99 124 4698",
       identidades: [
         { id: "mundillantas", nombre: "Mundillantas", locales: ["matriz", "local2"] },
         { id: "competimotor", nombre: "Competimotor", locales: ["competimotor"] },
@@ -90,14 +90,12 @@ describe("GET /api/negocio · el contrato exacto de §3.2", () => {
       playbook: COMPACT_PLAYBOOK,
       // Con las respuestas de Jenny del 6-nov ya no faltan las direcciones,
       // las formas de pago, los textos de impuestos ni los logos.
+      // El 8-nov llegaron el número del bot, el horario y lo que incluye.
       faltantes: [
-        "teléfono",
         "vendedor · nombre",
-        "piezas · qué incluye toda compra",
         "piezas · frase del precio sin descuento",
         "Mundillantas Kenda · pin (Jenny reenvió el mismo de Falken el 6-nov; puesto el de Falken)",
         "garantías por marca: meses del seguro contra impacto y años de fábrica (en 0 hasta que Jenny los dé)",
-        "domingo cerrado es un SUPUESTO del pitch (lunes–sábado confirmado)",
       ],
     });
   });

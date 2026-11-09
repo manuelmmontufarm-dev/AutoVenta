@@ -155,3 +155,17 @@ plantillas). Los dos números ya tienen WhatsApp Business.
 celulares conectar · acceso de administrador a Meta Business · qué incluye la compra y si aplica
 con 1 llanta · si venden de a 1–2 o solo juegos de 4 · horario de los 3 locales y domingo · en qué
 local está Moroni y a quién van las cotizaciones · el pin real de Kenda (km 1½, Banco Pichincha).
+
+## 8-nov-2026: Jenny contestó (WhatsApp, 5:25 PM)
+
+| Pregunta | Lo que dijo Jenny | Dónde quedó |
+|---|---|---|
+| Número del bot | «El número que usaría sería el de Competimotor que le pasé: +593 99-124-4698» | `telefono` = `+593 99 124 4698`. OJO: no es el celular de Carlos que dio el 6-nov (0985487924) |
+| Acceso a Meta Business | (Dejó el «2.» en blanco) | Sigue pendiente: sin esto no se conecta el número |
+| Qué incluye la compra | «Comprando las 4 llantas incluye alineación, balanceo, nitrógeno y enllantaje, y si llevan una sola llanta incluye solo balanceo, nitrógeno y enllantaje; alineación no porque solo se da cuando lleva las 4 llantas» | `beneficiosDeArranque` (tabla `benefits`, migración 032) + `piezas.todasIncluyen` |
+| ¿Venden de a 1–2? | «Se vende cualquier número de llantas» | Sin cambio de código: el bot cotiza la cantidad que piden |
+| Horario de los 3 locales | «Sí los tres atienden. Lo mismo, pero el horario es de lunes a viernes de 8am hasta las 6pm y los sábados de 8am hasta las 4pm» | `horasPorDia` (sábado 16:00). Producción: hay que cambiar `store_hours` (Ajustes → Horarios) |
+| Moroni | «Y Moroni atiende Mundillantas» | Asesores: Carlos → `competimotor`, Moroni → `matriz` y `local2` (Ajustes → Asesores) |
+| Pin de Kenda | «La ubicación de Google Maps ya le paso de los 3 locales» | Pendiente |
+
+El mantenimiento cada 10.000 km que nombró el 6-nov no lo repitió: no se promete.

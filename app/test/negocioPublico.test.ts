@@ -50,7 +50,7 @@ describe("armarNegocioPublico · la forma", () => {
       { id: "competimotor", nombre: "Competimotor", locales: ["competimotor"] },
     ]);
     expect(pub.locales.map((l) => l.slug)).toEqual(["matriz", "local2", "competimotor"]);
-    expect(pub.faltantes.length).toBeGreaterThan(5);
+    expect(pub.faltantes.length).toBeGreaterThan(2);
     expect(pub.faltantes).toContain("vendedor · nombre");
   });
 

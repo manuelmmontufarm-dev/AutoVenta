@@ -199,7 +199,12 @@ describe.sequential("Cierre por preferencia — reunión del 25-ago", () => {
       benefits.invalidateBenefitsCache();
       const bloque = await benefits.activeBenefitFactsBlock();
       expect(bloque).not.toContain("Promo solo Falken");
-      expect(bloque).not.toContain("Descuento por juego");
+      // Desde el 8-nov (alineación de Mundillantas solo con 4) el condicionado
+      // por cantidad SÍ llega al vendedor, pero en su línea y con su mínimo:
+      // nunca en la lista de lo que incluye toda compra.
+      const general = bloque?.split("\n").find((l) => l.startsWith("INCLUIDO CON LA COMPRA")) ?? "";
+      expect(general).not.toContain("Descuento por juego");
+      expect(bloque).toContain("Descuento por juego → SOLO comprando 4 llantas o más");
     });
 
     it("sin beneficios vigentes no se inventa el bloque", async () => {
