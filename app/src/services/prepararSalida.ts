@@ -25,6 +25,7 @@
  * guardián volvió a prometer «4 × KENDA KR203 … $262.60» cuando había 3,
  * borrando el aviso que un candado anterior ya había pegado.
  */
+import { fraseDelAvisoEn, ORACION_DE_MEDIDAS_DISTINTAS } from "../domain/avisoDeMedidas.js";
 import { preguntaElDia } from "../domain/customerCommitment.js";
 import { preguntaElLocal } from "../domain/storeSelection.js";
 import { elClienteDijoQueAvisa } from "../domain/clientePosterga.js";
@@ -42,7 +43,7 @@ import { revisarConGuardian, type HuellaHerramienta, type RevisionGuardian } fro
 import { asegurarAvisoDeStock } from "./stockCorto.js";
 import { insistirConLoQueFalta, sinPreguntaPendienteConsecutiva } from "./insistirCierre.js";
 import { createBotAlert } from "./followUps.js";
-import { MAX_BLOCKS, textoDeLaPieza } from "./quoteMessages.js";
+import { composeBlocks, MAX_BLOCKS, textoDeLaPieza } from "./quoteMessages.js";
 import { sinCuestionarLaMedidaDada, sinPreguntasProhibidas } from "../domain/preguntasProhibidas.js";
 import { medidasDelMensaje, medidasEscritasPorElCliente } from "../domain/medidaDelCliente.js";
 import { mensajesDeLaVisitaActual } from "../domain/medidaPedida.js";
@@ -469,6 +470,43 @@ export const PASOS: readonly PasoDeSalida[] = [
         return null;
       }
       return resultado.texto;
+    },
+  },
+  {
+    // EL AVISO DE «MEDIDAS DISTINTAS» SE QUEDA (auditoría 9-nov, sprint 5b).
+    //
+    // 39897 · «Que precio tienen en 175 x. Rin 16»: la lámina salió con tres
+    // medidas del aro 16 y el aviso «⚠️ Ojo: estas opciones son de *medidas
+    // distintas*…»; el Guardián mini lo borró entero (`cotizacion_sin_medida`)
+    // y el cliente recibió la lista sin saber que cada llanta era de otra
+    // medida. 39787: lo dejó, pero sin las medidas (`medida_incorrecta`).
+    //
+    // El aviso es verdad de la herramienta: si el borrador lo traía y la
+    // corrección ya no trae su PRIMERA FRASE exacta, se repone esa frase —
+    // en lugar de la versión cambiada, o arriba si la quitó—. La re-pregunta
+    // de la medida no se repone: quitarla puede ser correcto (39845).
+    // Va después de `guardian_no_vende_solo`, que puede restaurar el borrador.
+    nombre: "aviso_de_medidas_se_queda",
+    corre: ["respuesta", "retomada"],
+    async aplicar(texto, ctx) {
+      const frase = fraseDelAvisoEn(ctx.textoAntesDelGuardian);
+      if (!frase || texto.includes(frase)) return texto;
+      const cambiada = texto.match(ORACION_DE_MEDIDAS_DISTINTAS)?.[0];
+      const repuesto = cambiada
+        ? texto.replace(cambiada, ` ${frase}`).replace(/^[ \t]+/gm, "")
+        : composeBlocks(frase, texto);
+      console.warn(`📏 Conv ${ctx.conversation.id}: la corrección ${cambiada ? "cambió" : "quitó"} el aviso de medidas distintas; se repuso.`);
+      await createBotAlert({
+        conversationId: ctx.conversation.id,
+        cycle: ctx.conversation.current_cycle,
+        type: "aviso_de_medidas_repuesto",
+        priority: "low",
+        summary: "El Guardián quitó el aviso de «medidas distintas» de la lámina; se repuso",
+        exactReason: `Borrador con el aviso: «${frase}». La corrección decía: «${texto.slice(0, 240)}».`,
+        suggestedAction: "Nada que hacer: el cliente recibió el aviso. Sirve para medir cuánto lo borra el Guardián.",
+        dedupeKey: `aviso_de_medidas_repuesto:${ctx.conversation.id}:${ctx.conversation.current_cycle}:${Date.now()}`,
+      }).catch(() => undefined);
+      return repuesto;
     },
   },
   {

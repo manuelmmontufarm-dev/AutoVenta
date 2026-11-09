@@ -729,6 +729,12 @@ export async function armarContexto(
     huella.some((h) => h.resultado.includes('"aviso_tipo"'))
       ? "AVISO DE TIPO VIGENTE: este turno la herramienta reportó `aviso_tipo` — no había suficientes llantas del tipo que le sirve a su uso y el menú se completó con otro tipo. Es un hecho: el borrador DEBE decirlo en una línea, y quitárselo es error ALTO (categoría **otro**). La corrección no lo borra ni presenta esas llantas como el tipo ideal."
       : null,
+    // Lo mismo con el aviso de «medidas distintas» (auditoría 9-nov, 39897 y
+    // 39787): la lámina mezcla medidas del mismo aro y la herramienta lo avisó.
+    // El mini lo borraba como `cotizacion_sin_medida` o le quitaba las medidas.
+    huella.some((h) => h.resultado.includes('"aviso_medidas":true'))
+      ? "AVISO DE MEDIDAS VIGENTE: este turno la herramienta reportó `aviso_medidas` — las opciones en pantalla son de MEDIDAS DISTINTAS del mismo aro y el borrador lo avisa con «⚠️ Ojo: estas opciones son de *medidas distintas* del mismo aro (…) — cada tarjeta lleva la suya.». Es verdad de la herramienta: quitarlo, o quitarle la lista de medidas, es error ALTO, y la regla 22 no lo anula (avisar que cada tarjeta lleva su medida NO es cotizar sin medida). Esa frase se conserva tal cual."
+      : null,
     // HECHO DURO (familia 2-H, 28-sep): la medida que él escribió es SUYA. Sin
     // este hecho el revisor la cuestionaba por el vehículo o el anuncio y
     // pedía la foto del costado a quien ya la había escrito.

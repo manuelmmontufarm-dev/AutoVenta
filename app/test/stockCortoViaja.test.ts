@@ -157,6 +157,10 @@ describe("el orden de los candados en el turno", () => {
       "pregunta_legitima_tras_cotizacion_bloqueada",
       "angel_guardian",
       "guardian_no_vende_solo",
+      // El aviso de «medidas distintas» es verdad de la herramienta: si la
+      // corrección lo quitó o lo cambió, se repone (auditoría 9-nov, 39897 y
+      // 39787). Después de `guardian_no_vende_solo`, que puede restaurar el borrador.
+      "aviso_de_medidas_se_queda",
       // El dedupe repite DESPUÉS del guardián porque él reescribe y puede
       // reintroducir la pregunta ya vetada (T115 conv 9887, 30-ago).
       "sin_pregunta_consecutiva_tras_guardian",

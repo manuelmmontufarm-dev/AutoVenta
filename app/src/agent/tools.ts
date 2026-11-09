@@ -7,6 +7,7 @@
  * El LLM extrae los datos, pero la lógica de negocio (búsqueda, precios, PDF)
  * es determinista — cero precios alucinados.
  */
+import { avisoDeMedidasDistintas } from "../domain/avisoDeMedidas.js";
 import { esAcuseSimple, ofreceCotizarEn, preguntaCualLeCotizo, respondeQueSi, ultimaOfertaDeCotizar } from "../domain/ofertaAceptada.js";
 import { anuncioDeLaConversacion } from "../services/anuncio.js";
 import { lonasDelProducto, politicaDePagos } from "../domain/datosDelNegocio.js";
@@ -2120,7 +2121,7 @@ export function buildTools(ctx: AgentContext) {
       const pidioSinPerfil = permitidasOpciones.length > 0 &&
         permitidasOpciones.every((m) => extractTireSizes(m)[0]?.aspect === null);
       const avisoSinMedidaPedida = (!permitidasOpciones.length || (pidioSinPerfil && !fueraDeMedida.length)) && medidasEnPantalla.length > 1
-        ? `⚠️ Ojo: estas opciones son de *medidas distintas* del mismo aro (${medidasEnPantalla.join(", ")}) — cada tarjeta lleva la suya. Para asegurarle el calce necesito la medida del costado de su llanta.`
+        ? avisoDeMedidasDistintas(medidasEnPantalla)
         : null;
       // «EQUIVALENTE» LO DICE EL JUEZ, NO LA LÁMINA (familia 1-B, 22-24 sep):
       // todo lo que no era su medida salía rotulado «equivalentes de su aro»
@@ -2648,6 +2649,10 @@ export function buildTools(ctx: AgentContext) {
         // El menú se salió del uso declarado (el texto completo va en `aviso`).
         // Booleano y al principio: la huella del guardián corta a 500 caracteres.
         ...(porUso.avisoTipo ? { aviso_tipo: true } : {}),
+        // La lámina mezcla medidas del mismo aro y el texto lo avisa (auditoría
+        // 9-nov, 39897 y 39787: el Guardián mini borraba el aviso). Booleano y
+        // al principio por lo mismo: la huella corta a 500 caracteres.
+        ...(avisoMedidaCliente && avisoMedidaCliente === avisoSinMedidaPedida ? { aviso_medidas: true } : {}),
         // UNA SOLA OPCIÓN: el cierre es «¿Se la cotizo?» y el guardián tiene que
         // saberlo para no quitarla. El hecho se buscaba con un regex sobre
         // `mensaje_para_enviar`, que va al final y no entra en los 500

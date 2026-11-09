@@ -28,9 +28,11 @@ export function anchoYAro(texto: string): AnchoYAro | null {
   // Una medida completa manda por su propia ruta: se tacha antes de buscar,
   // para que «mejor 235/60R15» no caiga aquí por el «235 … 15» que contiene.
   const sinCompletas = n.replace(/\d{2,3}\s*\/\s*\d{2,3}\s*z?r?\s*\d{2}/g, " ").replace(/\d{2}\s*x\s*\d{1,2}[.,]?\d{0,2}\s*r?\s*\d{2}/g, " ");
-  // «235 rin 15», «235 r15», «235 aro 15»
+  // «235 rin 15», «235 r15», «235 aro 15» — y con un separador en medio:
+  // «175 x. Rin 16», «175 × rin 16», «175*rin 16» (auditoría 9-nov, 39897: no se
+  // leía el ancho y la lámina salió con tres medidas distintas del aro 16).
   const directo = sinCompletas.match(
-    new RegExp(`\\b(${ANCHO})\\s*(?:en\\s+)?(?:z?r|rin(?:es)?|aros?|ring)\\s*\\.?\\s*(${ARO})\\b`),
+    new RegExp(`\\b(${ANCHO})\\s*(?:[x×*]\\s*\\.?|\\.)?\\s*(?:en\\s+)?(?:z?r|rin(?:es)?|aros?|ring)\\s*\\.?\\s*(${ARO})\\b`),
   );
   if (directo) return { ancho: Number(directo[1]), aro: Number(directo[2]) };
   // «rin 15 235»

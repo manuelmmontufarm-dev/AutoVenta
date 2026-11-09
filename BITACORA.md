@@ -1,3 +1,21 @@
+## 9-nov-2026 · El aviso de «medidas distintas» ya no lo borra el Guardián (auditoría 9-nov, sprint 5b)
+
+- **Qué:** 39897 («Que precio tienen en 175 x. Rin 16»): el bot no leyó el 175, la lámina salió con tres medidas del
+  aro 16 y el Guardián mini borró el aviso «⚠️ Ojo: estas opciones son de *medidas distintas*…» como
+  `cotizacion_sin_medida`; el cliente recibió la lista sin saber que cada llanta era de otra medida. 39787: el aviso
+  quedó pero sin las medidas (`medida_incorrecta`).
+- **Cómo:** (1) `anchoYAro` acepta «x», «×», «*» o «.» entre el ancho y «rin». (2) `domain/avisoDeMedidas.ts` (NUEVO)
+  es la fuente única del texto del aviso; `preparar_opciones` devuelve `aviso_medidas:true` entre los primeros campos
+  (dentro de los 500 caracteres de la huella) y el Guardián recibe «AVISO DE MEDIDAS VIGENTE … la regla 22 no lo
+  anula», como `aviso_tipo`. (3) Paso nuevo `aviso_de_medidas_se_queda` después de `guardian_no_vende_solo`: si el
+  borrador traía la primera frase del aviso y la corrección no la trae exacta, la repone (en lugar de la versión
+  cambiada, o arriba); la re-pregunta de la medida no se repone. Alerta baja `aviso_de_medidas_repuesto` y log «📏».
+- **Por qué:** el aviso es verdad de la herramienta y el mini lo leía como una cotización sin medida.
+- **Probado:** `s5bAvisoDeMedidas.test.ts` (12, 10 en rojo antes) y `s5bAvisoDeMedidasGuardian.integration.test.ts`
+  (2, 1 en rojo). Re-fijado `stockCortoViaja.test.ts` (la cadena tiene el paso nuevo). Simulador en el cuadro.
+- **Falta / ojo:** las otras variantes del aviso de medida (`avisoDeMedidaEnOpciones`: fuera de medida, perfil) no
+  llevan candado: no estaban en el brief.
+
 ## 9-nov-2026 · Ni local ni día a quien no corresponde (auditoría 9-nov, sprint 5a)
 
 - **Qué:** el candado del cierre le pegaba «¿A cuál local le queda mejor ir…?» o «¿Qué día puede pasar?» a quien
