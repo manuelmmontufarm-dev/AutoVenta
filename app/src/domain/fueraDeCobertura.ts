@@ -34,6 +34,8 @@
  * matriz, no la ciudad de Quevedo. Con Depot los patrones salen idénticos.
  */
 import { negocio, sinTildes } from "../negocio/index.js";
+import { diceQueEstaLejos, diceQueNoPuedeIr } from "./clienteLejos.js";
+import { mantieneLaVenta } from "./sinSeguimiento.js";
 
 const normalizar = (t: string): string =>
   t.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
@@ -103,6 +105,16 @@ const OTRAS_CIUDADES: readonly (readonly [string, RegExp])[] = [
   ["Chimborazo", /\bchimborazo\b/],
   ["Los Ríos", /\blos\s+rios\b/],
   ["Galápagos", /\bgalapagos\b/],
+  // Auditoría del 9-nov (familia 7): 39597 «soy de bolivar esta muy aledado»;
+  // 39845 «Estoy por el oriente». La avenida Simón Bolívar de Quito no es la
+  // provincia: con «simón», «av», «calle», «la» o «plaza» delante es una calle.
+  ["Bolívar", /(?<!\b(?:simon|av|avda|avenida|calle|la|plaza|parque)\.?\s{1,3})\bbolivar\b/],
+  ["Napo", /\bnapo\b/],
+  ["Pastaza", /\bpastaza\b/],
+  ["Sucumbíos", /\bsucumbios\b/],
+  ["Orellana", /\borellana\b/],
+  ["Morona Santiago", /\bmorona\b/],
+  ["Oriente", /\bel\s+oriente\b|\bamazonia\b|\bla\s+amazonia\b/],
 ];
 
 /**
@@ -210,6 +222,13 @@ export function dondeEstaElCliente(texto: string | null | undefined): DondeEsta 
   // La negación se lee primero: «no vivo en Quito» nombra Quito y es lo
   // contrario de estar en Quito (conv 18603).
   if (NIEGA_QUITO.test(n)) return { estado: "fuera", ciudad: null };
+  // «Está muy lejos», «muy difícil ir a Quito», «no puedo ir» (38924, 39597,
+  // 18535): no puede venir aunque no nombre ciudad — y «difícil ir a Quito» NO
+  // es anunciar que viene. Salvo que el mismo mensaje siga vendiendo («está
+  // lejos de mi casa pero voy el sábado», «queda lejos, ¿tienen otro local?»).
+  if ((diceQueEstaLejos(n) || diceQueNoPuedeIr(n)) && !mantieneLaVenta(texto ?? "")) {
+    return { estado: "fuera", ciudad: FUERA.find(([, re]) => re.test(n))?.[0] ?? null };
+  }
   if (DE_PROVINCIA.test(n) && !FUERA.some(([, re]) => re.test(n))) {
     return { estado: VIENE_A_QUITO.test(n) ? "viene" : "fuera", ciudad: null };
   }

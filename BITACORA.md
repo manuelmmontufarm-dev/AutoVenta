@@ -1,3 +1,28 @@
+## 9-nov-2026 · Ni local ni día a quien no corresponde (auditoría 9-nov, sprint 5a)
+
+- **Qué:** el candado del cierre le pegaba «¿A cuál local le queda mejor ir…?» o «¿Qué día puede pasar?» a quien
+  dijo «Está muy lejos le agradezco» (38924), «aya chuta esta lejos donde estoy yo» / «soy de bolivar esta muy
+  aledado» (39597), «Muy dificel ir a Quito» (18535, que además pisaba `fuera` con `viene`), a quien solo comparaba
+  con «tengo una cotización en $85 en Mazini» (39769) y a quien recién recibía el menú (39887). Y la pregunta del día
+  repetida salía si el Guardián la ponía en un bloque del medio (39845).
+- **Cómo:** (C1) `domain/clienteLejos.ts` (NUEVO, fuente única de «está lejos» / «no puedo ir»; `sinSeguimiento` lo
+  importa en vez de su `ESTA_MUY_LEJOS`): `dondeEstaElCliente` devuelve `fuera` con esas frases salvo que el mismo
+  mensaje siga vendiendo (`mantieneLaVenta` del Sprint 2: «está lejos pero voy el sábado»); se agregan Bolívar (no
+  «Simón Bolívar» ni «av. Bolívar»), Napo, Pastaza, Sucumbíos, Orellana, Morona y «el Oriente/Amazonía». (C2) «difícil
+  / imposible / no me es posible ir a Quito» se lee antes que «ir a Quito» = viene. (C3) `hayCompromisoDeCierre` ya no
+  cuenta la lámina sola (pide cotización, producto o cantidad elegidos); `faseOperativa` borra «tengo/me hicieron una
+  cotización» y «otra cotización» antes de buscar COTIZAR; el paso `insistir_con_lo_que_falta` no pega nada si el turno
+  cierra ofreciendo el menú (`ofertaEnElTexto(...).clase === "menu"`, con la oferta declarada). (C5)
+  `quitarPreguntaFinal` busca la pregunta repetida en cualquier bloque y corta desde su «¿»; log «🔁 … se quitó».
+- **Por qué:** el candado lee la base (hay cotización/lámina, falta local) y no lo que el cliente dijo de dónde está.
+- **Probado:** `s5aVisitaFueraDeLugar.test.ts` (20, 13 en rojo antes) y `s5aInsistirFueraDeLugar.integration.test.ts`
+  (8, 5 en rojo antes, incluido C5) con los textos reales; simulador en el cuadro del sprint. Re-fijado el caso 13909
+  (`compromisoDeCierre.test.ts`, `insistirCierre.integration.test.ts`): Oswaldo tenía «Premium» elegido, ahora el
+  fixture lo lleva — la lámina sola ya no es compromiso.
+- **Falta / ojo:** 39635, 39650 y 39759 no se tocan: la pregunta sale de `ubicacion_locales` o de la plantilla de
+  seguimiento sin producto elegido, decisión pendiente de Manuel. «Estoy por el oriente, llego en 15 días» se lee
+  `fuera` (no nombra Quito); si después dice que está en Quito, pasa a `viene`.
+
 ## 9-nov-2026 · Recordatorios automáticos: ni precio viejo, ni lista repetida, ni borrador malo (auditoría 9-nov, sprint 2)
 
 - **Qué:** (2a) el seguimiento ya no copia los precios guardados con la lámina: 26 seguimientos en 17 chats

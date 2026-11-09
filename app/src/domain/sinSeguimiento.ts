@@ -20,6 +20,7 @@ import { comproEnOtroLugar } from "./cierrePerdido.js";
 import { elClienteDijoQueAvisa, pideQueLeAvisen } from "./clientePosterga.js";
 import type { SinVisita } from "./compraADistancia.js";
 import { esAcuseSimple } from "./ofertaAceptada.js";
+import { diceQueEstaLejos } from "./clienteLejos.js";
 
 export type MotivoSinSeguimiento =
   | "cierre_del_cliente"
@@ -40,7 +41,6 @@ export type MotivoSinSeguimiento =
  * en el costado» siguen siendo venta.
  */
 const NO_ME_ESPERE = /\bno\s+(?:me|nos|se)\s+espere(?:n)?\b/i;
-const ESTA_MUY_LEJOS = /\b(?:est[aá]|queda|me\s+queda|nos\s+queda|es|sale)\s+(?:muy|demasiado|bastante|tan)\s+lejos\b/i;
 const ENCONTRO_LLANTAS = /\b(?:encontramos|encontr[eé]|conseguimos|consegu[ií])\s+(?:ya\s+)?(?:las|unas?|otras?|llantas|el|la|los)\b/i;
 const ENCONTRO_UN_DATO = /\b(?:medida|numeraci[oó]n|costado|c[oó]digo|foto|d[oó]nde|donde)\b/i;
 const NINGUNA_GRACIAS = /^\s*ningunas?(?:\s+de\s+(?:las|esas|ellas|estas))?[\s,.!]*gracias\b/i;
@@ -69,7 +69,8 @@ function rechazaSeguir(texto: string): boolean {
   if (NINGUNA_GRACIAS.test(texto)) return !PREGUNTA.test(texto);
   if (mantieneLaVenta(texto)) return false;
   if (NO_ME_ESPERE.test(texto)) return true;
-  if (ESTA_MUY_LEJOS.test(texto)) return true;
+  // «Está (muy) lejos»: el hecho tiene una sola fuente (clienteLejos.ts), la misma que lee dondeEstaElCliente.
+  if (diceQueEstaLejos(texto)) return true;
   if (ENCONTRO_LLANTAS.test(texto) && !ENCONTRO_UN_DATO.test(texto)) return true;
   return false;
 }

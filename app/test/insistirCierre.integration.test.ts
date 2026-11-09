@@ -95,10 +95,12 @@ describe.sequential("insistir con lo que falta", () => {
     expect(r.agregado).toBeNull();
   });
 
-  it("EL CASO OSWALDO (conv 13909): sin PDF pero con opciones y local, «Gracias» recibe la pregunta del día", async () => {
+  it("EL CASO OSWALDO (conv 13909): sin PDF pero con opciones, «Premium» elegido y local, «Gracias» recibe la pregunta del día", async () => {
+    // Oswaldo había elegido «Premium» (selected_product_code): eso es el compromiso.
+    // La lámina sola ya no basta desde la auditoría del 9-nov (39769, 39887).
     const [fila] = await sql<Fila[]>`
-      insert into conversations (phone, name, status, stage, current_cycle, nearest_store, visit_date)
-      values ('593999699487', 'Oswaldo', 'open', 'seguimiento_venta', 1, 'Depot Tire Quito Sur', null)
+      insert into conversations (phone, name, status, stage, current_cycle, nearest_store, visit_date, selected_product_code)
+      values ('593999699487', 'Oswaldo', 'open', 'seguimiento_venta', 1, 'Depot Tire Quito Sur', null, '359978')
       returning id
     `;
     await sql`
