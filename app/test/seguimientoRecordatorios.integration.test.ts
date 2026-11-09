@@ -426,15 +426,17 @@ describe.sequential("recordatorios automáticos · sprint 2", () => {
   // 2c1 · el gate previo
   // =========================================================================
   describe("2c1 · porQueNoQuiereSeguimiento mira todo lo que el cliente dijo desde el último mensaje del bot", () => {
-    it("39667: «Encontramos las BFGoodrich», «No nos espere», «Gracias», «Muy amable» → no hay seguimiento", async () => {
+    it("39667 en el ORDEN REAL (el bot contestó entre «Gracias» y «Muy amable»): la última racha es solo «Muy amable» y el filtro NO la frena — la cubre el Guardián", async () => {
       const conv = await ciclo({ ultimoDelCliente: "Encontramos las BFGoodrich" });
       await mensaje(conv.id, "cliente", "No nos espere", HACE(170));
       await mensaje(conv.id, "cliente", "Gracias", HACE(169));
-      await mensaje(conv.id, "cliente", "Muy amable", HACE(168));
-      expect(await followUps.porQueNoQuiereSeguimiento(conv.id, 1)).not.toBeNull();
+      await mensaje(conv.id, "bot", "Con gusto, quedo atento por si necesita algo más.", HACE(168));
+      await mensaje(conv.id, "cliente", "Muy amable", HACE(167));
+      // Documenta el límite: no se fuerza el filtro para que pase (el rótulo `insiste_tras_rechazo` del Guardián calló el job 52004).
+      expect(await followUps.porQueNoQuiereSeguimiento(conv.id, 1)).toBeNull();
     });
 
-    it("39667: aunque «No nos espere» quede a tres mensajes de distancia del último", async () => {
+    it("sin el bot en medio, «No nos espere» + «Gracias» + «Muy amable» (racha de tres) sí cancela", async () => {
       const conv = await ciclo({ ultimoDelCliente: "Hola" });
       await mensaje(conv.id, "cliente", "No nos espere", HACE(170));
       await mensaje(conv.id, "cliente", "Gracias", HACE(169));

@@ -186,11 +186,16 @@ export function ofertaVigente(hilo: readonly FilaDelHilo[]): OfertaLeida {
     const oferta = metadata.oferta as OfertaDeCotizar | null;
     if (!oferta || oferta.tipo !== "oferta_de_cotizar") continue;
     // El mismo turno que ENTREGÓ la cotización no deja una oferta viva, aunque
-    // su cierre suene a oferta: la pieza `quote` de ese turno manda.
+    // su cierre suene a oferta: la pieza `quote` de ese turno manda. PERO solo si la
+    // cotización es lo más nuevo: si entre ella y la oferta el bot mandó una lámina de
+    // opciones (`piece: "options"`), la oferta es posterior y sigue viva. Chat 39601
+    // (9-nov): cotización → lámina → «¿Le cotizo la 1, la 2 o la 3?» → «Dos por fa»; la
+    // cotización de antes mataba el menú y «Dos» ya no contestaba nada.
     for (let j = i - 1; j >= 0 && hilo[j].role !== "user"; j--) {
-      if (hilo[j].role === "assistant" && (hilo[j].metadata ?? {}).piece === "quote") {
-        return { oferta: null, fuente: "hecho", turnosAtras: clientesEnMedio };
-      }
+      if (hilo[j].role !== "assistant") continue;
+      const pieza = (hilo[j].metadata ?? {}).piece;
+      if (pieza === "options") break;
+      if (pieza === "quote") return { oferta: null, fuente: "hecho", turnosAtras: clientesEnMedio };
     }
     if (oferta.clase === "menu" && yaEligio) return { oferta: null, fuente: "hecho", turnosAtras: clientesEnMedio };
     return { oferta, fuente: "hecho", turnosAtras: clientesEnMedio };

@@ -136,8 +136,10 @@ function preciosConocidos(
  */
 const PREGUNTA_DE_MENU_O_JUEGO =
   /\bla\s+[1-9]\b|\bopci[oó]n\s+[1-9]\b|\bjuego\s+(?:completo|de\s+(?:[4-9]|cuatro))\b|\blas?\s+(?:4|cuatro)\b|\blos\s+(?:4|cuatro)\b|\bel\s+juego\b/i;
+/** Una pregunta que nombra «las 3», «con las 2», «esas 2» NO vuelve al menú: ofrece las 1–3 llantas. */
+const NOMBRA_1_A_3 = /\b(?:las|los|con|esas?|esos?)\s+(?:[1-3]|dos|tres)\b/i;
 const VERBO_DE_PROPUESTA =
-  /\b(?:le|se\s+la|se\s+las|se\s+lo|se\s+los|te)\s+(?:cotizo|sirve|dejo|consigo|armo|preparo|separo|reservo|vendo|aparto|ofrezco)\b|\b(?:cotizo|vendo|aparto)\s+(?:esas?|esos?|las|los|la|lo)\b|\bsi\s+(?:desea|quiere|gusta|prefiere|le\s+parece)\b[^.?!]{0,40}\b(?:cotizo|dejo|consigo|armo|vendo|ofrezco|aparto|esas?|esos?|las|los)\b/i;
+  /\b(?:le|se\s+la|se\s+las|se\s+lo|se\s+los|te)\s+(?:cotizo|sirve|dejo|consigo|armo|preparo|separo|reservo|vendo|aparto|ofrezco)\b|\b(?:le|les|te)\s+interes\w+|\b(?:cotizo|vendo|aparto)\s+(?:esas?|esos?|las|los|la|lo)\b|\bsi\s+(?:desea|quiere|gusta|prefiere|le\s+parece)\b[^.?!]{0,40}\b(?:cotizo|dejo|consigo|armo|vendo|ofrezco|aparto|esas?|esos?|las|los)\b/i;
 
 /** Una pregunta: con «¿…?» o, sin apertura, la oración que termina en «?». */
 const PREGUNTA = /¿[^?]*\?|[^.!?\n¿]*\?/g;
@@ -145,7 +147,7 @@ const PREGUNTA = /¿[^?]*\?|[^.!?\n¿]*\?/g;
 function hayPropuestaDeVenta(texto: string): boolean {
   // Las preguntas que vuelven al menú o al juego completo no son propuesta, ni
   // tampoco los verbos que van dentro de ellas.
-  const sinPreguntasDeMenu = texto.replace(PREGUNTA, (pregunta) => (PREGUNTA_DE_MENU_O_JUEGO.test(pregunta) ? " " : pregunta));
+  const sinPreguntasDeMenu = texto.replace(PREGUNTA, (pregunta) => (PREGUNTA_DE_MENU_O_JUEGO.test(pregunta) && !NOMBRA_1_A_3.test(pregunta) ? " " : pregunta));
   if (sinPreguntasDeMenu.includes("?")) return true;
   return VERBO_DE_PROPUESTA.test(sinPreguntasDeMenu);
 }

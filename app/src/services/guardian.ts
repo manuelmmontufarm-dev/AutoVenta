@@ -28,6 +28,7 @@
  * OPENAI_GUARDIAN_MODEL para cambiarlo): un revisor más débil que el redactor
  * no ve los errores que el redactor no vio.
  */
+import { cantidadValidaDeLaFicha } from "../domain/cantidadGrande.js";
 import { hechoDeEquivalentesDevueltos } from "../domain/equivalentesPorMostrar.js";
 import { NOMBRE_DEL_VENDEDOR } from "../domain/saludo.js";
 import { FIRMA_DE_PRESENTACION } from "../domain/saludo.js";
@@ -782,7 +783,7 @@ export async function armarContexto(
         ? `ARO DADO POR EL CLIENTE: rin ${aro}, PERO en pantalla hay VARIAS MEDIDAS de ese aro y el cliente dio un VEHÍCULO sin escribir su medida. Cada tarjeta lleva la suya «por confirmar». LA LISTA CON PRECIOS Y «¿Le cotizo la 1, la 2 o la 3?» (o el menú 1 Costo / 2 Equilibrio / 3 Premium, si salió ese) con la que cierra la pieza ES VÁLIDA Y SE CONSERVA: NO la reemplaces por la pregunta de la medida (Manuel, 27-sep, conv 3: el revisor borró el menú y el cliente se quedó sin cómo elegir). Lo que está PROHIBIDO es cotizar o afirmar que una medida de la lámina es la suya: cuando elija una opción, antes de cotizar se le pide leer la medida del costado («¿Qué medida dice en el costado de su llanta?»), y ESA pregunta —en el turno de la elección— es legítima y NO es pregunta_de_mas. PROHIBIDO proponerle una medida de la lámina como si fuera la suya: «¿Su llanta dice 215/40R17?» invita a decir que sí sin mirar, y ese carro quizá no usa esa medida (12-sep, Qashqai 2020).`
         : `ARO DADO POR EL CLIENTE: rin ${aro}. Las opciones mostradas son de ese aro y cada una lleva su medida en la lámina. Si elige una, se cotiza con la medida de esa opción: NO se le pide «la medida exacta» para cotizar lo que ya eligió.`;
     })(),
-    hechos?.selected_quantity != null ? `Cantidad elegida: ${hechos.selected_quantity}` : null,
+    cantidadValidaDeLaFicha(hechos?.selected_quantity) !== null ? `Cantidad elegida: ${cantidadValidaDeLaFicha(hechos?.selected_quantity)}` : null,
     // Calculado en código, para que el revisor no razone la paridad (solo mientras corre la promo).
     promocionVigente(politica.promocionDeTemporada) && politica.promocionDeTemporada?.segundaLlanta
       ? (() => {

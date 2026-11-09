@@ -3,6 +3,7 @@
  * Ejecuta las tools locales y devuelve los resultados al modelo hasta obtener
  * una respuesta final para WhatsApp.
  */
+import { cantidadValidaDeLaFicha } from "../domain/cantidadGrande.js";
 import { obligacionDeMostrarEquivalentes } from "../domain/equivalentesPorMostrar.js";
 import { opcionPorPosicion, posicionElegida } from "../domain/listaDeOpciones.js";
 import { precioDeLaOpcionGuardada, type SegundaLlanta } from "../domain/promocionDeTemporada.js";
@@ -65,7 +66,7 @@ import { aroDeLaMedida, medidaEstaPedida } from "../domain/medidaPedida.js";
 import { arosDelCatalogo, pideAroComoProducto } from "../domain/aroProducto.js";
 import { anotarMedidasEscritas, medidasDelPedido } from "../services/medidasDelPedido.js";
 import {
-  autorizaCotizacionEnEsteTurno, escalonContestado, esRespuestaDelMenuDePreferencia, ETIQUETA_DEL_ESCALON, extractExplicitQuantity,
+  autorizaCotizacionEnEsteTurno, escalonContestado, esRespuestaDelMenuDePreferencia, ETIQUETA_DEL_ESCALON, cantidadDelTexto,
   extractVehicleYear, respuestaDePreferencia, type Escalones,
 } from "../domain/salesIntent.js";
 import { findByCode, searchByText } from "../services/catalog.js";
@@ -557,7 +558,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     }
   }
   if (ordenDeEquivalente) usedTools.push("orden_equivalente");
-  const cantidadNueva = extractExplicitQuantity(userText);
+  const cantidadNueva = cantidadDelTexto(userText, textoUltimoDelBot);
   const cantidadCambia = cantidadNueva !== null
     && salesFacts.lastQuote !== null
     && !ctx.consultaFueraDeCatalogo;
@@ -1287,7 +1288,7 @@ export async function getAgentSalesFacts(conversationId: number): Promise<AgentS
     vehicle: row?.vehicle ?? null,
     vehicleYear: inferredYear,
     selectedProductCode: row?.selected_product_code ?? null,
-    selectedQuantity: row?.selected_quantity ?? null,
+    selectedQuantity: cantidadValidaDeLaFicha(row?.selected_quantity),
     nearestStore: row?.nearest_store ?? null,
     visitDate: row?.visit_date ?? null,
     visitTimeLabel: row?.visit_time_label ?? null,

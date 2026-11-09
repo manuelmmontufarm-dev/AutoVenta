@@ -31,6 +31,8 @@ const {
 const DEL_MOSTRADOR = [
   "quote_created",
   "customer_ready_to_buy",
+  // 8-nov: el festejo de una venta del bot también es para el mostrador.
+  "venta_confirmada",
   "visita_comprometida",
   "visita_manana",
   "visita_hoy",
@@ -57,7 +59,7 @@ describe("Niveles de aviso", () => {
 
   it("la matriz vieja por categorías se convierte sin perder lo marcado", () => {
     const niveles = nivelesDesdeMatrizVieja({ admin: ["ventas", "tecnico"], asesor: ["visitas"] });
-    expect(niveles?.[0].eventos.sort()).toEqual(["customer_ready_to_buy", "quote_created", "send_error"].sort());
+    expect(niveles?.[0].eventos.sort()).toEqual(["customer_ready_to_buy", "quote_created", "send_error", "venta_confirmada"].sort());
     expect(niveles?.[1].eventos.sort()).toEqual(["visita_comprometida", "visita_hoy", "visita_manana"].sort());
     expect(nivelesDesdeMatrizVieja("basura")).toBeNull();
   });

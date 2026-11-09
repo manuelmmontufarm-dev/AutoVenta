@@ -169,3 +169,36 @@ local está Moroni y a quién van las cotizaciones · el pin real de Kenda (km 1
 | Pin de Kenda | «La ubicación de Google Maps ya le paso de los 3 locales» | Pendiente |
 
 El mantenimiento cada 10.000 km que nombró el 6-nov no lo repitió: no se promete.
+
+## 9-nov-2026: Jenny mandó los links de Google Maps de la matriz y de Competimotor
+
+Dos links cortos por WhatsApp. Se siguieron las redirecciones hasta la ficha de cada local en
+Google Maps y se sacó el pin de la ficha (no del centro del mapa):
+
+| Local | Link de Jenny | Ficha en Maps | Pin anterior (6-nov) | Pin nuevo (9-nov) | Distancia |
+|---|---|---|---|---|---|
+| `matriz` (Mundillantas Falken) | https://maps.app.goo.gl/swNHGotRKPLJn3LZA | «Mundillantas Matriz», PRQ7+887, Av. Quevedo | `-0.261770, -79.186684` | `-0.2617224, -79.186715` | 6 m |
+| `competimotor` | https://maps.app.goo.gl/QTFCzK2KDRXULRwz7 | «COMPETIMOTOR SA», Av. Quevedo y Juan León Mera, km 1½ (PRR8+5R) | `-0.259614, -79.183052` | `-0.2595733, -79.1829972` | 8 m |
+
+Los dos pines del 6-nov ya eran estos locales (a menos de 10 m): lo que cambia es el pin exacto
+de la ficha y que el bot ahora manda **el link de Jenny** (`maps.app.goo.gl/…`, abre la ficha con
+nombre, fotos y horario) en vez de `maps.google.com/?q=lat,lng` (un alfiler suelto). El link de
+Competimotor se guarda sin el `?g_st=aw` de compartir: abre la misma ficha.
+
+**Direcciones: sin cambio.** Maps no dice nada más preciso que lo que dio Jenny el 6-nov
+(«Vía Quevedo km 2 y Manuel Borrero» / «km 1½ y Juan León Mera #834»).
+
+**Producción: no hace falta migración.** Los locales salen solo de
+`app/src/negocio/negocios/mundillantas.ts`; se revisaron las 34 tablas de Postgres-Mundillantas
+(solo lectura) y ninguna guarda coordenadas ni links de Maps. Queda vivo con el próximo deploy
+de `main`.
+
+**Kenda (`local2`) sigue sin pin propio.** Ninguno de estos dos links es el de Kenda. Sigue con
+el pin de Falken (ahora el nuevo, 6 m más allá) y **sin link** de Maps: el bot no manda el link de
+otro local. Pendiente en `PENDIENTES_NUMERICOS`.
+
+**Probado en el simulador** (`--perfil mundillantas`, bot encendido a mano): a «¿dónde quedan sus
+locales? me pasa la ubicación» contestó con
+`📍 *Mundillantas Falken*: https://maps.app.goo.gl/swNHGotRKPLJn3LZA` y
+`📍 *Competimotor*: https://maps.app.goo.gl/QTFCzK2KDRXULRwz7`; a «¿la dirección exacta de
+Competimotor?», solo el de Competimotor.

@@ -30,6 +30,9 @@ import { grupoDeAtencion, type GrupoAtencion } from "../domain/estadisticaVentas
 import { fuenteDeFacturas } from "./fuentes/index.js";
 import type { FacturaVenta, LecturaDeFacturas } from "./fuentes/tipos.js";
 import { tel9 } from "./fuentes/contifico.js";
+import { claveCelebracion, textoCelebracion, ventasParaCelebrar } from "../domain/celebrarVenta.js";
+import { notifyAdvisor } from "./advisorNotifications.js";
+import { hoyEnEcuador } from "./settings.js";
 
 // Siguen exportados desde acá para quien ya los importaba (tests incluidos);
 // viven en el adaptador de Contífico porque son suyos.
@@ -190,6 +193,7 @@ export async function sincronizarFacturas(): Promise<void> {
       estado.facturas = facturas;
       estado.ultimaSync = new Date();
       estado.error = null;
+      await celebrarVentasNuevas();
     } catch (error) {
       estado.error = error instanceof Error ? error.message : String(error);
       console.error("⚠️  Ventas confirmadas: no se pudo leer la fuente de facturas —", estado.error);
@@ -198,6 +202,38 @@ export async function sincronizarFacturas(): Promise<void> {
     }
   })();
   return estado.enCurso;
+}
+
+/**
+ * Festeja con los asesores cada venta del bot que la última bajada confirmó.
+ * Una vez por venta: la clave de dedupe vive en `advisor_notifications`, así
+ * que ni la bajada de cada 10 minutos ni un reinicio la repiten. NUNCA lanza:
+ * un WhatsApp caído no puede dejar a Métricas sin facturas.
+ */
+async function celebrarVentasNuevas(): Promise<void> {
+  try {
+    const { ventas } = await cruceVigente();
+    const nuevas = ventasParaCelebrar(ventas, hoyEnEcuador());
+    if (!nuevas.length) return;
+    const ciclos = await sql<{ id: string; current_cycle: number }[]>`
+      select id, current_cycle from conversations where id = any(${nuevas.map((v) => v.ticketId)}::bigint[])
+    `;
+    const cicloDe = new Map(ciclos.map((c) => [Number(c.id), c.current_cycle]));
+    for (const venta of nuevas) {
+      const ciclo = cicloDe.get(venta.ticketId);
+      if (ciclo == null) continue;
+      const r = await notifyAdvisor({
+        conversationId: venta.ticketId,
+        cycle: ciclo,
+        eventType: "venta_confirmada",
+        dedupeKey: claveCelebracion(venta),
+        ...textoCelebracion(venta),
+      });
+      if (r.sent) console.log(`🎉 Venta del bot festejada: ticket ${venta.ticketId} · $${venta.total}`);
+    }
+  } catch (error) {
+    console.error("⚠️  No se pudo festejar la venta con los asesores:", error instanceof Error ? error.message : error);
+  }
 }
 
 /** Las facturas de la última bajada (desde el primer chat del bot), para Métricas comprobables. */

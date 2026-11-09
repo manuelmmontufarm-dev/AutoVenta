@@ -12,6 +12,7 @@
 import { porQueNoPasaPorElLocal } from "./dondeEstaElCliente.js";
 import { business } from "../config.js";
 import { sql } from "../db/client.js";
+import { cantidadValidaDeLaFicha } from "../domain/cantidadGrande.js";
 import { ahorroDeLaCotizacion, type LineaCotizada } from "../domain/ahorro.js";
 import { preguntaElDia, rechazaLosDiasPropuestos } from "../domain/customerCommitment.js";
 import { hayCompromisoDeCierre } from "../domain/compromisoDeCierre.js";
@@ -170,7 +171,7 @@ export async function insistirConLoQueFalta(
       hayCotizacionFormal: Boolean(cotizacion),
       hayPiezaDeOpciones: Boolean(piezaOpciones),
       productoElegido: Boolean(facts?.selected_product_code),
-      cantidadElegida: facts?.selected_quantity != null,
+      cantidadElegida: cantidadValidaDeLaFicha(facts?.selected_quantity) !== null,
     }),
     localElegido: Boolean(facts?.nearest_store),
     visitaRegistrada: Boolean(facts?.visit_date),

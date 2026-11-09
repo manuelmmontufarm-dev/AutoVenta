@@ -97,6 +97,16 @@ describe("2d · ofreceJuegoIncompleto no lee una negación como oferta", () => {
     expect(r.bloqueado).toBe(true);
   });
 
+  // Revisión ronda 3: la excepción «vuelve al menú» no cubre preguntas que también nombran 1–3 llantas.
+  it.each([
+    "Hay 3 unidades disponibles, no puedo ofrecer el juego. ¿Le cotizo las 3 de la opción 2?",
+    "Tengo 2 llantas, no puedo cotizarle el juego. ¿Le cotizo la 1 con las 2 disponibles?",
+    "Hay 3 unidades disponibles y no puedo ofrecer el juego. Si le interesan, me avisa.",
+  ])("guarda · una pregunta que nombra 1–3 llantas sigue siendo oferta: %s", (correccion) => {
+    const r = frenarHechosNuevosDelGuardian("En 195/55R15 no tengo stock disponible ahora mismo.", correccion, [], "", []);
+    expect(r.bloqueado).toBe(true);
+  });
+
   // Y las correcciones BUENAS que explican y vuelven al menú o al juego completo salen.
   it.each([
     "Hoy solo hay 2 llantas de la Wildpeak, así que no puedo ofrecerla. ¿Le cotizo la 1 o la 2 del menú?",

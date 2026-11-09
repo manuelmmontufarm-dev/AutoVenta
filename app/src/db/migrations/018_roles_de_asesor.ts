@@ -23,8 +23,14 @@ export async function runRolesDeAsesorMigration(sql: Sql): Promise<void> {
     -- guardarse, no en silencio a las tres semanas.
     do $$
     begin
+      -- Una vez aplicada 028 (los niveles viven en settings y rol guarda el id del nivel,
+      -- p. ej. 'nivel-2'), este check ya no aplica: 028 lo borró a propósito. Sin esta
+      -- compuerta, cada arranque lo volvía a crear y Postgres validaba las filas existentes:
+      -- con un asesor en 'nivel-2' daba 23514 y el bot no arrancaba (9-nov-2026).
       if not exists (
         select 1 from pg_constraint where conname = 'advisors_rol_valido'
+      ) and not exists (
+        select 1 from schema_migrations where id = '028_niveles_de_aviso'
       ) then
         alter table advisors add constraint advisors_rol_valido
           check (rol in ('admin', 'asesor'));
