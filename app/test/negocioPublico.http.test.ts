@@ -75,49 +75,29 @@ describe("GET /api/negocio · el contrato exacto de §3.2", () => {
       id: "mundillantas",
       nombre: "Mundillantas",
       ciudad: "Santo Domingo",
-      telefono: "[PENDIENTE] número de WhatsApp de ventas (tienen 6; Jenny elige uno)",
+      telefono: "[PENDIENTE] número de WhatsApp del bot (Jenny dio los de los asesores, no el del bot)",
       identidades: [
         { id: "mundillantas", nombre: "Mundillantas", locales: ["matriz", "local2"] },
         { id: "competimotor", nombre: "Competimotor", locales: ["competimotor"] },
       ],
       locales: [
-        { slug: "matriz", nombre: "Mundillantas Matriz", nombreCorto: "Matriz", claveHorario: "matriz" },
-        {
-          slug: "local2",
-          nombre: "[PENDIENTE] nombre del segundo local de Mundillantas",
-          nombreCorto: "[PENDIENTE] nombre corto del local 2",
-          claveHorario: "local2",
-        },
+        { slug: "matriz", nombre: "Mundillantas Falken", nombreCorto: "Mundillantas Falken", claveHorario: "matriz" },
+        { slug: "local2", nombre: "Mundillantas Kenda", nombreCorto: "Mundillantas Kenda", claveHorario: "local2" },
         { slug: "competimotor", nombre: "Competimotor", nombreCorto: "Competimotor", claveHorario: "competimotor" },
       ],
-      marcas: [],
+      marcas: ["Kenda", "Falken", "Winrun", "Maxxis"],
       vendedor: { nombre: "[PENDIENTE] nombre del vendedor" },
       playbook: COMPACT_PLAYBOOK,
+      // Con las respuestas de Jenny del 6-nov ya no faltan las direcciones,
+      // las formas de pago, los textos de impuestos ni los logos.
       faltantes: [
         "teléfono",
         "vendedor · nombre",
-        "piezas · condiciones de las piezas",
-        "piezas · condiciones (día y noche)",
-        "piezas · medios de pago de las piezas",
-        "piezas · medios de pago (día y noche)",
         "piezas · qué incluye toda compra",
-        "piezas · frase de impuestos",
         "piezas · frase del precio sin descuento",
-        "piezas · nota de precios",
-        "piezas · nota de precio unitario",
-        "local2 · nombre",
-        "local2 · nombre corto",
-        "local2 · dirección",
-        "Competimotor · dirección",
-        "Local 2 de Mundillantas · dirección y pin (puestos en los de la matriz)",
-        "Competimotor · dirección y pin (puestos en los de la matriz)",
-        "garantías por marca (en 0 = sin seguro contra golpes hasta que Jenny confirme)",
+        "Mundillantas Kenda · pin (Jenny reenvió el mismo de Falken el 6-nov; puesto el de Falken)",
+        "garantías por marca: meses del seguro contra impacto y años de fábrica (en 0 hasta que Jenny los dé)",
         "domingo cerrado es un SUPUESTO del pitch (lunes–sábado confirmado)",
-        // Desde el Sprint Final, `faltantes` también suma la política y los
-        // assets (R-45): lo que falta para ENCENDER, no solo lo del perfil.
-        "Política · formas de pago (vacías: el bot no promete ninguna)",
-        "assets/mundillantas/logo-mundillantas.png (logo de Mundillantas para las piezas)",
-        "assets/mundillantas/logo-competimotor.png (logo de Competimotor para las piezas)",
       ],
     });
   });
@@ -125,7 +105,7 @@ describe("GET /api/negocio · el contrato exacto de §3.2", () => {
   it("el playbook que viaja es el de Mundillantas, no el de Depot", async () => {
     const res = await fetch(`${base}/api/negocio`, { headers: { "x-admin-key": ADMIN_KEY } });
     const { playbook } = await res.json();
-    expect(playbook).toContain("Contrato comercial Mundillantas");
+    expect(playbook).toContain("Contrato comercial Competimotor y Mundillantas");
     expect(playbook).not.toContain("Contrato comercial Depot");
   });
 });

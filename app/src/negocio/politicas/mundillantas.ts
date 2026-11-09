@@ -2,8 +2,8 @@
  * LA POLÍTICA COMERCIAL DE MUNDILLANTAS / COMPETIMOTOR (Santo Domingo).
  *
  * Solo lo confirmado en el pitch del 4-nov-2026
- * (`docs/reuniones/2026-11-04-mundillantas-competimotor.md`) y en
- * `docs/MULTICLIENTE.md` §3.3. Lo que falta queda vacío o en null, NUNCA con
+ * (`docs/reuniones/2026-11-04-mundillantas-competimotor.md`), en las
+ * respuestas de Jenny por WhatsApp del 6-nov y en `docs/MULTICLIENTE.md` §3.3. Lo que falta queda vacío o en null, NUNCA con
  * los valores de Depot: un bot sin formas de pago confirmadas no promete
  * ninguna, que es lo correcto durante la prueba de 2 semanas. La lista de lo
  * que falta la produce `faltantesDeLaPolitica` y vive en
@@ -12,16 +12,19 @@
 import type { PoliticaComercial } from "../politica.js";
 
 export const POLITICA_MUNDILLANTAS: PoliticaComercial = {
-  // Pregunta 6 de la lista de arranque (Jenny): formas de pago, cuotas y
-  // descuento por efectivo sin confirmar. Vacío = el bot no promete ninguna.
-  formasDePago: [],
-  cuotasSinIntereses: null,
+  // Jenny, 6-nov: «efectivo, transferencia, tarjetas de crédito todas hasta 6
+  // meses sin intereses. Y 1 año con intereses». No nombró descuento por
+  // efectivo: null hasta que lo confirme (el bot no lo ofrece).
+  formasDePago: ["efectivo", "transferencia", "tarjeta de crédito"],
+  cuotasSinIntereses: "hasta 6 meses sin intereses con todas las tarjetas de crédito (hasta 12 meses con intereses)",
   descuentoEnEfectivo: null,
   // No ofrecieron beneficio por redes; si lo piden, va acá palabra por palabra.
   beneficioDeRedes: null,
   // Pregunta 8 (¿envían a otras ciudades?): sin confirmar, no se promete envío.
   vendeADistancia: false,
-  serviciosQueOfrece: [],
+  // Lo que dicen los letreros de sus locales (fotos de Jenny, 6-nov). El bot
+  // los nombra pero no los cotiza: van al asesor (`productosQueDerivaAlAsesor`).
+  serviciosQueOfrece: ["alineación y balanceo", "frenos", "mecánica", "lubricantes", "baterías"],
   // [SUPUESTO] gentilicio de Santo Domingo de los Tsáchilas; nadie lo confirmó,
   // pero un gentilicio equivocado no promete nada — solo da tono al prompt.
   gentilicio: "santodomingueño",

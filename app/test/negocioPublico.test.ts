@@ -59,7 +59,7 @@ describe("armarNegocioPublico · la forma", () => {
     pub.identidades[0].locales.push("otro");
     pub.marcas.push("otra");
     expect(MUNDILLANTAS.identidades![0].locales).toEqual(["matriz", "local2"]);
-    expect(MUNDILLANTAS.marcas).toEqual([]);
+    expect(MUNDILLANTAS.marcas).toEqual(["Kenda", "Falken", "Winrun", "Maxxis"]);
   });
 });
 

@@ -1,3 +1,14 @@
+## 7-nov-2026 · Mundillantas: respuestas de Jenny cargadas y decisión del número del bot
+
+- **Qué cambió:** el perfil de Mundillantas tiene los 3 locales reales (Falken, Kenda, Competimotor) con
+  dirección y pines, las 4 marcas, formas de pago y cuotas, y los logos de Competimotor. Se anotó que el
+  bot usará **un solo número, el celular de un asesor, por coexistencia**, para que el asesor pueda
+  contestar pasadas las 24 h desde su app.
+- **Por qué:** son las respuestas de Jenny del 6-nov; lo ambiguo (qué incluye la compra, garantías sin
+  plazo) queda `[PENDIENTE]` en vez de interpretarse.
+- **Falta:** las 7 preguntas que bloquean prender el bot (ver `docs/clientes/mundillantas-arranque.md`).
+  Kenda sigue con el pin de Falken. Nada publicado: rama local `feat/mundillantas-datos-jenny`.
+
 ## 6-nov-2026 · Cotizador de Mundillantas: «Actualizar Excel» y PDFs sin promesas de Depot
 
 **Qué:** Manuel pidió el cotizador funcionando con el Excel de Fénix, un lugar para subirlo
