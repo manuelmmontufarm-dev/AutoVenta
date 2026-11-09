@@ -1,3 +1,83 @@
+## 9-nov-2026 · Cantidades, ronda 2 de la revisión del sprint 3: lo dicho antes solo le gana a la ficha si es posterior a la pieza que la fijó
+
+- **Qué:** mi cambio de la ronda 1 dejaba que un mensaje VIEJO del cliente le ganara a la ficha, pero ese lector solo entiende hasta 8
+  y no ve lo que el modelo guardó: ficha 20 con un «4 llantas» anterior daba 4; ficha 2 («las de adelante») con un «4» dicho antes daba 4,
+  y la ruta directa escribía ese 4 sobre la ficha correcta.
+- **Cómo:** `cantidadDelCliente` (`lineasConPromo.ts`) sigue `turno ?? historial ?? ficha`, pero el historial con la ficha llena solo
+  cuenta si el mensaje es POSTERIOR a la última pieza `options`/`quote` del ciclo (leída de `metadata.piece`, no del texto): «tres
+  llantas» dicho después del menú le gana al 4 por defecto; un «4 llantas» anterior a la lámina de 20 no. Con la ficha vacía cuenta todo
+  lo dicho en el ciclo, como antes. Devuelve además `origen` (turno/historial/ficha), y `cotizarLoElegido` escribe la ficha solo si la
+  cantidad vino del turno o del historial: nunca copia el valor de la ficha ni uno viejo.
+- **Probado:** 6 pruebas nuevas en rojo primero (ficha 20, ficha 2, «las de adelante» sin número, 40137 con ficha 4, ficha vacía, ruta
+  directa sin pisar la ficha); 198 en verde con las de Sprint 1; suite completa con las 2 de siempre; simulador 40137 en el orden real
+  (ficha 4 por defecto → «tres llantas» → «La 2» = 3 × KR50, ficha 3).
+
+## 9-nov-2026 · Cantidades, ronda 1 de la revisión del sprint 3 (devuelto con 2 bloqueantes)
+
+- **Bloqueante 1 (40137 en el orden real):** en producción el orden fue menú → «tres llantas por favor me cotizas» → el agente
+  contestó sin llamar a `preparar_opciones` → ficha NULL; «La 2» cotizaba 4 después de que el bot dijo 3. `tryCotizarLoElegido` ahora
+  lee la cantidad con el lector único (`cantidadDelCliente`: este mensaje → lo último que dijo el cliente en el ciclo → la ficha) y la
+  registra en la ficha si falta o difiere (el candado de `generar_cotizacion` la lee para saber que fue declarada). En el simulador salió
+  un segundo caso: la ficha traía el 4 que el modelo declaró por defecto («225/70R16» solo) y «tres llantas» no la movía; por eso el
+  historial se lee SIEMPRE y lo último que dijo el cliente manda sobre la ficha (`lineasConPromo.ts`; las 191 pruebas de Sprint 1 y
+  Black Friday siguen en verde).
+- **Bloqueante 2 (puertas de la enumeración):** `recotizar.ts` usa `cantidadPedidaPorElCliente` y `agent.ts` (orden de recotizar)
+  usa `cantidadDelTexto`: «Las 1-2-3 por favor quiero ver» con una cotización vigente + menú ya no rehace la cotización por 1.
+- **Menores:** (m3) la regla «otra cifra» solo aplica si el número parece un aro (12–26) y la otra cifra parece ancho o perfil
+  (125–355 / 25–90 de 5 en 5): «necesito 10 rin 16», «quiero 12 rin 15», «son 20 para 10 carros», «necesito 10, mi presupuesto es
+  900» vuelven a dar la cantidad; «Son 16, creo, la número en 65» sigue en null. (m4) `conLaCantidadDicha` usa la cantidad FIRMADA.
+  (m6) `guardian.ts` e `insistirCierre.ts` pasan por `cantidadValidaDeLaFicha`; **`followUps.ts:370/497/1059/1096` queda para el
+  Sprint 2** (lo corrige en paralelo). El script de fichas sucias separa «sucias» (5) de «inusuales de 9 a 100» (2).
+- **Límites conocidos (no se arreglan acá):** dos topes de cantidad plausible (100 en `cantidadGrande`, 40 en
+  `promocionDeTemporada`: con 41–100 llantas el hecho del Guardián dice 4); `max(500)` del esquema de `generar_cotizacion` y
+  `preparar_opciones` lo fija `politica.test` y los ítems firmados no pasan por el filtro; «quiero 2 y 2 de repuesto» y «La 1 y la 3,
+  2 llantas de cada una» dan null (preferible a leer 1); 97 y 16 pasan el filtro 1..100.
+- **Probado:** 40137 en el simulador con el orden real (medida → menú → «tres llantas…» → «La 2» = 3 × KR50, ficha 3), pruebas en
+  rojo primero (`3.5b`, `3.5c`, `3.1b`, `3.1c`).
+
+## 9-nov-2026 · fix(db): el próximo reinicio de producción no arrancaba (migración 018 + asesor en `nivel-2`)
+
+- **Qué:** producción tiene un asesor con rol `nivel-2` (puesto el 9-nov a las 22:52 UTC). Cada arranque corre la 018, que
+  volvía a crear `advisors_rol_valido check (rol in ('admin','asesor'))` (la 028 lo había borrado); Postgres validaba las filas y
+  daba 23514, y `ensureSchema` solo perdona 55P03: el siguiente deploy o reinicio no arrancaba. También tumbaba `npm run sim`
+  (copia los asesores de producción).
+- **Cómo:** la 018 solo agrega el check si `028_niveles_de_aviso` no está en `schema_migrations`. Base nueva: 018 lo crea y 028 lo
+  quita, como siempre; después ya no vuelve. Prueba de integración `migracion018NivelesDeAviso.integration.test.ts` (rojo sin el
+  arreglo con el 23514 real). Commit separado para poder publicarlo solo.
+
+## 9-nov-2026 · Cantidades mal entendidas: un número del menú o de la medida ya no es «cuántas» (auditoría 9-nov, sprint 3)
+
+- **Qué:** la cantidad dice CUÁNTAS llantas, no CUÁL ni qué medida. Cuatro chats: **39535** «Las 1-2-3 por favor» se
+  guardó como 1 llanta y salió una cotización por 1; **39337** (y 33574, 38251) el ancho 235 de «235:75+15 r» entró
+  como `selected_quantity = 235`; **39601** «Dos por fa» después de cotización + lámina + menú: el menú se daba por
+  muerto («¿Se la cotizo?»); **39519** menú armado para 1 llanta y «La 1» cotizaba 4 en silencio. Y **40137**: «tres
+  llantas» dicho junto a la medida no llegaba a la ficha (NULL) y el menú salía por 4.
+- **Cómo (todo determinístico, en el dominio; sin tocar prompts):**
+  (3.1) `esEnumeracionDePosiciones` (`domain/salesIntent.ts`): con un menú arriba, «las 1-2-3», «1, 2 y 3», «la 1 y la 3»
+  no son cantidad (`cantidadDelTexto` y `cantidadPedidaPorElCliente`; el lector de Sprint 1 lo hereda). (3.2)
+  `TOPE_ABSURDO` 500 → 100; un ancho válido (125–355 de 5 en 5, `esAnchoDeLlanta`) nunca es cantidad; sin nombrar la unidad,
+  un número que convive con otras cifras de 2–3 dígitos tampoco; UN lector de la ficha, `cantidadValidaDeLaFicha`
+  (`domain/cantidadGrande.ts`, entero 1..100), usado al leer (`agent.ts`, `cotizarLoElegido.ts`, `lineasConPromo.ts`,
+  `preparar_opciones`, el candado de `generar_cotizacion`) y al ESCRIBIR (`updateConversationFacts`: lo que no sea 1..100 no
+  entra). (3.3) `ofertaVigente`: la cotización solo mata la oferta si es POSTERIOR; una pieza `options` entre las dos deja
+  el menú vivo. (3.4) el candado «1/2/3 del menú → 4» de `generar_cotizacion` solo corrige si la ficha NO dice esa misma
+  cantidad (menú de 1 + «La 1» = 1; menú de 4 + «La 1» = 4, como antes); la ruta directa nombra la cantidad dentro de la
+  frase («Le dejo la cotización por *1 llanta* 👍», `conLaCantidadDicha`; como segunda línea el Guardián la borraba como
+  «reofrece lo aceptado»). (40137) `preparar_opciones` sin cantidad declarada y con la ficha vacía lee lo que el CLIENTE
+  dijo antes en el ciclo (`cantidadDelCliente`) y lo guarda; el menú sale por esa cantidad.
+- **Probado:** simulador antes/después con los mismos mensajes: 3.1 (ficha 4, «¿Cuál le cotizo…?»), 3.2 (ficha 4, lámina
+  y menú), 3.3 (copia del 39601 hasta las 14:52:39 UTC: antes «¿Se la cotizo?», ahora «¿Cuál le cotizo, la 1, la 2 o la 3?»,
+  ficha sin 2), 3.4 (COT por 1 llanta, dicho), 40137 (ficha 3, 3 × KR50), sanos («2» = opción 2 con 4; «La 1» = 4;
+  «necesito 20 llantas 235/75» = 20). Pruebas: `cantidadesAuditoria9nov.test.ts` + `.integration.test.ts` (rojas primero), suite
+  completa con las 2 fallas de siempre (`hashesPiezasDepot`, `unidadEnLaCantidad`). Consulta de solo lectura de las fichas
+  sucias: `scripts/ops/fichas-con-cantidad-sucia.mjs` (7: 33574, 39337 =235, 19739 =205, 14949 =185, 16982 =103, 34999 =97,
+  38251 =16). **No se limpian.** El filtro 1..100 deja pasar 97 y 16; solo el candado de escritura evita que se creen más.
+- **Fuera / ojo:** el esquema de `generar_cotizacion`/`preparar_opciones` sigue en `max(500)` (lo fija `politica.test`, release
+  multicliente); lectores de `selected_quantity` de otros sprints (`guardian.ts:778`, `followUps.ts`, `insistirCierre.ts`)
+  aún no usan `cantidadValidaDeLaFicha`. **El simulador no arranca hoy:** producción tiene un asesor en `nivel-2` y la
+  migración 018 vuelve a poner el check `advisors_rol_valido (admin, asesor)` en cada arranque (028 lo quita DESPUÉS) →
+  `ensureSchema` revienta con 23514. Revisar antes de deployar si producción reinicia así.
+
 ## 9-nov-2026 · Black Friday: el texto ya no dice un «$X c/u» que contradice la lámina (auditoría 9-nov, sprint 1)
 
 - **Qué:** en Falken/Kenda con la promo (impares a LISTA, pares a lista × 0,4) no existe un precio por

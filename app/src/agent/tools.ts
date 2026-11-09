@@ -119,7 +119,7 @@ import {
 import { ahorroDeLaCotizacion } from "../domain/ahorro.js";
 import { CAMPO_PRECIO_POR_LLANTA_SIN_PROMO, cantidadParaLaCuenta, precioDelProducto, promocionVigente, segundaLlantaDe } from "../domain/promocionDeTemporada.js";
 import { cantidadDelCliente } from "../services/lineasConPromo.js";
-import { avisoDeCantidad, esCantidadInusual } from "../domain/cantidadGrande.js";
+import { avisoDeCantidad, cantidadValidaDeLaFicha, esCantidadInusual } from "../domain/cantidadGrande.js";
 import { claseDeVehiculoEnTexto, TIPOS_DE_CAMIONETA } from "../domain/claseDeVehiculo.js";
 import { medidaEnDisputaDelPedido, medidasDelPedido } from "../services/medidasDelPedido.js";
 import { sendImage, sendPdf } from "../wa/client.js";
@@ -1975,12 +1975,20 @@ export function buildTools(ctx: AgentContext) {
       // menos de un juego, elegir esa opción termina en un aviso de stock corto
       // que desdice la pieza. Va ANTES del tope de tres para que las tres que
       // se muestran sean tres vendibles. Ver `opcionesQueAlcanzan`.
-      const [cantidadDelCliente] = await sql<{ selected_quantity: number | null }[]>`
+      const [filaDeLaFicha] = await sql<{ selected_quantity: number | null }[]>`
         select selected_quantity from conversations where id=${ctx.conversation.id}
       `;
+      const fichaDeLaCantidad = cantidadValidaDeLaFicha(filaDeLaFicha?.selected_quantity);
+      // Sin cantidad declarada, sin ficha y sin número en el mensaje de ESTE turno, lo que el
+      // cliente dijo antes en el ciclo («tres llantas» en el mensaje de la medida) sigue siendo
+      // suyo: el chat 40137 (9-nov) lo dijo junto a la medida y la ficha quedó vacía, el menú
+      // salió por 4. Es texto del CLIENTE (nunca del bot) leído con el lector único.
+      const dichaAntes = cantidad == null && fichaDeLaCantidad === null
+        ? (await cantidadDelCliente(ctx.conversation.id, ctx.currentUserText, ctx.mensajeCitado)).cantidad
+        : null;
       const cantidadResuelta = cantidadParaPrepararOpciones({
         declarada: cantidad,
-        guardada: cantidadDelCliente?.selected_quantity,
+        guardada: fichaDeLaCantidad ?? dichaAntes,
         textoActual: ctx.currentUserText,
         ultimoMensajeNuestro: await lastOutboundText(ctx.conversation.id),
         mensajeCitado: ctx.mensajeCitado,
@@ -1990,7 +1998,7 @@ export function buildTools(ctx: AgentContext) {
       // que el agente entendiera el mensaje. Ahora la ficha se toca aquí: por
       // argumento estructurado o, si el modelo lo omitió, por una frase que el
       // respaldo reconoce sin ambigüedad. El default 4 no se finge confirmado.
-      if (cantidadResuelta.guardar) {
+      if (cantidadResuelta.guardar || (cantidadResuelta.origen === "ficha" && fichaDeLaCantidad === null)) {
         await updateConversationFacts(ctx.conversation.id, {
           selectedQuantity: cantidadResuelta.cantidad,
         });
@@ -2893,8 +2901,18 @@ export function buildTools(ctx: AgentContext) {
       // un turno para llegar a la misma respuesta—: si se equivocó lo ve y lo
       // corrige, y si no, ya tiene su precio. Ver `domain/cantidadGrande.ts`.
       let avisoJuego: string | null = null;
+      const [facts] = await sql<{ selected_quantity: number | null; tire_size: string | null }[]>`
+        select selected_quantity, tire_size from conversations where id=${ctx.conversation.id}
+      `;
+      // La ficha tiene siete filas sucias (anchos de medida leídos como cantidad): solo vale 1..100.
+      const cantidadDeLaFichaValida = cantidadValidaDeLaFicha(facts?.selected_quantity);
       const eleccionDeMenu = (ctx.currentUserText ?? "").trim().match(/^(?:la\s+|el\s+|opci[oó]n\s+)?([123])\)?\.?$/i);
-      if (eleccionDeMenu && items[0].cantidad === Number(eleccionDeMenu[1])) {
+      // El candado SOLO corrige cuando el «1/2/3» que trae el modelo es el número del menú y
+      // no una cantidad declarada: si la ficha ya dice esa misma cantidad, el cliente la pidió
+      // («Una 235/75» → menú para 1 → «La 1» = la opción 1 de UNA llanta) y cotizar 4 cambiaría
+      // el pedido en silencio (chat 39519, 9-nov). Con menú de 4 y «La 1» (39991) la ficha no
+      // dice 1, y el candado sigue pasando 1 → 4.
+      if (eleccionDeMenu && items[0].cantidad === Number(eleccionDeMenu[1]) && cantidadDeLaFichaValida !== items[0].cantidad) {
         const [ultimoSaliente] = await sql<{ content: string | null }[]>`
           select content from messages
           where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
@@ -2906,10 +2924,7 @@ export function buildTools(ctx: AgentContext) {
           avisoJuego = "Se la hice por juego de 4 llantas; si necesita otra cantidad, me avisa y se la ajusto al toque.";
         }
       }
-      const [facts] = await sql<{ selected_quantity: number | null; tire_size: string | null }[]>`
-        select selected_quantity, tire_size from conversations where id=${ctx.conversation.id}
-      `;
-      const quantityWasConfirmed = facts?.selected_quantity != null || items[0]?.cantidad === 4;
+      const quantityWasConfirmed = cantidadDeLaFichaValida !== null || items[0]?.cantidad === 4;
       // SIN MEDIDA DEL CLIENTE NO HAY COTIZACIÓN (Manuel, 1-sep, conv 13862):
       // la medida la dedujo el bot por el vehículo o por el aro. Se muestran
       // opciones, se pide la medida, y se cotiza recién cuando la manda.

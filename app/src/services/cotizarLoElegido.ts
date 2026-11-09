@@ -23,6 +23,7 @@
 import { sql } from "../db/client.js";
 import { buildTools, type AgentContext } from "../agent/tools.js";
 import { getAgentSalesFacts } from "../agent/agent.js";
+import { cantidadValidaDeLaFicha, conLaCantidadDicha } from "../domain/cantidadGrande.js";
 import { eleccionDeLaVitrina, type OpcionDeVitrina } from "../domain/eleccionDeVitrina.js";
 import { mencionaVehiculo } from "../domain/vehiculoEnTexto.js";
 import {
@@ -30,7 +31,7 @@ import {
 } from "../domain/salesIntent.js";
 import { confirmacionDeLaOpcion, opcionPorPosicion, posicionElegida } from "../domain/listaDeOpciones.js";
 import { decirPrecioDeLaLinea, precioDeLaOpcionGuardada, precioDelProducto, type SegundaLlanta } from "../domain/promocionDeTemporada.js";
-import { lineaCotizadaDe } from "./lineasConPromo.js";
+import { cantidadDelCliente, lineaCotizadaDe } from "./lineasConPromo.js";
 import { politica } from "../negocio/politica.js";
 import { findByCode } from "./catalog.js";
 import { buildStoreLinksBlockOnce } from "./storeLinks.js";
@@ -319,7 +320,22 @@ export async function tryCotizarLoElegido(ctx: CotizarLoElegidoContext, texto: s
   const producto = findByCode(elegido.codigo);
   if (!producto) return null;
   // El número que eligió el escalón no es una cantidad (chat 18134).
-  const cantidad = cantidadDelTexto(texto, ctx.previousOutbound, ctx.mensajeCitado) ?? facts.selectedQuantity ?? 4;
+  // La cantidad la dice el CLIENTE: este mensaje, la ficha o —con la ficha vacía— lo que dijo antes
+  // en el ciclo (40137: «tres llantas» junto a la medida, el agente respondió sin `preparar_opciones`
+  // y la ficha quedó en NULL; «La 2» cotizaba 4 después de que el bot dijo 3). Un lector, el de
+  // `cantidadDelCliente`, que ya ignora el «2» que contesta un menú.
+  const delTexto = cantidadDelTexto(texto, ctx.previousOutbound, ctx.mensajeCitado);
+  const lecturaDelCliente = delTexto !== null ? null : await cantidadDelCliente(ctx.conversation.id, texto, ctx.mensajeCitado);
+  // Solo lo que el cliente dijo en ESTE turno o después de la última pieza se vuelve a escribir en la
+  // ficha; el valor de la ficha misma no se copia, ni un valor del historial viejo (que el lector ya
+  // no deja ganarle a la ficha).
+  const dichaPorElCliente = delTexto ?? (lecturaDelCliente && (lecturaDelCliente.origen === "turno" || lecturaDelCliente.origen === "historial") ? lecturaDelCliente.cantidad : null);
+  const cantidad = dichaPorElCliente ?? lecturaDelCliente?.cantidad ?? 4;
+  // Lo que el cliente dijo y la ficha no tenía (o tenía distinto) se registra: es el dato que el candado de la
+  // cotización lee para saber que la cantidad fue declarada (y los demás lectores, después).
+  if (dichaPorElCliente !== null && cantidadValidaDeLaFicha(facts.selectedQuantity) !== dichaPorElCliente) {
+    await updateConversationFacts(ctx.conversation.id, { selectedQuantity: dichaPorElCliente });
+  }
   const contextoDeHerramienta: AgentContext = {
     conversation: ctx.conversation,
     customerPhone: ctx.customerPhone,
@@ -373,12 +389,20 @@ export async function tryCotizarLoElegido(ctx: CotizarLoElegidoContext, texto: s
   // la misma decisión que el cierre de generar_cotizacion.
   const sinVisita = await porQueNoPasaPorElLocal(ctx.conversation.id, ctx.conversation.current_cycle, texto);
   const mapas = sinVisita || preguntamosElLocal(ctx.previousOutbound) ? "" : await buildStoreLinksBlockOnce(ctx.conversation.id);
-  return composeBlocks(
+  // La cantidad que multiplica el total se NOMBRA cuando no es el juego (1, 2, 3 o más de 8):
+  // la misma regla del aviso de `generar_cotizacion`. Esta ruta arma su propio texto y no lo
+  // traía, así que el menú de UNA llanta se cotizaba sin decir «1 llanta» (chat 39519, 9-nov).
+  const confirmacion = conLaCantidadDicha(
     elegido.posicion
       ? confirmacionDeLaOpcion(elegido.posicion, `${producto.brand} ${producto.design}`, precioDicho)
       : elegido.etiqueta
       ? `La opción ${elegido.etiqueta} es la *${producto.brand} ${producto.design}*${precio}. Le dejo la cotización 👍`
       : `Listo, le cotizo la *${producto.brand} ${producto.design}*${precio} 👍`,
+    // La FIRMADA, no la pedida: el candado de `generar_cotizacion` puede haberla cambiado a 4.
+    Number(firmada?.quantity) || cantidad,
+  );
+  return composeBlocks(
+    confirmacion,
     mapas ? `Puede pasar sin compromiso a verlas y probarlas en su vehículo.\n${mapas}` : null,
     ...(sinVisita ? cierreSinVisita(sinVisita) : []),
   );
