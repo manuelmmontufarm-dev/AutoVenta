@@ -65,8 +65,13 @@ const SOLO_SALUDO = /^(?:hola|buen(?:os\s+d[ií]as|as\s+tardes|as\s+noches)|salu
  * La respuesta a quien pregunta por la dirección desde otra ciudad. Sale del
  * perfil: los locales, la ciudad y el nombre son de cada cliente.
  */
+/** «A», «A y B», «A, B y C» (revisión ronda 4: con tres locales salía «A y B y C»). */
+function enLista(nombres: readonly string[]): string {
+  return nombres.length <= 1 ? nombres.join("") : `${nombres.slice(0, -1).join(", ")} y ${nombres[nombres.length - 1]}`;
+}
+
 const RESPUESTA_FUERA_DE_COBERTURA =
-  `Nuestros locales están en ${negocio.ciudad}: ${negocio.locales.map((l) => `*${l.nombreCorto}*`).join(" y ")}.`
+  `Nuestros locales están en ${negocio.ciudad}: ${enLista(negocio.locales.map((l) => `*${l.nombreCorto}*`))}.`
   + ` Por ahora no tenemos local fuera de ${negocio.ciudad}.`;
 
 /**

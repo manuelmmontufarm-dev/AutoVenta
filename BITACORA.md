@@ -1,3 +1,25 @@
+## 10-nov-2026 · Sprint 5, ronda 4 de la revisión: el local lejano solo cambia el mapa y la propuesta de visita
+
+- **Qué:** `sinElLocalLejano` cambiaba el nombre del local en CUALQUIER oración: con «el sur me queda lejos» la
+  dirección y el horario de Quito Sur salían como de Cumbayá; con «Quito me queda lejos» (patrón suelto «quito» = Quito
+  Sur) «*Cumbayá* y *Quito Sur*» salía «*Cumbayá* y *Cumbayá*»; con un solo local en el perfil salía «¿A cuál local le
+  queda mejor ir, ? 📍». Además «Cumbayá» con tilde no se cambiaba (el `\b` cortaba en la «á»).
+- **Cómo:** solo se tocan la línea del mapa de ese local (si no nombra otro) y la oración que PROPONE la visita
+  (`preguntaElDia`, `preguntaElLocal`, «puede pasar por», «le esperamos en»…); nunca una que nombre dos locales, que dé
+  dirección u horario o que hable de «lejos». El local lejano se lee por su nombre (`comoLoNombran` y el nombre del
+  perfil), sin `comoLoNombranAlElegir`. Nombres comparados sin tildes de los dos lados. Sin otro local: no se toca nada y
+  el Guardián no recibe el hecho. Menores: (2) `borradorNiegaElStock` exige el objeto (stock, disponibilidad, catálogo,
+  unidades, la medida, esa llanta / ese modelo, una marca): «No hay problema…», «No tengo ese dato» y la respuesta fija
+  de fuera de cobertura ya no cuentan. (4) La respuesta fija lista los locales como «A, B y C».
+- **Probado:** `s5LocalLejanoR4.test.ts` (13; 9 en rojo antes: dirección, horario, «Nuestros locales…», «Quito / el sur
+  me queda lejos», tilde, sin otro local y las 4 frases del detector). `NEGOCIO=ejemplo` y `mundillantas` con tsx. Suite
+  3886/3888 (las 2 viejas). Simulador: S5-09, S5-13, S5-17, S1-03, «el sur me queda lejos», «Quito me queda lejos» y
+  «Quito Sur me queda lejos, ¿dónde queda Cumbayá y a qué hora abre?» (horario y mapa de Cumbayá sin cambiar).
+- **Límites conocidos, sin arreglar:** (3) el calco conserva «¿Le cotizo la 1…?» cuando no queda otra pregunta sin
+  mirar si el menú sigue abierto (si el cliente ya eligió y el borrador repite el menú, antes se quitaba y ahora queda;
+  convendría condicionarlo a `ctx.ofertaDelTurno` o al hecho guardado). «El sur me queda lejos» sin nombrar el local se
+  lee como «no puede venir» solo en ese turno.
+
 ## 10-nov-2026 · Sprint 5, replay final: cuatro corridas que fallaban 1 de 3 (auditoría 9-nov)
 
 - **Qué:** en el replay 3× de la rama integrada (4c9cb7d) fallaban 1 de 3: (S5-09) 40082 «Yo vivo en pedernales»: el

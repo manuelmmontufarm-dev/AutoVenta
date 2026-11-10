@@ -27,6 +27,7 @@ import { tipoDeProducto } from "../domain/tireTypes.js";
 import { extractTireSizes } from "../domain/tireSize.js";
 import { tiposPrincipalesDelUso, usoDeLosTextos } from "../domain/usoYTipo.js";
 import { politica } from "../negocio/politica.js";
+import { MARCAS_DE_LLANTA_CONOCIDAS } from "../domain/marcasDeLlanta.js";
 import { findByCode, searchBySize } from "./catalog.js";
 import { cantidadDelCliente } from "./lineasConPromo.js";
 
@@ -41,8 +42,18 @@ export const CATEGORIAS_CON_ALTERNATIVA: ReadonlySet<string> = new Set(["tipo_ne
  * dice el BORRADOR, no por la categoría: si niega o duda del catálogo, la llanta
  * de la misma medida con stock para el juego es un hecho igual que en 5d.
  */
-const NIEGA_O_DUDA_DEL_STOCK =
-  /\bno\s+(?:pude|puedo|logr[eé]|alcanc[eé]\s+a)\s+(?:validar|confirmar|verificar|revisar|consultar)\b|\bno\s+(?:tengo|tenemos|hay|encuentro|encontr[eé]|me\s+aparece|aparece|figura|manejo|manejamos)\b|\b(?:sin|no\s+hay)\s+stock\b|\b(?:le\s+)?(?:consulto|confirmo|verifico|reviso)\s+con\s+(?:un|el|nuestro)\s+(?:asesor|vendedor)\b|\bpasarle\s+con\s+un\s+(?:asesor|vendedor)\b/i;
+// Atado a la LLANTA (revisión ronda 4 del sprint 5): «No hay problema, le espero
+// el sábado», «No tengo ese dato a mano» o «no tenemos local fuera de Quito» no
+// hablan del stock. El «no tengo / no hay / no me aparece / no pude validar»
+// tiene que ir con stock, disponibilidad, inventario, catálogo, unidades, la
+// medida, esa llanta / ese modelo o una marca de llanta.
+const OBJETO_DE_LLANTA = `(?:stock|disponib\\w*|inventario|cat[aá]logo|existencias?|unidades|llantas?|neum[aá]ticos?|(?:esa|su|la|esta)\\s+medida|(?:ese|este)\\s+modelo|(?:esa|esta)\\s+(?:llanta|referencia|opci[oó]n)|${MARCAS_DE_LLANTA_CONOCIDAS.map((m) => m.replace(/\s+/g, "\\s+")).join("|")})`;
+const NIEGA_O_DUDA_DEL_STOCK = new RegExp(
+  `\\bno\\s+(?:pude|puedo|logr[eé]|alcanc[eé]\\s+a)\\s+(?:validar|confirmar|verificar|revisar|consultar)\\b[^.?!]{0,40}\\b${OBJETO_DE_LLANTA}`
+  + `|\\bno\\s+(?:(?:le|les)\\s+)?(?:tengo|tenemos|hay|encuentro|encontr[eé]|me\\s+aparece|aparece|figura|manejo|manejamos)\\b[^.?!]{0,40}\\b${OBJETO_DE_LLANTA}`
+  + `|\\b(?:sin|no\\s+hay)\\s+stock\\b`,
+  "i",
+);
 
 export function borradorNiegaElStock(borrador: string | null | undefined): boolean {
   return NIEGA_O_DUDA_DEL_STOCK.test(borrador ?? "");
