@@ -22,13 +22,28 @@ type Json = Record<string, unknown>;
 const esObjeto = (v: unknown): v is Json => Boolean(v) && typeof v === "object" && !Array.isArray(v);
 const lista = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
 
+/**
+ * EL CONTACTO SIN `profile` TUMBABA EL WEBHOOK (10-nov, producción).
+ *
+ * La librería lee `contact?.profile.name`: si el contacto viene pero sin
+ * `profile` —Meta lo manda así para algunos clientes, entre ellos leads de
+ * anuncio— lanza `TypeError: Cannot read properties of undefined (reading
+ * 'name')` ANTES de llegar a nuestro handler. Respondía 500, Meta reintentaba
+ * el mismo payload y el mensaje nunca se guardaba: ni respuesta ni fila en el
+ * panel. Un contacto sin perfil es un cliente sin nombre, no un error.
+ */
+function conPerfil(contacto: unknown): unknown {
+  if (!esObjeto(contacto)) return contacto;
+  return esObjeto(contacto.profile) ? contacto : { ...contacto, profile: {} };
+}
+
 /** Contacto del mensaje: el de su `wa_id`; si no se encuentra, el único que vino. */
 function contactoDe(mensaje: Json, contactos: unknown[]): unknown[] {
   if (!contactos.length) return [];
   const desde = typeof mensaje.from === "string" ? mensaje.from : null;
   const propio = desde ? contactos.find((c) => esObjeto(c) && c.wa_id === desde) : undefined;
-  if (propio) return [propio];
-  return contactos.length === 1 ? [contactos[0]] : [];
+  if (propio) return [conPerfil(propio)];
+  return contactos.length === 1 ? [conPerfil(contactos[0])] : [];
 }
 
 /**

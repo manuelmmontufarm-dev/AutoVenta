@@ -1,3 +1,14 @@
+## 10-nov-2026 · Webhook: el contacto sin `profile` tumbaba los leads (la causa de verdad)
+
+- **Qué:** `separarLote` le pone `profile: {}` al contacto que llega sin perfil. La librería leía
+  `contact?.profile.name` y lanzaba `TypeError … reading 'name'` antes de llegar a nuestro handler.
+- **Por qué:** con el log nuevo del webhook (PR #42) apareció en producción a las 10:38: un lead
+  (···8863) falló tres veces con ese error. Esos eran los 500 de 2 ms de la mañana: Meta manda el
+  contacto sin `profile` a algunos clientes (leads de anuncio entre ellos), el mensaje nunca se
+  guardaba y el bot no contestaba ni el panel lo mostraba.
+- **Producción:** sin migración. Los mensajes que ya fallaron antes de este deploy no vuelven solos;
+  hay que contestarlos a mano desde WhatsApp. ~0,5 h.
+
 ## 10-nov-2026 · Webhook: todos los mensajes del lote, 500 con log, y el arranque destrabado
 
 - **Qué:** (1) el webhook parte cada POST de Meta en novedades sueltas y despacha todas
