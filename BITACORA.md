@@ -621,6 +621,31 @@
   aparece coincidencia en catálogo» 3 de 3; ahora «Sí, manejamos Kenda Klever KR601… desde $158.06 con IVA»
   3 de 3. Sano: «Precio de la KR601 en 235/75R15» sale igual que antes. ~1 h.
 
+## 10-nov-2026 · Webhook: el contacto sin `profile` tumbaba los leads (la causa de verdad)
+
+- **Qué:** `separarLote` le pone `profile: {}` al contacto que llega sin perfil. La librería leía
+  `contact?.profile.name` y lanzaba `TypeError … reading 'name'` antes de llegar a nuestro handler.
+- **Por qué:** con el log nuevo del webhook (PR #42) apareció en producción a las 10:38: un lead
+  (···8863) falló tres veces con ese error. Esos eran los 500 de 2 ms de la mañana: Meta manda el
+  contacto sin `profile` a algunos clientes (leads de anuncio entre ellos), el mensaje nunca se
+  guardaba y el bot no contestaba ni el panel lo mostraba.
+- **Producción:** sin migración. Los mensajes que ya fallaron antes de este deploy no vuelven solos;
+  hay que contestarlos a mano desde WhatsApp. ~0,5 h.
+
+## 10-nov-2026 · Webhook: todos los mensajes del lote, 500 con log, y el arranque destrabado
+
+- **Qué:** (1) el webhook parte cada POST de Meta en novedades sueltas y despacha todas
+  (`domain/loteDelWebhook.ts`); `handle_post` solo leía la primera y tiraba el resto sin fila.
+  (2) Una falla de nuestro handler queda en el log con tipo, ···últimos 4 e id; antes `handle_post`
+  devolvía 500 mudo. A la tercera falla de la misma novedad se responde 200 para no frenar al número.
+  (3) La 018 ya no vuelve a crear `advisors_rol_valido` en cada arranque.
+- **Por qué:** Manuel, 10-nov 9:55: nueve leads de anuncio (9:30–9:41) sin respuesta ni fila en el
+  panel; los seguimientos sí salían. En Railway: 500 de 2 ms sin log entre 8:49 y 9:03, y casi ningún
+  webhook entre 9:30 y 9:50. Y el deploy del 9-nov 18:06 quedó FAILED (23514 por un asesor en un nivel
+  nuevo): Depot seguía con el contenedor anterior y no podía reiniciar.
+- **Producción:** sin migración nueva. Sin lectura de la base no se pudo confirmar cuál de los dos
+  agujeros del webhook se comió esos nueve leads. ~1,5 h.
+
 ## 9-nov-2026 · Mundillantas: links y pines de Google Maps de la matriz y de Competimotor
 
 - **Qué:** Mundillantas Falken (`matriz`) y Competimotor mandan el link corto de la ficha de Maps que
