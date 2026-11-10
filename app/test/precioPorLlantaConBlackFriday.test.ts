@@ -363,3 +363,92 @@ describe("ronda 2 · m2: un solo nombre de campo y un solo texto", () => {
     expect(CAMPO_PRECIO_POR_LLANTA_SIN_PROMO).toMatch(/1_3_o_5/);
   });
 });
+
+// ===========================================================================
+// Replay del 10-nov (conv 39597): el segundo respaldo del candado, el catálogo
+// ===========================================================================
+describe("candado · respaldo del catálogo (replay 10-nov, conv 39597)", () => {
+  // El catálogo de hoy: precios de hoy (−25 %) y de lista, como los imprime el Guardián.
+  const CATALOGO = [
+    { brand: "FALKEN", design: "WILDPEAK A/T TRAIL", hoy: 202.87, lista: 270.49, codigo: "F-TRAIL" },
+    { brand: "KENDA", design: "KR50", hoy: 202.33, lista: 269.77, codigo: "K-KR50" },
+    { brand: "FALKEN", design: "WILDPEAK A/T 4W", hoy: 221.77, lista: 295.69, codigo: "F-4W" },
+    { brand: "WINRUN", design: "R380", hoy: 120.0, lista: 120.0, codigo: "W-R380" },
+  ];
+  const norm = (t: string) => t.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  /** Como `respaldoDelCatalogo`: las llantas que el fragmento nombra (marca+diseño o diseño), con la cuenta de `cantidad`. */
+  const respaldo = (cantidad: number) => ({
+    productosEn: (fragmento: string) => CATALOGO
+      .filter((p) => norm(fragmento).includes(norm(`${p.brand} ${p.design}`)) || (norm(p.design).replace(/[^a-z0-9]/g, "").length >= 4 && norm(fragmento).includes(norm(p.design))))
+      .flatMap((p) => {
+        const segunda = temporada.segundaLlantaDe(promo, p.brand, cantidad, { hoyConIva: p.hoy, listaConIva: p.lista }, NOVIEMBRE);
+        return segunda ? [{ nombre: `${p.brand} ${p.design}`, hoyConIva: p.hoy, listaConIva: segunda.precioNormalConIva, cantidad, segunda }] : [];
+      }),
+  });
+  const cuentaDe = (codigo: string, cantidad = 4) => {
+    const p = CATALOGO.find((c) => c.codigo === codigo)!;
+    const s = temporada.segundaLlantaDe(promo, p.brand, cantidad, { hoyConIva: p.hoy, listaConIva: p.lista }, NOVIEMBRE)!;
+    return temporada.cuentaConRotulo(cantidad, s);
+  };
+  // La línea de la Trail SÍ está en la lámina guardada; la KR50 y la 4W no están en ninguna parte del ciclo.
+  const guardadas = () => {
+    const s = temporada.segundaLlantaDe(promo, "FALKEN", 4, { hoyConIva: 202.87, listaConIva: 270.49 }, NOVIEMBRE)!;
+    return [{ nombre: "FALKEN WILDPEAK A/T TRAIL", hoyConIva: 202.87, listaConIva: 270.49, cantidad: 4, segunda: s }];
+  };
+  const TEXTO_DEL_REPLAY = [
+    "⚠️ Ojo: en *255/65R17* no me queda disponibilidad exacta. Estas son las equivalentes de su aro que sí tengo:",
+    "1 · FALKEN WILDPEAK A/T TRAIL 245/65R17 — *$202.87 c/u*",
+    "2 · KENDA KR50 265/65R17 — *$202.33 c/u*",
+    "3 · FALKEN WILDPEAK A/T 4W 265/65R17 — *$221.77 c/u*",
+  ].join("\n");
+
+  it("EL HUECO: con 4 llantas en el estado, la KR50 y la 4W (no guardadas) también salen con la cuenta; la guardada, como antes", () => {
+    const { texto, cambios } = sinPrecioPorLlantaConPromo(TEXTO_DEL_REPLAY, guardadas(), respaldo(4));
+    expect(texto).toContain(`1 · FALKEN WILDPEAK A/T TRAIL 245/65R17 — *${cuentaDe("F-TRAIL")}*`);
+    expect(texto).toContain(`2 · KENDA KR50 265/65R17 — *${cuentaDe("K-KR50")}*`);
+    expect(texto).toContain(`3 · FALKEN WILDPEAK A/T 4W 265/65R17 — *${cuentaDe("F-4W")}*`);
+    expect(texto).not.toMatch(/c\/u/);
+    expect(cambios.map((c) => c.origen)).toEqual(["guardado", "catalogo", "catalogo"]);
+  });
+
+  it("sin el respaldo (comportamiento de antes) esas dos líneas pasaban: es la prueba en rojo", () => {
+    const { texto } = sinPrecioPorLlantaConPromo(TEXTO_DEL_REPLAY, guardadas(), null);
+    expect(texto).toContain("KENDA KR50 265/65R17 — *$202.33 c/u*");
+    expect(texto).toContain("4W 265/65R17 — *$221.77 c/u*");
+  });
+
+  it("también con el precio de LISTA ($269.77 c/u) y con ninguna línea guardada", () => {
+    const { texto } = sinPrecioPorLlantaConPromo("La KENDA KR50 queda en $269.77 c/u con IVA 👍", [], respaldo(4));
+    expect(texto).toBe(`La KENDA KR50 queda en ${cuentaDe("K-KR50")} 👍`);
+  });
+
+  it("cantidad IMPAR (3): la promo no aplica, el respaldo no trae nada y el c/u se conserva", () => {
+    const { texto, cambios } = sinPrecioPorLlantaConPromo(TEXTO_DEL_REPLAY, [], respaldo(3));
+    expect(texto).toBe(TEXTO_DEL_REPLAY);
+    expect(cambios).toEqual([]);
+  });
+
+  it("cantidad DESCONOCIDA: el llamador no entrega respaldo (null) y no se inventa una cuenta", () => {
+    expect(sinPrecioPorLlantaConPromo(TEXTO_DEL_REPLAY, [], null).texto).toBe(TEXTO_DEL_REPLAY);
+  });
+
+  it("el precio no es el de esa llanta: se conserva (Kenda KR50 a $221.77 no es ningún precio de la KR50)", () => {
+    const t = "2 · KENDA KR50 265/65R17 — *$221.77 c/u*";
+    expect(sinPrecioPorLlantaConPromo(t, [], respaldo(4)).texto).toBe(t);
+  });
+
+  it("la línea nombra OTRA marca (Winrun, sin promo): se conserva", () => {
+    const t = "WINRUN R380 205/55R16 — *$120.00 c/u*";
+    expect(sinPrecioPorLlantaConPromo(t, [], respaldo(4)).texto).toBe(t);
+  });
+
+  it("el texto habla de otra cantidad («3 llantas»): no se reescribe aunque haya respaldo", () => {
+    const t = "Para 3 llantas la KENDA KR50 queda en $202.33 c/u con IVA";
+    expect(sinPrecioPorLlantaConPromo(t, [], respaldo(4)).texto).toBe(t);
+  });
+
+  it("una línea sin llanta nombrada no se reescribe con el catálogo (no se adivina)", () => {
+    const t = "Queda en $202.33 c/u con IVA";
+    expect(sinPrecioPorLlantaConPromo(t, [], respaldo(4)).texto).toBe(t);
+  });
+});

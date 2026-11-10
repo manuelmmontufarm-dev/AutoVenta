@@ -13,6 +13,16 @@
  * que el cliente vio): nunca parsea texto del bot para saber qué se ofreció.
  * Si el texto trae «$N c/u» y N es el precio de hoy o el de lista de una línea
  * con promo, ese «$N c/u» se reemplaza por la cuenta de ESA línea.
+ *
+ * SEGUNDO RESPALDO, EL CATÁLOGO (replay del 10-nov, conv 39597): el Guardián
+ * corrigió una lista y escribió tres llantas de hoy con «c/u»; una estaba en la
+ * lámina guardada y las otras dos (KR50 y 4W) no estaban en NINGUNA pieza ni
+ * cotización del ciclo, así que no había línea guardada con que emparejarlas y
+ * pasaron. Si el «$X c/u» no empareja con una línea guardada, se busca la llanta
+ * que ESA MISMA línea de texto nombra (marca + diseño, código) en el catálogo de
+ * hoy; si es de una marca de la promo y su precio de hoy o de lista es X, se
+ * reemplaza por su cuenta, hecha con la cantidad del ESTADO. El llamador solo
+ * entrega este respaldo con cantidad conocida, par y sin vetos en conflicto.
  */
 import { cuentaConRotulo, type SegundaLlanta } from "./promocionDeTemporada.js";
 
@@ -55,12 +65,30 @@ function cantidadesDichas(texto: string): number[] {
   ];
 }
 
+/**
+ * El catálogo de hoy, a la cantidad del ESTADO. `productosEn(fragmento)` devuelve, de las
+ * llantas del catálogo que el fragmento nombra, las que llevan promo con esa cantidad
+ * (la cuenta ya calculada). Una llanta de otra marca no vuelve: nunca se reescribe.
+ */
+export interface RespaldoDelCatalogo {
+  productosEn: (fragmento: string) => LineaConPromo[];
+}
+
+/** La línea de texto (entre saltos) donde está la posición `offset`. */
+function lineaDelTexto(texto: string, offset: number): string {
+  const ini = texto.lastIndexOf("\n", offset - 1) + 1;
+  const fin = texto.indexOf("\n", offset);
+  return texto.slice(ini, fin === -1 ? texto.length : fin);
+}
+
 export interface CambioDeCandado {
   /** Lo que decía («$202.87 c/u con IVA»). */
   de: string;
   /** Lo que dice ahora (la cuenta). */
   a: string;
   linea: string;
+  /** De dónde salió la línea: lo que la cotización o la pieza guardaron, o el catálogo de hoy. */
+  origen: "guardado" | "catalogo";
   /** Quedó un importe suelto al lado de la cuenta (un total viejo): se anota en el log. */
   totalHuerfano: boolean;
 }
@@ -68,15 +96,25 @@ export interface CambioDeCandado {
 export function sinPrecioPorLlantaConPromo(
   texto: string,
   lineas: readonly LineaConPromo[],
+  respaldo: RespaldoDelCatalogo | null = null,
 ): { texto: string; cambios: CambioDeCandado[] } {
-  if (!lineas.length || !/c\/u|cada\s+una|cada\s+llanta|por\s+llanta|por\s+unidad|la\s+unidad/i.test(texto)) return { texto, cambios: [] };
+  if ((!lineas.length && !respaldo) || !/c\/u|cada\s+una|cada\s+llanta|por\s+llanta|por\s+unidad|la\s+unidad/i.test(texto)) return { texto, cambios: [] };
   const cambios: CambioDeCandado[] = [];
   const dichas = cantidadesDichas(texto);
   const resultado = texto.replace(PRECIO_POR_LLANTA, (...args) => {
     const [completo, a1, numero, a2, a3, nPegado, offset, entero] = args as [string, string, string, string, string, string | undefined, number, string];
     const valor = aCentavos(Number(numero.replace(",", ".")));
     // Una línea con promo cuyo precio de hoy o de lista es este número…
-    const linea = lineas.find((l) => aCentavos(l.hoyConIva) === valor || aCentavos(l.listaConIva) === valor);
+    let origen: CambioDeCandado["origen"] = "guardado";
+    let linea = lineas.find((l) => aCentavos(l.hoyConIva) === valor || aCentavos(l.listaConIva) === valor);
+    if (!linea && respaldo) {
+      // …o, si ninguna lo tiene, la llanta que ESTA línea de texto nombra en el catálogo de hoy.
+      // Si dos llantas distintas dan cuentas distintas, no se adivina cuál.
+      const candidatas = respaldo.productosEn(lineaDelTexto(entero, offset))
+        .filter((l) => aCentavos(l.hoyConIva) === valor || aCentavos(l.listaConIva) === valor);
+      const cuentas = new Set(candidatas.map((l) => cuentaConRotulo(l.cantidad, l.segunda)));
+      if (candidatas.length && cuentas.size === 1) { linea = candidatas[0]; origen = "catalogo"; }
+    }
     if (!linea) return completo;
     // …y el texto no está hablando de OTRA cantidad (con 1 o 3 llantas el «c/u»
     // es correcto: ahí la promo no aplica y el precio por llanta sí existe).
@@ -89,7 +127,7 @@ export function sinPrecioPorLlantaConPromo(
     const resto = entero.slice(offset + completo.length, offset + completo.length + 40);
     const suelto = /^[^.\n]{0,30}?\$\s?(\d+(?:[.,]\d{1,2})?)/.exec(resto);
     const totalHuerfano = Boolean(suelto) && aCentavos(Number(suelto![1].replace(",", "."))) !== aCentavos(linea.segunda.totalConIva);
-    cambios.push({ de: completo.trim(), a, linea: linea.nombre, totalHuerfano });
+    cambios.push({ de: completo.trim(), a, linea: linea.nombre, origen, totalHuerfano });
     return a;
   });
   return { texto: resultado, cambios };
