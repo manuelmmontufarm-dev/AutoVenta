@@ -18,6 +18,13 @@
 - **Probado:** pruebas nuevas en rojo antes (B1 6 sanas-fuera + 39329/39845 viene, B2 4 + «la otra semana le aviso» en
   integración, menor 3, menor 4 con el separador, menor 5); suite 3859/3861 (las 2 viejas); simulador en `s5-cierre.md`.
 - **Falta / ojo:** m9 sigue anotado («estoy en bolivar y venezuela» → fuera).
+- **Ronda 3 (aprobado):** la poda con dos «---» y una línea vacía en medio dejaba un bloque vacío («---\n\n---»): el
+  colapso de separadores tolera líneas vacías entre ellos (`s5podaSeparadores.test.ts`, 3 en rojo antes).
+- **Límites conocidos, sin arreglar (ninguno aparece en los 686 mensajes reales):** (a) una vuelta a OTRO lugar con el
+  plazo antes del destino todavía da `viene` («estoy en Cuenca, llego mañana a la casa», «soy de Machala, regreso en 2
+  semanas a Machala»): la regla «llegar/volver + plazo» no mira el destino que viene después. (b) «la próxima semana
+  vuelvo a escribirle» conserva la pregunta del día repetida: el «-le» pegado al verbo no lo reconoce la exclusión
+  «vuelvo a + verbo», así que cuenta como que viene.
 
 ## 9-nov-2026 · Sprint 5, ronda 1 (simulador): la zona lejana no elige y la semana que viene se concreta
 
