@@ -12,11 +12,12 @@
  * cantidad, las líneas de la pieza vieja ya no describen lo que tiene.
  */
 import { sql } from "../db/client.js";
-import { cantidadDeLaSegunda, promocionVigente, segundaGuardadaVigente, type SegundaLlanta } from "../domain/promocionDeTemporada.js";
+import { cantidadDeLaSegunda, MAXIMO_PARA_LA_CUENTA, promocionVigente, segundaGuardadaVigente, segundaLlantaDe, type SegundaLlanta } from "../domain/promocionDeTemporada.js";
+import { productosDelCatalogoMencionados } from "./catalog.js";
 import { politica } from "../negocio/politica.js";
 import { cantidadValidaDeLaFicha } from "../domain/cantidadGrande.js";
 import { cantidadDelTexto } from "../domain/salesIntent.js";
-import type { LineaConPromo } from "../domain/sinPrecioPorLlantaConPromo.js";
+import type { LineaConPromo, RespaldoDelCatalogo } from "../domain/sinPrecioPorLlantaConPromo.js";
 
 export interface LineaDeCotizacion {
   code?: string;
@@ -235,4 +236,39 @@ export async function lineaCotizadaDe(
 ): Promise<LineaDeCotizacion | null> {
   const cotizacion = await lineasDeLaUltimaCotizacion(conversationId, cycle);
   return cotizacion?.lineas.find((l) => l.code === codigo) ?? null;
+}
+
+/**
+ * EL RESPALDO DEL CANDADO: el catálogo de hoy, a la cantidad que dice el ESTADO.
+ *
+ * Solo existe con la promo corriendo, con una cantidad CONOCIDA (turno/historial/ficha), PAR y
+ * sin vetos en conflicto (si el cliente dijo 2 y la ficha dice 4, no se sabe cuál cuenta). Con
+ * una cantidad desconocida o impar no se inventa una cuenta: devuelve null y el candado solo
+ * trabaja con lo guardado. La cuenta sale de `segundaLlantaDe`, la misma que arma la lámina.
+ */
+export async function respaldoDelCatalogo(
+  conversationId: number,
+  textoDelCliente?: string | null,
+  ahora: Date = new Date(),
+  mensajeCitado?: string | null,
+): Promise<RespaldoDelCatalogo | null> {
+  if (!promocionVigente(politica.promocionDeTemporada, ahora)) return null;
+  const { cantidad, vetos } = await cantidadDelCliente(conversationId, textoDelCliente, mensajeCitado);
+  if (cantidad === null || cantidad < 2 || cantidad % 2 !== 0 || cantidad > MAXIMO_PARA_LA_CUENTA) return null;
+  if (!vetos.every((n) => n === cantidad)) return null;
+  return {
+    productosEn: (fragmento) => {
+      const nombradas = productosDelCatalogoMencionados(fragmento).map((p) => ({
+        p,
+        segunda: segundaLlantaDe(politica.promocionDeTemporada, p.brand, cantidad,
+          { hoyConIva: p.minimumPriceWithTax, listaConIva: p.customerPriceWithTax }, ahora),
+      }));
+      // Si la línea nombra TAMBIÉN una llanta sin promo (otra marca, o el mismo diseño en otra marca:
+      // el lector de nombres empareja por diseño), no se sabe de cuál es el «c/u»: no se adivina.
+      if (nombradas.some((n) => !n.segunda)) return [];
+      return nombradas.flatMap(({ p, segunda }) => segunda
+        ? [{ nombre: `${p.brand} ${p.design}`, hoyConIva: p.minimumPriceWithTax, listaConIva: segunda.precioNormalConIva, cantidad, segunda }]
+        : []);
+    },
+  };
 }

@@ -397,7 +397,23 @@
   (`tools.ts`). (m3) `cantidadDeLaFicha` no consulta la base si la promo no corre (diciembre, Mundillantas).
   **Límite conocido:** el mensaje citado no se guarda en la fila del entrante; el candado y el Guardián (que no lo reciben
   en su contexto) solo lo usan si el llamador lo pasa, o sea hoy solo las búsquedas.
-- **Horas:** 3,5 + 1,5 de la ronda 1 + 2 de la ronda 2 + 1 de la ronda 3 + 0,5 de la ronda 4
+- **Ronda 5 (replay final 3× sobre la rama integrada, 10-nov; conv 39597 pasó 2 de 3):** en la corrida que falló, la
+  corrección del Guardián trajo tres llantas de una lista de equivalentes con «c/u» (precios de hoy −25 %); el candado
+  reescribió la que estaba en la lámina guardada (la Trail) y dejó pasar la KR50 y la 4W, que el Guardián sacó del
+  catálogo y no están en ninguna pieza ni cotización del ciclo: el candado solo emparejaba contra líneas GUARDADAS.
+  **Segundo respaldo, el catálogo** (`respaldoDelCatalogo` en `lineasConPromo.ts`; pura en
+  `sinPrecioPorLlantaConPromo(texto, lineas, respaldo)`): si el «$X c/u» no empareja con una línea guardada, se toman
+  las llantas del catálogo de hoy que ESA MISMA línea de texto nombra (`productosDelCatalogoMencionados`: marca+diseño o
+  código); si son de marca de la promo y su precio de hoy o de lista es X, se reemplaza por su cuenta
+  (`segundaLlantaDe`, la misma de la lámina). Condiciones, todas del ESTADO: promo vigente, cantidad de
+  `cantidadDelCliente` CONOCIDA, PAR (2…40) y sin vetos en conflicto (ficha 4 + «solo 2» no reescribe); con cantidad
+  impar o desconocida no hay respaldo. No adivina: si la línea nombra también una llanta sin promo (Winrun, o el mismo
+  diseño en otra marca: el lector de nombres empareja por diseño) o dos llantas dan cuentas distintas, se conserva. Una
+  línea sin ninguna llanta nombrada no se reescribe con el catálogo. El log lo marca: `💲 … (Black Friday, del catálogo) → …`.
+  **Límite conocido:** el texto de la corrección del Guardián trae el «c/u» de llantas que el catálogo tiene pero el
+  cliente nunca vio; hoy se corrige con la cuenta de la cantidad del estado (4) igual que las demás — es lo que el
+  cliente pagaría, y el Guardián debería dejar de ofrecerlas con «c/u» (Sprint 5, no se toca aquí).
+- **Horas:** 3,5 + 1,5 de la ronda 1 + 2 de la ronda 2 + 1 de la ronda 3 + 0,5 de la ronda 4 + 1 de la ronda 5
 
 ## 9-nov-2026 · Sprint 4 ronda 2 · «general» suelta no es una marca
 

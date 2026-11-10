@@ -80,7 +80,7 @@ import { hayDescuentoEnEfectivo, hayPoliticaDePagos, mencionaDescuentoEnEfectivo
 import { sinNumerosDeCotizacion } from "../domain/numerosDeCotizacion.js";
 import { precioDeLaOpcionGuardada, precioDelProducto, promocionVigente, type SegundaLlanta } from "../domain/promocionDeTemporada.js";
 import { sinPrecioPorLlantaConPromo } from "../domain/sinPrecioPorLlantaConPromo.js";
-import { lineasConPromoDelCiclo } from "./lineasConPromo.js";
+import { lineasConPromoDelCiclo, respaldoDelCatalogo } from "./lineasConPromo.js";
 import { politica } from "../negocio/politica.js";
 import { conPreguntaEnSuPropioMensaje } from "../domain/preguntaSola.js";
 import { despedidaQueCorresponde } from "../domain/cierrePerdido.js";
@@ -1193,9 +1193,12 @@ export const PASOS: readonly PasoDeSalida[] = [
       // herramienta que lo armó, no por el texto.
       if ((ctx.huella ?? []).some((h) => h.herramienta === "enviar_comparacion")) return texto;
       const lineas = await lineasConPromoDelCiclo(ctx.conversation.id, ctx.conversation.current_cycle, ctx.ahora, ctx.textoDelCliente);
-      const { texto: nuevo, cambios } = sinPrecioPorLlantaConPromo(texto, lineas);
+      // Segundo respaldo: un «c/u» de una llanta que ninguna pieza ni cotización del ciclo guardó
+      // (la que el Guardián sacó del catálogo) se empareja con el catálogo de hoy.
+      const respaldo = await respaldoDelCatalogo(ctx.conversation.id, ctx.textoDelCliente, ctx.ahora);
+      const { texto: nuevo, cambios } = sinPrecioPorLlantaConPromo(texto, lineas, respaldo);
       for (const c of cambios) {
-        console.warn(`💲 Conv ${ctx.conversation.id}: «${c.de}» de ${c.linea} (Black Friday) → «${c.a}»`);
+        console.warn(`💲 Conv ${ctx.conversation.id}: «${c.de}» de ${c.linea} (Black Friday${c.origen === "catalogo" ? ", del catálogo" : ""}) → «${c.a}»`);
         if (c.totalHuerfano) {
           console.warn(`💲 Conv ${ctx.conversation.id}: quedó un importe suelto al lado de la cuenta de ${c.linea} (¿un total viejo?): «${nuevo.slice(0, 160)}»`);
           // Para contarlo en la próxima auditoría. No se intenta borrar del texto (límite conocido).

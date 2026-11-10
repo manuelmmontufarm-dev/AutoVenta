@@ -29,6 +29,7 @@ await admin.unsafe(`create database ${BASE}`);
 let catalogo: CatalogItem[] = [];
 vi.mock("../src/services/catalog.js", async () => {
   const { searchCatalog, buscarPorAro } = await import("../src/domain/catalog.js");
+  const { mencionaProducto } = await import("../src/domain/guardianNoVendeSolo.js");
   return {
     ensureCatalogReady: async () => ({}),
     searchByText: (q: string, l = 40) => searchCatalog(catalogo, q, l),
@@ -39,6 +40,8 @@ vi.mock("../src/services/catalog.js", async () => {
     catalogStatus: () => ({ items: catalogo.length, error: null }),
     applyInterbotPrices: () => undefined,
     findByCode: (c: string) => catalogo.find((i) => i.code === c),
+    // Igual que producción: las llantas del catálogo que el texto nombra.
+    productosDelCatalogoMencionados: (texto: string) => catalogo.filter((i) => mencionaProducto(texto, i)),
   };
 });
 vi.mock("../src/services/interbotPrices.js", () => ({
@@ -434,5 +437,73 @@ describe.sequential("ronda 4: el «mensaje anterior» es el anterior al ÚLTIMO 
     expect(await cantidadDeLaFicha({ conversation: { id: fila.id } })).toBe(4);
     vi.setSystemTime(new Date("2026-11-15T17:00:00Z"));
     expect(await cantidadDeLaFicha({ conversation: { id: fila.id } })).toBe(3);
+  });
+});
+
+describe.sequential("ronda 5 (replay 10-nov, 39597): el respaldo del catálogo, de punta a punta", () => {
+  const TEXTO = [
+    "⚠️ Ojo: en *255/65R17* no me queda disponibilidad exacta. Estas son las equivalentes de su aro que sí tengo:",
+    "1 · FALKEN WILDPEAK TRAIL — *$75.00 c/u*",
+    "2 · KENDA KR50 — *$75.00 c/u*",
+    "3 · FALKEN WILDPEAK 4W — *$75.00 c/u*",
+  ].join("\n");
+  const cuenta4 = "2 × $100.00 + 2 × $40.00 = $280.00 (−60 % en la 2.ª llanta)";
+  const otra = (marca: string, diseno: string, code: string): CatalogItem => ({ ...llanta(marca), id: code, code, design: diseno, name: `205/55R16 ${marca} ${diseno}` });
+
+  async function hiloConFicha(ficha: number | null, textoCliente = "las 4 por favor") {
+    const { fila, phone } = await conversacion();
+    await sql`update conversations set selected_quantity = ${ficha} where id = ${fila.id}`;
+    await sql`insert into messages (conversation_id, cycle, role, direction, author_kind, content, type) values (${fila.id}, 1, 'user', 'inbound', 'customer', ${textoCliente}, 'text')`;
+    return { fila, phone };
+  }
+  const aplicar = (fila: Fila, phone: string, texto: string, textoDelCliente?: string) =>
+    paso.aplicar(texto, { ...salida(fila, phone, "respuesta"), textoDelCliente });
+
+  it("ficha 4 y NINGUNA pieza/cotización guardada: la KR50 y la 4W salen con la cuenta (antes pasaban con c/u)", async () => {
+    catalogo = [otra("FALKEN", "WILDPEAK TRAIL", "C-TRAIL"), otra("KENDA", "KR50", "C-KR50"), otra("FALKEN", "WILDPEAK 4W", "C-4W"), llanta("WINRUN")];
+    const { fila, phone } = await hiloConFicha(4);
+    expect(await lineasConPromoDelCiclo(fila.id, fila.current_cycle)).toEqual([]);
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const nuevo = await aplicar(fila, phone, TEXTO);
+    expect(nuevo).toContain(`1 · FALKEN WILDPEAK TRAIL — *${cuenta4}*`);
+    expect(nuevo).toContain(`2 · KENDA KR50 — *${cuenta4}*`);
+    expect(nuevo).toContain(`3 · FALKEN WILDPEAK 4W — *${cuenta4}*`);
+    expect(nuevo).not.toMatch(/c\/u/);
+    expect(warn.mock.calls.some((c) => String(c[0]).includes("del catálogo"))).toBe(true);
+    warn.mockRestore();
+  });
+
+  it("ficha 3 (impar): el c/u se conserva", async () => {
+    const { fila, phone } = await hiloConFicha(3, "tres llantas");
+    expect(await aplicar(fila, phone, TEXTO)).toBe(TEXTO);
+  });
+
+  it("ficha VACÍA y el cliente nunca dijo cantidad: no se inventa una cuenta", async () => {
+    const { fila, phone } = await hiloConFicha(null, "Hola, 255/65R17");
+    expect(await aplicar(fila, phone, TEXTO)).toBe(TEXTO);
+  });
+
+  it("ficha 4 pero el cliente dijo «solo 2» en este turno: vetos en conflicto, no se reescribe", async () => {
+    const { fila, phone } = await hiloConFicha(4, "¿y si llevo solo 2?");
+    expect(await aplicar(fila, phone, TEXTO, "¿y si llevo solo 2?")).toBe(TEXTO);
+  });
+
+  it("ficha vacía pero el cliente dijo «cuatro llantas»: la cantidad del historial vale", async () => {
+    const { fila, phone } = await hiloConFicha(null, "quiero cuatro llantas");
+    const nuevo = await aplicar(fila, phone, "2 · KENDA KR50 — *$75.00 c/u*");
+    expect(nuevo).toBe(`2 · KENDA KR50 — *${cuenta4}*`);
+  });
+
+  it("fuera de temporada (1-dic): el c/u es el precio y no se toca", async () => {
+    const { fila, phone } = await hiloConFicha(4);
+    vi.setSystemTime(new Date("2026-12-01T17:00:00Z"));
+    expect(await aplicar(fila, phone, TEXTO)).toBe(TEXTO);
+  });
+
+  it("una Winrun nombrada con el mismo precio no se toca (sin promo); y un diseño repetido en otra marca no se adivina", async () => {
+    catalogo = [llanta("FALKEN"), llanta("WINRUN")]; // mismo diseño ZE310 en las dos marcas
+    const { fila, phone } = await hiloConFicha(4);
+    const t = "WINRUN ZE310 — *$75.00 c/u*";
+    expect(await aplicar(fila, phone, t)).toBe(t);
   });
 });
