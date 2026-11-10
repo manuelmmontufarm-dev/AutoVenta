@@ -452,3 +452,34 @@ describe("candado · respaldo del catálogo (replay 10-nov, conv 39597)", () => 
     expect(sinPrecioPorLlantaConPromo(t, [], respaldo(4)).texto).toBe(t);
   });
 });
+
+describe("candado · cantidades que el texto dice con «una sola», «solo una», «si lleva N», «por una» (retoque ronda 5)", () => {
+  const norm = (t: string) => t.toLowerCase();
+  const linea = (cantidad: number) => {
+    const s = temporada.segundaLlantaDe(promo, "KENDA", cantidad, { hoyConIva: 202.33, listaConIva: 269.77 }, NOVIEMBRE)!;
+    return { nombre: "KENDA KR50", hoyConIva: 202.33, listaConIva: s.precioNormalConIva, cantidad, segunda: s };
+  };
+  const respaldo = {
+    productosEn: (f: string) => (norm(f).includes("kr50") ? [linea(4)] : []),
+  };
+  const conservan = [
+    "Si lleva una, la KENDA KR50 265/65R17 queda en $202.33 c/u con IVA",
+    "Si lleva 1, la KENDA KR50 265/65R17 queda en $202.33 c/u con IVA",
+    "Si lleva 3, la KENDA KR50 265/65R17 queda en $202.33 c/u con IVA",
+    "Si lleva 5, la KENDA KR50 265/65R17 queda en $202.33 c/u con IVA",
+    "Una sola: la KENDA KR50 265/65R17 queda en $202.33 c/u con IVA",
+    "Solo una: la KENDA KR50 265/65R17 queda en $202.33 c/u con IVA",
+    "Por una, la KENDA KR50 265/65R17 queda en $202.33 c/u con IVA",
+    "Por 1, la KENDA KR50 265/65R17 queda en $202.33 c/u con IVA",
+  ];
+  it.each(conservan)("se conserva el c/u (ficha 4, respaldo del catálogo): %s", (t) => {
+    expect(sinPrecioPorLlantaConPromo(t, [], respaldo).texto).toBe(t);
+  });
+  it.each(conservan)("…y también con la línea guardada de 4: %s", (t) => {
+    expect(sinPrecioPorLlantaConPromo(t, [linea(4)], null).texto).toBe(t);
+  });
+  it("sin esas palabras sigue reescribiendo con la cuenta de 4", () => {
+    const t = "La KENDA KR50 265/65R17 queda en $202.33 c/u con IVA";
+    expect(sinPrecioPorLlantaConPromo(t, [], respaldo).texto).toContain("2 × $269.77 + 2 × $107.91");
+  });
+});

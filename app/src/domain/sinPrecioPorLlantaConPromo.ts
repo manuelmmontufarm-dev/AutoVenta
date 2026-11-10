@@ -62,6 +62,13 @@ function cantidadesDichas(texto: string): number[] {
     ...[...normal.matchAll(/\b(\d{1,2})\s+(?:sola\s+|solo\s+)?llantas?\b/g)].map((m) => Number(m[1])),
     ...[...normal.matchAll(/\b(una|un|dos|tres|cuatro|cinco|seis|ocho)\s+(?:sola\s+|solo\s+)?(?:llantas?|unidad(?:es)?)\b/g)].map((m) => EN_PALABRAS[m[1]]),
     ...[...normal.matchAll(/\b(?:las|los|por)\s+(\d{1,2})\b(?![.,]\d)/g)].map((m) => Number(m[1])),
+    // «por una», «por dos»…
+    ...[...normal.matchAll(/\bpor\s+(una|un|dos|tres|cuatro|cinco|seis|ocho)\b/g)].map((m) => EN_PALABRAS[m[1]]),
+    // «una sola», «solo una», «solo 3»
+    ...[...normal.matchAll(/\b(una|un)\s+sola\b/g)].map(() => 1),
+    ...[...normal.matchAll(/\bsolo\s+(\d{1,2}|una|un|dos|tres|cuatro|cinco|seis|ocho)\b(?![.,]\d)/g)].map((m) => EN_PALABRAS[m[1]] ?? Number(m[1])),
+    // «si lleva una», «si lleva 3», «si llevo 1», «si llevan dos»
+    ...[...normal.matchAll(/\bsi\s+(?:se\s+)?llev\w*\s+(\d{1,2}|una|un|dos|tres|cuatro|cinco|seis|ocho)\b(?![.,]\d)/g)].map((m) => EN_PALABRAS[m[1]] ?? Number(m[1])),
   ];
 }
 

@@ -413,7 +413,14 @@
   **Límite conocido:** el texto de la corrección del Guardián trae el «c/u» de llantas que el catálogo tiene pero el
   cliente nunca vio; hoy se corrige con la cuenta de la cantidad del estado (4) igual que las demás — es lo que el
   cliente pagaría, y el Guardián debería dejar de ofrecerlas con «c/u» (Sprint 5, no se toca aquí).
-- **Horas:** 3,5 + 1,5 de la ronda 1 + 2 de la ronda 2 + 1 de la ronda 3 + 0,5 de la ronda 4 + 1 de la ronda 5
+- **Retoque tras la aprobación de la ronda 5:** `cantidadesDichas` (las cantidades que el TEXTO del bot menciona, solo
+  para no reescribir cuando habla de otra cantidad) lee también «una sola», «solo una/3», «si lleva una/1/3/5» y «por una»:
+  «Si lleva una, la KENDA KR50 … queda en $X c/u» con ficha 4 ya no sale con la cuenta de 4. Prueba en rojo con ese texto.
+  **Límites conocidos del respaldo:** (a) si el nombre de la llanta va en una línea y el «$X c/u» en la siguiente, el
+  respaldo no lo empareja (solo mira la línea donde está el precio) y el «c/u» se conserva; (b) `cantidadDelCliente`
+  corre dos veces por turno con «c/u» y promo vigente (una en `lineasConPromoDelCiclo`, otra en `respaldoDelCatalogo`):
+  2 consultas extra a la base por turno, solo en esos turnos.
+- **Horas:** 3,5 + 1,5 de la ronda 1 + 2 de la ronda 2 + 1 de la ronda 3 + 0,5 de la ronda 4 + 1 de la ronda 5 + 0,25 del retoque
 
 ## 9-nov-2026 · Sprint 4 ronda 2 · «general» suelta no es una marca
 
