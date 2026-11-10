@@ -1,3 +1,46 @@
+## 10-nov-2026 · Cierre de los sprints de la auditoría del 9-nov (rama `fix/auditoria-2026-11-09`)
+
+- **Qué:** las 7 familias de `.auditoria-tmp/2026-11-09/INFORME.md` (precio «c/u» con Black Friday; recordatorios con
+  precio viejo; lista repetida; corrección del Guardián que un candado rompe; cantidades; saludo que pide la medida
+  dada; día/local a quien no corresponde) arregladas en cinco sprints, cada uno en su sesión y rama, revisados por
+  Opus con el código al lado hasta quedar aprobados (S1 5 rondas + retoque, S2 3, S3 3, S4 3, S5 5; 23 bloqueantes
+  encontrados y corregidos antes de integrar; informes en `.auditoria-tmp/2026-11-09/sprints/revisiones/`). Fable
+  revisó el diff total (puertas, orden de `PASOS`, fuente única, prompt doble, regla 9, alcance, migración 018):
+  sin hallazgos nuevos. Ramas: `claude/s1-precio-cu-d2cf0b`, `claude/s2-recordatorios-89f244`,
+  `claude/s3-cantidades-e618b2`, `claude/s4-primer-contacto-aab23d`, `claude/s5-visita-avisos-8d2650`.
+- **Replay final 3×** (agente de prueba, simulador propio, rama integrada): 57 casos (36 chats reales + 21 sanos o
+  construidos), 195 corridas. A la primera 48 de 57 pasaron 3/3; 5 eran huecos reales (39597 «c/u» de llantas que el
+  Guardián sacó del catálogo; 18535 corrección buena frenada como producto nuevo; 40082 turno vaciado a un cliente
+  fuera; 39845 «Cumbayá me queda lejos» con el vendedor proponiendo Cumbayá; 39971 lista reescrita en negrita no
+  contada como calco) → volvieron a S1 y S5, y en la segunda pasada los 8 casos repetidos dieron 3/3. Queda 1 caso
+  sano con expectativa interna sin cumplir («necesito 20 llantas 235/75» sin aro: el texto entiende 20, la ficha se
+  llena al cotizar). 6 casos solo con pruebas de integración (Guardián real en 39282/40097, audio 40017,
+  `buscar_catalogo` 5e, «las 1-2-3» con cotización vigente, recordatorio del 1-dic). Detalle:
+  `.auditoria-tmp/2026-11-09/sprints/replay-final.md` y `replay-final-2.md`.
+- **Suite:** tsc limpio; `npx vitest run` 3919/3921 (fallan `hashesPiezasDepot` y `unidadEnLaCantidad`, las mismas
+  que en `main`); `sim:humo` ✅; `simuladorFidelidad` 12/12 (sin variables ni tablas nuevas).
+- **Costo** (conversación estándar, clave del simulador): producción f4ba629 mediana $0.0486 (n=9, promedio 0.0610,
+  rango 0.042–0.094); rama bdbb5b2 mediana $0.0562 (n=8, promedio 0.0615, rango 0.046–0.084). Nubes superpuestas,
+  ningún punto fuera de los límites de producción: sin señal. Lo fijo: el Guardián recibe +650 tokens de entrada por
+  llamada (8.458 → 9.108, +7 %) por los hechos condicionales nuevos. Mediciones en `app/scripts/sim/mediciones/`.
+- **Riesgo de producción, aparte de la auditoría:** desde el 9-nov 22:52 UTC hay un asesor en rol `nivel-2`; la
+  migración 018 re-creaba el check `advisors_rol_valido` (admin/asesor) en cada arranque → el próximo reinicio o
+  deploy de producción con el código actual NO ARRANCA (23514; comprobado levantando `origin/main` en el simulador
+  con la config de producción). El arreglo (f72ba95, compuerta por `schema_migrations`) va en esta rama. Paliativo
+  hasta publicar: volver ese asesor a «asesor» en Ajustes.
+- **Decisiones de Manuel, sin tocar:** comparativa por unidad o por juego (hoy por unidad; el candado de «c/u» no la
+  toca); cotizar con solo el aro; limpiar las 7 fichas con cantidades imposibles (`scripts/ops/fichas-con-cantidad-sucia.mjs`
+  las lista, solo lectura). «Está muy lejos» + silencio cancela los seguimientos (como proponía el análisis).
+- **Fuera / límites conocidos:** anotados en la entrada de cada sprint (comparativa + cotización en el mismo turno;
+  total viejo junto a la cuenta solo alerta; turno normal lee la lista guardada, no la recalculada; «estoy en Cuenca,
+  llego mañana a la casa» → viene; «vuelvo a escribirle» conserva la pregunta; Bolívar y Venezuela como provincia;
+  nombre y «c/u» en líneas distintas). El worktree `bot-performance-improvement-816a4a` tiene trabajo sin commit del
+  1-oct en `followUpMessages.ts`/`guardianNoVendeSolo.ts` que chocará en una línea con esta rama; no se tocó.
+- **Informe:** `docs/reportes-historicos/2026-11-09-arreglos-auditoria.html`. Sin push a `main` hasta el sí de Manuel.
+- **La próxima auditoría corre con el embudo** (sección Embudo de `/auditar-desde-ultimo-cambio`) y los sprints
+  salen de lo que el embudo muestre. Al leer el canary del 20-nov: desde este deploy el saludo fijo no pasa por el
+  Guardián; cortar ahí o excluir `first_contact`.
+
 ## 10-nov-2026 · Sprint 5, ronda 4 de la revisión: el local lejano solo cambia el mapa y la propuesta de visita
 
 - **Qué:** `sinElLocalLejano` cambiaba el nombre del local en CUALQUIER oración: con «el sur me queda lejos» la

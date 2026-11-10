@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Arreglos de la auditoría del 9 de noviembre</title>
+<style>
+  :root {
+    --bg: #fafaf8; --card: #ffffff; --text: #1d1d1b; --muted: #6b6b66;
+    --line: #e4e3de; --accent: #1f6feb; --bad: #c2410c; --warn: #b45309; --good: #15803d;
+    --quote: #f3f2ee; --before: #c9c7bf; --after: #1f6feb;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #161615; --card: #1f1f1d; --text: #ecebe7; --muted: #a3a29c;
+      --line: #33332f; --accent: #6ea8ff; --bad: #fb923c; --warn: #fbbf24; --good: #4ade80;
+      --quote: #282826; --before: #55544e; --after: #6ea8ff;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 780px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 26px; margin: 0 0 4px; }
+  h2 { font-size: 20px; margin: 40px 0 12px; padding-top: 8px; border-top: 1px solid var(--line); }
+  .sub { color: var(--muted); margin: 0 0 20px; }
+  .verdict { background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--good);
+    border-radius: 8px; padding: 14px 16px; margin: 0 0 16px; font-size: 17px; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .tile { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }
+  .tile .n { font-size: 26px; font-weight: 650; font-variant-numeric: tabular-nums; }
+  .tile .l { color: var(--muted); font-size: 14px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 16px; margin: 0 0 14px; }
+  .chart { position: relative; height: 300px; }
+  @media (max-width: 480px) { .chart { height: 260px; } }
+  table { width: 100%; border-collapse: collapse; background: var(--card); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; font-size: 15px; }
+  th { font-size: 13px; color: var(--muted); font-weight: 600; }
+  tr:last-child td { border-bottom: 0; }
+  .ok { color: var(--good); font-weight: 600; white-space: nowrap; }
+  .mid { color: var(--warn); font-weight: 600; white-space: nowrap; }
+  .ko { color: var(--bad); font-weight: 600; white-space: nowrap; }
+  .note { color: var(--muted); font-size: 14px; }
+  .scroll { overflow-x: auto; }
+  ul, ol { padding-left: 20px; }
+  li { margin: 6px 0; }
+  .quote { background: var(--quote); border-radius: 6px; padding: 10px 12px; margin: 10px 0; font-size: 15px; }
+  .alerta { border-left-color: var(--bad); }
+  nav { font-size: 14px; margin: 0 0 8px; }
+  nav a { color: var(--accent); text-decoration: none; margin-right: 12px; white-space: nowrap; }
+</style>
+</head>
+<body>
+<main>
+
+<h1>Arreglos de la auditoría del 9 de noviembre</h1>
+<p class="sub">Bot de Depot Tire · rama <code>fix/auditoria-2026-11-09</code> · cerrada el 10 de noviembre de 2026 · <strong>todavía no publicada</strong> (sale a producción con el push a <code>main</code>).</p>
+
+<nav>
+  <a href="#numeros">Números</a>
+  <a href="#familias">Por familia</a>
+  <a href="#esfuerzo">Esfuerzo</a>
+  <a href="#costo">Costo</a>
+  <a href="#tabla">Qué se cambió</a>
+  <a href="#pendiente">Pendiente</a>
+  <a href="#semana">Primera semana</a>
+</nav>
+
+<div class="verdict">Se arreglaron las <strong>7 familias</strong> de la auditoría en cinco sprints. Los <strong>36 chats reales</strong> que fallaban, más 21 casos sanos o construidos, se repitieron tres veces cada uno en el simulador con la rama completa: <strong>todos los chats reales salen bien las tres veces</strong>. Nueve casos no pasaron a la primera; cinco eran huecos de verdad, volvieron a los sprints 1 y 5, y en la segunda pasada salieron 3 de 3. Un caso sano (una ficha interna con «20 llantas») queda con una expectativa interna sin cumplir, sin efecto en lo que recibe el cliente.</div>
+
+<div class="verdict alerta"><strong>Aviso aparte de la auditoría:</strong> con el código que hoy está en producción, <strong>el próximo reinicio o deploy del bot no arranca</strong>. El 9 de noviembre a un asesor se le puso el nivel de aviso 2 en Ajustes, y una regla vieja de la base (que solo admitía «admin» o «asesor») se vuelve a crear en cada arranque y choca con ese dato. Lo comprobamos levantando el código de producción en el simulador: murió al arrancar. El arreglo está en esta rama. Hasta publicarla, no conviene reiniciar ni redeployar producción; el paliativo es volver ese asesor a «asesor» en Ajustes.</div>
+
+<div class="tiles" id="numeros">
+  <div class="tile"><div class="n">7 / 7</div><div class="l">Familias arregladas</div></div>
+  <div class="tile"><div class="n">36 / 36</div><div class="l">Chats reales que ahora pasan 3 de 3</div></div>
+  <div class="tile"><div class="n">3.919</div><div class="l">Pruebas automáticas en verde</div></div>
+  <div class="tile"><div class="n">195</div><div class="l">Corridas del simulador en la revisión final</div></div>
+</div>
+
+<h2 id="familias">Por familia: qué fallaba y qué pasa ahora</h2>
+<p>Cada familia se probó con los chats reales que la auditoría citó, más chats sanos que no debían cambiar. «Pasa» quiere decir que el bot contestó como tenía que contestar en las tres repeticiones, con la rama completa (los cinco sprints juntos).</p>
+<div class="card"><div class="chart"><canvas id="g1"></canvas></div></div>
+<p class="note">La auditoría contó más chats afectados de los que se repitieron (por ejemplo, 26 recordatorios en la familia 2 y 24 chats en la 3): se repitieron los citados con texto, que son los que tienen la frase exacta del cliente. Los demás caen en la misma regla.</p>
+
+<h2 id="esfuerzo">Esfuerzo por sprint</h2>
+<div class="card"><div class="chart"><canvas id="g2"></canvas></div></div>
+<p>Cada sprint fue una sesión aparte, y cada entrega la revisó un modelo mayor (Opus) con el código al lado, hasta tres rondas. El sprint 1 (precio por llanta) fue el que más costó, cuatro rondas: la regla parecía simple, pero el precio «por llanta» depende de cuántas llantas pidió el cliente, y eso se lee de lo que escribió en el turno, de lo dicho antes y de la ficha, en ese orden. El sprint 5 también llegó a tres rondas: el lector de «me queda lejos» primero marcaba fuera de Quito a clientes de Quito, y después contaba «mañana le vuelvo a escribir» como una visita. La revisión final (el replay de todo junto) encontró cinco huecos más que volvieron a los sprints 1 y 5, con dos rondas de revisión extra. En total, las revisiones encontraron y corrigieron <strong>23 errores</strong> que habrían salido a producción.</p>
+
+<h2 id="costo">Costo por conversación</h2>
+<div class="card"><div class="chart" style="height:220px"><canvas id="g3"></canvas></div></div>
+<p>Medido con la misma conversación de prueba, en el mismo simulador y con la misma clave, 9 veces con el código de producción de hoy y 8 con la rama (más una de calentamiento por tanda; una corrida de la rama que se cortó a la primera respuesta no se cuenta). Producción: <strong>$0,049</strong> por conversación (mediana; promedio $0,061; rango 0,042–0,094). Rama: <strong>$0,056</strong> (mediana; promedio $0,062; rango 0,046–0,084). Las dos nubes de puntos se superponen enteras y ningún punto de la rama sale de los límites de control de producción: <strong>no hay señal de encarecimiento</strong>; la diferencia de medianas es ruido de una conversación que a veces lleva tres revisiones y a veces cuatro. Lo que sí cambió de verdad, y es fijo: el revisor recibe unos 650 tokens más por llamada (9.100 contra 8.450, un 7 %), que son los hechos nuevos que se le dan cuando aplican (cliente fuera de cobertura o con un local lejos, lista ya enviada, cuenta de Black Friday, alternativa del catálogo). A precios de hoy son unos $0,002–0,003 por conversación: el precio de que esos hechos lleguen como dato y no como adivinanza.</p>
+
+<h2 id="tabla">Qué se cambió, familia por familia</h2>
+<div class="scroll">
+<table>
+<thead><tr><th>Familia</th><th>Qué se cambió</th><th>Cómo se probó</th><th>Estado</th></tr></thead>
+<tbody>
+<tr><td>1. El texto dice un precio por llanta que no es el de la promo</td><td>Con Black Friday, en Falken y Kenda no existe «un precio por llanta»: las impares valen la lista y las pares el 40 %. El bot ahora dice la cuenta («2 × $270.49 + 2 × $108.20 = $757.38») en el texto, igual que en la lámina y la cotización. Un filtro final cambia cualquier «$X c/u» que escriban el vendedor o el revisor por la cuenta de lo que el cliente pidió. Con 1, 3 o 5 llantas, con Winrun o cuando la promo termine (1 de diciembre) el «c/u» vuelve a ser el precio.</td><td>10 chats reales + 5 sanos (1 llanta, 3 llantas, Winrun, «3» elige el menú), 3 veces cada uno: 13 / 15 a la primera. Los dos que fallaron una vez (dos llantas que el revisor sacó del catálogo con «c/u»; una corrección buena frenada) se taparon y dieron 3 / 3. 51 corridas.</td><td class="ok">Arreglada</td></tr>
+<tr><td>2. Los recordatorios reenvían el menú con precios de antes de Black Friday</td><td>El recordatorio ya no copia la lista guardada: la recalcula con los precios y el stock de hoy, y la cabecera dice «Con los precios de hoy…» si cambió algo. Si una opción se quedó sin juego, la lista sale sin precios.</td><td>El chat real de la familia (1.º y 2.º recordatorio disparados a mano) y un sano con lámina nueva: el 1.º recordatorio salió con la cuenta de hoy en todas las corridas. 18 corridas en el sprint 2.</td><td class="ok">Arreglada</td></tr>
+<tr><td>3. El recordatorio repite la misma lista 2 o 3 veces</td><td>Al mandar un recordatorio con la lista, queda anotado como dato. El segundo recordatorio lee ese dato y no la vuelve a mandar; si el revisor la reescribe con otra cabecera, un filtro la reconoce igual y el recordatorio no sale.</td><td>Mismo chat: el 2.º recordatorio ya no trae la lista con precios; en 2 de 3 corridas trae solo los nombres («1 · KR601 / 2 · KR608») para que «¿la 1 o la 2?» tenga referente. Se acepta como correcto. El recordatorio del 1 de diciembre (promo apagada) solo con prueba automática con reloj fijo.</td><td class="ok">Arreglada</td></tr>
+<tr><td>4. El revisor corrige bien y un candado posterior deja salir el mensaje roto</td><td>Un recordatorio cuyo borrador el revisor marcó como error ya no se manda «de todos modos»: se calla y avisa al panel. El freno que impedía al revisor vender solo ahora distingue «no le puedo cotizar» de «no alcanzan para el juego, ¿le cotizo las 3?» (eso sigue frenado). Cuando el revisor corrige y la poda le quita la oferta, la llanta del catálogo que sí hay sale como hecho, con la pregunta al final, y un «sí» del cliente la cotiza.</td><td>3 chats reales (recordatorio tras «ninguna gracias», tras «está muy lejos», corrección con alternativa) + 1 sano («no nos espere hoy, mañana sí vamos»): 4 / 4, 3 veces. Las dos correcciones reales del revisor con juego incompleto solo con pruebas automáticas (dependen de lo que escriba el modelo).</td><td class="ok">Arreglada</td></tr>
+<tr><td>5. Cantidades mal entendidas</td><td>Un número que contesta al menú («la 2»), que es parte de la medida («205 55 16») o que es una enumeración ya no cuenta como «cuántas llantas». La cantidad se lee de lo que el cliente escribió en el turno; si no, de lo dicho antes (solo si es posterior a la última lámina o cotización); si no, de la ficha; y nunca más de 100. La ficha registra la cantidad al cotizar. Las 7 fichas con cantidades imposibles que hay en producción se detectan con un reporte de solo lectura (limpiarlas es decisión tuya).</td><td>5 chats reales + 4 sanos, 3 veces: 8 / 9. El que no pasa es interno: «necesito 20 llantas 235/75» sin aro; el bot entiende 20 y pide el aro, pero la ficha queda vacía hasta que cotiza (la cantidad se lee de lo dicho al cotizar). 27 corridas.</td><td class="ok">Arreglada</td></tr>
+<tr><td>6. El saludo le pide la medida a quien ya la mandó</td><td>El saludo fijo del primer contacto mira si el cliente ya escribió su medida en el mismo grupo de mensajes y no la pide. El nombre del perfil de WhatsApp solo se usa si es un nombre de pila (no «Llantas Quito» ni «JOSÉ»). El buscador del catálogo ya no se rinde por una palabra que no conoce («Kenda Klever KR601» encuentra la KR601 y dice que figura así), y nunca devuelve otra marca como si fuera la pedida.</td><td>2 chats reales del saludo + 6 del buscador (Klever KR601, Michelin, Goodyear, «en general») + 2 sanos, 3 veces: 10 / 10. 33 corridas. El chat con audio solo con prueba automática.</td><td class="ok">Arreglada</td></tr>
+<tr><td>7. Pregunta día o local a quien no corresponde</td><td>A quien dice que está muy lejos o fuera de Quito no se le pregunta el local ni el día ni se le mandan mapas. «Cumbayá me queda lejos» no registra Cumbayá como local; «la próxima semana estoy por allá» cuenta como que viene; «mañana le vuelvo a escribir» desde otra ciudad sigue siendo fuera. El aviso «estas opciones son de medidas distintas» ya no lo borra el revisor. La pregunta del menú nuevo ya no se quita por «repetida».</td><td>10 chats reales + 7 construidos por la revisión («Cumbayá me queda lejos», «no puedo pasar esos días», «soy de Ibarra, mañana le vuelvo a escribir»…): 14 / 17 a la primera; los tres que fallaron una vez (turno vaciado a un cliente de Pedernales, el vendedor proponiendo justo el local lejano, la lista reescrita en negrita) se taparon y dieron 3 / 3. 66 corridas.</td><td class="ok">Arreglada</td></tr>
+</tbody>
+</table>
+</div>
+
+<h2 id="pendiente">Lo que quedó pendiente y por qué</h2>
+<ul>
+  <li><strong>Tres decisiones tuyas, sin tocar:</strong> si la comparativa de modelos se muestra por unidad o por juego (hoy va por unidad y el filtro de precios no la toca); si se cotiza con solo el aro; y el permiso para limpiar las 7 fichas con cantidades imposibles en producción (el reporte ya las encuentra).</li>
+  <li><strong>Comparativa y cotización en el mismo turno:</strong> si el vendedor manda las dos a la vez, el filtro de «$X c/u» deja ese turno pasar entero. Caso raro; queda anotado.</li>
+  <li><strong>Un total viejo al lado de la cuenta nueva:</strong> cuando el filtro reemplaza el «$X c/u» y en el mismo texto quedó otro importe suelto, no lo borra: lo manda tal cual y deja una alerta en el panel para contarlo en la próxima auditoría.</li>
+  <li><strong>El turno normal sigue leyendo la lista guardada con la lámina</strong>, no la recalculada del recordatorio. Si el catálogo cambió de precio entre una y otra, el bot puede contradecir al recordatorio. Hoy solo pasa con láminas de antes de la promo.</li>
+  <li><strong>«Está muy lejos» seguido de silencio cancela los recordatorios.</strong> Es lo que proponía el análisis; si preferís que insista con la compra a distancia, es un cambio de una línea.</li>
+  <li><strong>Frases que todavía no se leen bien</strong> (ninguna apareció en los 686 mensajes reales de la auditoría): «estoy en Cuenca, llego mañana a la casa» cuenta como que viene a Quito; «la próxima semana vuelvo a escribirle» conserva la pregunta del día repetida; «estoy en Bolívar y Venezuela» (calles del centro) se lee como la provincia.</li>
+  <li><strong>Dos chats que el simulador no pudo repetir</strong> (uno con audio y otro con foto): se probaron con pruebas automáticas con los textos reales.</li>
+  <li><strong>Trabajo de otra sesión sin guardar</strong> en los archivos de los recordatorios (del 1 de octubre, en una carpeta de trabajo aparte): no se tocó. Si se quiere rescatar, va a chocar en una línea con esta rama.</li>
+</ul>
+
+<h2 id="semana">Qué mirar en producción la primera semana</h2>
+<p>Estas son las predicciones concretas. Si alguna no se cumple, la próxima auditoría tiene que decirlo con el chat en la mano.</p>
+<ol>
+  <li><strong>Ningún texto con «$X c/u» en Falken o Kenda</strong> mientras dure Black Friday: siempre la cuenta («2 × … + 2 × … = …») o el total. Hoy eran 9 chats en dos días. Las alertas «total viejo junto a la cuenta» dicen cuántas veces quedó un importe suelto.</li>
+  <li><strong>Ningún recordatorio con un precio distinto del de hoy</strong>, y ningún segundo recordatorio con la misma lista que el primero. Hoy eran 26 recordatorios con precio viejo y 24 chats con la lista repetida.</li>
+  <li><strong>Las alertas «el seguimiento NO se envió»</strong> aparecen en el panel cuando el revisor marcó el borrador como error. Si son más de dos o tres por semana, hay que mirar qué está escribiendo el borrador.</li>
+  <li><strong>Ninguna cotización con una cantidad que el cliente no pidió</strong> («la 2» → 4 llantas, no 2). Ninguna ficha nueva con más de 100 llantas.</li>
+  <li><strong>Nadie que mande su medida en el primer mensaje recibe «¿Qué medida usa?»</strong> en el saludo. Hoy eran 10 chats.</li>
+  <li><strong>Nadie que diga que está lejos o fuera de Quito recibe la pregunta del local, la del día ni los mapas.</strong> Hoy eran 8 chats.</li>
+  <li><strong>El 1 de diciembre</strong>, cuando termine Black Friday, el «c/u» vuelve solo: no hay que tocar nada. Conviene mirar los primeros chats de ese día.</li>
+  <li><strong>El costo por conversación</strong> se mantiene (no sube más de un 10 %).</li>
+</ol>
+<p><strong>Próxima auditoría: lunes 17 de noviembre</strong>, una semana de producción con la rama. Corre con el embudo: cuántos chats llegan a opciones, a cotización, a día acordado y a visita o venta, y dónde se pierden; los sprints siguientes salen de lo que el embudo muestre, no solo de las familias de error. (El 20 de noviembre también toca leer el canary del Guardián: ojo que desde este deploy el saludo fijo ya no pasa por el revisor, así que esa lectura tiene que cortar ahí o excluir los primeros contactos.)</p>
+
+<p class="note">Datos de este informe: archivo de seguimiento de la coordinación, cuadros de cierre de los cinco sprints, 16 informes de revisión (Opus), replay final 3× sobre la rama integrada y medición de costo del 10 de noviembre. Sin nombres de clientes.</p>
+
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+(function () {
+  const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  const text = css('--text'), muted = css('--muted'), line = css('--line');
+  Chart.defaults.color = muted; Chart.defaults.borderColor = line;
+  Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+  const common = { responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { labels: { color: text } } },
+    scales: { x: { grid: { display: false } }, y: { beginAtZero: true, ticks: { precision: 0 } } } };
+
+  new Chart(document.getElementById('g1'), { type: 'bar', data: {
+    labels: ['1 · precio c/u', '2 · precio viejo', '3 · lista repetida', '4 · corrección rota', '5 · cantidades', '6 · saludo', '7 · día o local'],
+    datasets: [
+      { label: 'Chats reales repetidos (fallaban antes)', data: [10, 1, 1, 3, 5, 7, 10], backgroundColor: css('--before') },
+      { label: 'Pasan 3 de 3 con la rama', data: [10, 1, 1, 3, 5, 7, 10], backgroundColor: css('--after') } ] },
+    options: common });
+
+  new Chart(document.getElementById('g2'), { type: 'bar', data: {
+    labels: ['Sprint 1\nprecio c/u', 'Sprint 2\nrecordatorios', 'Sprint 3\ncantidades', 'Sprint 4\nprimer contacto', 'Sprint 5\nvisita y avisos'],
+    datasets: [
+      { label: 'Rondas de revisión (Opus)', data: [5, 3, 3, 3, 5], backgroundColor: css('--warn'), yAxisID: 'y' },
+      { label: 'Corridas del simulador en la revisión final', data: [51, 18, 27, 33, 66], backgroundColor: css('--after'), yAxisID: 'y2' } ] },
+    options: { ...common, scales: { x: { grid: { display: false } },
+      y: { beginAtZero: true, position: 'left', title: { display: true, text: 'rondas' }, ticks: { precision: 0 } },
+      y2: { beginAtZero: true, position: 'right', grid: { display: false }, title: { display: true, text: 'corridas' } } } } });
+
+  new Chart(document.getElementById('g3'), { type: 'bar', data: {
+    labels: ['Producción hoy', 'Con la rama'],
+    datasets: [{ label: 'Dólares por conversación típica (mediana; 9 y 8 medidas)', data: [0.0486, 0.0562],
+      backgroundColor: [css('--before'), css('--after')] }] },
+    options: { ...common, indexAxis: 'y', plugins: { legend: { display: false } },
+      scales: { x: { beginAtZero: true, ticks: { callback: (v) => '$' + v.toFixed(3) } }, y: { grid: { display: false } } } } });
+})();
+</script>
+</body>
+</html>
