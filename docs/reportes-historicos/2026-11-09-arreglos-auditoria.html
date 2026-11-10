@@ -54,7 +54,7 @@
 <main>
 
 <h1>Arreglos de la auditoría del 9 de noviembre</h1>
-<p class="sub">Bot de Depot Tire · rama <code>fix/auditoria-2026-11-09</code> · cerrada el 10 de noviembre de 2026 · <strong>todavía no publicada</strong> (sale a producción con el push a <code>main</code>).</p>
+<p class="sub">Bot de Depot Tire · rama <code>fix/auditoria-2026-11-09</code> · cerrada el 10 de noviembre de 2026 (sobre la producción de hoy) · <strong>todavía no publicada</strong> (sale a producción con el push a <code>main</code>).</p>
 
 <nav>
   <a href="#numeros">Números</a>
@@ -68,7 +68,7 @@
 
 <div class="verdict">Se arreglaron las <strong>7 familias</strong> de la auditoría en cinco sprints. Los <strong>36 chats reales</strong> que fallaban, más 21 casos sanos o construidos, se repitieron tres veces cada uno en el simulador con la rama completa: <strong>todos los chats reales salen bien las tres veces</strong>. Nueve casos no pasaron a la primera; cinco eran huecos de verdad, volvieron a los sprints 1 y 5, y en la segunda pasada salieron 3 de 3. Un caso sano (una ficha interna con «20 llantas») queda con una expectativa interna sin cumplir, sin efecto en lo que recibe el cliente.</div>
 
-<div class="verdict alerta"><strong>Aviso aparte de la auditoría:</strong> con el código que hoy está en producción, <strong>el próximo reinicio o deploy del bot no arranca</strong>. El 9 de noviembre a un asesor se le puso el nivel de aviso 2 en Ajustes, y una regla vieja de la base (que solo admitía «admin» o «asesor») se vuelve a crear en cada arranque y choca con ese dato. Lo comprobamos levantando el código de producción en el simulador: murió al arrancar. El arreglo está en esta rama. Hasta publicarla, no conviene reiniciar ni redeployar producción; el paliativo es volver ese asesor a «asesor» en Ajustes.</div>
+<div class="verdict alerta"><strong>Aviso aparte de la auditoría, ya resuelto:</strong> durante estos sprints se encontró que, con el código que estaba en producción, <strong>el siguiente reinicio del bot no arrancaba</strong>: el 9 de noviembre a un asesor se le puso el nivel de aviso 2, y una regla vieja de la base (que solo admitía «admin» o «asesor») se volvía a crear en cada arranque y chocaba con ese dato (comprobado levantando ese código en el simulador: murió al arrancar). El arreglo se publicó en producción hoy a las 10:43 (otro cambio, el de los mensajes no detectados, lo traía) y esta rama lo incorpora. Ya se puede reiniciar o redeployar con tranquilidad.</div>
 
 <div class="tiles" id="numeros">
   <div class="tile"><div class="n">7 / 7</div><div class="l">Familias arregladas</div></div>

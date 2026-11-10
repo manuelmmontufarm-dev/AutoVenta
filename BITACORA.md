@@ -23,11 +23,11 @@
   rango 0.042–0.094); rama bdbb5b2 mediana $0.0562 (n=8, promedio 0.0615, rango 0.046–0.084). Nubes superpuestas,
   ningún punto fuera de los límites de producción: sin señal. Lo fijo: el Guardián recibe +650 tokens de entrada por
   llamada (8.458 → 9.108, +7 %) por los hechos condicionales nuevos. Mediciones en `app/scripts/sim/mediciones/`.
-- **Riesgo de producción, aparte de la auditoría:** desde el 9-nov 22:52 UTC hay un asesor en rol `nivel-2`; la
-  migración 018 re-creaba el check `advisors_rol_valido` (admin/asesor) en cada arranque → el próximo reinicio o
-  deploy de producción con el código actual NO ARRANCA (23514; comprobado levantando `origin/main` en el simulador
-  con la config de producción). El arreglo (f72ba95, compuerta por `schema_migrations`) va en esta rama. Paliativo
-  hasta publicar: volver ese asesor a «asesor» en Ajustes.
+- **Riesgo de producción, aparte de la auditoría (ya cubierto):** desde el 9-nov 22:52 UTC hay un asesor en rol
+  `nivel-2`; la migración 018 re-creaba el check `advisors_rol_valido` en cada arranque → el deploy del 9-nov 18:06
+  quedó FAILED (23514; comprobado también levantando `origin/main` en el simulador). `main` lo arregló por su lado
+  (PR #43, f2a0282, en producción desde el 10-nov 15:43 UTC: el check ya no se crea); esta rama toma esa versión y
+  descarta la compuerta de f72ba95. La prueba del sprint 3 (arranque con un asesor en `nivel-2`) sigue valiendo.
 - **Decisiones de Manuel, sin tocar:** comparativa por unidad o por juego (hoy por unidad; el candado de «c/u» no la
   toca); cotizar con solo el aro; limpiar las 7 fichas con cantidades imposibles (`scripts/ops/fichas-con-cantidad-sucia.mjs`
   las lista, solo lectura). «Está muy lejos» + silencio cancela los seguimientos (como proponía el análisis).
