@@ -106,7 +106,8 @@ afterAll(() => new Promise<void>((r) => server.close(() => r())));
 beforeEach(() => { recibidos.length = 0; fallar = false; });
 
 async function post(payload: unknown) {
-  const body = JSON.stringify(payload);
+  // Como Meta: los caracteres fuera de ASCII van escapados (\u00e1) en los bytes firmados.
+  const body = JSON.stringify(payload).replace(/[\u0080-\uffff]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}`);
   const firma = `sha256=${createHmac("sha256", SECRET).update(body).digest("hex")}`;
   return fetch(`${base}/webhook`, {
     method: "POST",
@@ -123,6 +124,23 @@ describe("POST /webhook", () => {
     ));
     expect(res.status).toBe(200);
     expect(recibidos).toEqual(["wamid.1", "wamid.2", "wamid.3"]);
+  });
+
+  it("un contacto sin profile (producción, 10-nov ···8863) llega al bot sin nombre, no tumba el webhook", async () => {
+    const nombres: Array<string | undefined> = [];
+    const previo = wa.on.message;
+    wa.on.message = async (args) => { nombres.push(args.name); recibidos.push(args.message.id); };
+    try {
+      const res = await post(lote(
+        [mensaje("593980818863", "wamid.sinperfil", "¡Hola! Quiero más información")],
+        [{ wa_id: "593980818863" }],
+      ));
+      expect(res.status).toBe(200);
+      expect(recibidos).toEqual(["wamid.sinperfil"]);
+      expect(nombres).toEqual([undefined]);
+    } finally {
+      wa.on.message = previo;
+    }
   });
 
   it("si el handler falla, queda en el log y Meta reintenta (500)", async () => {
