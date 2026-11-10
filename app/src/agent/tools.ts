@@ -7,6 +7,8 @@
  * El LLM extrae los datos, pero la lógica de negocio (búsqueda, precios, PDF)
  * es determinista — cero precios alucinados.
  */
+import { MARCAS_DE_LLANTA_CONOCIDAS } from "../domain/marcasDeLlanta.js";
+import { avisoDeMedidasDistintas } from "../domain/avisoDeMedidas.js";
 import { esAcuseSimple, ofreceCotizarEn, preguntaCualLeCotizo, respondeQueSi, ultimaOfertaDeCotizar } from "../domain/ofertaAceptada.js";
 import { anuncioDeLaConversacion } from "../services/anuncio.js";
 import { lonasDelProducto, politicaDePagos } from "../domain/datosDelNegocio.js";
@@ -29,7 +31,7 @@ import {
   type CatalogItem,
 } from "../services/catalog.js";
 
-import { aroDeMedida, enLaMedidaConfirmada, medidasEnPulgadasCercanas } from "../domain/catalog.js";
+import { aroDeMedida, enLaMedidaConfirmada, medidasEnPulgadasCercanas, normalizeCatalogText } from "../domain/catalog.js";
 import { anchoYAro } from "../domain/anchoYAro.js";
 import { arosDelCatalogo } from "../domain/aroProducto.js";
 import { herramientasDeAros } from "./herramientasAros.js";
@@ -1124,6 +1126,25 @@ export function buildTools(ctx: AgentContext) {
       .filter(Boolean);
     return ejemplos.length ? ` como ${ejemplos.join(" y ")}` : "";
   };
+  /**
+   * «Ni el modelo ni la medida están en el catálogo»: qué se puede afirmar
+   * depende de la MARCA (lista única `domain/marcasDeLlanta.ts`). Una marca que
+   * no se vende se dice claro; una que sí, no se niega por un modelo que no
+   * aparece; y sin marca conocida el nombre puede ser un apodo del anuncio
+   * («Klever»): no se afirma que no existe, se pide la medida.
+   */
+  const reglaSinModeloNiMedida = (consulta: string): string => {
+    const n = ` ${normalizeCatalogText(consulta)} `;
+    const marca = MARCAS_DE_LLANTA_CONOCIDAS.find((m) => n.includes(` ${m} `));
+    const OFRECE = "ofrece buscar por su medida (la del costado), su vehículo o el aro para no dejarlo sin nada.";
+    if (!marca) {
+      return `Ese nombre no aparece en el catálogo y puede ser como lo llama el anuncio, no el modelo: NO digas que no existe; dilo así y ${OFRECE}`;
+    }
+    const laManejamos = searchByText(marca, 20).some((i) => normalizeCatalogText(i.brand) === marca);
+    return laManejamos
+      ? `La marca ${marca.toUpperCase()} SÍ la manejamos; lo que no aparece es ese modelo o esa medida: dilo así (PROHIBIDO «no tenemos ${marca.toUpperCase()}») y ${OFRECE}`
+      : `${marca.toUpperCase()} no la manejamos: ahí sí dilo claro y ${OFRECE}`;
+  };
   const buscarCatalogo = defineTool({
     name: "buscar_catalogo",
     description:
@@ -1141,7 +1162,23 @@ export function buildTools(ctx: AgentContext) {
       // asesor: con estos datos el bot arma solo una respuesta precisa.
       const escalera = searchWithLadder(consulta, 8);
       if (!escalera.sinCoincidenciaExacta) {
+        // «Wrangler KR601» / «Kenda Klever KR601»: el catálogo encontró el modelo
+        // descartando una palabra que ningún producto tiene (Sprint 4). No es una
+        // coincidencia exacta del nombre que escribió el cliente: el vendedor lo
+        // tiene que decir («en catálogo figura como KR601»). El campo va primero:
+        // la huella del Guardián corta a 500 caracteres.
+        const ignoradas = escalera.palabrasIgnoradas ?? [];
+        const primero = escalera.resultados[0];
         return JSON.stringify({
+          ...(ignoradas.length
+            ? {
+                palabras_que_no_figuran: ignoradas,
+                regla_de_nombre:
+                  `«${ignoradas.join(" ")}» no figura en el catálogo: estos resultados salen del resto de la consulta. `
+                  + `NO los presentes como el nombre exacto que escribió el cliente: dile que en catálogo figura como `
+                  + `«${primero ? `${primero.brand} ${primero.design}` : "el modelo de los resultados"}» y confirma que es la que busca.`,
+              }
+            : {}),
           consulta,
           resultados: escalera.resultados.map(toolItemDe(await cantidadDeLaFicha(ctx))),
           siguiente_paso: MOSTRAR,
@@ -1175,7 +1212,7 @@ export function buildTools(ctx: AgentContext) {
                 ? "Ese modelo SÍ existe en otras medidas (mira 'ese_modelo_en_otras_medidas'): dilo, nombrando las medidas, por si cambió de aro."
                 : null,
               !enEsaMedida.length && !elModeloEnOtrasMedidas.length
-                ? "Ni el modelo ni la medida están en el catálogo: ahí sí dilo claro y ofrece buscar por su vehículo o por aro para no dejarlo sin nada."
+                ? reglaSinModeloNiMedida(consulta)
                 : null,
               MOSTRAR,
             ].filter(Boolean).join(" "),
@@ -2120,7 +2157,7 @@ export function buildTools(ctx: AgentContext) {
       const pidioSinPerfil = permitidasOpciones.length > 0 &&
         permitidasOpciones.every((m) => extractTireSizes(m)[0]?.aspect === null);
       const avisoSinMedidaPedida = (!permitidasOpciones.length || (pidioSinPerfil && !fueraDeMedida.length)) && medidasEnPantalla.length > 1
-        ? `⚠️ Ojo: estas opciones son de *medidas distintas* del mismo aro (${medidasEnPantalla.join(", ")}) — cada tarjeta lleva la suya. Para asegurarle el calce necesito la medida del costado de su llanta.`
+        ? avisoDeMedidasDistintas(medidasEnPantalla)
         : null;
       // «EQUIVALENTE» LO DICE EL JUEZ, NO LA LÁMINA (familia 1-B, 22-24 sep):
       // todo lo que no era su medida salía rotulado «equivalentes de su aro»
@@ -2648,6 +2685,10 @@ export function buildTools(ctx: AgentContext) {
         // El menú se salió del uso declarado (el texto completo va en `aviso`).
         // Booleano y al principio: la huella del guardián corta a 500 caracteres.
         ...(porUso.avisoTipo ? { aviso_tipo: true } : {}),
+        // La lámina mezcla medidas del mismo aro y el texto lo avisa (auditoría
+        // 9-nov, 39897 y 39787: el Guardián mini borraba el aviso). Booleano y
+        // al principio por lo mismo: la huella corta a 500 caracteres.
+        ...(avisoMedidaCliente && avisoMedidaCliente === avisoSinMedidaPedida ? { aviso_medidas: true } : {}),
         // UNA SOLA OPCIÓN: el cierre es «¿Se la cotizo?» y el guardián tiene que
         // saberlo para no quitarla. El hecho se buscaba con un regex sobre
         // `mensaje_para_enviar`, que va al final y no entra en los 500

@@ -44,14 +44,23 @@ export interface ResultadoCalco {
 const CONTIENE_PREGUNTA = /[¿?]/;
 const SALIENTES_PARA_PREGUNTAS = 2;
 
+/**
+ * `preguntasVigentes`: cuántos de los salientes (desde el más nuevo) salieron
+ * DESPUÉS de la última pieza `options` o `quote`. Una pregunta de antes de una
+ * lámina o cotización nueva cambió de referente: «¿Le cotizo la 1, la 2 o la
+ * 3?» sobre el menú nuevo no es la misma pregunta que sobre el viejo
+ * (auditoría 9-nov, 39971: el candado la quitó y salió la lista sin pregunta).
+ * Sin el dato, todos cuentan. Solo afecta a los bloques que preguntan.
+ */
 export function sinBloquesCalcados(
   texto: string,
   salientesRecientes: readonly string[],
+  preguntasVigentes: number = salientesRecientes.length,
 ): ResultadoCalco {
   const aBloques = (s: string) => s.split(SEPARADOR).map(normalizar).filter(Boolean);
   const recientes = new Set(salientesRecientes.flatMap(aBloques));
   const inmediatos = new Set(
-    salientesRecientes.slice(0, SALIENTES_PARA_PREGUNTAS).flatMap(aBloques),
+    salientesRecientes.slice(0, Math.min(SALIENTES_PARA_PREGUNTAS, preguntasVigentes)).flatMap(aBloques),
   );
   if (!recientes.size) return { texto, calcados: [] };
 

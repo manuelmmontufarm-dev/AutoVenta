@@ -33,6 +33,12 @@ const RESPALDO = /\b(?:garantia|garantias|duracion|dura|kilometros|origen|fabric
 // no cuenta si lo que sigue es pedir información, ni si «llantas» viene en
 // una pregunta («qué/cuáles llantas»).
 const COTIZAR = /\b(?:cotiza|cotice|cotizame|cotizacion|proforma)\b|\b(?:deme|dame|quiero|llevo|elijo|escojo|prefiero)\b(?!\s+(?:mas\s+)?(?:informacion|info|saber|consultar|preguntar|conocer|ver)\b)[^.?!]{0,55}(?<!\b(?:que|cuales|cual)\s)\b(?:llanta|llantas|falken|kenda|sunoco|winrun|maxxis|bridgestone|continental)\b/;
+// La cotización de OTRO no es pedir cotizar (auditoría 9-nov, 39769: «tengo una
+// cotización en $85 en Mazini» fijaba cotizacion_enviada y el candado de cierre
+// le pegó «¿A cuál local…?» a quien solo comparaba precio). Se borra antes de
+// buscar COTIZAR: «tengo/me hicieron/me dieron una cotización», «otra cotización».
+const COTIZACION_AJENA =
+  /\b(?:tengo|tenemos|traigo|me\s+(?:hicieron|dieron|pasaron|mandaron|enviaron)|nos\s+(?:hicieron|dieron|pasaron|mandaron))\s+(?:una|otra|la|esta|esa)?\s*(?:cotizacion|proforma)\b|\botra\s+(?:cotizacion|proforma)\b/g;
 const PIDE_PRESUPUESTO = /\b(?:deme|dame|hagame|hazme|quiero|necesito|envie|envieme|mande|mandeme)\b[^.?!]{0,35}\bpresupuesto\b|\bpresupuesto\b[^.?!]{0,35}\b(?:para|de)\b[^.?!]{0,35}\bllantas?\b/;
 const OBJECION_DE_PRESUPUESTO = /\b(?:no\s+me\s+alcanza|no\s+alcanza|no\s+se\s+ajusta|no\s+ajusta|fuera\s+de|se\s+sale\s+de|se\s+pasa\s+de|sobrepasa|excede|no\s+entra\s+en|demasiado\s+para)\b[^.?!]{0,35}\b(?:mi\s+|el\s+)?presupuesto\b|\b(?:mi\s+|el\s+)?presupuesto\b[^.?!]{0,25}\b(?:es|esta)\s+(?:bajo|limitado)\b/;
 // Los nombres de los locales salen del perfil («cumbaya|quito\s+sur» con Depot).
@@ -98,7 +104,7 @@ export function elegirFaseOperativa(input: EntradaFaseOperativa): Stage {
   // «No se ajusta a mi presupuesto» fue el turno 6 de la conv 8318.
   if (OBJECION_DE_PRESUPUESTO.test(texto)) return "seleccionando";
 
-  if (input.aceptoCotizar || COTIZAR.test(texto) || PIDE_PRESUPUESTO.test(texto)) {
+  if (input.aceptoCotizar || COTIZAR.test(texto.replace(COTIZACION_AJENA, " ")) || PIDE_PRESUPUESTO.test(texto)) {
     return "cotizacion_enviada";
   }
 

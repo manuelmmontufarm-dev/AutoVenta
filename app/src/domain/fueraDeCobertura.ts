@@ -34,6 +34,8 @@
  * matriz, no la ciudad de Quevedo. Con Depot los patrones salen idénticos.
  */
 import { negocio, sinTildes } from "../negocio/index.js";
+import { diceQueEstaLejos, diceQueNoPuedeIr } from "./clienteLejos.js";
+import { mantieneLaVenta } from "./sinSeguimiento.js";
 
 const normalizar = (t: string): string =>
   t.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
@@ -103,6 +105,16 @@ const OTRAS_CIUDADES: readonly (readonly [string, RegExp])[] = [
   ["Chimborazo", /\bchimborazo\b/],
   ["Los Ríos", /\blos\s+rios\b/],
   ["Galápagos", /\bgalapagos\b/],
+  // Auditoría del 9-nov (familia 7): 39597 «soy de bolivar esta muy aledado»;
+  // 39845 «Estoy por el oriente». La avenida Simón Bolívar de Quito no es la
+  // provincia: con «simón», «av», «calle», «la» o «plaza» delante es una calle.
+  ["Bolívar", /(?<!\b(?:simon|av|avda|avenida|calle|la|plaza|parque)\.?\s{1,3})\bbolivar\b/],
+  ["Napo", /\bnapo\b/],
+  ["Pastaza", /\bpastaza\b/],
+  ["Sucumbíos", /\bsucumbios\b/],
+  ["Orellana", /\borellana\b/],
+  ["Morona Santiago", /\bmorona\b/],
+  ["Oriente", /\bel\s+oriente\b|\bamazonia\b|\bla\s+amazonia\b/],
 ];
 
 /**
@@ -182,6 +194,40 @@ const VIENE_A_QUITO = new RegExp(
   + `|\\ben\\s+${C}\\s+por\\s+estos\\s+dias\\b`,
 );
 
+/**
+ * AVISA QUE VUELVE (revisión ronda 1 del sprint 5): «La próxima semana estoy
+ * por allá, este rato estoy trabajando en el oriente» (39329, con cotización y
+ * local elegido) y «Estoy por el oriente llego en 15 días» (39845) no son
+ * clientes que no pueden venir: anuncian cuándo vuelven. Una vuelta («llego»,
+ * «regreso», «estoy por allá»…) con un plazo («la próxima semana», «en 15
+ * días», «el lunes») es `viene` aunque el mensaje nombre dónde está ahora.
+ */
+const PLAZO =
+  "(?:la\\s+(?:proxima|otra|siguiente)\\s+semana|el\\s+(?:proximo|otro|siguiente)\\s+mes|en\\s+(?:\\d+|un|una|unos|unas|dos|tres|cuatro|cinco|ocho|quince|par\\s+de)\\s+(?:dias|semanas?|mes(?:es)?)|este\\s+fin\\s+de\\s+semana|el\\s+fin\\s+de\\s+semana|el\\s+(?:lunes|martes|miercoles|jueves|viernes|sabado|domingo)|pasado\\s+manana|manana|pronto|dentro\\s+de\\s+\\S+\\s+\\S+)";
+const LLEGAR = "(?:llego|llegare|llegamos|llegaremos|regreso|regresare|regresamos|vuelvo|volvere|volvemos|retorno|retornare)";
+const DESTINO = `(?:${ZONAS.seVaA}|alla|aca)`;
+/**
+ * La vuelta tiene que ir HACIA ACÁ (revisión ronda 2 del sprint 5): «le vuelvo a
+ * escribir mañana», «el lunes vuelvo a consultar», «mañana subo la foto» o «le
+ * llego con la medida» no son venir, y un cliente de Ibarra que los dice sigue
+ * `fuera`. Cuenta: (1) «estoy/estaré/ando por allá»; (2) llegar/volver/subir/
+ * bajar/venir + a/por/para/hasta + la ciudad del negocio, sus zonas, allá o acá;
+ * (3) llegar/volver (no «le llego», no «vuelvo a + verbo») seguido del plazo:
+ * «llego en 15 días», «regreso la próxima semana». Siempre con un plazo en el
+ * mensaje, y nunca con «no a Quito».
+ */
+const VUELTA = new RegExp(
+  `\\b(?:estoy|estare|estamos|estaremos|ando|andare|andamos)\\s+por\\s+(?:alla|aca)\\b`
+  + `|\\b(?:${LLEGAR}|subo|subire|bajo|bajare|vengo|vendre)\\s+(?:a|por|para|hasta|hacia)\\s+(?:la\\s+ciudad\\s+de\\s+)?${DESTINO}\\b`
+  + `|(?<!\\b(?:le|les|te)\\s)\\b${LLEGAR}\\s+${PLAZO}`,
+);
+const HAY_PLAZO = new RegExp(`\\b${PLAZO}`);
+const NO_HACIA_ACA = new RegExp(`\\bno\\s+(?:a|para|hacia|por)\\s+(?:la\\s+ciudad\\s+de\\s+)?${DESTINO}\\b`);
+/** ¿Anuncia que vuelve a la ciudad del negocio, con plazo? Texto ya normalizado (sin tildes, en minúscula). */
+export function anunciaQueVuelve(n: string): boolean {
+  return VUELTA.test(n) && HAY_PLAZO.test(n) && !NO_HACIA_ACA.test(n);
+}
+
 /** Niega estar o ir a Quito: «no vivo en Quito», «no viajo a Quito». */
 const NIEGA_QUITO = new RegExp(`\\bno\\s+(?:viv|estoy|soy|viaj|voy|subo|paso|puedo\\s+ir)\\w*\\b[^.?!]{0,25}\\b${C}\\b`);
 
@@ -190,6 +236,12 @@ export interface DondeEsta {
   estado: "cobertura" | "viene" | "fuera";
   /** La ciudad, escrita como se le muestra al cliente. Null en cobertura. */
   ciudad: string | null;
+  /**
+   * El estado vale para ESTE turno y no se guarda en la ficha: «está muy lejos»
+   * o «no puedo ir» sin ciudad (revisión ronda 1 del sprint 5). Guardarlo 60
+   * días callaba local, día y recordatorios en los ciclos siguientes.
+   */
+  soloElTurno?: true;
 }
 
 /**
@@ -210,8 +262,16 @@ export function dondeEstaElCliente(texto: string | null | undefined): DondeEsta 
   // La negación se lee primero: «no vivo en Quito» nombra Quito y es lo
   // contrario de estar en Quito (conv 18603).
   if (NIEGA_QUITO.test(n)) return { estado: "fuera", ciudad: null };
+  // «Está muy lejos», «muy difícil ir a Quito», «no puedo ir» (38924, 39597,
+  // 18535): no puede venir aunque no nombre ciudad — y «difícil ir a Quito» NO
+  // es anunciar que viene. Salvo que el mismo mensaje siga vendiendo («está
+  // lejos de mi casa pero voy el sábado», «queda lejos, ¿tienen otro local?»).
+  if ((diceQueEstaLejos(n) || diceQueNoPuedeIr(n)) && !mantieneLaVenta(texto ?? "")) {
+    const ciudad = FUERA.find(([, re]) => re.test(n))?.[0] ?? null;
+    return ciudad ? { estado: "fuera", ciudad } : { estado: "fuera", ciudad: null, soloElTurno: true };
+  }
   if (DE_PROVINCIA.test(n) && !FUERA.some(([, re]) => re.test(n))) {
-    return { estado: VIENE_A_QUITO.test(n) ? "viene" : "fuera", ciudad: null };
+    return { estado: VIENE_A_QUITO.test(n) || anunciaQueVuelve(n) ? "viene" : "fuera", ciudad: null };
   }
 
   const fuera = FUERA.find(([, re]) => re.test(n));
@@ -221,7 +281,7 @@ export function dondeEstaElCliente(texto: string | null | undefined): DondeEsta 
     const esCorto = n.trim().split(/\s+/).length <= 6;
     if (!DICE_DONDE_ESTA.test(n) && !esCorto) return null;
     // Está fuera PERO anuncia que sube: el local vuelve a tener sentido.
-    if (VIENE_A_QUITO.test(n)) return { estado: "viene", ciudad: fuera[0] };
+    if (VIENE_A_QUITO.test(n) || anunciaQueVuelve(n)) return { estado: "viene", ciudad: fuera[0] };
     return { estado: "fuera", ciudad: fuera[0] };
   }
 

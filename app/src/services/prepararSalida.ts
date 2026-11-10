@@ -25,6 +25,8 @@
  * guardián volvió a prometer «4 × KENDA KR203 … $262.60» cuando había 3,
  * borrando el aviso que un candado anterior ya había pegado.
  */
+import { alternativaDelCatalogo, CATEGORIAS_CON_ALTERNATIVA, type AlternativaDelCatalogo } from "./alternativaDelCatalogo.js";
+import { fraseDelAvisoEn, ORACION_DE_MEDIDAS_DISTINTAS } from "../domain/avisoDeMedidas.js";
 import { preguntaElDia } from "../domain/customerCommitment.js";
 import { preguntaElLocal } from "../domain/storeSelection.js";
 import { elClienteDijoQueAvisa } from "../domain/clientePosterga.js";
@@ -36,13 +38,13 @@ import { avisoRegistradoEnElTurno, registrarConsultaPrometida } from "./avisoAlA
 import type { Stage } from "./conversations.js";
 import { lastOutboundText } from "./conversations.js";
 import { esAcuseSimple, esPreguntaCualLeCotizo, preguntaCualLeCotizo } from "../domain/ofertaAceptada.js";
-import type { OfertaDeCotizar } from "../domain/ofertaVigente.js";
+import { ofertaEnElTexto, type OfertaDeCotizar } from "../domain/ofertaVigente.js";
 import { applyOutboundGuard } from "./outboundGuard.js";
 import { revisarConGuardian, type HuellaHerramienta, type RevisionGuardian } from "./guardian.js";
 import { asegurarAvisoDeStock } from "./stockCorto.js";
 import { insistirConLoQueFalta, sinPreguntaPendienteConsecutiva } from "./insistirCierre.js";
 import { createBotAlert } from "./followUps.js";
-import { MAX_BLOCKS, textoDeLaPieza } from "./quoteMessages.js";
+import { composeBlocks, MAX_BLOCKS, textoDeLaPieza } from "./quoteMessages.js";
 import { sinCuestionarLaMedidaDada, sinPreguntasProhibidas } from "../domain/preguntasProhibidas.js";
 import { medidasDelMensaje, medidasEscritasPorElCliente } from "../domain/medidaDelCliente.js";
 import { mensajesDeLaVisitaActual } from "../domain/medidaPedida.js";
@@ -398,9 +400,25 @@ export const PASOS: readonly PasoDeSalida[] = [
       // «· 4 = $771.88» de la KR605 que el cliente tenía en pantalla se tiró la
       // corrección del chat 27418 (familia 3, auditoría del 19-oct).
       const dicho = await loYaDichoEnElCiclo(ctx.conversation.id, ctx.conversation.current_cycle);
-      const yaDicho = [dicho.texto, equivalentesDevueltos(ctx.huella ?? [])].filter(Boolean).join("\n");
+      // Bajo `tipo_negado_con_stock` / `stock_prometido`, la llanta del catálogo de
+      // hoy de su medida, del tipo pedido y con stock para el juego es un HECHO que
+      // el Guardián recibió: nombrarla con su precio no es vender solo (auditoría
+      // 9-nov, 40017). Ver services/alternativaDelCatalogo.ts.
+      const conAlternativa = (ctx.hallazgosDelGuardian ?? []).some((h) => CATEGORIAS_CON_ALTERNATIVA.has(h.categoria));
+      const alternativa = conAlternativa && texto.trim() !== borrador.trim()
+        ? await alternativaDelCatalogo(ctx.conversation.id, texto, productos, ctx.textoDelCliente)
+          .catch((err) => { console.warn(`⚠️ alternativaDelCatalogo falló en la conv ${ctx.conversation.id}:`, err); return null; })
+        : null;
+      if (alternativa?.permitidas.length) {
+        console.log(
+          `🧭 Conv ${ctx.conversation.id}: la corrección nombra ${alternativa.permitidas.map((p) => `${p.brand} ${p.design}`).join(", ")} `
+          + `(${alternativa.tiposPedidos.join("/") || "sin tipo pedido"}, ${alternativa.medida}, stock para el juego): cuenta como hecho del catálogo.`,
+        );
+      }
+      const yaDicho = [dicho.texto, equivalentesDevueltos(ctx.huella ?? []), alternativa?.hecho].filter(Boolean).join("\n");
       const resultado = frenarHechosNuevosDelGuardian(borrador, texto, productos, yaDicho, dicho.preciosMostrados);
-      if (!resultado.bloqueado) return texto;
+      // Sin poda no se valida nada: la corrección salió entera; solo se declara la oferta.
+      if (!resultado.bloqueado) return alternativa ? await cerrarConLaAlternativa(texto, ctx, alternativa, false) : texto;
 
       // SI EL GUARDIÁN DIJO QUE EL BORRADOR ES UN DATO FALSO, NO SE RESTAURA.
       // Auditoría 25-27 sep (convs 23080, 23489, 23448): la corrección traía
@@ -429,8 +447,11 @@ export const PASOS: readonly PasoDeSalida[] = [
           dedupeKey:
             `guardian_podada:${ctx.conversation.id}:${ctx.conversation.current_cycle}:${resultado.motivos.join("-")}`,
         }).catch(() => undefined);
-        return podado;
+        return alternativa ? await cerrarConLaAlternativa(podado, ctx, alternativa, true) : podado;
       }
+      // Podada no quedó nada y el borrador es el dato falso: con la alternativa
+      // del catálogo a mano, sale el respaldo fijo en vez del borrador.
+      if (datoFalso && alternativa) return await cerrarConLaAlternativa("", ctx, alternativa, true);
 
       // UN BORRADOR QUE EL GUARDIÁN MARCÓ COMO MALO NO SALE (39282, dos veces).
       // Un seguimiento no contesta a nadie: si el Guardián rotuló el borrador con
@@ -469,6 +490,43 @@ export const PASOS: readonly PasoDeSalida[] = [
         return null;
       }
       return resultado.texto;
+    },
+  },
+  {
+    // EL AVISO DE «MEDIDAS DISTINTAS» SE QUEDA (auditoría 9-nov, sprint 5b).
+    //
+    // 39897 · «Que precio tienen en 175 x. Rin 16»: la lámina salió con tres
+    // medidas del aro 16 y el aviso «⚠️ Ojo: estas opciones son de *medidas
+    // distintas*…»; el Guardián mini lo borró entero (`cotizacion_sin_medida`)
+    // y el cliente recibió la lista sin saber que cada llanta era de otra
+    // medida. 39787: lo dejó, pero sin las medidas (`medida_incorrecta`).
+    //
+    // El aviso es verdad de la herramienta: si el borrador lo traía y la
+    // corrección ya no trae su PRIMERA FRASE exacta, se repone esa frase —
+    // en lugar de la versión cambiada, o arriba si la quitó—. La re-pregunta
+    // de la medida no se repone: quitarla puede ser correcto (39845).
+    // Va después de `guardian_no_vende_solo`, que puede restaurar el borrador.
+    nombre: "aviso_de_medidas_se_queda",
+    corre: ["respuesta", "retomada"],
+    async aplicar(texto, ctx) {
+      const frase = fraseDelAvisoEn(ctx.textoAntesDelGuardian);
+      if (!frase || texto.includes(frase)) return texto;
+      const cambiada = texto.match(ORACION_DE_MEDIDAS_DISTINTAS)?.[0];
+      const repuesto = cambiada
+        ? texto.replace(cambiada, ` ${frase}`).replace(/^[ \t]+/gm, "")
+        : composeBlocks(frase, texto);
+      console.warn(`📏 Conv ${ctx.conversation.id}: la corrección ${cambiada ? "cambió" : "quitó"} el aviso de medidas distintas; se repuso.`);
+      await createBotAlert({
+        conversationId: ctx.conversation.id,
+        cycle: ctx.conversation.current_cycle,
+        type: "aviso_de_medidas_repuesto",
+        priority: "low",
+        summary: "El Guardián quitó el aviso de «medidas distintas» de la lámina; se repuso",
+        exactReason: `Borrador con el aviso: «${frase}». La corrección decía: «${texto.slice(0, 240)}».`,
+        suggestedAction: "Nada que hacer: el cliente recibió el aviso. Sirve para medir cuánto lo borra el Guardián.",
+        dedupeKey: `aviso_de_medidas_repuesto:${ctx.conversation.id}:${ctx.conversation.current_cycle}:${Date.now()}`,
+      }).catch(() => undefined);
+      return repuesto;
     },
   },
   {
@@ -654,6 +712,11 @@ export const PASOS: readonly PasoDeSalida[] = [
       // El cliente todavía no eligió del menú: la pregunta del turno es «¿Cuál
       // le cotizo…?» y el local no corresponde (auditoría 19-oct, familia 2).
       if (esPreguntaCualLeCotizo(texto)) return texto;
+      // Lo mismo si el turno cierra OFRECIENDO COTIZAR —el menú («¿Le cotizo la
+      // 1, la 2 o la 3?») o una llanta («¿Le cotizo la Kenda KR608?»)—: la
+      // pregunta del turno es esa, y el local va después de cotizar (auditoría
+      // 9-nov, 39887: a un segundo de la oferta, «¿A cuál local…?»).
+      if (ofertaEnElTexto(texto, [], ctx.ofertaDelTurno)) return texto;
       const insistido = await insistirConLoQueFalta(
         ctx.conversation.id, ctx.conversation.current_cycle, texto, ctx.textoDelCliente,
         ctx.faseOperativa,
@@ -1375,13 +1438,22 @@ export const PASOS: readonly PasoDeSalida[] = [
       // la ventana de 10 minutos y este candado se comía el bloque entero
       // (simulador, 31-ago: el turno salió sin presentarse, solo con la
       // pregunta suelta «¿Qué medida usa?»).
-      const recientes = await sql<{ content: string | null }[]>`
-        select content from messages
+      const recientes = await sql<{ content: string | null; created_at: Date }[]>`
+        select content, created_at from messages
         where conversation_id=${ctx.conversation.id}
           and direction='outbound' and author_kind='bot' and type='text'
           and cycle=(select current_cycle from conversations where id=${ctx.conversation.id})
           and created_at > now() - interval '10 minutes'
         order by created_at desc limit 8
+      `;
+      // La última lámina o cotización del ciclo: una pregunta de ANTES de ella
+      // tenía otro referente y repetirla no es calco (auditoría 9-nov, 39971).
+      // Se lee de la metadata de la pieza, no del texto.
+      const [pieza] = await sql<{ t: Date | null }[]>`
+        select max(created_at) as t from messages
+        where conversation_id=${ctx.conversation.id}
+          and direction='outbound' and metadata->>'piece' in ('options', 'quote')
+          and cycle=(select current_cycle from conversations where id=${ctx.conversation.id})
       `;
       // Si el cliente PIDIÓ los mapas con todas las letras («mándeme las dos»),
       // el bloque de links no es un calco aunque haya salido hace segundos:
@@ -1394,10 +1466,16 @@ export const PASOS: readonly PasoDeSalida[] = [
       // el calco se la comió y el turno quedó en «le dejo como referencia»).
       if (pideOtroDia(ctx.textoDelCliente)) return texto;
       const conLink = /https?:\/\//i;
+      const vigentes = recientes.filter((m) => !(pidioMapas && conLink.test(m.content ?? "")));
+      const ultimaPieza = pieza?.t ? new Date(pieza.t).getTime() : null;
       const resultado = sinBloquesCalcados(
         texto,
-        recientes.map((m) => m.content ?? "").filter((m) => !(pidioMapas && conLink.test(m))),
+        vigentes.map((m) => m.content ?? ""),
+        ultimaPieza === null ? vigentes.length : vigentes.filter((m) => new Date(m.created_at).getTime() > ultimaPieza).length,
       );
+      if (ultimaPieza !== null && sinBloquesCalcados(texto, vigentes.map((m) => m.content ?? "")).calcados.length > resultado.calcados.length) {
+        console.log(`🆕 Conv ${ctx.conversation.id}: la pregunta repetida va sobre una lámina o cotización nueva; no es calco y se conserva.`);
+      }
       if (!resultado.calcados.length) return texto;
       console.warn(
         `✂️ Calco reciente quitado en la conv ${ctx.conversation.id}: ${resultado.calcados.map((b) => b.slice(0, 80)).join(" | ")}`,
@@ -1495,6 +1573,50 @@ export interface SalidaPreparada {
  * cada escalón). Es el «ya dicho» contra el que se juzga si el guardián está
  * abriendo una venta o repitiendo la que ya existe.
  */
+/**
+ * La corrección con la alternativa del catálogo ya decidida (5d): si no deja
+ * pregunta, sale el respaldo fijo (el hecho + «¿Le muestro las A/T que
+ * tengo?»); si ofrece una llanta permitida, la oferta queda declarada para que
+ * un «sí» la cotice.
+ */
+async function cerrarConLaAlternativa(
+  texto: string,
+  ctx: ContextoDeSalida,
+  alternativa: AlternativaDelCatalogo,
+  /** Solo lo PODADO se valida: una corrección entera sale como el Guardián la escribió. */
+  podada: boolean,
+): Promise<string> {
+  const bloques = texto.split(/\n\s*-{3,}\s*\n/).map((b) => b.trim()).filter(Boolean);
+  const ultimo = bloques[bloques.length - 1] ?? "";
+  if (podada && !/\?\s*\S{0,3}\s*$/u.test(ultimo)) {
+    // Lo podado que quedó se manda, con la pregunta como bloque al final; el
+    // respaldo entero solo si no quedó nada (revisión ronda 1, m4: «Sí, incluye
+    // balanceo. Le confirmo con el asesor…» se perdía entero).
+    // Con sitio para la pregunta: el turno sale con a lo sumo MAX_BLOCKS mensajes
+    // y la del final se cortaría en silencio (revisión ronda 2; como insistirCierre).
+    const salida = texto.trim()
+      ? composeBlocks(...bloques.slice(0, MAX_BLOCKS - 1), alternativa.pregunta)
+      : alternativa.respaldo;
+    console.warn(`🧭 Conv ${ctx.conversation.id}: la corrección quedó sin pregunta; se agregó «${alternativa.pregunta}».`);
+    await createBotAlert({
+      conversationId: ctx.conversation.id,
+      cycle: ctx.conversation.current_cycle,
+      type: "guardian_correccion_con_respaldo",
+      priority: "medium",
+      summary: "La corrección del Guardián quedó sin alternativa ni pregunta; salió el respaldo fijo",
+      exactReason: `Quedaba: «${texto.slice(0, 200)}». Salió: «${salida.slice(0, 300)}».`,
+      suggestedAction: "El cliente recibió el tipo de lo que tenía y la pregunta. Revisa si conviene ofrecerle algo a mano.",
+      dedupeKey: `guardian_respaldo:${ctx.conversation.id}:${ctx.conversation.current_cycle}:${Date.now()}`,
+    }).catch(() => undefined);
+    return salida;
+  }
+  const oferta = ofertaEnElTexto(ultimo, alternativa.lamina);
+  if (oferta?.clase === "una" && oferta.codigo && alternativa.permitidas.some((p) => p.code === oferta.codigo)) {
+    ctx.ofertaDelTurno = { ...oferta, medida: oferta.medida ?? alternativa.medida };
+  }
+  return texto;
+}
+
 async function loYaDichoEnElCiclo(
   conversationId: number,
   cycle: number,

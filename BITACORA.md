@@ -1,3 +1,179 @@
+## 10-nov-2026 · Sprint 5, ronda 2 de la revisión (auditoría 9-nov)
+
+- **Qué (bloqueantes):** (B1) el arreglo de B2 de la ronda 1 leía «Soy de Ibarra, mañana le vuelvo a escribir», «el
+  lunes vuelvo a consultar», «mañana subo la foto», «le llego con la medida» o «regreso el próximo mes pero no a Quito»
+  como `viene`, y lo guardaba: volvían local, día y mapas a quien está fuera (familia 18106). (B2) la excepción «la semana
+  que viene» de la pregunta repetida también valía para quien posterga («la otra semana le aviso», «…le escribo»,
+  «…compro en otro lado»).
+- **Cómo:** (B1) `anunciaQueVuelve` (exportada) exige destino: «estoy/estaré/ando por allá/acá», o llegar/volver/subir/
+  bajar/venir + a/por/para/hasta + la ciudad del negocio, sus zonas, allá o acá, o llegar/volver seguido DIRECTO del plazo
+  («llego en 15 días»; no «le llego», no «vuelvo a + verbo»); siempre con plazo y nunca con «no a Quito». (B2)
+  `daLaSemanaSinDia` exige que anuncie que viene (estoy/paso/voy/vengo/llego/puedo pasar… + la semana que viene) y da false
+  si `elClienteDijoQueAvisa`, `pideQueLeAvisen` o `comproEnOtroLugar`.
+- **Menores:** (3) `dondeEstaElClienteSegunLoDicho` salta los `soloElTurno` del historial: «mi carro está lejos de
+  aquí» de un turno viejo no se arrastra. (4) la pregunta que 5d agrega a lo podado se hace sitio soltando un bloque
+  (MAX_BLOCKS), como `insistirCierre`; y de paso `podarHechosNuevosDelGuardian` ya no pega el separador al texto
+  siguiente («\n---La Falken…»: salía «---La…» dentro de una burbuja; error previo al sprint). (5) el aviso de medidas
+  reconoce «medidas distintas/diferentes» solo en plural: «Si su llanta es de una medida diferente, me avisa» no se toca.
+- **Probado:** pruebas nuevas en rojo antes (B1 6 sanas-fuera + 39329/39845 viene, B2 4 + «la otra semana le aviso» en
+  integración, menor 3, menor 4 con el separador, menor 5); suite 3859/3861 (las 2 viejas); simulador en `s5-cierre.md`.
+- **Falta / ojo:** m9 sigue anotado («estoy en bolivar y venezuela» → fuera).
+- **Ronda 3 (aprobado):** la poda con dos «---» y una línea vacía en medio dejaba un bloque vacío («---\n\n---»): el
+  colapso de separadores tolera líneas vacías entre ellos (`s5podaSeparadores.test.ts`, 3 en rojo antes).
+- **Límites conocidos, sin arreglar (ninguno aparece en los 686 mensajes reales):** (a) una vuelta a OTRO lugar con el
+  plazo antes del destino todavía da `viene` («estoy en Cuenca, llego mañana a la casa», «soy de Machala, regreso en 2
+  semanas a Machala»): la regla «llegar/volver + plazo» no mira el destino que viene después. (b) «la próxima semana
+  vuelvo a escribirle» conserva la pregunta del día repetida: el «-le» pegado al verbo no lo reconoce la exclusión
+  «vuelvo a + verbo», así que cuenta como que viene.
+
+## 9-nov-2026 · Sprint 5, ronda 1 (simulador): la zona lejana no elige y la semana que viene se concreta
+
+- **Qué:** en el simulador de la ronda 1, «Cumbayá me queda lejos» igual registraba Cumbayá por la otra puerta del local
+  (`localPorLaZonaDicha`, en la herramienta de ubicación), y en 39329 («La próxima semana estoy por allá…») el candado
+  de la pregunta repetida se comía «¿Qué día cree que puede pasar…?» (regla vieja: el turno anterior ya preguntaba el día).
+- **Cómo:** `clienteLejos.sinLoQueQuedaLejos` (fuente única) quita las cláusulas «X me queda lejos» antes de leer el
+  local: la usan `storeSelection.extractExplicitStore` y `locations.localPorLaZonaDicha`. `customerCommitment.
+  daLaSemanaSinDia` («la próxima/otra/siguiente semana», «este fin de semana», sin día): como `rechazaLosDiasPropuestos`,
+  exime de `sinPreguntaPendienteConsecutiva`. Un plazo largo («llego en 15 días… seguiré cotizando», 39845) NO entra:
+  ahí sigue el dedupe de C5.
+- **Probado:** 2 pruebas nuevas en rojo antes (zona lejana, 39329); simulador con la ficha de producción repuesta
+  (el corte `--hasta` vacía `nearest_store`; `caso.mjs` la vuelve a poner con `FICHA_SQL`).
+- **Falta / ojo:** —
+
+## 9-nov-2026 · Sprint 5, ronda 1 de la revisión (auditoría 9-nov)
+
+- **Qué (bloqueantes):** (B1) «lejos / no puedo ir» marcaba `fuera` —y lo guardaba 60 días— a clientes de Quito que
+  siguen comprando: «no me queda lejos», «Cumbayá me queda lejos», «Quito Sur me queda lejos, mejor Cumbayá», «No puedo
+  pasar esos días», «Esta semana es complicado pasar», «no puedo pasar hoy»; y `sinSeguimiento` había perdido el «muy»
+  que exigía. (B2) «Oriente» rompía 39329 («La próxima semana estoy por allá, este rato estoy trabajando en el
+  oriente», con cotización y local elegido): quedaba `fuera` y se callaban los recordatorios del día; 39845 («llego en
+  15 días») era la misma clase. (B3) quitar `hayPiezaDeOpciones` deshacía el arreglo de 13909, y la prueba vieja había
+  quedado verde con un `selected_product_code` que no puede existir sin cotización.
+- **Cómo:** (B1) `clienteLejos.ts`: la negación se lee sobre la frase entera («no me queda lejos»), un local del
+  perfil nombrado no cuenta, y «no puedo ir/pasar» con un tiempo («hoy», «esos días», «esta semana», «el sábado»…) o
+  `rechazaLosDiasPropuestos` es rechazo de días, no `fuera`. `dondeEstaElCliente` marca `soloElTurno` cuando el `fuera`
+  sale de «lejos / no puedo ir» sin ciudad, y `registrarDondeEstaElCliente` no lo guarda. `sinSeguimiento` usa
+  `diceQueEstaMuyLejos` (con «muy / demasiado / bastante / tan», como antes). `storeSelection`: el local que «le queda
+  lejos» no es el elegido («Quito Sur me queda lejos, mejor Cumbayá» → Cumbayá; «Cumbayá me queda lejos» → ninguno).
+  (B2) una vuelta («llego», «regreso», «estoy por allá»…) con un plazo («la próxima semana», «en 15 días», «el lunes»)
+  es `viene` aunque nombre dónde está ahora. (B3) `compromisoDeCierre.ts` y las dos pruebas de 13909 vuelven a su forma
+  original (la lámina sola SÍ es compromiso); 39769 sale por `COTIZACION_AJENA` y 39887 por la exención de la oferta.
+- **Qué (menores):** (m4) si lo podado de 5d no termina en pregunta, se conserva y la pregunta va como bloque al final
+  («¿Le muestro las A/T que tengo en 225/70R16?»); el respaldo entero solo si no quedó nada. (m5) «hay de ese tipo»
+  cuenta stock para el juego. (m6) el seguimiento guarda la oferta con la declarada (`ctxSalida.ofertaDelTurno`). (m7) el
+  aviso reescrito como «medida diferente» o «cada tarjeta lleva su medida» se reemplaza, no se duplica. (m8) en un bloque
+  del medio sin «¿» se corta la oración de la pregunta repetida, no el bloque.
+- **Probado:** pruebas nuevas en rojo antes de cada arreglo (B1 14, B2 2, store 2, «esos días» e integración de la
+  ficha, m4, m5, m7 2, m8 1); suite completa y simulador en el cuadro del sprint. m6 sin prueba propia (cambia un
+  argumento; lo cubren tsc y las pruebas de seguimiento).
+- **Falta / ojo (m9):** «estoy en bolivar y venezuela» (calles del centro de Quito) se lee `fuera` (Bolívar): el
+  lookbehind cubre «simón/av/calle/la/plaza/parque» pero no «en». Riesgo bajo, sin tocar. «Cumbayá me queda lejos» ya no
+  registra Cumbayá, pero tampoco elige Quito Sur por descarte: se vuelve a preguntar.
+
+## 9-nov-2026 · Sprint 5, vuelta 2 del simulador (auditoría 9-nov)
+
+- **Qué:** tres cosas que el simulador mostró después de 5a/5b: (1) 39887: el turno cerró con «¿Le cotizo la Kenda
+  KR608?» (una llanta, no el menú) y el candado igual pegó «¿A cuál local…?». (2) 39787: el Guardián PARAFRASEÓ el
+  aviso («…son de *rin 17* y cada tarjeta lleva su medida») y el candado repuso la frase arriba: salieron dos avisos.
+  (3) 40082 (sano, «Yo vivo en pedernales»): el Guardián mini le agregó día, local y mapas; `sin_visita_si_no_puede_venir`
+  los quitó y el turno quedó vacío («Le consulto con un asesor…»).
+- **Cómo:** (1) `insistir_con_lo_que_falta` no agrega nada si el texto ofrece cotizar, de cualquier clase
+  (`ofertaEnElTexto`). (2) `ORACION_DE_MEDIDAS_DISTINTAS` también reconoce la oración que abre con «⚠️ Ojo: estas
+  opciones son de…» y la reemplaza. (3) El Guardián recibe «CLIENTE FUERA DE COBERTURA» (misma fuente que el candado:
+  `porQueNoPasaPorElLocal`) y, en ese caso, ya no recibe «DÍA DE VISITA PENDIENTE».
+- **Probado:** 4 pruebas nuevas en rojo antes (`s5aInsistirFueraDeLugar`, `s5bAvisoDeMedidas`,
+  `s5aGuardianFueraDeCobertura.integration.test.ts`); simulador en el cuadro del sprint.
+- **Falta / ojo:** —
+
+## 9-nov-2026 · `buscar_catalogo` dice la palabra que no figura y distingue la marca (pedido del Sprint 4, sprint 5)
+
+- **Qué:** «Wrangler KR601» / «Kenda Klever KR601» devolvía la Kenda KR601 como coincidencia exacta con el rastro solo
+  en `palabrasIgnoradas` de la escalera; y el «Ni el modelo ni la medida están en el catálogo: ahí sí dilo claro» se
+  aplicaba igual a una marca que no se vende, a una que sí y a un apodo del anuncio.
+- **Cómo:** (a) con `palabrasIgnoradas`, la respuesta lleva primero `palabras_que_no_figuran` y `regla_de_nombre` («en
+  catálogo figura como «KENDA KR601»; confirma que es la que busca»). (b) `reglaSinModeloNiMedida` con la lista única
+  `marcasDeLlanta.ts`: marca que no se vende → «no la manejamos» claro; marca que sí → «SÍ la manejamos, lo que no
+  aparece es ese modelo» (prohibido «no tenemos KENDA»); sin marca conocida → no se afirma que no existe, se pide la
+  medida. Solo `agent/tools.ts`; el buscador (`domain/catalog.ts`) no se toca.
+- **Probado:** `s5eBuscarCatalogoNombre.test.ts` (5, 4 en rojo antes).
+- **Falta / ojo:** no se probó en el simulador con un chat real (los siete del sprint no pasan por acá).
+
+## 9-nov-2026 · La corrección del Guardián con su alternativa y su pregunta (auditoría 9-nov, sprint 5d)
+
+- **Qué:** 40017 («En labrado mixto», tenía cotizada la Falken ZIEX CT60 A/S, H/T): el Guardián
+  (`tipo_negado_con_stock`) ofreció la WINRUN MAXCLAW A/T con stock a $124.76 —lo correcto—, `guardian_no_vende_solo`
+  podó producto y precio por «nuevos» y salió solo «La Falken … es H/T…; no es A/T.», sin alternativa ni pregunta.
+- **Cómo:** `services/alternativaDelCatalogo.ts` (NUEVO). Bajo `tipo_negado_con_stock` o `stock_prometido`, una llanta
+  nombrada en la corrección que es de la medida de la ficha, del tipo pedido (escrito, o el principal del uso:
+  `tiposPrincipalesDelUso`, nuevo en `usoYTipo.ts`) y con stock para el juego (`cantidadDelCliente`) entra en «lo ya
+  dicho» con su precio dicho por `precioDelProducto` (Sprint 1). Lo demás se poda igual que antes (11986 no cambia). Si
+  lo PODADO no termina en pregunta —o no queda nada y el borrador era el dato falso— sale un respaldo fijo: «En
+  225/70R16 la *FALKEN ZIEX CT60 A/S* es *H/T*. ¿Le muestro las A/T que tengo?» (alerta media
+  `guardian_correccion_con_respaldo`). Si la corrección ofrece una permitida, `ctx.ofertaDelTurno` la declara (clase
+  «una», con código y medida) para que un «sí» la cotice. Logs «🧭».
+- **Por qué:** el candado leía como vitrina inventada justo el hecho del catálogo que la regla 21 le pide al Guardián.
+- **Probado:** `s5dCorreccionPodada.integration.test.ts` (5, 4 en rojo antes; 11986 sigue frenado; una M/T no pedida
+  sigue podándose; sin stock para el juego no cuenta). El pendiente heredado (lector único de la cantidad en
+  `guardian.ts` y seguimientos) ya venía hecho en la integración: `cantidadValidaDeLaFicha` en `guardian.ts:792` y
+  `followUps.ts`.
+- **Falta / ojo:** una corrección que sale ENTERA (sin poda) no se valida: el respaldo solo reemplaza lo podado. Bajo
+  `stock_prometido` sin tipo pedido, cualquier llanta de la medida con stock para el juego cuenta.
+
+## 9-nov-2026 · La pregunta del menú nuevo no es «calco» (auditoría 9-nov, sprint 5c)
+
+- **Qué:** 39971: lista 1 + «¿Le cotizo la 1, la 2 o la 3?»; el cliente pidió «la 1 pero en otro labrado»; salió una
+  lámina NUEVA y su lista, y `sin_calco_reciente` le quitó la misma pregunta por haber salido hace 4 minutos: el
+  cliente recibió una lista sin pregunta (contribuye a 40017).
+- **Cómo:** el paso lee de la metadata la última pieza `options` o `quote` del ciclo; las preguntas de mensajes
+  anteriores a ella no cuentan como calco (`sinBloquesCalcados(texto, salientes, preguntasVigentes)`). Los bloques sin
+  pregunta siguen comparándose contra todo. Log «🆕 … no es calco y se conserva».
+- **Por qué:** una pregunta que vuelve a salir sobre otra lámina u otra cotización cambió de referente.
+- **Probado:** `s5cCalcoMenuNuevo.integration.test.ts` (4, 2 en rojo antes; sanos 39561 y bloque sin pregunta).
+- **Falta / ojo:** —
+
+## 9-nov-2026 · El aviso de «medidas distintas» ya no lo borra el Guardián (auditoría 9-nov, sprint 5b)
+
+- **Qué:** 39897 («Que precio tienen en 175 x. Rin 16»): el bot no leyó el 175, la lámina salió con tres medidas del
+  aro 16 y el Guardián mini borró el aviso «⚠️ Ojo: estas opciones son de *medidas distintas*…» como
+  `cotizacion_sin_medida`; el cliente recibió la lista sin saber que cada llanta era de otra medida. 39787: el aviso
+  quedó pero sin las medidas (`medida_incorrecta`).
+- **Cómo:** (1) `anchoYAro` acepta «x», «×», «*» o «.» entre el ancho y «rin». (2) `domain/avisoDeMedidas.ts` (NUEVO)
+  es la fuente única del texto del aviso; `preparar_opciones` devuelve `aviso_medidas:true` entre los primeros campos
+  (dentro de los 500 caracteres de la huella) y el Guardián recibe «AVISO DE MEDIDAS VIGENTE … la regla 22 no lo
+  anula», como `aviso_tipo`. (3) Paso nuevo `aviso_de_medidas_se_queda` después de `guardian_no_vende_solo`: si el
+  borrador traía la primera frase del aviso y la corrección no la trae exacta, la repone (en lugar de la versión
+  cambiada, o arriba); la re-pregunta de la medida no se repone. Alerta baja `aviso_de_medidas_repuesto` y log «📏».
+- **Por qué:** el aviso es verdad de la herramienta y el mini lo leía como una cotización sin medida.
+- **Probado:** `s5bAvisoDeMedidas.test.ts` (12, 10 en rojo antes) y `s5bAvisoDeMedidasGuardian.integration.test.ts`
+  (2, 1 en rojo). Re-fijado `stockCortoViaja.test.ts` (la cadena tiene el paso nuevo). Simulador en el cuadro.
+- **Falta / ojo:** las otras variantes del aviso de medida (`avisoDeMedidaEnOpciones`: fuera de medida, perfil) no
+  llevan candado: no estaban en el brief.
+
+## 9-nov-2026 · Ni local ni día a quien no corresponde (auditoría 9-nov, sprint 5a)
+
+- **Qué:** el candado del cierre le pegaba «¿A cuál local le queda mejor ir…?» o «¿Qué día puede pasar?» a quien
+  dijo «Está muy lejos le agradezco» (38924), «aya chuta esta lejos donde estoy yo» / «soy de bolivar esta muy
+  aledado» (39597), «Muy dificel ir a Quito» (18535, que además pisaba `fuera` con `viene`), a quien solo comparaba
+  con «tengo una cotización en $85 en Mazini» (39769) y a quien recién recibía el menú (39887). Y la pregunta del día
+  repetida salía si el Guardián la ponía en un bloque del medio (39845).
+- **Cómo:** (C1) `domain/clienteLejos.ts` (NUEVO, fuente única de «está lejos» / «no puedo ir»; `sinSeguimiento` lo
+  importa en vez de su `ESTA_MUY_LEJOS`): `dondeEstaElCliente` devuelve `fuera` con esas frases salvo que el mismo
+  mensaje siga vendiendo (`mantieneLaVenta` del Sprint 2: «está lejos pero voy el sábado»); se agregan Bolívar (no
+  «Simón Bolívar» ni «av. Bolívar»), Napo, Pastaza, Sucumbíos, Orellana, Morona y «el Oriente/Amazonía». (C2) «difícil
+  / imposible / no me es posible ir a Quito» se lee antes que «ir a Quito» = viene. (C3) `hayCompromisoDeCierre` ya no
+  cuenta la lámina sola (pide cotización, producto o cantidad elegidos); `faseOperativa` borra «tengo/me hicieron una
+  cotización» y «otra cotización» antes de buscar COTIZAR; el paso `insistir_con_lo_que_falta` no pega nada si el turno
+  cierra ofreciendo el menú (`ofertaEnElTexto(...).clase === "menu"`, con la oferta declarada). (C5)
+  `quitarPreguntaFinal` busca la pregunta repetida en cualquier bloque y corta desde su «¿»; log «🔁 … se quitó».
+- **Por qué:** el candado lee la base (hay cotización/lámina, falta local) y no lo que el cliente dijo de dónde está.
+- **Probado:** `s5aVisitaFueraDeLugar.test.ts` (20, 13 en rojo antes) y `s5aInsistirFueraDeLugar.integration.test.ts`
+  (8, 5 en rojo antes, incluido C5) con los textos reales; simulador en el cuadro del sprint. Re-fijado el caso 13909
+  (`compromisoDeCierre.test.ts`, `insistirCierre.integration.test.ts`): Oswaldo tenía «Premium» elegido, ahora el
+  fixture lo lleva — la lámina sola ya no es compromiso.
+- **Falta / ojo:** 39635, 39650 y 39759 no se tocan: la pregunta sale de `ubicacion_locales` o de la plantilla de
+  seguimiento sin producto elegido, decisión pendiente de Manuel. «Estoy por el oriente, llego en 15 días» se lee
+  `fuera` (no nombra Quito); si después dice que está en Quito, pasa a `viene`.
+
 ## 9-nov-2026 · Recordatorios automáticos: ni precio viejo, ni lista repetida, ni borrador malo (auditoría 9-nov, sprint 2)
 
 - **Qué:** (2a) el seguimiento ya no copia los precios guardados con la lámina: 26 seguimientos en 17 chats

@@ -14,7 +14,7 @@ import { business } from "../config.js";
 import { sql } from "../db/client.js";
 import { cantidadValidaDeLaFicha } from "../domain/cantidadGrande.js";
 import { ahorroDeLaCotizacion, type LineaCotizada } from "../domain/ahorro.js";
-import { preguntaElDia, rechazaLosDiasPropuestos } from "../domain/customerCommitment.js";
+import { daLaSemanaSinDia, preguntaElDia, rechazaLosDiasPropuestos } from "../domain/customerCommitment.js";
 import { hayCompromisoDeCierre } from "../domain/compromisoDeCierre.js";
 import { datoQueFalta } from "../domain/preguntaPendiente.js";
 import { despedidaQueCorresponde } from "../domain/cierrePerdido.js";
@@ -47,16 +47,42 @@ async function ultimoTextoDelBot(conversationId: number, cycle: number): Promise
   return row?.content ?? null;
 }
 
+/**
+ * Quita la pregunta repetida del bloque donde esté, no solo del último.
+ *
+ * Auditoría 9-nov (39845, 16:09): el Guardián puso «¿Qué día cree que puede
+ * pasar…?» en el bloque del MEDIO y cerró con «¿Quiere que le ayude con otra
+ * medida…?»; mirando solo el último bloque, la pregunta repetida salía igual.
+ * Se busca del último bloque hacia atrás: un bloque que ES la pregunta se va
+ * entero; uno que la trae al final se corta desde su «¿». Un turno que es solo
+ * esa pregunta no se vacía.
+ */
 function quitarPreguntaFinal(texto: string, esLaPregunta: (bloque: string) => boolean): string {
   const bloques = texto.split(BLOCK_SEPARATOR_RE).map((b) => b.trim()).filter(Boolean);
-  if (bloques.length > 1) {
-    return esLaPregunta(bloques[bloques.length - 1])
-      ? composeBlocks(...bloques.slice(0, -1))
-      : texto;
+  for (let i = bloques.length - 1; i >= 0; i--) {
+    const bloque = bloques[i];
+    if (!esLaPregunta(bloque)) continue;
+    // Desde el primer «¿» a partir del cual el resto sigue siendo la pregunta.
+    let abre = -1;
+    for (let j = bloque.lastIndexOf("¿"); j >= 0; j = j > 0 ? bloque.lastIndexOf("¿", j - 1) : -1) {
+      if (esLaPregunta(bloque.slice(j))) { abre = j; break; }
+    }
+    if (abre > 0) {
+      const recortado = bloque.slice(0, abre).trim();
+      return composeBlocks(...bloques.slice(0, i), recortado, ...bloques.slice(i + 1));
+    }
+    // Un bloque del MEDIO sin «¿» que además trae otra información (el
+    // descuento, el aviso al asesor): se corta la oración, no el bloque
+    // (revisión ronda 1 del sprint 5, m8). El último bloque sigue como antes.
+    if (abre < 0 && i < bloques.length - 1) {
+      const oraciones = bloque.match(/[^.!?]+[.!?]+(?:\s*\p{Extended_Pictographic})*|[^.!?]+$/gu) ?? [bloque];
+      const quedan = oraciones.filter((o) => !esLaPregunta(o)).join("").trim();
+      if (quedan) return composeBlocks(...bloques.slice(0, i), quedan, ...bloques.slice(i + 1));
+    }
+    if (bloques.length > 1) return composeBlocks(...bloques.slice(0, i), ...bloques.slice(i + 1));
+    return texto;
   }
-  const unico = bloques[0] ?? texto;
-  const abre = unico.lastIndexOf("¿");
-  return abre > 0 && esLaPregunta(unico.slice(abre)) ? unico.slice(0, abre).trim() : unico;
+  return texto;
 }
 
 /**
@@ -73,7 +99,7 @@ export async function sinPreguntaPendienteConsecutiva(
   const anterior = await ultimoTextoDelBot(conversationId, cycle);
   if (!anterior) return texto;
   if (preguntaElLocal(anterior) && preguntaElLocal(texto)) {
-    return quitarPreguntaFinal(texto, preguntaElLocal);
+    return avisarSiSeQuito(conversationId, texto, quitarPreguntaFinal(texto, preguntaElLocal));
   }
   if (preguntaElDia(anterior) && preguntaElDia(texto)) {
     // «No puedo esos días» ES una respuesta a la pregunta del día: repreguntar
@@ -81,9 +107,16 @@ export async function sinPreguntaPendienteConsecutiva(
     // Producción 31-ago (conv 3 c20): este candado calló la repregunta y el
     // turno terminó en «aún no queda agendada la visita» sin preguntar nada.
     if (rechazaLosDiasPropuestos(textoDelCliente)) return texto;
-    return quitarPreguntaFinal(texto, preguntaElDia);
+    // Lo mismo si contestó con la semana que viene: «¿qué día?» la concreta.
+    if (daLaSemanaSinDia(textoDelCliente)) return texto;
+    return avisarSiSeQuito(conversationId, texto, quitarPreguntaFinal(texto, preguntaElDia));
   }
   return texto;
+}
+
+function avisarSiSeQuito(conversationId: number, antes: string, despues: string): string {
+  if (despues !== antes) console.log(`🔁 Conv ${conversationId}: la pregunta del turno anterior se repetía; se quitó.`);
+  return despues;
 }
 
 export async function insistirConLoQueFalta(

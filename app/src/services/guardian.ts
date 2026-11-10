@@ -28,6 +28,7 @@
  * OPENAI_GUARDIAN_MODEL para cambiarlo): un revisor más débil que el redactor
  * no ve los errores que el redactor no vio.
  */
+import { porQueNoPasaPorElLocal } from "./dondeEstaElCliente.js";
 import { cantidadValidaDeLaFicha } from "../domain/cantidadGrande.js";
 import { hechoDeEquivalentesDevueltos } from "../domain/equivalentesPorMostrar.js";
 import { NOMBRE_DEL_VENDEDOR } from "../domain/saludo.js";
@@ -637,6 +638,12 @@ export async function armarContexto(
   // Los dos últimos turnos, sueltos: son la materia prima de los hechos de
   // despedida y de oferta aceptada. `mensajes` viene del más nuevo al más viejo.
   const ultimoDelCliente = mensajes.find((m) => m.direction === "inbound")?.content ?? "";
+  // ¿Puede pasar por el local? La misma fuente que `sin_visita_si_no_puede_venir`
+  // (auditoría 9-nov, 40082 y 39845): sin este hecho el revisor le agregaba el
+  // día, el local y los mapas a quien está en Pedernales o en el Oriente, el
+  // candado del final los quitaba y el turno quedaba vacío.
+  const fueraDeCobertura = (await porQueNoPasaPorElLocal(conversationId, cycle, ultimoDelCliente)
+    .catch(() => null)) === "fuera_de_cobertura";
   const ultimoDelBot =
     mensajes.find((m) => m.direction !== "inbound" && m.author_kind === "bot")?.content ?? null;
 
@@ -728,6 +735,12 @@ export async function armarContexto(
     // tipo, la herramienta lo AVISÓ (`aviso_tipo`): ese aviso es verdad y se queda.
     huella.some((h) => h.resultado.includes('"aviso_tipo"'))
       ? "AVISO DE TIPO VIGENTE: este turno la herramienta reportó `aviso_tipo` — no había suficientes llantas del tipo que le sirve a su uso y el menú se completó con otro tipo. Es un hecho: el borrador DEBE decirlo en una línea, y quitárselo es error ALTO (categoría **otro**). La corrección no lo borra ni presenta esas llantas como el tipo ideal."
+      : null,
+    // Lo mismo con el aviso de «medidas distintas» (auditoría 9-nov, 39897 y
+    // 39787): la lámina mezcla medidas del mismo aro y la herramienta lo avisó.
+    // El mini lo borraba como `cotizacion_sin_medida` o le quitaba las medidas.
+    huella.some((h) => h.resultado.includes('"aviso_medidas":true'))
+      ? "AVISO DE MEDIDAS VIGENTE: este turno la herramienta reportó `aviso_medidas` — las opciones en pantalla son de MEDIDAS DISTINTAS del mismo aro y el borrador lo avisa con «⚠️ Ojo: estas opciones son de *medidas distintas* del mismo aro (…) — cada tarjeta lleva la suya.». Es verdad de la herramienta: quitarlo, o quitarle la lista de medidas, es error ALTO, y la regla 22 no lo anula (avisar que cada tarjeta lleva su medida NO es cotizar sin medida). Esa frase se conserva tal cual."
       : null,
     // HECHO DURO (familia 2-H, 28-sep): la medida que él escribió es SUYA. Sin
     // este hecho el revisor la cuestionaba por el vehículo o el anuncio y
@@ -822,7 +835,12 @@ export async function armarContexto(
         "El cierre legítimo de su turno es «Un asesor le confirma pago y envío por acá.»: NO es un mensaje mudo " +
         "ni le falta un siguiente paso (regla 15), y NO lo cambies por la pregunta del local ni del día."
       : null,
-    !compraADistancia && visitaPendiente(hechos ?? {}) && !despedidaQueCorresponde(ultimoDelCliente)
+    fueraDeCobertura && !compraADistancia
+      ? "CLIENTE FUERA DE COBERTURA (fuente determinística): dijo que está fuera de la ciudad de los locales o que no puede venir. " +
+        "PROHIBIDO agregarle la pregunta del local, la del día o los mapas: esas piezas se quitan después de ti y el turno quedaría vacío. " +
+        "Un borrador que no las trae NO es cierre_sin_pregunta_dia ni le falta un siguiente paso por eso."
+      : null,
+    !compraADistancia && !fueraDeCobertura && visitaPendiente(hechos ?? {}) && !despedidaQueCorresponde(ultimoDelCliente)
       ? `DÍA DE VISITA PENDIENTE: el local ya es ${hechos?.nearest_store} pero el cliente NO registró qué día viene. ` +
         "«Gracias», «ok» o repetir el local NO cierran la visita: si el borrador no pregunta el día, corrígelo " +
         "agregando «¿Qué día cree que puede pasar por …?» en bloque aparte (---). PROHIBIDO cerrar con " +

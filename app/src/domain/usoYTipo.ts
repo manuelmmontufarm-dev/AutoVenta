@@ -102,6 +102,11 @@ const NUNCA_PARA: Partial<Record<UsoDeclarado, readonly string[]>> = {
   carga: ["M/T"],
 };
 
+/** Los tipos que SON el uso (los principales), o todos los que le sirven si el uso no distingue. */
+export function tiposPrincipalesDelUso(uso: UsoDeclarado | null): readonly string[] {
+  return uso ? PRINCIPALES[uso] ?? TIPOS_POR_USO[uso] : [];
+}
+
 export function tiposCompatibles(uso: UsoDeclarado | null): readonly string[] | null {
   return uso ? TIPOS_POR_USO[uso] : null;
 }

@@ -293,7 +293,10 @@ export function podarHechosNuevosDelGuardian(
   });
   const texto = sinAnuncios
     .join("\n")
-    .replace(/(?:\n\s*---\s*)+\n\s*---\s*/g, "\n---")
+    // Separadores seguidos —con o sin líneas vacías entre ellos— se vuelven uno,
+    // sin comerse el salto de línea de después («\n---La Falken…» salía pegado,
+    // ronda 2; y «---\n\n---» dejaba un bloque vacío, ronda 3 del sprint 5).
+    .replace(/(?:\n\s*---[ \t]*)+\n\s*---[ \t]*(?=\n|$)/g, "\n---")
     .replace(/\n{3,}/g, "\n\n")
     .replace(/^\s*---\s*\n|\n\s*---\s*$/g, "")
     .trim();

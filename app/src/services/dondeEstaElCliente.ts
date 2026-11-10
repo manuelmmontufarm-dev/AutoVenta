@@ -35,6 +35,12 @@ export async function registrarDondeEstaElCliente(
 ): Promise<void> {
   const donde = dondeEstaElCliente(textoDelCliente);
   if (!donde) return;
+  // «Está muy lejos» / «no puedo ir» sin ciudad vale para el turno, no se guarda
+  // (revisión ronda 1 del sprint 5): no pisa un `fuera` con ciudad ni calla 60 días.
+  if (donde.soloElTurno) {
+    console.log(`📍 Conv ${conversationId}: el cliente dijo que no puede venir (solo este turno, sin ciudad; no se guarda).`);
+    return;
+  }
   await sql`
     update conversations
     set cobertura_estado=${donde.estado}, cobertura_ciudad=${donde.ciudad}, cobertura_ciclo=${cycle},
@@ -72,7 +78,10 @@ export async function dondeEstaElClienteSegunLoDicho(
   `;
   for (const { content, cycle: cicloDelMensaje } of entrantes) {
     const donde = dondeEstaElCliente(content);
-    if (!donde) continue;
+    // «Lejos / no puedo ir» sin ciudad vale solo para SU turno (el de este turno
+    // ya se leyó arriba): no se arrastra a los turnos ni seguimientos siguientes
+    // (revisión ronda 2 del sprint 5).
+    if (!donde || donde.soloElTurno) continue;
     if (cicloDelMensaje === cycle) return donde.estado;
     return donde.estado === "viene" ? "fuera" : donde.estado;
   }

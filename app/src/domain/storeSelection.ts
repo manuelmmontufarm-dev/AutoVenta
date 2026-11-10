@@ -1,3 +1,4 @@
+import { sinLoQueQuedaLejos } from "./clienteLejos.js";
 import { dondeEstaElCliente } from "./fueraDeCobertura.js";
 import { negocio } from "../negocio/index.js";
 import { localesConfirmados } from "../negocio/identidad.js";
@@ -166,7 +167,10 @@ export function extractExplicitStore(
   text: string,
   opts?: { respondiendoAlLocal?: boolean },
 ): ExplicitStore | null {
-  const value = normalize(text);
+  // EL LOCAL QUE «LE QUEDA LEJOS» NO ES EL ELEGIDO (revisión ronda 1 del
+  // sprint 5): «Quito Sur me queda lejos, mejor Cumbayá» elige Cumbayá, y
+  // «Cumbayá me queda lejos» no elige nada.
+  const value = normalize(sinLoQueQuedaLejos(text));
   // El patrón suelto de cada local (`comoLoNombranAlElegir`) solo entra cuando
   // el bot acaba de preguntar a cuál local Y el mensaje no está hablando de la
   // ciudad. Se calcula una vez: `hablaDeLaCiudad` lee la conversación entera.
