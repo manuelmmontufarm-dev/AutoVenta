@@ -7,7 +7,9 @@
  */
 import express from "express";
 import { fileURLToPath } from "node:url";
+import { WhatsAppAPIError } from "whatsapp-api-js/errors";
 import { getWa } from "../wa/client.js";
+import { idDeNovedad, resumenDeNovedad, separarLote } from "../domain/loteDelWebhook.js";
 import { handleEchoWebhook } from "../wa/echoes.js";
 import { sql } from "../db/client.js";
 import { catalogStatus, searchBySize } from "../services/catalog.js";
@@ -27,6 +29,63 @@ const siteDir = fileURLToPath(new URL("../../site", import.meta.url));
 
 /** Momento de arranque del proceso: delata si un deploy reinició de verdad. */
 const ARRANCADO_EN = new Date().toISOString();
+
+/**
+ * Veces que una misma novedad (id de mensaje o status) falló al procesarse.
+ * Una que falla siempre no puede quedarse rebotando con 500: Meta la reintenta
+ * por días y, mientras tanto, entrega más lento todo lo demás del número.
+ */
+const fallasPorNovedad = new Map<string, number>();
+const MAX_REINTENTOS_DE_META = 3;
+
+/**
+ * Despacha CADA novedad del lote (ver `domain/loteDelWebhook.ts`) y devuelve el
+ * status HTTP para Meta.
+ *
+ * Antes se llamaba `wa.handle_post(req)`, que tiene dos agujeros: lee solo la
+ * primera novedad del lote, y si nuestro handler lanza devuelve 500 SIN dejar
+ * rastro — el catch de arriba nunca se enteraba. El 10-nov hubo 500 de 2 ms
+ * reintentados por Meta y ni una línea en el log.
+ */
+async function despacharLote(wa: NonNullable<ReturnType<typeof getWa>>, raw: string, firma: string): Promise<number> {
+  let data: unknown;
+  try {
+    data = JSON.parse(raw || "{}");
+  } catch {
+    console.error("❌ Webhook con cuerpo que no es JSON: descartado.");
+    return 400;
+  }
+  let estado = 200;
+  for (const parte of separarLote(data)) {
+    try {
+      await wa.post(parte as Parameters<typeof wa.post>[0], raw, firma);
+    } catch (error) {
+      if (error instanceof WhatsAppAPIError) {
+        // «Unexpected payload» (200) es un cambio que la librería no despacha:
+        // no es una falla. Firma inválida (401) sí corta el lote entero.
+        if (error.httpStatus === 200) continue;
+        console.error(`❌ Webhook rechazado (${error.httpStatus}): ${error.message} — ${resumenDeNovedad(parte)}`);
+        return error.httpStatus;
+      }
+      const id = idDeNovedad(parte);
+      const veces = id ? (fallasPorNovedad.get(id) ?? 0) + 1 : 1;
+      if (id) {
+        if (fallasPorNovedad.size > 5000) fallasPorNovedad.clear();
+        fallasPorNovedad.set(id, veces);
+      }
+      console.error(
+        `❌ El webhook falló procesando ${resumenDeNovedad(parte)} (intento ${veces}):`,
+        error instanceof Error ? error.stack ?? error.message : error,
+      );
+      if (veces >= MAX_REINTENTOS_DE_META) {
+        console.error(`🚨 ${resumenDeNovedad(parte)} falló ${veces} veces: se deja de pedir reintento a Meta.`);
+      } else {
+        estado = 500;
+      }
+    }
+  }
+  return estado;
+}
 
 export function createServer(): express.Express {
   const app = express();
@@ -54,7 +113,7 @@ export function createServer(): express.Express {
         res.sendStatus(eco.status);
         return;
       }
-      res.sendStatus(await wa.handle_post(req));
+      res.sendStatus(await despacharLote(wa, String(req.body ?? ""), req.header("x-hub-signature-256") ?? ""));
     } catch (error) {
       console.error("❌ El webhook falló procesando el lote:", error instanceof Error ? error.stack ?? error.message : error);
       if (!res.headersSent) res.sendStatus(500);
