@@ -276,4 +276,20 @@ describe.sequential("5a · el local no se le pregunta a quien no corresponde", (
     expect(salida).toContain("Con *Black Friday* tiene 60 % menos");
     expect(salida).toContain("¿Le ayudo con algo más?");
   });
+  it("SANO 39329 (revisión ronda 1, simulador): contestó con un tramo («la próxima semana») → la pregunta del día se queda", async () => {
+    const [fila] = await sql<Fila[]>`
+      insert into conversations (phone, name, status, stage, current_cycle, tire_size, nearest_store)
+      values ('593980050013', 'Emilio', 'open', 'seguimiento_venta', 1, '265/70R16', 'Depot Tire Quito Sur')
+      returning id
+    `;
+    await sql`
+      insert into messages (conversation_id, cycle, role, direction, content, type, author_kind, metadata, created_at)
+      values (${fila.id}, 1, 'assistant', 'outbound', '¿Qué día cree que puede pasar por *Depot Tire Quito Sur*?', 'text', 'bot', '{}',
+        now() - interval '90 seconds')
+    `;
+    const cliente = "La próxima semana estoy por allá, este rato estoy trabajando en el oriente";
+    await entra(fila.id, cliente);
+    const corregido = "Perfecto, le dejo anotado para seguimiento en *Depot Tire Quito Sur*.\n\n¿Qué día cree que puede pasar por *Depot Tire Quito Sur*? 🤝";
+    expect(await sinPreguntaPendienteConsecutiva(fila.id, 1, corregido, cliente)).toBe(corregido);
+  });
 });

@@ -79,3 +79,21 @@ export function diceQueNoPuedeIr(texto: string | null | undefined): boolean {
   if (NOMBRA_UN_LOCAL?.test(n)) return false;
   return true;
 }
+
+/**
+ * El texto sin las cláusulas que dicen que un lugar «queda lejos» (y no lo
+ * niegan): lo que queda es lo que el cliente SÍ elige. «Quito Sur me queda
+ * lejos, mejor Cumbayá» → « mejor Cumbayá»; «Cumbayá me queda lejos» → «».
+ * Lo leen los dos lectores del local: `storeSelection` (lo que nombra) y
+ * `localPorLaZonaDicha` (la zona que dice). Revisión ronda 1 del sprint 5.
+ */
+export function sinLoQueQuedaLejos(texto: string | null | undefined): string {
+  return (texto ?? "")
+    .split(/[,.;!?\n]+|\b(?:pero|mejor|y)\b/i)
+    .filter((clausula) => {
+      const n = normalizar(clausula);
+      if (!/\blejos\b/.test(n)) return true;
+      return /\bno\s+(?:(?:me|nos|le|les|te)\s+)?(?:queda|quedan|es|esta|sale)\b/.test(n);
+    })
+    .join(" , ");
+}

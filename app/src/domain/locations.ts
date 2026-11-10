@@ -1,3 +1,4 @@
+import { sinLoQueQuedaLejos } from "./clienteLejos.js";
 import type { Store } from "../config.js";
 import { negocio } from "../negocio/index.js";
 
@@ -137,7 +138,9 @@ export function ubicacionDadaPorElCliente(input: {
  */
 export function localPorLaZonaDicha(stores: Store[], texto: string | null | undefined): Store | null {
   if (!texto || stores.length < 2) return null;
-  const zona = resolveSector(texto);
+  // La zona que «le queda lejos» no elige (revisión ronda 1 del sprint 5): en el
+  // simulador «Cumbayá me queda lejos» registraba Cumbayá por esta puerta.
+  const zona = resolveSector(sinLoQueQuedaLejos(texto));
   if (!zona) return null;
   const distancias = stores
     .map((store) => ({ store, km: distanceKm(zona.lat, zona.lng, store.lat, store.lng) }))

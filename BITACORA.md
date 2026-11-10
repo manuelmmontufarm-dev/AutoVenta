@@ -1,3 +1,17 @@
+## 9-nov-2026 · Sprint 5, ronda 1 (simulador): la zona lejana no elige y la semana que viene se concreta
+
+- **Qué:** en el simulador de la ronda 1, «Cumbayá me queda lejos» igual registraba Cumbayá por la otra puerta del local
+  (`localPorLaZonaDicha`, en la herramienta de ubicación), y en 39329 («La próxima semana estoy por allá…») el candado
+  de la pregunta repetida se comía «¿Qué día cree que puede pasar…?» (regla vieja: el turno anterior ya preguntaba el día).
+- **Cómo:** `clienteLejos.sinLoQueQuedaLejos` (fuente única) quita las cláusulas «X me queda lejos» antes de leer el
+  local: la usan `storeSelection.extractExplicitStore` y `locations.localPorLaZonaDicha`. `customerCommitment.
+  daLaSemanaSinDia` («la próxima/otra/siguiente semana», «este fin de semana», sin día): como `rechazaLosDiasPropuestos`,
+  exime de `sinPreguntaPendienteConsecutiva`. Un plazo largo («llego en 15 días… seguiré cotizando», 39845) NO entra:
+  ahí sigue el dedupe de C5.
+- **Probado:** 2 pruebas nuevas en rojo antes (zona lejana, 39329); simulador con la ficha de producción repuesta
+  (el corte `--hasta` vacía `nearest_store`; `caso.mjs` la vuelve a poner con `FICHA_SQL`).
+- **Falta / ojo:** —
+
 ## 9-nov-2026 · Sprint 5, ronda 1 de la revisión (auditoría 9-nov)
 
 - **Qué (bloqueantes):** (B1) «lejos / no puedo ir» marcaba `fuera` —y lo guardaba 60 días— a clientes de Quito que

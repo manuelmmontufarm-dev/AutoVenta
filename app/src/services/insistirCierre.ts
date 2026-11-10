@@ -14,7 +14,7 @@ import { business } from "../config.js";
 import { sql } from "../db/client.js";
 import { cantidadValidaDeLaFicha } from "../domain/cantidadGrande.js";
 import { ahorroDeLaCotizacion, type LineaCotizada } from "../domain/ahorro.js";
-import { preguntaElDia, rechazaLosDiasPropuestos } from "../domain/customerCommitment.js";
+import { daLaSemanaSinDia, preguntaElDia, rechazaLosDiasPropuestos } from "../domain/customerCommitment.js";
 import { hayCompromisoDeCierre } from "../domain/compromisoDeCierre.js";
 import { datoQueFalta } from "../domain/preguntaPendiente.js";
 import { despedidaQueCorresponde } from "../domain/cierrePerdido.js";
@@ -107,6 +107,8 @@ export async function sinPreguntaPendienteConsecutiva(
     // Producción 31-ago (conv 3 c20): este candado calló la repregunta y el
     // turno terminó en «aún no queda agendada la visita» sin preguntar nada.
     if (rechazaLosDiasPropuestos(textoDelCliente)) return texto;
+    // Lo mismo si contestó con la semana que viene: «¿qué día?» la concreta.
+    if (daLaSemanaSinDia(textoDelCliente)) return texto;
     return avisarSiSeQuito(conversationId, texto, quitarPreguntaFinal(texto, preguntaElDia));
   }
   return texto;

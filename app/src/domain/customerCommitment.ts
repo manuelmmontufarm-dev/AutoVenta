@@ -164,6 +164,21 @@ export function rechazaLosDiasPropuestos(texto: string | null | undefined): bool
   );
 }
 
+/**
+ * «La próxima semana estoy por allá»: el cliente contestó la pregunta del día
+ * con la SEMANA que viene, no con un día. Preguntar qué día de esa semana no es
+ * un bucle: es lo que concreta la visita (revisión ronda 1 del sprint 5, 39329
+ * en el simulador: el candado de la pregunta repetida se la comía). Un plazo
+ * largo («llego en 15 días, hasta entonces sigo cotizando», 39845) no entra:
+ * repetirle «¿qué día?» ahí sí es insistir.
+ */
+export function daLaSemanaSinDia(texto: string | null | undefined): boolean {
+  if (!texto) return false;
+  const n = normalizar(texto);
+  if (diaEnTexto(n) != null) return false;
+  return /\b(?:la\s+(?:proxima|otra|siguiente)\s+semana|este\s+fin\s+de\s+semana|a\s+finales?\s+de\s+(?:esta|la)\s+semana)\b/.test(n);
+}
+
 export function preguntamosElDia(ultimoMensajeNuestro: string | null | undefined): boolean {
   if (!ultimoMensajeNuestro) return false;
   const n = normalizar(ultimoMensajeNuestro);

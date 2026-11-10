@@ -157,3 +157,15 @@ describe("revisión ronda 1 · el local que «le queda lejos» no es el elegido"
     expect(extractExplicitStore("Cumbayá", { respondiendoAlLocal: true })).toBe("Depot Tire Cumbayá");
   });
 });
+
+describe("revisión ronda 1 · la ZONA que «le queda lejos» tampoco elige (simulador: registraba Cumbayá)", () => {
+  it("«Cumbayá me queda lejos» → ningún local; «Quito Sur me queda lejos, mejor Cumbayá» → Cumbayá; «vivo en Tumbaco» → Cumbayá", async () => {
+    for (const v of ["OPENAI_API_KEY", "WHATSAPP_TOKEN", "WHATSAPP_APP_SECRET", "WHATSAPP_VERIFY_TOKEN", "WHATSAPP_PHONE_ID"]) process.env[v] ||= "test";
+    process.env.DATABASE_URL ||= "postgresql://localhost/autoventa_medida_falsa";
+    const { localPorLaZonaDicha } = await import("../src/domain/locations.js");
+    const { business } = await import("../src/config.js");
+    expect(localPorLaZonaDicha(business.stores, "Cumbayá me queda lejos")).toBeNull();
+    expect(localPorLaZonaDicha(business.stores, "Quito Sur me queda lejos, mejor Cumbayá")?.name).toBe("Depot Tire Cumbayá");
+    expect(localPorLaZonaDicha(business.stores, "vivo en Tumbaco")?.name).toBe("Depot Tire Cumbayá");
+  });
+});
