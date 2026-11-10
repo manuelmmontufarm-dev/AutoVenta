@@ -178,6 +178,19 @@ describe.sequential("5d · la corrección de tipo negado llega con su alternativ
     expect(salida).toMatch(/no tengo A\/T para el juego de 4/);
   });
 
+  it("revisión ronda 2: con lo podado ya en MAX_BLOCKS bloques, la pregunta igual llega (se suelta un bloque)", async () => {
+    const { MAX_BLOCKS } = await import("../src/services/quoteMessages.js");
+    catalogo = [FALKEN_HT, WINRUN_AT];
+    const id = await conversacion("593980053008");
+    const relleno = Array.from({ length: MAX_BLOCKS - 1 }, (_, i) => `Dato ${i + 1} de la llanta, sin precio ni modelo nuevo.`);
+    const corregido = [...relleno, "La *WINRUN MAXCLAW A/T* a *$99.99* sí es A/T.", "La *Falken ZIEX CT60 A/S* que ya le coticé es *H/T*."].join("\n---\n");
+    const salida = await paso.aplicar(corregido, ctx(id, BORRADOR_40017) as never);
+    const bloques = salida!.split(/\n\s*-{3,}\s*\n/);
+    expect(salida).not.toMatch(/---\S/);
+    expect(bloques.length).toBeLessThanOrEqual(MAX_BLOCKS);
+    expect(salida!.trim()).toMatch(/¿Le muestro las A\/T que tengo en 225\/70R16\?$/);
+  });
+
   it("sin stock para el juego, la alternativa no cuenta como conocida (se poda y sale el respaldo)", async () => {
     catalogo = [FALKEN_HT, { ...WINRUN_AT, stock: 2, availability: "check" }];
     const id = await conversacion("593980053003");

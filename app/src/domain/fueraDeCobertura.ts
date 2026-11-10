@@ -202,11 +202,31 @@ const VIENE_A_QUITO = new RegExp(
  * «regreso», «estoy por allá»…) con un plazo («la próxima semana», «en 15
  * días», «el lunes») es `viene` aunque el mensaje nombre dónde está ahora.
  */
-const REGRESO =
-  /\b(?:llego|llegare|llegamos|llegaremos|regreso|regresare|regresamos|vuelvo|volvere|volvemos|retorno|bajo|subo|vengo|estoy\s+por\s+(?:alla|aca)|estare\s+por\s+(?:alla|aca)|estamos\s+por\s+(?:alla|aca))\b/;
 const PLAZO =
-  /\b(?:la\s+(?:proxima|otra|siguiente)\s+semana|el\s+(?:proximo|otro|siguiente)\s+mes|en\s+(?:\d+|un|una|unos|unas|dos|tres|cuatro|cinco|ocho|quince|par\s+de)\s+(?:dias|semanas?|mes(?:es)?)|este\s+fin\s+de\s+semana|el\s+fin\s+de\s+semana|el\s+(?:lunes|martes|miercoles|jueves|viernes|sabado|domingo)|manana|pasado\s+manana|pronto|dentro\s+de)\b/;
-const anunciaQueVuelve = (n: string): boolean => REGRESO.test(n) && PLAZO.test(n);
+  "(?:la\\s+(?:proxima|otra|siguiente)\\s+semana|el\\s+(?:proximo|otro|siguiente)\\s+mes|en\\s+(?:\\d+|un|una|unos|unas|dos|tres|cuatro|cinco|ocho|quince|par\\s+de)\\s+(?:dias|semanas?|mes(?:es)?)|este\\s+fin\\s+de\\s+semana|el\\s+fin\\s+de\\s+semana|el\\s+(?:lunes|martes|miercoles|jueves|viernes|sabado|domingo)|pasado\\s+manana|manana|pronto|dentro\\s+de\\s+\\S+\\s+\\S+)";
+const LLEGAR = "(?:llego|llegare|llegamos|llegaremos|regreso|regresare|regresamos|vuelvo|volvere|volvemos|retorno|retornare)";
+const DESTINO = `(?:${ZONAS.seVaA}|alla|aca)`;
+/**
+ * La vuelta tiene que ir HACIA ACÁ (revisión ronda 2 del sprint 5): «le vuelvo a
+ * escribir mañana», «el lunes vuelvo a consultar», «mañana subo la foto» o «le
+ * llego con la medida» no son venir, y un cliente de Ibarra que los dice sigue
+ * `fuera`. Cuenta: (1) «estoy/estaré/ando por allá»; (2) llegar/volver/subir/
+ * bajar/venir + a/por/para/hasta + la ciudad del negocio, sus zonas, allá o acá;
+ * (3) llegar/volver (no «le llego», no «vuelvo a + verbo») seguido del plazo:
+ * «llego en 15 días», «regreso la próxima semana». Siempre con un plazo en el
+ * mensaje, y nunca con «no a Quito».
+ */
+const VUELTA = new RegExp(
+  `\\b(?:estoy|estare|estamos|estaremos|ando|andare|andamos)\\s+por\\s+(?:alla|aca)\\b`
+  + `|\\b(?:${LLEGAR}|subo|subire|bajo|bajare|vengo|vendre)\\s+(?:a|por|para|hasta|hacia)\\s+(?:la\\s+ciudad\\s+de\\s+)?${DESTINO}\\b`
+  + `|(?<!\\b(?:le|les|te)\\s)\\b${LLEGAR}\\s+${PLAZO}`,
+);
+const HAY_PLAZO = new RegExp(`\\b${PLAZO}`);
+const NO_HACIA_ACA = new RegExp(`\\bno\\s+(?:a|para|hacia|por)\\s+(?:la\\s+ciudad\\s+de\\s+)?${DESTINO}\\b`);
+/** ¿Anuncia que vuelve a la ciudad del negocio, con plazo? Texto ya normalizado (sin tildes, en minúscula). */
+export function anunciaQueVuelve(n: string): boolean {
+  return VUELTA.test(n) && HAY_PLAZO.test(n) && !NO_HACIA_ACA.test(n);
+}
 
 /** Niega estar o ir a Quito: «no vivo en Quito», «no viajo a Quito». */
 const NIEGA_QUITO = new RegExp(`\\bno\\s+(?:viv|estoy|soy|viaj|voy|subo|paso|puedo\\s+ir)\\w*\\b[^.?!]{0,25}\\b${C}\\b`);

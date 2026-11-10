@@ -2,6 +2,8 @@ import {
   diaDelMesSuelto, diaEnTexto, diasHastaElDia, fechaDeCalendario, franjaHoraria, normalizarTexto, relativoEnTexto,
   diasConSuSemana, semanaDelDia, type SemanaDelDia,
 } from "./diasEnEspanol.js";
+import { elClienteDijoQueAvisa, pideQueLeAvisen } from "./clientePosterga.js";
+import { comproEnOtroLugar } from "./cierrePerdido.js";
 
 // «Voy a estar en Quito» dice dónde va a estar, no que viene al local (12-sep, conv 3).
 const INTENT = /\b(?:voy(?!\s+a\s+estar)|ire|iré|vamos(?!\s+a\s+estar)|paso|pasare|pasaré|recojo|recogeré|retiro|retiraré|compro|compraré|visito|visitaré|llego|llegaré|bisito|voi)\b/i;
@@ -165,18 +167,30 @@ export function rechazaLosDiasPropuestos(texto: string | null | undefined): bool
 }
 
 /**
- * «La próxima semana estoy por allá»: el cliente contestó la pregunta del día
- * con la SEMANA que viene, no con un día. Preguntar qué día de esa semana no es
- * un bucle: es lo que concreta la visita (revisión ronda 1 del sprint 5, 39329
- * en el simulador: el candado de la pregunta repetida se la comía). Un plazo
- * largo («llego en 15 días, hasta entonces sigo cotizando», 39845) no entra:
- * repetirle «¿qué día?» ahí sí es insistir.
+ * «La próxima semana estoy por allá», «la próxima semana paso»: el cliente
+ * contestó la pregunta del día ANUNCIANDO QUE VIENE la semana que viene, sin
+ * decir el día. Preguntar qué día de esa semana no es un bucle: concreta la
+ * visita (revisión ronda 1 del sprint 5, 39329 en el simulador). Un plazo largo
+ * («llego en 15 días, hasta entonces sigo cotizando», 39845) no entra.
+ *
+ * Y solo quien VIENE (revisión ronda 2): «la otra semana le aviso», «la próxima
+ * semana le escribo» o «…compro en otro lado» postergan o se van; repetirles
+ * «¿qué día?» es la insistencia a quien tomó el turno (convs 20471, 20663, 12539).
  */
+const LA_SEMANA_QUE_VIENE =
+  /\b(?:la\s+(?:proxima|otra|siguiente)\s+semana|este\s+fin\s+de\s+semana|a\s+finales?\s+de\s+(?:esta|la)\s+semana)\b/;
+const ANUNCIA_QUE_VIENE =
+  /\b(?:estoy|estare|estamos|estaremos|ando|paso|pasare|pasamos|pasaremos|voy(?!\s+a\s+(?:escribir|avisar|ver|pensar|consultar|cotizar|comprar))|ire|iremos|vamos(?!\s+a\s+(?:escribir|avisar|ver|pensar|consultar|cotizar|comprar))|vengo|vendre|venimos|llego|llegare|llegamos|bajo|subo|regreso|regresare|vuelvo(?!\s+a\s+\w+r\b)|puedo\s+(?:pasar|ir|acercarme)|podria\s+(?:pasar|ir|acercarme))\b/;
+const LE_LLEGO = /\b(?:le|les|te)\s+llego\b/;
+
 export function daLaSemanaSinDia(texto: string | null | undefined): boolean {
   if (!texto) return false;
   const n = normalizar(texto);
   if (diaEnTexto(n) != null) return false;
-  return /\b(?:la\s+(?:proxima|otra|siguiente)\s+semana|este\s+fin\s+de\s+semana|a\s+finales?\s+de\s+(?:esta|la)\s+semana)\b/.test(n);
+  if (!LA_SEMANA_QUE_VIENE.test(n)) return false;
+  if (!ANUNCIA_QUE_VIENE.test(n) || LE_LLEGO.test(n)) return false;
+  if (elClienteDijoQueAvisa(texto) || pideQueLeAvisen(texto) || comproEnOtroLugar(texto)) return false;
+  return true;
 }
 
 export function preguntamosElDia(ultimoMensajeNuestro: string | null | undefined): boolean {

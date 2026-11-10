@@ -169,3 +169,39 @@ describe("revisión ronda 1 · la ZONA que «le queda lejos» tampoco elige (sim
     expect(localPorLaZonaDicha(business.stores, "vivo en Tumbaco")?.name).toBe("Depot Tire Cumbayá");
   });
 });
+
+describe("revisión ronda 2 · B1: «vuelvo a escribir» NO es venir — la vuelta necesita destino o «por allá»", () => {
+  it.each([
+    "Soy de Ibarra, mañana le vuelvo a escribir",
+    "estoy en Guayaquil, el lunes vuelvo a consultar",
+    "estoy en Esmeraldas, le vuelvo a escribir pronto",
+    "soy de Loja, mañana subo la foto",
+    "soy de cuenca, mañana le llego con la medida",
+    "Estoy en Loja, regreso el próximo mes pero no a Quito",
+  ])("«%s» → sigue fuera", (texto) => {
+    expect(dondeEstaElCliente(texto)?.estado).toBe("fuera");
+  });
+
+  it("siguen viene: 39329 y 39845", () => {
+    expect(dondeEstaElCliente("La próxima semana estoy por allá, este rato estoy trabajando en el oriente")?.estado).toBe("viene");
+    expect(dondeEstaElCliente("Estoy por el oriente llego en 15 días asta entonces seguiré cotizando")?.estado).toBe("viene");
+  });
+});
+
+describe("revisión ronda 2 · B2: la semana que viene solo exime a quien anuncia que VIENE", () => {
+  it.each([
+    "la otra semana le aviso",
+    "la próxima semana le escribo",
+    "la otra semana le escribo para ver",
+    "la próxima semana compro en otro lado",
+  ])("«%s» → no exime (la pregunta repetida se quita)", async (texto) => {
+    const { daLaSemanaSinDia } = await import("../src/domain/customerCommitment.js");
+    expect(daLaSemanaSinDia(texto)).toBe(false);
+  });
+
+  it("39329 «La próxima semana estoy por allá…» → exime", async () => {
+    const { daLaSemanaSinDia } = await import("../src/domain/customerCommitment.js");
+    expect(daLaSemanaSinDia("La próxima semana estoy por allá, este rato estoy trabajando en el oriente")).toBe(true);
+    expect(daLaSemanaSinDia("la próxima semana paso")).toBe(true);
+  });
+});

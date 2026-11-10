@@ -201,6 +201,15 @@ describe("5b-3 · el aviso verdadero sobrevive al Guardián", () => {
     expect(salida!.match(/Ojo/g)).toHaveLength(1);
   });
 
+  it("revisión ronda 2 (m5): «Si su llanta es de una medida diferente, me avisa» NO es el aviso: no se reemplaza", async () => {
+    const aviso = "⚠️ Ojo: estas opciones son de *medidas distintas* del mismo aro (215/60R17, 225/60R17) — cada tarjeta lleva la suya.";
+    const lista = "1 · WINRUN R380 — $92.40 c/u · 4 = $369.60\n\n¿Le cotizo la 1, la 2 o la 3?";
+    const borrador = `${aviso}\n\n---\n\n${lista}`;
+    const salida = await paso!.aplicar(`Si su llanta es de una medida diferente, me avisa.\n\n${lista}`, ctx(borrador));
+    expect(salida).toContain("Si su llanta es de una medida diferente, me avisa.");
+    expect(salida).toContain(aviso);
+  });
+
   it("SANO 39845: la corrección ya conservó el aviso (y quitó la re-pregunta) → no se toca", async () => {
     const aviso = "⚠️ Ojo: estas opciones son de *medidas distintas* del mismo aro (225/75R15, 225/70R15) — cada tarjeta lleva la suya.";
     const lista = "1 · KENDA KR15 — 2 × $132.94 + 2 × $53.18 = $372.24 (−60 % en la 2.ª llanta)\n\n¿Le cotizo la 1, la 2 o la 3?";

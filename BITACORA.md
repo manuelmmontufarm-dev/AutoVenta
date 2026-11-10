@@ -1,3 +1,24 @@
+## 10-nov-2026 · Sprint 5, ronda 2 de la revisión (auditoría 9-nov)
+
+- **Qué (bloqueantes):** (B1) el arreglo de B2 de la ronda 1 leía «Soy de Ibarra, mañana le vuelvo a escribir», «el
+  lunes vuelvo a consultar», «mañana subo la foto», «le llego con la medida» o «regreso el próximo mes pero no a Quito»
+  como `viene`, y lo guardaba: volvían local, día y mapas a quien está fuera (familia 18106). (B2) la excepción «la semana
+  que viene» de la pregunta repetida también valía para quien posterga («la otra semana le aviso», «…le escribo»,
+  «…compro en otro lado»).
+- **Cómo:** (B1) `anunciaQueVuelve` (exportada) exige destino: «estoy/estaré/ando por allá/acá», o llegar/volver/subir/
+  bajar/venir + a/por/para/hasta + la ciudad del negocio, sus zonas, allá o acá, o llegar/volver seguido DIRECTO del plazo
+  («llego en 15 días»; no «le llego», no «vuelvo a + verbo»); siempre con plazo y nunca con «no a Quito». (B2)
+  `daLaSemanaSinDia` exige que anuncie que viene (estoy/paso/voy/vengo/llego/puedo pasar… + la semana que viene) y da false
+  si `elClienteDijoQueAvisa`, `pideQueLeAvisen` o `comproEnOtroLugar`.
+- **Menores:** (3) `dondeEstaElClienteSegunLoDicho` salta los `soloElTurno` del historial: «mi carro está lejos de
+  aquí» de un turno viejo no se arrastra. (4) la pregunta que 5d agrega a lo podado se hace sitio soltando un bloque
+  (MAX_BLOCKS), como `insistirCierre`; y de paso `podarHechosNuevosDelGuardian` ya no pega el separador al texto
+  siguiente («\n---La Falken…»: salía «---La…» dentro de una burbuja; error previo al sprint). (5) el aviso de medidas
+  reconoce «medidas distintas/diferentes» solo en plural: «Si su llanta es de una medida diferente, me avisa» no se toca.
+- **Probado:** pruebas nuevas en rojo antes (B1 6 sanas-fuera + 39329/39845 viene, B2 4 + «la otra semana le aviso» en
+  integración, menor 3, menor 4 con el separador, menor 5); suite 3859/3861 (las 2 viejas); simulador en `s5-cierre.md`.
+- **Falta / ojo:** m9 sigue anotado («estoy en bolivar y venezuela» → fuera).
+
 ## 9-nov-2026 · Sprint 5, ronda 1 (simulador): la zona lejana no elige y la semana que viene se concreta
 
 - **Qué:** en el simulador de la ronda 1, «Cumbayá me queda lejos» igual registraba Cumbayá por la otra puerta del local

@@ -292,4 +292,37 @@ describe.sequential("5a · el local no se le pregunta a quien no corresponde", (
     const corregido = "Perfecto, le dejo anotado para seguimiento en *Depot Tire Quito Sur*.\n\n¿Qué día cree que puede pasar por *Depot Tire Quito Sur*? 🤝";
     expect(await sinPreguntaPendienteConsecutiva(fila.id, 1, corregido, cliente)).toBe(corregido);
   });
+  it("SANO (revisión ronda 2): «la otra semana le aviso» posterga → la pregunta del día repetida se quita", async () => {
+    const [fila] = await sql<Fila[]>`
+      insert into conversations (phone, name, status, stage, current_cycle, tire_size, nearest_store)
+      values ('593980050014', 'Cliente', 'open', 'seguimiento_venta', 1, '265/70R16', 'Depot Tire Quito Sur')
+      returning id
+    `;
+    await sql`
+      insert into messages (conversation_id, cycle, role, direction, content, type, author_kind, metadata, created_at)
+      values (${fila.id}, 1, 'assistant', 'outbound', '¿Qué día cree que puede pasar por *Depot Tire Quito Sur*?', 'text', 'bot', '{}',
+        now() - interval '90 seconds')
+    `;
+    const cliente = "la otra semana le aviso";
+    await entra(fila.id, cliente);
+    const corregido = "Perfecto, quedo atento.\n\n¿Qué día cree que puede pasar por *Depot Tire Quito Sur*? 🤝";
+    const salida = await sinPreguntaPendienteConsecutiva(fila.id, 1, corregido, cliente);
+    expect(salida).not.toMatch(/qué día/i);
+    expect(salida).toContain("Perfecto, quedo atento.");
+  });
+  it("revisión ronda 2 (menor 3): «mi carro está lejos de aquí» de un turno viejo no se arrastra como fuera", async () => {
+    const { porQueNoPasaPorElLocal } = await import("../src/services/dondeEstaElCliente.js");
+    const [fila] = await sql<Fila[]>`
+      insert into conversations (phone, name, status, stage, current_cycle, tire_size)
+      values ('593980050015', 'Cliente', 'open', 'cotizacion_enviada', 1, '225/70R16') returning id
+    `;
+    await sql`
+      insert into messages (conversation_id, cycle, role, direction, content, type, created_at)
+      values (${fila.id}, 1, 'user', 'inbound', 'mi carro está lejos de aquí', 'text', now() - interval '1 hour')
+    `;
+    await entra(fila.id, "Gracias");
+    expect(await porQueNoPasaPorElLocal(fila.id, 1, "Gracias")).toBeNull();
+    // En SU turno sí vale.
+    expect(await porQueNoPasaPorElLocal(fila.id, 1, "Está muy lejos le agradezco")).toBe("fuera_de_cobertura");
+  });
 });

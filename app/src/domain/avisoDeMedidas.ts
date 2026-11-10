@@ -32,7 +32,9 @@ export function fraseDelAvisoEn(texto: string | null | undefined): string | null
 /**
  * La versión del aviso que dejó la corrección: la primera oración que abre con
  * «⚠️ Ojo: estas opciones son de…» (39787 en el simulador: «…son de *rin 17* y
- * cada tarjeta lleva su medida.») o que habla de «medidas distintas».
+ * cada tarjeta lleva su medida.») o que habla de «medidas distintas/diferentes»
+ * (en plural: «si su llanta es de una medida diferente, me avisa» no es el aviso,
+ * revisión ronda 2) o de que «cada tarjeta/opción lleva/es de su/otra medida».
  */
 export const ORACION_DE_MEDIDAS_DISTINTAS =
-  /⚠️\s*Ojo:\s*estas\s+opciones\s+son\s+de[^.!?\n]*[.!?]?|[^.!?\n]*(?:medidas?\s+(?:distintas?|diferentes?)|cada\s+(?:tarjeta|opci[oó]n|llanta)\s+(?:lleva|es\s+de|tiene|trae)\s+(?:su|otra|una)\s+(?:propia\s+)?medida)[^.!?\n]*[.!?]?/i;
+  /⚠️\s*Ojo:\s*estas\s+opciones\s+son\s+de[^.!?\n]*[.!?]?|[^.!?\n]*(?:medidas\s+(?:distintas|diferentes)|cada\s+(?:tarjeta|opci[oó]n|llanta)\s+(?:lleva|es\s+de|tiene|trae)\s+(?:su|otra|una)\s+(?:propia\s+)?medida)[^.!?\n]*[.!?]?/i;

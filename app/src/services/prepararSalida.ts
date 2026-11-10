@@ -1592,7 +1592,11 @@ async function cerrarConLaAlternativa(
     // Lo podado que quedó se manda, con la pregunta como bloque al final; el
     // respaldo entero solo si no quedó nada (revisión ronda 1, m4: «Sí, incluye
     // balanceo. Le confirmo con el asesor…» se perdía entero).
-    const salida = texto.trim() ? composeBlocks(texto, alternativa.pregunta) : alternativa.respaldo;
+    // Con sitio para la pregunta: el turno sale con a lo sumo MAX_BLOCKS mensajes
+    // y la del final se cortaría en silencio (revisión ronda 2; como insistirCierre).
+    const salida = texto.trim()
+      ? composeBlocks(...bloques.slice(0, MAX_BLOCKS - 1), alternativa.pregunta)
+      : alternativa.respaldo;
     console.warn(`🧭 Conv ${ctx.conversation.id}: la corrección quedó sin pregunta; se agregó «${alternativa.pregunta}».`);
     await createBotAlert({
       conversationId: ctx.conversation.id,
