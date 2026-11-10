@@ -18,18 +18,11 @@ export async function runRolesDeAsesorMigration(sql: Sql): Promise<void> {
   await sql.unsafe(/* sql */ `
     alter table advisors add column if not exists rol text not null default 'admin';
 
-    -- Un rol mal escrito desde la API dejaría al asesor sin ningún aviso (el
-    -- filtro no lo reconocería como admin ni como asesor). Que falle al
-    -- guardarse, no en silencio a las tres semanas.
-    do $$
-    begin
-      if not exists (
-        select 1 from pg_constraint where conname = 'advisors_rol_valido'
-      ) then
-        alter table advisors add constraint advisors_rol_valido
-          check (rol in ('admin', 'asesor'));
-      end if;
-    end $$;
+    -- Aquí se creaba el check advisors_rol_valido (rol in 'admin','asesor').
+    -- Ya NO: la 028 lo quita porque los niveles de aviso pasaron a ser
+    -- configurables, pero esta migración corre en CADA arranque y lo volvía a
+    -- crear. Con un asesor en un nivel nuevo, el arranque moría con 23514 y el
+    -- deploy quedaba FAILED (9-nov 18:06): Depot no podía reiniciar.
 
     insert into schema_migrations (id)
     values ('${ROLES_DE_ASESOR_MIGRATION_ID}')
