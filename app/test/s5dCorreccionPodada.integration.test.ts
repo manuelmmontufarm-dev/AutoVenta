@@ -191,6 +191,36 @@ describe.sequential("5d · la corrección de tipo negado llega con su alternativ
     expect(salida!.trim()).toMatch(/¿Le muestro las A\/T que tengo en 225\/70R16\?$/);
   });
 
+  it("S1-03 (replay final, 18535 r1): el borrador DUDA del stock y la corrección nombra la KR29 de SU medida con stock → sale", async () => {
+    const KR29_33 = { ...llanta("K29331215", "KENDA", "KR29", "235/75R15", 8, 285.4), sizeLabel: "33X12.5R15", size: null } as CatalogItem;
+    catalogo = [KR29_33];
+    const [fila] = await sql<{ id: number }[]>`
+      insert into conversations (phone, name, status, stage, current_cycle, tire_size)
+      values ('593980053009', 'Cliente', 'open', 'medida_confirmada', 1, '33X12.5R15') returning id
+    `;
+    await sql`insert into messages (conversation_id, cycle, role, direction, content, type) values (${fila.id}, 1, 'user', 'inbound', 'Llantas 33x12.5 rin 15', 'text')`;
+    const borrador = "Tengo la medida 33x12.5 rin 15, pero no pude validar el stock en este momento con el catálogo.\n\nPuedo pasarle con un asesor para confirmar opciones reales y precio final.\n---\n¿Desea que le ayude a revisar disponibilidad con un vendedor?";
+    const corregido = "Sí tengo la *KENDA KR29 33X12.5R15 [M/T]* con stock hoy.\n\nSi desea, seguimos con esa opción.";
+    const c = { ...ctx(fila.id, borrador, [
+      { categoria: "recomendacion_sin_pregunta", severidad: "alta", detalle: "el catálogo ya trae una opción concreta con stock para la medida 33X12.5R15" },
+      { categoria: "ignora-pregunta", severidad: "media", detalle: "no responde con una opción concreta del catálogo" },
+    ]), textoDelCliente: "Llantas 33x12.5 rin 15" };
+    expect(await paso.aplicar(corregido, c as never)).toBe(corregido);
+  });
+
+  it("S1-03 SANO: con el borrador dudando, una llanta de OTRA medida sigue frenada", async () => {
+    const KR29_35 = { ...llanta("K29351250", "KENDA", "KR29", "235/75R15", 8, 299.9), sizeLabel: "35X12.5R15", size: null } as CatalogItem;
+    catalogo = [KR29_35];
+    const [fila] = await sql<{ id: number }[]>`
+      insert into conversations (phone, name, status, stage, current_cycle, tire_size)
+      values ('593980053010', 'Cliente', 'open', 'medida_confirmada', 1, '33X12.5R15') returning id
+    `;
+    const borrador = "Tengo la medida 33x12.5 rin 15, pero no pude validar el stock en este momento con el catálogo.";
+    const corregido = "Sí tengo la *KENDA KR29 35X12.5R15* con stock hoy.";
+    const salida = await paso.aplicar(corregido, { ...ctx(fila.id, borrador, [{ categoria: "otro", severidad: "alta", detalle: "x" }]), textoDelCliente: "Llantas 33x12.5 rin 15" } as never);
+    expect(salida).toBe(borrador);
+  });
+
   it("sin stock para el juego, la alternativa no cuenta como conocida (se poda y sale el respaldo)", async () => {
     catalogo = [FALKEN_HT, { ...WINRUN_AT, stock: 2, availability: "check" }];
     const id = await conversacion("593980053003");

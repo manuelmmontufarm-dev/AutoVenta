@@ -29,6 +29,7 @@
  * no ve los errores que el redactor no vio.
  */
 import { porQueNoPasaPorElLocal } from "./dondeEstaElCliente.js";
+import { hechoDelLocalLejano, localesQueLeQuedanLejos } from "../domain/localLejano.js";
 import { cantidadValidaDeLaFicha } from "../domain/cantidadGrande.js";
 import { hechoDeEquivalentesDevueltos } from "../domain/equivalentesPorMostrar.js";
 import { NOMBRE_DEL_VENDEDOR } from "../domain/saludo.js";
@@ -835,6 +836,9 @@ export async function armarContexto(
         "El cierre legítimo de su turno es «Un asesor le confirma pago y envío por acá.»: NO es un mensaje mudo " +
         "ni le falta un siguiente paso (regla 15), y NO lo cambies por la pregunta del local ni del día."
       : null,
+    // «Cumbayá me queda lejos» (replay final del 10-nov, 39845 r3): el revisor no
+    // le propone ese local; el candado `sin_el_local_que_le_queda_lejos` lo asegura.
+    hechoDelLocalLejano(localesQueLeQuedanLejos(ultimoDelCliente)),
     fueraDeCobertura && !compraADistancia
       ? "CLIENTE FUERA DE COBERTURA (fuente determinística): dijo que está fuera de la ciudad de los locales o que no puede venir. " +
         "PROHIBIDO agregarle la pregunta del local, la del día o los mapas: esas piezas se quitan después de ti y el turno quedaría vacío. " +

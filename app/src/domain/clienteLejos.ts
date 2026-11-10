@@ -88,12 +88,19 @@ export function diceQueNoPuedeIr(texto: string | null | undefined): boolean {
  * `localPorLaZonaDicha` (la zona que dice). Revisión ronda 1 del sprint 5.
  */
 export function sinLoQueQuedaLejos(texto: string | null | undefined): string {
-  return (texto ?? "")
-    .split(/[,.;!?\n]+|\b(?:pero|mejor|y)\b/i)
-    .filter((clausula) => {
-      const n = normalizar(clausula);
-      if (!/\blejos\b/.test(n)) return true;
-      return /\bno\s+(?:(?:me|nos|le|les|te)\s+)?(?:queda|quedan|es|esta|sale)\b/.test(n);
-    })
-    .join(" , ");
+  return partirEnClausulas(texto).filter((c) => !quedaLejos(c)).join(" , ");
+}
+
+/** Las cláusulas que dicen que un lugar «queda lejos» (sin negarlo): las lee `localLejano.ts`. */
+export function clausulasQueQuedanLejos(texto: string | null | undefined): string[] {
+  return partirEnClausulas(texto).filter(quedaLejos);
+}
+
+const partirEnClausulas = (texto: string | null | undefined): string[] =>
+  (texto ?? "").split(/[,.;!?\n]+|\b(?:pero|mejor|y)\b/i);
+
+function quedaLejos(clausula: string): boolean {
+  const n = normalizar(clausula);
+  if (!/\blejos\b/.test(n)) return false;
+  return !/\bno\s+(?:(?:me|nos|le|les|te)\s+)?(?:queda|quedan|es|esta|sale)\b/.test(n);
 }

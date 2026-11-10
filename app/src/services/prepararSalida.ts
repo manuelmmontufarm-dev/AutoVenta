@@ -25,7 +25,7 @@
  * guardián volvió a prometer «4 × KENDA KR203 … $262.60» cuando había 3,
  * borrando el aviso que un candado anterior ya había pegado.
  */
-import { alternativaDelCatalogo, CATEGORIAS_CON_ALTERNATIVA, type AlternativaDelCatalogo } from "./alternativaDelCatalogo.js";
+import { alternativaDelCatalogo, borradorNiegaElStock, CATEGORIAS_CON_ALTERNATIVA, type AlternativaDelCatalogo } from "./alternativaDelCatalogo.js";
 import { fraseDelAvisoEn, ORACION_DE_MEDIDAS_DISTINTAS } from "../domain/avisoDeMedidas.js";
 import { preguntaElDia } from "../domain/customerCommitment.js";
 import { preguntaElLocal } from "../domain/storeSelection.js";
@@ -57,7 +57,8 @@ import {
 import { sinJsonCrudo } from "../domain/jsonCrudo.js";
 import { conLocalesReales } from "./localesReales.js";
 import { sql } from "../db/client.js";
-import { respuestaDeUbicacionFueraDeCobertura, sinVisitaNiMapas } from "../domain/visitaImposible.js";
+import { respuestaDeUbicacionFueraDeCobertura, respuestaFijaFueraDeCobertura, sinVisitaNiMapas } from "../domain/visitaImposible.js";
+import { localesQueLeQuedanLejos, sinElLocalLejano } from "../domain/localLejano.js";
 import {
   BENEFICIO_DE_REDES,
   esFraseDeBeneficios,
@@ -404,7 +405,8 @@ export const PASOS: readonly PasoDeSalida[] = [
       // hoy de su medida, del tipo pedido y con stock para el juego es un HECHO que
       // el Guardián recibió: nombrarla con su precio no es vender solo (auditoría
       // 9-nov, 40017). Ver services/alternativaDelCatalogo.ts.
-      const conAlternativa = (ctx.hallazgosDelGuardian ?? []).some((h) => CATEGORIAS_CON_ALTERNATIVA.has(h.categoria));
+      const conAlternativa = (ctx.hallazgosDelGuardian ?? []).some((h) => CATEGORIAS_CON_ALTERNATIVA.has(h.categoria))
+        || borradorNiegaElStock(borrador);
       const alternativa = conAlternativa && texto.trim() !== borrador.trim()
         ? await alternativaDelCatalogo(ctx.conversation.id, texto, productos, ctx.textoDelCliente)
           .catch((err) => { console.warn(`⚠️ alternativaDelCatalogo falló en la conv ${ctx.conversation.id}:`, err); return null; })
@@ -1365,6 +1367,26 @@ export const PASOS: readonly PasoDeSalida[] = [
     },
   },
   {
+    // EL LOCAL QUE «LE QUEDA LEJOS» NO SE PROPONE (replay final del 10-nov, 39845
+    // r3): a «Cumbayá me queda lejos» salió el mapa de Cumbayá y «¿Qué día cree que
+    // puede pasar por *Depot Tire Cumbayá*?». Se dirige al otro local (o, con más
+    // de dos, a la pregunta de cuál). Va justo antes de separar la pregunta:
+    // después de todo lo que escribe el local (vendedor, Guardián, cierre,
+    // ubicación) y antes de los pasos que solo quitan. Lee el mensaje
+    // del cliente, nunca el texto viejo del bot. Ver domain/localLejano.ts.
+    nombre: "sin_el_local_que_le_queda_lejos",
+    corre: ["respuesta", "retomada"],
+    async aplicar(texto, ctx) {
+      const lejanos = localesQueLeQuedanLejos(ctx.textoDelCliente);
+      if (!lejanos.length) return texto;
+      const { texto: limpio, cambiado } = sinElLocalLejano(texto, lejanos);
+      if (cambiado) {
+        console.log(`📍 Conv ${ctx.conversation.id}: el cliente dijo que ${lejanos.map((l) => l.nombreCorto).join(", ")} le queda lejos; el turno ya no se lo propone.`);
+      }
+      return limpio.trim() ? limpio : texto;
+    },
+  },
+  {
     nombre: "pregunta_en_su_propio_mensaje",
     corre: ["respuesta"],
     async aplicar(texto) {
@@ -1530,9 +1552,8 @@ export const PASOS: readonly PasoDeSalida[] = [
       if (quitado) {
         console.log(`🗺️ Conv ${ctx.conversation.id}: el cliente no puede pasar por el local; se quitaron mapas y visita del turno.`);
       }
-      // Solo QUITA: si no queda nada, el turno no sale. Este paso corre al
-      // final de la cadena, donde ya no hay candados detrás que puedan revisar
-      // un texto nuevo — agregar acá sería meter contenido sin revisar.
+      // Solo QUITA: si no queda nada, el turno no sale de la cadena. Al cliente
+      // que está fuera le contesta `turnoVacio` con la respuesta fija.
       return limpio.trim() ? limpio : null;
     },
   },
@@ -1750,6 +1771,16 @@ export async function correrPasos(
  * que el paso declare que callar es lo correcto. El seguimiento no contesta a
  * nadie: ahí callar sigue siendo callar.
  */
+/** La respuesta fija de fuera de cobertura si el cliente está fuera (con compra a distancia si hay cotización), o null. */
+async function respuestaFijaSiEstaFuera(ctx: ContextoDeSalida): Promise<string | null> {
+  const motivo = await porQueNoPasaPorElLocal(ctx.conversation.id, ctx.conversation.current_cycle, ctx.textoDelCliente);
+  if (motivo !== "fuera_de_cobertura") return null;
+  const [cot] = await sql<{ n: number }[]>`
+    select count(*)::int as n from quotes where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
+  `;
+  return respuestaFijaFueraDeCobertura((cot?.n ?? 0) > 0);
+}
+
 async function turnoVacio(
   ctx: ContextoDeSalida,
   pasosCorridos: string[],
@@ -1759,6 +1790,21 @@ async function turnoVacio(
   const callar: SalidaPreparada = { texto: null, pasosCorridos };
   if (ctx.tipo !== "respuesta" && ctx.tipo !== "retomada") return callar;
   if (vaciador?.silencioEsCorrecto || ctx.callarEsteTurno) return callar;
+  // EL QUE ESTÁ FUERA RECIBE LA RESPUESTA FIJA, NO EL RELLENO (replay final del
+  // 10-nov, 40082 r1): el Guardián corrigió «Nuestros locales están en Quito…»
+  // con día, local y mapas a «Yo vivo en pedernales»; `sin_visita_si_no_puede_venir`
+  // lo quitó todo y salía «Le consulto con un asesor…». Va acá y no dentro de la
+  // cadena porque después de separar la pregunta los pasos solo quitan (y el
+  // código lo hace cumplir): esto es un respaldo, como el de abajo, pero con el
+  // texto fijo del perfil y, si hay cotización, la compra a distancia.
+  if (vaciador?.nombre === "sin_visita_si_no_puede_venir") {
+    // Si la base no contesta, sale el respaldo de siempre: nunca se queda sin nada.
+    const fija = await respuestaFijaSiEstaFuera(ctx).catch(() => null);
+    if (fija) {
+      console.log(`🗺️ Conv ${ctx.conversation.id}: el turno quedó vacío a un cliente fuera de cobertura; sale la respuesta fija.`);
+      return { texto: fija, pasosCorridos: [...pasosCorridos, "respuesta_fija_fuera_de_cobertura"], vaciadoPor: vaciador.nombre };
+    }
+  }
   const quien = vaciador?.nombre ?? (borrador.trim() ? "desconocido" : "borrador_vacio");
   console.error(`🕳️ Conv ${ctx.conversation.id}: el turno quedó vacío por «${quien}»; sale el respaldo y se alerta.`);
   await createBotAlert({
