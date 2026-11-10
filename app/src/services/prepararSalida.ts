@@ -712,10 +712,11 @@ export const PASOS: readonly PasoDeSalida[] = [
       // El cliente todavía no eligió del menú: la pregunta del turno es «¿Cuál
       // le cotizo…?» y el local no corresponde (auditoría 19-oct, familia 2).
       if (esPreguntaCualLeCotizo(texto)) return texto;
-      // Lo mismo si el turno cierra ofreciendo el MENÚ («¿Le cotizo la 1, la 2 o
-      // la 3?»): la oferta declarada por la herramienta o la que lleva el texto
-      // que sale (auditoría 9-nov, 39887: a un segundo del menú, «¿A cuál local…?»).
-      if (ofertaEnElTexto(texto, [], ctx.ofertaDelTurno)?.clase === "menu") return texto;
+      // Lo mismo si el turno cierra OFRECIENDO COTIZAR —el menú («¿Le cotizo la
+      // 1, la 2 o la 3?») o una llanta («¿Le cotizo la Kenda KR608?»)—: la
+      // pregunta del turno es esa, y el local va después de cotizar (auditoría
+      // 9-nov, 39887: a un segundo de la oferta, «¿A cuál local…?»).
+      if (ofertaEnElTexto(texto, [], ctx.ofertaDelTurno)) return texto;
       const insistido = await insistirConLoQueFalta(
         ctx.conversation.id, ctx.conversation.current_cycle, texto, ctx.textoDelCliente,
         ctx.faseOperativa,

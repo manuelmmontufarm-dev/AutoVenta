@@ -1,3 +1,18 @@
+## 9-nov-2026 · Sprint 5, vuelta 2 del simulador (auditoría 9-nov)
+
+- **Qué:** tres cosas que el simulador mostró después de 5a/5b: (1) 39887: el turno cerró con «¿Le cotizo la Kenda
+  KR608?» (una llanta, no el menú) y el candado igual pegó «¿A cuál local…?». (2) 39787: el Guardián PARAFRASEÓ el
+  aviso («…son de *rin 17* y cada tarjeta lleva su medida») y el candado repuso la frase arriba: salieron dos avisos.
+  (3) 40082 (sano, «Yo vivo en pedernales»): el Guardián mini le agregó día, local y mapas; `sin_visita_si_no_puede_venir`
+  los quitó y el turno quedó vacío («Le consulto con un asesor…»).
+- **Cómo:** (1) `insistir_con_lo_que_falta` no agrega nada si el texto ofrece cotizar, de cualquier clase
+  (`ofertaEnElTexto`). (2) `ORACION_DE_MEDIDAS_DISTINTAS` también reconoce la oración que abre con «⚠️ Ojo: estas
+  opciones son de…» y la reemplaza. (3) El Guardián recibe «CLIENTE FUERA DE COBERTURA» (misma fuente que el candado:
+  `porQueNoPasaPorElLocal`) y, en ese caso, ya no recibe «DÍA DE VISITA PENDIENTE».
+- **Probado:** 4 pruebas nuevas en rojo antes (`s5aInsistirFueraDeLugar`, `s5bAvisoDeMedidas`,
+  `s5aGuardianFueraDeCobertura.integration.test.ts`); simulador en el cuadro del sprint.
+- **Falta / ojo:** —
+
 ## 9-nov-2026 · `buscar_catalogo` dice la palabra que no figura y distingue la marca (pedido del Sprint 4, sprint 5)
 
 - **Qué:** «Wrangler KR601» / «Kenda Klever KR601» devolvía la Kenda KR601 como coincidencia exacta con el rastro solo

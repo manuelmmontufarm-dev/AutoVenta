@@ -29,5 +29,10 @@ export function fraseDelAvisoEn(texto: string | null | undefined): string | null
   return (texto ?? "").match(FRASE)?.[0] ?? null;
 }
 
-/** Una oración que habla de «medidas distintas»: la versión del aviso que dejó la corrección. */
-export const ORACION_DE_MEDIDAS_DISTINTAS = /[^.!?\n]*medidas\s+distintas[^.!?\n]*[.!?]?/i;
+/**
+ * La versión del aviso que dejó la corrección: la primera oración que abre con
+ * «⚠️ Ojo: estas opciones son de…» (39787 en el simulador: «…son de *rin 17* y
+ * cada tarjeta lleva su medida.») o que habla de «medidas distintas».
+ */
+export const ORACION_DE_MEDIDAS_DISTINTAS =
+  /⚠️\s*Ojo:\s*estas\s+opciones\s+son\s+de[^.!?\n]*[.!?]?|[^.!?\n]*medidas\s+distintas[^.!?\n]*[.!?]?/i;

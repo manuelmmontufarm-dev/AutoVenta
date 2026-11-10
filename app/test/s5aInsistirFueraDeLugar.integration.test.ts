@@ -96,6 +96,19 @@ describe.sequential("5a · el local no se le pregunta a quien no corresponde", (
     expect(salida).not.toMatch(/a cuál local/i);
   });
 
+  it("39887 (simulador, vuelta 2): el turno cierra ofreciendo cotizar UNA llanta → tampoco se pega el local", async () => {
+    const fila = await conLamina("593980050009", { cantidad: 4, stage: "seguimiento_venta" });
+    const cliente = "Pirelli, firestone o dunlop si tiene";
+    await entra(fila.id, cliente);
+    const texto = "De Pirelli, Firestone o Dunlop no tengo disponibilidad en 255/70R16. En esa medida sí tengo Kenda y Winrun; la Kenda KR608 es la opción equilibrada para uso mixto.\n\n¿Le cotizo la Kenda KR608 en 255/70R16?";
+    const paso = PASOS.find((p) => p.nombre === "insistir_con_lo_que_falta")!;
+    const salida = await paso.aplicar(texto, {
+      conversation: { id: fila.id, current_cycle: 1, stage: "seguimiento_venta" },
+      tipo: "respuesta", textoDelCliente: cliente, faseOperativa: "seguimiento_venta", ofertaDelTurno: null,
+    } as never);
+    expect(salida).toBe(texto);
+  });
+
   it("38924: «Está muy lejos le agradezco» con cantidad 4 en la ficha → no se agrega el local", async () => {
     const fila = await conLamina("593980050003", { cantidad: 4, stage: "seguimiento_venta" });
     const cliente = "Está muy lejos le agradezco";
