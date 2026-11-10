@@ -35,4 +35,4 @@ export function fraseDelAvisoEn(texto: string | null | undefined): string | null
  * cada tarjeta lleva su medida.») o que habla de «medidas distintas».
  */
 export const ORACION_DE_MEDIDAS_DISTINTAS =
-  /⚠️\s*Ojo:\s*estas\s+opciones\s+son\s+de[^.!?\n]*[.!?]?|[^.!?\n]*medidas\s+distintas[^.!?\n]*[.!?]?/i;
+  /⚠️\s*Ojo:\s*estas\s+opciones\s+son\s+de[^.!?\n]*[.!?]?|[^.!?\n]*(?:medidas?\s+(?:distintas?|diferentes?)|cada\s+(?:tarjeta|opci[oó]n|llanta)\s+(?:lleva|es\s+de|tiene|trae)\s+(?:su|otra|una)\s+(?:propia\s+)?medida)[^.!?\n]*[.!?]?/i;

@@ -8,12 +8,7 @@
  *
  * Señales conservadoras: solo cuenta en etapas de cierre (`cotizacion_enviada` /
  * `seguimiento_venta` — eso lo filtra quien llama) y cuando ya hubo elección
- * explícita (producto o cantidad registrados).
- *
- * Una lámina de opciones SOLA no es elección (auditoría 9-nov, 39769 y 39887):
- * el cliente vio el menú, no eligió nada, y el candado le pegaba «¿A cuál local
- * le queda mejor ir…?» a quien solo estaba comparando precios. La pieza se
- * sigue reportando para quien la quiera leer, pero no decide.
+ * explícita (pieza de opciones, producto o cantidad registrados).
  */
 export interface SenalesDeCompromiso {
   hayCotizacionFormal: boolean;
@@ -24,5 +19,9 @@ export interface SenalesDeCompromiso {
 
 export function hayCompromisoDeCierre(senales: SenalesDeCompromiso): boolean {
   if (senales.hayCotizacionFormal) return true;
-  return senales.productoElegido || senales.cantidadElegida;
+  return (
+    senales.hayPiezaDeOpciones
+    || senales.productoElegido
+    || senales.cantidadElegida
+  );
 }

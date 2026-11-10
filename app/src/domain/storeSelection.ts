@@ -172,6 +172,10 @@ export function extractExplicitStore(
   // ciudad. Se calcula una vez: `hablaDeLaCiudad` lee la conversación entera.
   const vale = Boolean(opts?.respondiendoAlLocal) && !hablaDeLaCiudad(value);
   const nombrados = negocio.locales.filter((local) => {
+    // EL LOCAL QUE «LE QUEDA LEJOS» NO ES EL ELEGIDO (revisión ronda 1 del
+    // sprint 5): «Quito Sur me queda lejos, mejor Cumbayá» elige Cumbayá, y
+    // «Cumbayá me queda lejos» no elige Cumbayá.
+    if (leQuedaLejos(value, local)) return false;
     if (local.comoLoNombran.test(value)) return true;
     if (!vale || !local.comoLoNombranAlElegir?.test(value)) return false;
     // El patrón suelto no vale si el mensaje nombra una zona que este local NO
@@ -185,6 +189,15 @@ export function extractExplicitStore(
   return nombrados.length === 1 ? nombrados[0].nombre : null;
 }
 
+
+/** «Cumbayá me queda lejos», «el de Quito Sur es muy lejos para mí»: el local nombrado justo antes de «lejos». */
+function leQuedaLejos(value: string, local: { comoLoNombran: RegExp; comoLoNombranAlElegir?: RegExp }): boolean {
+  for (const clausula of value.split(/[,.;!?\n]+|\b(?:pero|mejor|y)\b/)) {
+    if (!/\blejos\b/.test(clausula) || /\bno\s+(?:(?:me|nos|le)\s+)?(?:queda|es|esta|sale)\b/.test(clausula)) continue;
+    if (local.comoLoNombran.test(clausula) || local.comoLoNombranAlElegir?.test(clausula)) return true;
+  }
+  return false;
+}
 
 /**
  * ¿El mensaje habla de la CIUDAD (dónde vive, cuándo sube) en vez de elegir

@@ -57,11 +57,24 @@ describe("armarContexto · CLIENTE FUERA DE COBERTURA", () => {
     expect(contexto).not.toContain("DÍA DE VISITA PENDIENTE");
   });
 
-  it("39845: «Estoy por el oriente…» → igual", async () => {
-    const id = await conversacion("593980054002", "Estoy por el oriente llego en 15 días asta entonces seguiré cotizando");
-    const contexto = await armarContexto(id, 1, "Perfecto, seguimos cotizando por aquí.");
+  it("39597: «soy de bolivar esta muy aledado» → igual", async () => {
+    const id = await conversacion("593980054002", "esq soy de bolivar esta muy aledado muchas gracias");
+    const contexto = await armarContexto(id, 1, "Entendido, gracias a usted 🤝");
     expect(contexto).toContain("CLIENTE FUERA DE COBERTURA");
     expect(contexto).not.toContain("DÍA DE VISITA PENDIENTE");
+  });
+
+  it("SANO 39329 (revisión ronda 1): «La próxima semana estoy por allá, este rato estoy trabajando en el oriente» → viene: SÍ el día pendiente", async () => {
+    const id = await conversacion("593980054004", "La próxima semana estoy por allá, este rato estoy trabajando en el oriente");
+    const contexto = await armarContexto(id, 1, "Perfecto, le esperamos.");
+    expect(contexto).not.toContain("CLIENTE FUERA DE COBERTURA");
+    expect(contexto).toContain("DÍA DE VISITA PENDIENTE");
+  });
+
+  it("SANO 39845 (revisión ronda 1): «Estoy por el oriente llego en 15 días…» → viene, no fuera", async () => {
+    const id = await conversacion("593980054005", "Estoy por el oriente llego en 15 días asta entonces seguiré cotizando");
+    const contexto = await armarContexto(id, 1, "Perfecto, seguimos cotizando por aquí.");
+    expect(contexto).not.toContain("CLIENTE FUERA DE COBERTURA");
   });
 
   it("SANO: el cliente de Quito con local y sin día sigue recibiendo DÍA DE VISITA PENDIENTE", async () => {

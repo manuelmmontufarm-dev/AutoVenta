@@ -1,3 +1,33 @@
+## 9-nov-2026 · Sprint 5, ronda 1 de la revisión (auditoría 9-nov)
+
+- **Qué (bloqueantes):** (B1) «lejos / no puedo ir» marcaba `fuera` —y lo guardaba 60 días— a clientes de Quito que
+  siguen comprando: «no me queda lejos», «Cumbayá me queda lejos», «Quito Sur me queda lejos, mejor Cumbayá», «No puedo
+  pasar esos días», «Esta semana es complicado pasar», «no puedo pasar hoy»; y `sinSeguimiento` había perdido el «muy»
+  que exigía. (B2) «Oriente» rompía 39329 («La próxima semana estoy por allá, este rato estoy trabajando en el
+  oriente», con cotización y local elegido): quedaba `fuera` y se callaban los recordatorios del día; 39845 («llego en
+  15 días») era la misma clase. (B3) quitar `hayPiezaDeOpciones` deshacía el arreglo de 13909, y la prueba vieja había
+  quedado verde con un `selected_product_code` que no puede existir sin cotización.
+- **Cómo:** (B1) `clienteLejos.ts`: la negación se lee sobre la frase entera («no me queda lejos»), un local del
+  perfil nombrado no cuenta, y «no puedo ir/pasar» con un tiempo («hoy», «esos días», «esta semana», «el sábado»…) o
+  `rechazaLosDiasPropuestos` es rechazo de días, no `fuera`. `dondeEstaElCliente` marca `soloElTurno` cuando el `fuera`
+  sale de «lejos / no puedo ir» sin ciudad, y `registrarDondeEstaElCliente` no lo guarda. `sinSeguimiento` usa
+  `diceQueEstaMuyLejos` (con «muy / demasiado / bastante / tan», como antes). `storeSelection`: el local que «le queda
+  lejos» no es el elegido («Quito Sur me queda lejos, mejor Cumbayá» → Cumbayá; «Cumbayá me queda lejos» → ninguno).
+  (B2) una vuelta («llego», «regreso», «estoy por allá»…) con un plazo («la próxima semana», «en 15 días», «el lunes»)
+  es `viene` aunque nombre dónde está ahora. (B3) `compromisoDeCierre.ts` y las dos pruebas de 13909 vuelven a su forma
+  original (la lámina sola SÍ es compromiso); 39769 sale por `COTIZACION_AJENA` y 39887 por la exención de la oferta.
+- **Qué (menores):** (m4) si lo podado de 5d no termina en pregunta, se conserva y la pregunta va como bloque al final
+  («¿Le muestro las A/T que tengo en 225/70R16?»); el respaldo entero solo si no quedó nada. (m5) «hay de ese tipo»
+  cuenta stock para el juego. (m6) el seguimiento guarda la oferta con la declarada (`ctxSalida.ofertaDelTurno`). (m7) el
+  aviso reescrito como «medida diferente» o «cada tarjeta lleva su medida» se reemplaza, no se duplica. (m8) en un bloque
+  del medio sin «¿» se corta la oración de la pregunta repetida, no el bloque.
+- **Probado:** pruebas nuevas en rojo antes de cada arreglo (B1 14, B2 2, store 2, «esos días» e integración de la
+  ficha, m4, m5, m7 2, m8 1); suite completa y simulador en el cuadro del sprint. m6 sin prueba propia (cambia un
+  argumento; lo cubren tsc y las pruebas de seguimiento).
+- **Falta / ojo (m9):** «estoy en bolivar y venezuela» (calles del centro de Quito) se lee `fuera` (Bolívar): el
+  lookbehind cubre «simón/av/calle/la/plaza/parque» pero no «en». Riesgo bajo, sin tocar. «Cumbayá me queda lejos» ya no
+  registra Cumbayá, pero tampoco elige Quito Sur por descarte: se vuelve a preguntar.
+
 ## 9-nov-2026 · Sprint 5, vuelta 2 del simulador (auditoría 9-nov)
 
 - **Qué:** tres cosas que el simulador mostró después de 5a/5b: (1) 39887: el turno cerró con «¿Le cotizo la Kenda

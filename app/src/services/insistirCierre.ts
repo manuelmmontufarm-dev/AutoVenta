@@ -71,6 +71,14 @@ function quitarPreguntaFinal(texto: string, esLaPregunta: (bloque: string) => bo
       const recortado = bloque.slice(0, abre).trim();
       return composeBlocks(...bloques.slice(0, i), recortado, ...bloques.slice(i + 1));
     }
+    // Un bloque del MEDIO sin «¿» que además trae otra información (el
+    // descuento, el aviso al asesor): se corta la oración, no el bloque
+    // (revisión ronda 1 del sprint 5, m8). El último bloque sigue como antes.
+    if (abre < 0 && i < bloques.length - 1) {
+      const oraciones = bloque.match(/[^.!?]+[.!?]+(?:\s*\p{Extended_Pictographic})*|[^.!?]+$/gu) ?? [bloque];
+      const quedan = oraciones.filter((o) => !esLaPregunta(o)).join("").trim();
+      if (quedan) return composeBlocks(...bloques.slice(0, i), quedan, ...bloques.slice(i + 1));
+    }
     if (bloques.length > 1) return composeBlocks(...bloques.slice(0, i), ...bloques.slice(i + 1));
     return texto;
   }

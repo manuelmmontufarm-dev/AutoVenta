@@ -150,9 +150,32 @@ describe.sequential("5d · la corrección de tipo negado llega con su alternativ
     const conPrecioInventado = CORREGIDO_40017.replace(/\$124\.76/g, "$99.99").replace(/\n---\n¿Le cotizo[^\n]*$/, "");
     const salida = await paso.aplicar(conPrecioInventado, ctx(id, BORRADOR_40017) as never);
     expect(salida).not.toContain("$99.99");
-    expect(salida).toContain("225/70R16");
     expect(salida).toMatch(/H\/T/);
-    expect(salida!.trim()).toMatch(/¿Le muestro las A\/T que tengo\?$/);
+    // Revisión ronda 1 (m4): lo podado se conserva y la pregunta va como bloque al final.
+    expect(salida).toContain("La *Falken ZIEX CT60 A/S* que ya le coticé es *H/T*");
+    expect(salida!.trim()).toMatch(/\n\s*---\s*\n¿Le muestro las A\/T que tengo en 225\/70R16\?$/);
+  });
+
+  it("revisión ronda 1 (m4): con stock_prometido, «Sí, incluye balanceo. Le confirmo con el asesor…» no se pierde", async () => {
+    catalogo = [FALKEN_HT, WINRUN_AT];
+    const id = await conversacion("593980053006");
+    const corregido = "Sí, incluye balanceo. Le confirmo con el asesor y le aviso 🤝\n\nLa *KENDA KR29* a *$210.50* sí tiene stock.";
+    const KR29_MT = llanta("3816B706", "KENDA", "KR29", "225/70R16", 30, 210.5);
+    catalogo = [FALKEN_HT, WINRUN_AT, KR29_MT];
+    const salida = await paso.aplicar(corregido, ctx(id, "Sí, incluye balanceo. Hay stock de la Falken.", [{
+      categoria: "stock_prometido", severidad: "alta", detalle: "la Falken no tiene stock para 4",
+    }]) as never);
+    expect(salida).toContain("Sí, incluye balanceo. Le confirmo con el asesor");
+    expect(salida).not.toContain("KR29");
+    expect(salida!.trim()).toMatch(/\?$/);
+  });
+
+  it("revisión ronda 1 (m5): sin A/T para el JUEGO (solo 2), no pregunta «¿Le muestro las A/T…?»", async () => {
+    catalogo = [FALKEN_HT, { ...WINRUN_AT, stock: 2, availability: "check" }];
+    const id = await conversacion("593980053007");
+    const salida = await paso.aplicar(CORREGIDO_40017, ctx(id, BORRADOR_40017) as never);
+    expect(salida).not.toMatch(/¿Le muestro las A\/T/);
+    expect(salida).toMatch(/no tengo A\/T para el juego de 4/);
   });
 
   it("sin stock para el juego, la alternativa no cuenta como conocida (se poda y sale el respaldo)", async () => {

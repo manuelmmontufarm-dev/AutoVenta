@@ -16,22 +16,12 @@ import { hayCompromisoDeCierre } from "../src/domain/compromisoDeCierre.js";
 import { dondeEstaElCliente } from "../src/domain/fueraDeCobertura.js";
 import { elegirFaseOperativa } from "../src/agent/faseOperativa.js";
 
-describe("C3 · una lámina suelta no es compromiso de cierre", () => {
-  it("39769/39887: solo hubo pieza de opciones (sin cotización, producto ni cantidad) → no hay cierre", () => {
+describe("13909 se queda como estaba (revisión ronda 1)", () => {
+  it("la lámina sola SIGUE siendo compromiso: una venta de palabra (lámina, local, «Gracias») recibe la pregunta del día", () => {
+    // 39769 sale por COTIZACION_AJENA (la fase deja de ser de cierre) y 39887
+    // por la exención de la oferta del turno: ninguno necesitaba tocar esto.
     expect(hayCompromisoDeCierre({
-      hayCotizacionFormal: false,
-      hayPiezaDeOpciones: true,
-      productoElegido: false,
-      cantidadElegida: false,
-    })).toBe(false);
-  });
-
-  it("sano: con producto o cantidad elegidos sí hay compromiso (conv 13909: «Premium» elegido)", () => {
-    expect(hayCompromisoDeCierre({
-      hayCotizacionFormal: false, hayPiezaDeOpciones: true, productoElegido: true, cantidadElegida: false,
-    })).toBe(true);
-    expect(hayCompromisoDeCierre({
-      hayCotizacionFormal: false, hayPiezaDeOpciones: true, productoElegido: false, cantidadElegida: true,
+      hayCotizacionFormal: false, hayPiezaDeOpciones: true, productoElegido: false, cantidadElegida: false,
     })).toBe(true);
   });
 });
@@ -53,9 +43,8 @@ describe("C1 · «está muy lejos» dice que no viene aunque no nombre ciudad", 
     expect(donde?.ciudad).toBe("Bolívar");
   });
 
-  it("39845: «Estoy por el oriente» → fuera", () => {
-    expect(dondeEstaElCliente("Estoy por el oriente llego en 15 días asta entonces seguiré cotizando")?.estado)
-      .toBe("fuera");
+  it("«Estoy en el oriente» (sin anunciar vuelta) → fuera", () => {
+    expect(dondeEstaElCliente("Estoy en el oriente")?.estado).toBe("fuera");
   });
 
   it("la avenida Simón Bolívar de Quito NO es la provincia", () => {
@@ -111,5 +100,60 @@ describe("C3 · la cotización de OTRO no es pedir cotización", () => {
   it("sano: «me hace la cotización de la 2» y «cotízame» siguen siendo pedir cotizar", () => {
     expect(fase("me hace la cotización de la 2 por favor")).toBe("cotizacion_enviada");
     expect(fase("cotízame esas")).toBe("cotizacion_enviada");
+  });
+});
+
+describe("revisión ronda 1 · B1: «lejos» y «no puedo» que NO son estar fuera", () => {
+  it.each([
+    "no me queda lejos",
+    "no nos queda lejos, mañana pasamos",
+    "Cumbayá me queda lejos",
+    "Cumbaya es lejos para mi",
+    "Quito Sur me queda lejos, mejor Cumbayá",
+    "No puedo pasar esos días",
+    "no puedo ir el fin de semana",
+    "esa semana no puedo ir",
+    "Esta semana es complicado pasar",
+    "no puedo pasar hoy",
+  ])("«%s» → no es fuera", (texto) => {
+    expect(dondeEstaElCliente(texto)?.estado).not.toBe("fuera");
+  });
+
+  it("siguen fuera: 38924 y «muy difícil ir a Quito»", () => {
+    expect(dondeEstaElCliente("Está muy lejos le agradezco")?.estado).toBe("fuera");
+    expect(dondeEstaElCliente("Muy dificel ir a Quito")?.estado).toBe("fuera");
+  });
+
+  it("«lejos» / «no puedo ir» sin ciudad vale para el turno: no se guarda en la ficha", () => {
+    expect(dondeEstaElCliente("Está muy lejos le agradezco")).toMatchObject({ estado: "fuera", soloElTurno: true });
+    expect(dondeEstaElCliente("Estoy en Ibarra")?.soloElTurno).toBeFalsy();
+  });
+});
+
+describe("revisión ronda 1 · B2: el que avisa que vuelve VIENE", () => {
+  it("39329: «La próxima semana estoy por allá, este rato estoy trabajando en el oriente» → viene", () => {
+    expect(dondeEstaElCliente("La próxima semana estoy por allá, este rato estoy trabajando en el oriente")?.estado).toBe("viene");
+  });
+
+  it("39845: «Estoy por el oriente llego en 15 días…» → viene (lo suyo era el dedupe del día, C5)", () => {
+    expect(dondeEstaElCliente("Estoy por el oriente llego en 15 días asta entonces seguiré cotizando")?.estado).toBe("viene");
+  });
+});
+
+describe("revisión ronda 1 · el local que «le queda lejos» no es el elegido", () => {
+  it("«Quito Sur me queda lejos, mejor Cumbayá» → Cumbayá", async () => {
+    const { extractExplicitStore } = await import("../src/domain/storeSelection.js");
+    expect(extractExplicitStore("Quito Sur me queda lejos, mejor Cumbayá", { respondiendoAlLocal: true })).toBe("Depot Tire Cumbayá");
+  });
+
+  it("«Cumbayá me queda lejos» no registra Cumbayá", async () => {
+    const { extractExplicitStore } = await import("../src/domain/storeSelection.js");
+    expect(extractExplicitStore("Cumbayá me queda lejos", { respondiendoAlLocal: true })).toBeNull();
+  });
+
+  it("SANO: «Cumbayá no me queda lejos» y «Cumbayá» siguen eligiendo Cumbayá", async () => {
+    const { extractExplicitStore } = await import("../src/domain/storeSelection.js");
+    expect(extractExplicitStore("Cumbayá no me queda lejos", { respondiendoAlLocal: true })).toBe("Depot Tire Cumbayá");
+    expect(extractExplicitStore("Cumbayá", { respondiendoAlLocal: true })).toBe("Depot Tire Cumbayá");
   });
 });

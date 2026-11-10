@@ -415,7 +415,10 @@ export async function processFollowUpJob(
     // La plantilla fuera de ventana no ofrece nada que el bot sepa leer.
     const metadatoDeOferta = isPostWindow
       ? { oferta: null }
-      : await metadataDeOferta(context.id, context.current_cycle, content);
+      // Con la oferta que la cadena declaró (la alternativa del catálogo que
+      // nombró el Guardián, sprint 5d), como en index.ts y resumeBot.ts: sin ella
+      // la Winrun que no está en la lámina quedaba sin código y un «sí» no la cotizaba.
+      : await metadataDeOferta(context.id, context.current_cycle, content, ctxSalida.ofertaDelTurno);
     await appendMessage(context.id, "assistant", content, providerId, {
       authorKind: "bot",
       status: "sent",

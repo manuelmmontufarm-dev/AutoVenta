@@ -43,8 +43,10 @@ export interface AlternativaDelCatalogo {
   hecho: string;
   /** Las permitidas como lámina, para leer la oferta del texto que sale. */
   lamina: OpcionDeLamina[];
-  /** El texto fijo cuando la corrección podada no deja pregunta. */
+  /** El texto fijo cuando la poda no dejó nada: el hecho de lo que tenía y la pregunta. */
   respaldo: string;
+  /** Solo la pregunta: va como bloque al final de lo podado que no terminaba en pregunta. */
+  pregunta: string;
 }
 
 const tipoDe = (p: { code: string; design: string }) => tipoDeProducto(p.code, p.design);
@@ -91,14 +93,17 @@ export async function alternativaDelCatalogo(
   // El respaldo: el hecho de lo que tenía y la pregunta que mueve la venta.
   const tipoPedido = tiposPedidos[0] ?? null;
   const tipoDeLaElegida = elegida ? tipoDe(elegida) : null;
-  const hayDelTipo = searchBySize(tamano).some((p) => mismaMedida(p.sizeLabel, medida) && delTipo(p) && (p.stock ?? 0) > 0);
+  // Con stock para el JUEGO, como `permitidas` (revisión ronda 1, m5).
+  const hayDelTipo = searchBySize(tamano).some((p) => mismaMedida(p.sizeLabel, medida) && delTipo(p) && (p.stock ?? 0) >= juego);
   const hechoDeLaElegida = elegida && tipoDeLaElegida && tipoPedido && !tiposPedidos.includes(tipoDeLaElegida)
     ? `En ${medida} la *${elegida.brand} ${elegida.design}* es *${tipoDeLaElegida}*.`
     : null;
   const pregunta = tipoPedido
-    ? hayDelTipo ? `¿Le muestro las ${tipoPedido} que tengo?` : `En ${medida} hoy no tengo ${tipoPedido} con stock. ¿Le muestro otras opciones en esa medida?`
+    ? hayDelTipo
+      ? `¿Le muestro las ${tipoPedido} que tengo en ${medida}?`
+      : `En ${medida} hoy no tengo ${tipoPedido} para el juego de ${juego}. ¿Le muestro otras opciones en esa medida?`
     : `¿Le muestro las opciones que tengo en ${medida}?`;
   const respaldo = [hechoDeLaElegida, pregunta].filter(Boolean).join(" ");
 
-  return { medida, tiposPedidos, permitidas, hecho, lamina, respaldo };
+  return { medida, tiposPedidos, permitidas, hecho, lamina, respaldo, pregunta };
 }

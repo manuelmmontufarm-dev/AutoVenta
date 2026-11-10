@@ -1589,18 +1589,22 @@ async function cerrarConLaAlternativa(
   const bloques = texto.split(/\n\s*-{3,}\s*\n/).map((b) => b.trim()).filter(Boolean);
   const ultimo = bloques[bloques.length - 1] ?? "";
   if (podada && !/\?\s*\S{0,3}\s*$/u.test(ultimo)) {
-    console.warn(`🧭 Conv ${ctx.conversation.id}: la corrección quedó sin pregunta; sale el respaldo «${alternativa.respaldo}».`);
+    // Lo podado que quedó se manda, con la pregunta como bloque al final; el
+    // respaldo entero solo si no quedó nada (revisión ronda 1, m4: «Sí, incluye
+    // balanceo. Le confirmo con el asesor…» se perdía entero).
+    const salida = texto.trim() ? composeBlocks(texto, alternativa.pregunta) : alternativa.respaldo;
+    console.warn(`🧭 Conv ${ctx.conversation.id}: la corrección quedó sin pregunta; se agregó «${alternativa.pregunta}».`);
     await createBotAlert({
       conversationId: ctx.conversation.id,
       cycle: ctx.conversation.current_cycle,
       type: "guardian_correccion_con_respaldo",
       priority: "medium",
       summary: "La corrección del Guardián quedó sin alternativa ni pregunta; salió el respaldo fijo",
-      exactReason: `Quedaba: «${texto.slice(0, 200)}». Salió: «${alternativa.respaldo}».`,
+      exactReason: `Quedaba: «${texto.slice(0, 200)}». Salió: «${salida.slice(0, 300)}».`,
       suggestedAction: "El cliente recibió el tipo de lo que tenía y la pregunta. Revisa si conviene ofrecerle algo a mano.",
       dedupeKey: `guardian_respaldo:${ctx.conversation.id}:${ctx.conversation.current_cycle}:${Date.now()}`,
     }).catch(() => undefined);
-    return alternativa.respaldo;
+    return salida;
   }
   const oferta = ofertaEnElTexto(ultimo, alternativa.lamina);
   if (oferta?.clase === "una" && oferta.codigo && alternativa.permitidas.some((p) => p.code === oferta.codigo)) {

@@ -194,6 +194,20 @@ const VIENE_A_QUITO = new RegExp(
   + `|\\ben\\s+${C}\\s+por\\s+estos\\s+dias\\b`,
 );
 
+/**
+ * AVISA QUE VUELVE (revisión ronda 1 del sprint 5): «La próxima semana estoy
+ * por allá, este rato estoy trabajando en el oriente» (39329, con cotización y
+ * local elegido) y «Estoy por el oriente llego en 15 días» (39845) no son
+ * clientes que no pueden venir: anuncian cuándo vuelven. Una vuelta («llego»,
+ * «regreso», «estoy por allá»…) con un plazo («la próxima semana», «en 15
+ * días», «el lunes») es `viene` aunque el mensaje nombre dónde está ahora.
+ */
+const REGRESO =
+  /\b(?:llego|llegare|llegamos|llegaremos|regreso|regresare|regresamos|vuelvo|volvere|volvemos|retorno|bajo|subo|vengo|estoy\s+por\s+(?:alla|aca)|estare\s+por\s+(?:alla|aca)|estamos\s+por\s+(?:alla|aca))\b/;
+const PLAZO =
+  /\b(?:la\s+(?:proxima|otra|siguiente)\s+semana|el\s+(?:proximo|otro|siguiente)\s+mes|en\s+(?:\d+|un|una|unos|unas|dos|tres|cuatro|cinco|ocho|quince|par\s+de)\s+(?:dias|semanas?|mes(?:es)?)|este\s+fin\s+de\s+semana|el\s+fin\s+de\s+semana|el\s+(?:lunes|martes|miercoles|jueves|viernes|sabado|domingo)|manana|pasado\s+manana|pronto|dentro\s+de)\b/;
+const anunciaQueVuelve = (n: string): boolean => REGRESO.test(n) && PLAZO.test(n);
+
 /** Niega estar o ir a Quito: «no vivo en Quito», «no viajo a Quito». */
 const NIEGA_QUITO = new RegExp(`\\bno\\s+(?:viv|estoy|soy|viaj|voy|subo|paso|puedo\\s+ir)\\w*\\b[^.?!]{0,25}\\b${C}\\b`);
 
@@ -202,6 +216,12 @@ export interface DondeEsta {
   estado: "cobertura" | "viene" | "fuera";
   /** La ciudad, escrita como se le muestra al cliente. Null en cobertura. */
   ciudad: string | null;
+  /**
+   * El estado vale para ESTE turno y no se guarda en la ficha: «está muy lejos»
+   * o «no puedo ir» sin ciudad (revisión ronda 1 del sprint 5). Guardarlo 60
+   * días callaba local, día y recordatorios en los ciclos siguientes.
+   */
+  soloElTurno?: true;
 }
 
 /**
@@ -227,10 +247,11 @@ export function dondeEstaElCliente(texto: string | null | undefined): DondeEsta 
   // es anunciar que viene. Salvo que el mismo mensaje siga vendiendo («está
   // lejos de mi casa pero voy el sábado», «queda lejos, ¿tienen otro local?»).
   if ((diceQueEstaLejos(n) || diceQueNoPuedeIr(n)) && !mantieneLaVenta(texto ?? "")) {
-    return { estado: "fuera", ciudad: FUERA.find(([, re]) => re.test(n))?.[0] ?? null };
+    const ciudad = FUERA.find(([, re]) => re.test(n))?.[0] ?? null;
+    return ciudad ? { estado: "fuera", ciudad } : { estado: "fuera", ciudad: null, soloElTurno: true };
   }
   if (DE_PROVINCIA.test(n) && !FUERA.some(([, re]) => re.test(n))) {
-    return { estado: VIENE_A_QUITO.test(n) ? "viene" : "fuera", ciudad: null };
+    return { estado: VIENE_A_QUITO.test(n) || anunciaQueVuelve(n) ? "viene" : "fuera", ciudad: null };
   }
 
   const fuera = FUERA.find(([, re]) => re.test(n));
@@ -240,7 +261,7 @@ export function dondeEstaElCliente(texto: string | null | undefined): DondeEsta 
     const esCorto = n.trim().split(/\s+/).length <= 6;
     if (!DICE_DONDE_ESTA.test(n) && !esCorto) return null;
     // Está fuera PERO anuncia que sube: el local vuelve a tener sentido.
-    if (VIENE_A_QUITO.test(n)) return { estado: "viene", ciudad: fuera[0] };
+    if (VIENE_A_QUITO.test(n) || anunciaQueVuelve(n)) return { estado: "viene", ciudad: fuera[0] };
     return { estado: "fuera", ciudad: fuera[0] };
   }
 

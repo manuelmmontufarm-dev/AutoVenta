@@ -27,13 +27,11 @@ describe("hayCompromisoDeCierre", () => {
     })).toBe(true);
   });
 
-  it("sin PDF pero con pieza de opciones y «Premium» elegido (conv 13909)", () => {
-    // El 13909 real tenía el producto elegido. Desde la auditoría del 9-nov
-    // (39769, 39887) la lámina SOLA no es compromiso: eso lo fija s5aVisitaFueraDeLugar.
+  it("sin PDF pero con pieza de opciones (conv 13909)", () => {
     expect(hayCompromisoDeCierre({
       hayCotizacionFormal: false,
       hayPiezaDeOpciones: true,
-      productoElegido: true,
+      productoElegido: false,
       cantidadElegida: false,
     })).toBe(true);
   });

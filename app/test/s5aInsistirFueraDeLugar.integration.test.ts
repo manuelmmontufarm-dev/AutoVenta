@@ -225,4 +225,55 @@ describe.sequential("5a · el local no se le pregunta a quien no corresponde", (
     const texto = "Perfecto, *Depot Tire Quito Sur*. ¿Qué día cree que puede pasar? 📅\n---\n¿Quiere que le ayude con otra medida? 🤝";
     expect(await sinPreguntaPendienteConsecutiva(fila.id, 1, texto, "Quito Sur")).toBe(texto);
   });
+  it("SANO (revisión ronda 1): «No puedo pasar esos días» es rechazo de días → se repregunta el día, la ficha no queda fuera", async () => {
+    const [fila] = await sql<Fila[]>`
+      insert into conversations (phone, name, status, stage, current_cycle, tire_size, nearest_store)
+      values ('593980050010', 'Cliente', 'open', 'cotizacion_enviada', 1, '225/70R16', 'Depot Tire Quito Sur')
+      returning id
+    `;
+    await sql`
+      insert into quotes (conversation_id, cycle, items, subtotal, tax, total, quote_number, sale_number)
+      values (${fila.id}, 1, ${sql.json([{
+        code: "329015", brand: "FALKEN", design: "ZIEX CT60 A/S", sizeLabel: "225/70R16",
+        quantity: 4, salePriceWithTax: 173.2, listPriceWithTax: 231.04,
+      }])}, 562.54, 84.38, 646.92, 'COT-S5A4', 'AV-S5A4')
+    `;
+    const cliente = "No puedo pasar esos días";
+    await entra(fila.id, cliente);
+    await registrarDondeEstaElCliente(fila.id, 1, cliente);
+    const [ficha] = await sql<{ cobertura_estado: string | null }[]>`select cobertura_estado from conversations where id=${fila.id}`;
+    expect(ficha.cobertura_estado).toBeNull();
+    const r = await insistirConLoQueFalta(fila.id, 1, "Entiendo.", cliente, "cotizacion_enviada");
+    expect(r.agregado).toBe("dia");
+  });
+
+  it("38924 (revisión ronda 1): «Está muy lejos» sin ciudad no se guarda en la ficha", async () => {
+    const fila = await conLamina("593980050011", { cantidad: 4, stage: "seguimiento_venta" });
+    await registrarDondeEstaElCliente(fila.id, 1, "Está muy lejos le agradezco");
+    const [ficha] = await sql<{ cobertura_estado: string | null }[]>`select cobertura_estado from conversations where id=${fila.id}`;
+    expect(ficha.cobertura_estado).toBeNull();
+  });
+  it("revisión ronda 1 (m8): el bloque del medio con la pregunta del día SIN «¿» y otra información pierde solo esa oración", async () => {
+    const [fila] = await sql<Fila[]>`
+      insert into conversations (phone, name, status, stage, current_cycle, tire_size, nearest_store)
+      values ('593980050012', 'Cliente', 'open', 'cotizacion_enviada', 1, '225/75R15', 'Depot Tire Quito Sur')
+      returning id
+    `;
+    await sql`
+      insert into messages (conversation_id, cycle, role, direction, content, type, author_kind, metadata, created_at)
+      values (${fila.id}, 1, 'assistant', 'outbound',
+        '¿Qué día le queda bien pasar por *Depot Tire Quito Sur*? Lo anoto y le aviso al asesor. 📅', 'text', 'bot', '{}',
+        now() - interval '30 seconds')
+    `;
+    await entra(fila.id, "Gracias");
+    const texto = [
+      "Con gusto. Qué día cree que puede pasar por *Depot Tire Quito Sur*? Con *Black Friday* tiene 60 % menos en la 2.ª llanta.",
+      "---",
+      "¿Le ayudo con algo más? 🤝",
+    ].join("\n");
+    const salida = await sinPreguntaPendienteConsecutiva(fila.id, 1, texto, "Gracias");
+    expect(salida).not.toMatch(/qué día/i);
+    expect(salida).toContain("Con *Black Friday* tiene 60 % menos");
+    expect(salida).toContain("¿Le ayudo con algo más?");
+  });
 });

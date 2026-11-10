@@ -20,7 +20,7 @@ import { comproEnOtroLugar } from "./cierrePerdido.js";
 import { elClienteDijoQueAvisa, pideQueLeAvisen } from "./clientePosterga.js";
 import type { SinVisita } from "./compraADistancia.js";
 import { esAcuseSimple } from "./ofertaAceptada.js";
-import { diceQueEstaLejos } from "./clienteLejos.js";
+import { diceQueEstaMuyLejos } from "./clienteLejos.js";
 
 export type MotivoSinSeguimiento =
   | "cierre_del_cliente"
@@ -69,8 +69,9 @@ function rechazaSeguir(texto: string): boolean {
   if (NINGUNA_GRACIAS.test(texto)) return !PREGUNTA.test(texto);
   if (mantieneLaVenta(texto)) return false;
   if (NO_ME_ESPERE.test(texto)) return true;
-  // «Está (muy) lejos»: el hecho tiene una sola fuente (clienteLejos.ts), la misma que lee dondeEstaElCliente.
-  if (diceQueEstaLejos(texto)) return true;
+  // «Está MUY lejos» (con intensidad, como antes del sprint 5): una sola fuente,
+  // clienteLejos.ts, que además no cuenta «no me queda lejos» ni «Cumbayá me queda lejos».
+  if (diceQueEstaMuyLejos(texto)) return true;
   if (ENCONTRO_LLANTAS.test(texto) && !ENCONTRO_UN_DATO.test(texto)) return true;
   return false;
 }
