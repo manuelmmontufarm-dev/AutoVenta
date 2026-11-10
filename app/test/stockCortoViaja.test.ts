@@ -218,6 +218,9 @@ describe("el orden de los candados en el turno", () => {
       // El «¿Cuál le cotizo…?» del menú sin elegir, después del Guardián y antes
       // de separar la pregunta (revisión final del sprint 1, 21-oct).
       "menu_sin_elegir_pregunta_cual",
+      // El local que el cliente dijo que le queda lejos no se propone (replay final
+      // del 10-nov, 39845 r3): antes de separar la pregunta, después de todo lo que lo escribe.
+      "sin_el_local_que_le_queda_lejos",
       "pregunta_en_su_propio_mensaje",
       // El calco de hace un momento, LO ÚLTIMO de todo: el 31-ago (conv 3 c20)
       // el guardián reescribió el borrador dejándolo idéntico al bloque de

@@ -1,3 +1,51 @@
+## 10-nov-2026 · Sprint 5, ronda 4 de la revisión: el local lejano solo cambia el mapa y la propuesta de visita
+
+- **Qué:** `sinElLocalLejano` cambiaba el nombre del local en CUALQUIER oración: con «el sur me queda lejos» la
+  dirección y el horario de Quito Sur salían como de Cumbayá; con «Quito me queda lejos» (patrón suelto «quito» = Quito
+  Sur) «*Cumbayá* y *Quito Sur*» salía «*Cumbayá* y *Cumbayá*»; con un solo local en el perfil salía «¿A cuál local le
+  queda mejor ir, ? 📍». Además «Cumbayá» con tilde no se cambiaba (el `\b` cortaba en la «á»).
+- **Cómo:** solo se tocan la línea del mapa de ese local (si no nombra otro) y la oración que PROPONE la visita
+  (`preguntaElDia`, `preguntaElLocal`, «puede pasar por», «le esperamos en»…); nunca una que nombre dos locales, que dé
+  dirección u horario o que hable de «lejos». El local lejano se lee por su nombre (`comoLoNombran` y el nombre del
+  perfil), sin `comoLoNombranAlElegir`. Nombres comparados sin tildes de los dos lados. Sin otro local: no se toca nada y
+  el Guardián no recibe el hecho. Menores: (2) `borradorNiegaElStock` exige el objeto (stock, disponibilidad, catálogo,
+  unidades, la medida, esa llanta / ese modelo, una marca): «No hay problema…», «No tengo ese dato» y la respuesta fija
+  de fuera de cobertura ya no cuentan. (4) La respuesta fija lista los locales como «A, B y C».
+- **Probado:** `s5LocalLejanoR4.test.ts` (13; 9 en rojo antes: dirección, horario, «Nuestros locales…», «Quito / el sur
+  me queda lejos», tilde, sin otro local y las 4 frases del detector). `NEGOCIO=ejemplo` y `mundillantas` con tsx. Suite
+  3886/3888 (las 2 viejas). Simulador: S5-09, S5-13, S5-17, S1-03, «el sur me queda lejos», «Quito me queda lejos» y
+  «Quito Sur me queda lejos, ¿dónde queda Cumbayá y a qué hora abre?» (horario y mapa de Cumbayá sin cambiar).
+- **Límites conocidos, sin arreglar:** (3) el calco conserva «¿Le cotizo la 1…?» cuando no queda otra pregunta sin
+  mirar si el menú sigue abierto (si el cliente ya eligió y el borrador repite el menú, antes se quitaba y ahora queda;
+  convendría condicionarlo a `ctx.ofertaDelTurno` o al hecho guardado). «El sur me queda lejos» sin nombrar el local se
+  lee como «no puede venir» solo en ese turno.
+
+## 10-nov-2026 · Sprint 5, replay final: cuatro corridas que fallaban 1 de 3 (auditoría 9-nov)
+
+- **Qué:** en el replay 3× de la rama integrada (4c9cb7d) fallaban 1 de 3: (S5-09) 40082 «Yo vivo en pedernales»: el
+  Guardián corrigió con día, local y mapas, `sin_visita_si_no_puede_venir` vació el turno y salió el relleno «Le consulto
+  con un asesor…». (S5-13) 39845 «Cumbayá me queda lejos»: salió el mapa de Cumbayá y «¿Qué día cree que puede pasar por
+  *Depot Tire Cumbayá*?». (S5-17) 39971 «Buenas noches»: el Guardián volvió a mandar la lista en negrita y el calco quitó
+  solo la pregunta. (S1-03) 18535 «Llantas 33x12.5 rin 15»: el Guardián corrigió «no pude validar el stock» con la KENDA
+  KR29 de su medida (rótulo `recomendacion_sin_pregunta`) y `guardian_no_vende_solo` la frenó.
+- **Cómo:** (S5-09) `turnoVacio`: si lo vació `sin_visita_si_no_puede_venir` y el cliente está fuera, sale
+  `respuestaFijaFueraDeCobertura` (el texto fijo del perfil y, con cotización, la compra a distancia) en vez del relleno.
+  Va fuera de la cadena porque después de separar la pregunta los pasos solo quitan: un primer intento dentro del paso lo
+  descartaba la protección de `correrPasos` («🚫 … agregó texto») y salía la pregunta. Si la base falla, sale el relleno.
+  (S5-13) `domain/localLejano.ts` (NUEVO) + paso `sin_el_local_que_le_queda_lejos` antes de separar la pregunta: el mapa y
+  la oración que propone el local lejano pasan al otro local (con más de dos, «¿A cuál local le queda mejor…?»); la
+  oración que dice «lejos» no se toca. El Guardián recibe «EL CLIENTE DIJO QUE LE QUEDA LEJOS: *Cumbayá*…».
+  `clausulasQueQuedanLejos` es la misma fuente que `sinLoQueQuedaLejos`. (S5-17) `sinBloquesCalcados` compara las líneas
+  de lista («1 · …») sin asteriscos ni paréntesis contra lo que ya salió y, si se van todas, también la línea que las
+  anunciaba; y si no queda ninguna pregunta, la del menú se queda (la del local o del día repetidas siguen yéndose,
+  39561). (S1-03) `alternativaDelCatalogo` también corre si el BORRADOR niega o duda del stock («no pude validar», «no
+  tengo», «pasarle con un asesor»), con la misma regla de 5d (misma medida, stock para el juego, precio del helper); la
+  medida de flotación se compara por la etiqueta.
+- **Probado:** `s5ReplayFinal.integration.test.ts` (9; 7 en rojo antes, con los textos exactos de la corrida, S5-09 y
+  S5-17 también por `correrPasos`) y 2 casos nuevos en `s5dCorreccionPodada` (S1-03 y su sano de otra medida); re-fijado
+  `stockCortoViaja` (paso nuevo). Suite 3873/3875 (las 2 viejas). Simulador 3/3 en los cuatro casos.
+- **Falta / ojo:** —
+
 ## 10-nov-2026 · Sprint 5, ronda 2 de la revisión (auditoría 9-nov)
 
 - **Qué (bloqueantes):** (B1) el arreglo de B2 de la ronda 1 leía «Soy de Ibarra, mañana le vuelvo a escribir», «el

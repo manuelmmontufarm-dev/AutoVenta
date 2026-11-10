@@ -29,6 +29,7 @@
  */
 import { dondeEstaElCliente } from "./fueraDeCobertura.js";
 import { motivoDeUbicacion } from "./ubicacionPedida.js";
+import { INVITACION_COMPRA_A_DISTANCIA } from "./compraADistancia.js";
 
 import { negocio, comoPatronConTildes } from "../negocio/index.js";
 
@@ -64,9 +65,27 @@ const SOLO_SALUDO = /^(?:hola|buen(?:os\s+d[ií]as|as\s+tardes|as\s+noches)|salu
  * La respuesta a quien pregunta por la dirección desde otra ciudad. Sale del
  * perfil: los locales, la ciudad y el nombre son de cada cliente.
  */
+/** «A», «A y B», «A, B y C» (revisión ronda 4: con tres locales salía «A y B y C»). */
+function enLista(nombres: readonly string[]): string {
+  return nombres.length <= 1 ? nombres.join("") : `${nombres.slice(0, -1).join(", ")} y ${nombres[nombres.length - 1]}`;
+}
+
 const RESPUESTA_FUERA_DE_COBERTURA =
-  `Nuestros locales están en ${negocio.ciudad}: ${negocio.locales.map((l) => `*${l.nombreCorto}*`).join(" y ")}.`
+  `Nuestros locales están en ${negocio.ciudad}: ${enLista(negocio.locales.map((l) => `*${l.nombreCorto}*`))}.`
   + ` Por ahora no tenemos local fuera de ${negocio.ciudad}.`;
+
+/**
+ * Lo que sale cuando el candado final dejó vacío el turno de un cliente que está
+ * fuera (replay final del 10-nov, 40082: el Guardián corrigió con día, local y
+ * mapas a «Yo vivo en pedernales», el candado lo quitó todo y salió el relleno
+ * «Le consulto con un asesor…»). Es el texto fijo de siempre, del perfil; con
+ * cotización en el ciclo se agrega la compra a distancia.
+ */
+export function respuestaFijaFueraDeCobertura(hayCotizacion: boolean): string {
+  if (!hayCotizacion) return RESPUESTA_FUERA_DE_COBERTURA;
+  const invitacion = INVITACION_COMPRA_A_DISTANCIA.charAt(0).toUpperCase() + INVITACION_COMPRA_A_DISTANCIA.slice(1);
+  return `${RESPUESTA_FUERA_DE_COBERTURA}\n---\n${invitacion}. 🤝`;
+}
 
 /**
  * Ruta temprana para una pregunta geográfica inequívoca en el mismo mensaje.
