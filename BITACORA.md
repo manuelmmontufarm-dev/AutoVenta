@@ -1,3 +1,19 @@
+## 11-nov-2026 · Mundillantas · `/privacy` por negocio y página de alta por coexistencia (rama `feat/mundillantas-embedded-signup`)
+
+- **Qué:** `/privacy` (y `/privacy.html`) se arma con el perfil vivo: `site/privacy.html` quedó como plantilla con
+  `{{NEGOCIO}}`, `{{TEL}}` y `{{TEL_HREF}}`, y `server/privacidad.ts` la llena (la frase combinada si hay dos marcas:
+  «Competimotor y Mundillantas»). Página nueva `site/alta-whatsapp.html?app=<APP_ID>&config=<CONFIG_ID>`: abre el
+  Embedded Signup de Meta con `featureType: whatsapp_business_app_onboarding` (coexistencia) y muestra el WABA ID y
+  el Phone Number ID al terminar. No guarda ni manda nada.
+- **Por qué:** Meta pide una URL de privacidad para publicar la app de Mundillantas (`1446270733685984`, en el
+  portafolio Competimotor) y la del servicio decía «Depot Tire». Además, «Add phone number» del panel de
+  desarrolladores registra por SMS y saca el número de la app del celular: no es coexistencia
+  (`docs/clientes/mundillantas-meta.md`).
+- **Probado:** `privacidadPorNegocio.test.ts` (plantilla sin negocio a mano; Mundillantas sin rastro de Depot; Depot
+  igual que antes), typecheck, `simuladorFidelidad`, `sim:humo`. La página de alta se vio en el navegador; el flujo
+  real de Meta **no está probado**: falta la configuración de Embedded Signup en la app y el celular con 099 124 4698.
+- **Horas:** 1.
+
 ## 11-nov-2026 · Hub · Métricas más corta y con textos claros (rama `design/impeccable-demo`)
 
 - **Qué:** en la pantalla de Métricas, la letra chica de cada bloque queda plegada tras «Cómo se cuenta»; Dinero
