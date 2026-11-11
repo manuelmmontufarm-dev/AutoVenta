@@ -41,7 +41,7 @@ describe("Mundillantas · solo lo confirmado", () => {
   });
 
   it("el bot usa el número de Competimotor que dio Jenny el 8-nov", () => {
-    expect(negocio.telefono).toBe("+593 99 124 4698");
+    expect(negocio.telefono).toBe("+593 98 548 7924");
   });
 
   it("INCLUYE: enllantaje, balanceo y nitrógeno siempre; alineación solo con 4 (Jenny, 8-nov)", () => {

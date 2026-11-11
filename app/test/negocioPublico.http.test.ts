@@ -75,7 +75,7 @@ describe("GET /api/negocio · el contrato exacto de §3.2", () => {
       id: "mundillantas",
       nombre: "Mundillantas",
       ciudad: "Santo Domingo",
-      telefono: "+593 99 124 4698",
+      telefono: "+593 98 548 7924",
       identidades: [
         { id: "mundillantas", nombre: "Mundillantas", locales: ["matriz", "local2"] },
         { id: "competimotor", nombre: "Competimotor", locales: ["competimotor"] },

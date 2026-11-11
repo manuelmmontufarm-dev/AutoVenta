@@ -41,10 +41,12 @@ export const MUNDILLANTAS: PerfilDeNegocio = {
   id: "mundillantas",
   nombre: "Mundillantas",
   ciudad: "Santo Domingo",
-  // Jenny, 8-nov: «El número que usaría sería el de Competimotor que le pasé:
-  // +593 99-124-4698». OJO: el celular de Carlos (Competimotor) que dio el
-  // 6-nov es 0985487924, otro número; vale el que dijo ahora para el bot.
-  telefono: "+593 99 124 4698",
+  // 11-nov-2026: el bot va en «Competimotor Online», +593 98 548 7924. Carlos
+  // (el diseñador) confirmó que los anuncios de Facebook mandan a ese número;
+  // el 099 124 4698 que había dicho Jenny el 8-nov es el del punto de venta.
+  // OJO: 0985487924 era hasta hoy el celular del asesor Carlos André en
+  // Ajustes → Asesores; sus avisos tienen que ir a otro número.
+  telefono: "+593 98 548 7924",
   // Jenny, 8-nov: los tres locales atienden igual, «de lunes a viernes de 8am
   // hasta las 6pm y los sábados de 8am hasta las 4pm». El domingo no lo nombró
   // en ninguna respuesta (ni en el pitch): cerrado.

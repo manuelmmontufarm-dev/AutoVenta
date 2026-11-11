@@ -1,3 +1,15 @@
+## 11-nov-2026 · Mundillantas · el bot va en «Competimotor Online», 098 548 7924 (rama `feat/mundillantas-numero-online`)
+
+- **Qué:** `telefono` del perfil de Mundillantas pasa de `+593 99 124 4698` a `+593 98 548 7924`. Se ve en
+  `/privacy`, en `/api/negocio`, en el aviso al asesor para reabrir la ventana de 24 h y en el filtro que evita que el
+  bot dicte su propio número.
+- **Por qué:** Carlos (Sat Mundillantas) confirmó el 11-nov que los anuncios de Facebook mandan al 098 548 7924
+  («Competimotor Online»). El 099 124 4698 que dio Jenny el 8-nov es el del punto de venta.
+- **Falta (no es código):** en Ajustes → Asesores de Mundillantas, el asesor Carlos André figura con `593985487924`, que
+  ahora es el número del bot. Sus avisos tienen que ir a otro número antes de conectar el WhatsApp.
+- **Probado:** `perfilMundillantas`, `negocioPublico.http`, `privacidadPorNegocio`, `simuladorFidelidad`, typecheck.
+- **Horas:** 0,3.
+
 ## 11-nov-2026 · Mundillantas · `/privacy` por negocio y página de alta por coexistencia (rama `feat/mundillantas-embedded-signup`)
 
 - **Qué:** `/privacy` (y `/privacy.html`) se arma con el perfil vivo: `site/privacy.html` quedó como plantilla con
