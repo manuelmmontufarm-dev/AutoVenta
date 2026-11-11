@@ -1,3 +1,16 @@
+## 11-nov-2026 · Hub · Métricas más corta y con textos claros (rama `design/impeccable-demo`)
+
+- **Qué:** en la pantalla de Métricas, la letra chica de cada bloque queda plegada tras «Cómo se cuenta»; Dinero
+  cotizado, Plantillas de seguimiento e Inventario dicen sus números como cifras en vez de un gráfico de 2–3 barras;
+  «Conversaciones por día» ocupa dos tercios y «Cuándo escriben» va a lo ancho; Plantillas e Inventario dicen «Sin
+  datos todavía» en vez de un esqueleto eterno. Textos reescritos en lenguaje llano (el rango de ventas, «Ventas
+  esperadas en 14 días», «Horario que más compra», estados de seguimiento, «sin anuncios» en el gráfico).
+- **Por qué:** Manuel no entendía frases como «el ritmo real es compatible con entre 2,2 y 13,1 ventas en un período
+  igual (95 %)»; la pantalla medía 4,6 pantallas de scroll con ~1.130 palabras a la vista (ahora 4,1 y ~980 en demo).
+- **Probado:** typecheck; en navegador con datos de demo y con los números reales de noviembre (lectura de solo
+  lectura), escritorio y móvil. Ningún cálculo cambió: solo presentación y textos. Sin push.
+- **Horas:** 1,5.
+
 ## 10-nov-2026 · Cierre de los sprints de la auditoría del 9-nov (rama `fix/auditoria-2026-11-09`)
 
 - **Qué:** las 7 familias de `.auditoria-tmp/2026-11-09/INFORME.md` (precio «c/u» con Black Friday; recordatorios con

@@ -232,7 +232,7 @@ export function BarrasDeParte({
             <text x={x(i)} y={T + ih + 18} textAnchor="middle" fontFamily={MONO} fontSize={11} fill="var(--color-text2)">{d.x}</text>
           )}
           {d.marca === "si" && <line x1={x(i) - slot / 2 + 3} x2={x(i) + slot / 2 - 3} y1={T + ih + 30} y2={T + ih + 30} stroke="var(--color-ok)" strokeWidth={3} />}
-          {d.marca === "no" && <text x={x(i)} y={T + ih + 34} textAnchor="middle" fontFamily={MONO} fontSize={9} fill="var(--color-text3)">sin ads</text>}
+          {d.marca === "no" && <text x={x(i)} y={T + ih + 34} textAnchor="middle" fontFamily={MONO} fontSize={9} fill="var(--color-text3)">sin anuncios</text>}
         </g>
       ))}
       {tip !== null && (

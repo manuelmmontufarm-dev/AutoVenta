@@ -2,7 +2,7 @@ import { useMemo, type ReactNode } from "react";
 import { BillingSection } from "../components/billing";
 import { BarChart, LineChart } from "../components/charts";
 import {
-  Bloque, Cargando, Cifras, CuandoEscribenBloque, CuandoSeFacturaBloque, CuantoTardanBloque, DelChatALaFacturaBloque,
+  Bloque, Cargando, Cifra, Cifras, CuandoEscribenBloque, CuandoSeFacturaBloque, CuantoTardanBloque, DelChatALaFacturaBloque,
   ParteDeLaTiendaBloque, VentasComprobadasBloque, estadoComprobables,
 } from "../components/comprobables";
 import { SelectorDeMes, etiquetaDeMes } from "../components/mes";
@@ -12,7 +12,6 @@ import { money, relTime } from "../lib/format";
 import { navigate } from "../router";
 import { mesEnCurso, useHub, useNow } from "../store";
 
-const usdCorto = (v: number) => (v >= 1000 ? `$${(v / 1000).toFixed(v >= 10_000 ? 0 : 1).replace(".", ",")}k` : `$${Math.round(v)}`);
 const mono = "tnum font-mono";
 const pct = (n: number) => `${Math.round(n)} %`;
 /** Dólares enteros para los KPIs: en una celda de celular «$11.774,00» no entra. */
@@ -87,27 +86,29 @@ export function Dashboard() {
           <p className="text-[12px] text-text2">
             {periodo.todos
               ? "Todo lo que hay en la base, sin recortar por mes."
-              : `Los contadores arrancan de cero el día 1 y vuelven a empezar en ${periodo.proximo}. Los meses anteriores siguen acá al lado.`}
+              : periodo.esElMesEnCurso
+                ? `Estos números son solo de ${periodo.mes}: el 1 de ${periodo.proximo} vuelven a cero. Los meses anteriores se eligen arriba.`
+                : `Estos números son solo de ${periodo.mes}.`}
           </p>
 
           {/* ── Ventas ── */}
-          <Seccion id="ventas" titulo="Ventas" sub="solo lo que Contífico comprueba con una factura" />
+          <Seccion id="ventas" titulo="Ventas" sub="solo ventas que tienen factura en Contífico" />
           <FilaKpis>
             <Kpi
               nombre="Ventas comprobadas"
               valor={guion(comprobado((k) => <>{k.ventas.n}<span className="ml-2 text-[15px] tracking-normal whitespace-nowrap text-text2 md:text-[17px]">{usd(k.ventas.conIva)}</span></>))}
-              nota="facturas de Contífico con el teléfono del chat, con IVA"
+              nota="clientes del chat que ya tienen factura · con IVA"
             />
             <Kpi nombre="Sin IVA" valor={guion(comprobado((k) => usd(k.ventas.sinIva)))} nota="subtotal de esas mismas facturas" />
             <Kpi
-              nombre="Parte de las llantas de la tienda"
+              nombre="De lo que vende la tienda, vino del bot"
               valor={guion(comprobado((k) => (k.participacion.periodo.llantasTienda > 0 ? fmtPct(k.participacion.periodo.pct) : "—")))}
               nota={listo ? `${listo.participacion.periodo.delBot} de ${listo.participacion.periodo.llantasTienda} facturas con llantas` : "de las facturas con llantas"}
             />
             <Kpi
-              nombre="Por llegar en 14 días"
-              valor={guion(comprobado((k) => <>~{k.rezago.porLlegar.esperado.toLocaleString("es-EC", { maximumFractionDigits: 1 })}<span className="ml-2 text-[15px] tracking-normal whitespace-nowrap text-text2 md:text-[17px]">· {k.rezago.porLlegar.bajo} a {k.rezago.porLlegar.alto}</span></>))}
-              nota={listo ? `de ${listo.rezago.porLlegar.chatsVivos.toLocaleString("es-EC")} chats vivos que aún no compraron` : "ventas esperadas de chats abiertos"}
+              nombre="Ventas esperadas en 14 días"
+              valor={guion(comprobado((k) => <>~{Math.round(k.rezago.porLlegar.esperado)}<span className="ml-2 text-[15px] tracking-normal whitespace-nowrap text-text2 md:text-[17px]">entre {k.rezago.porLlegar.bajo} y {k.rezago.porLlegar.alto}</span></>))}
+              nota={listo ? `de los ${listo.rezago.porLlegar.chatsVivos.toLocaleString("es-EC")} chats abiertos que aún no compran` : "de los chats abiertos que aún no compran"}
             />
           </FilaKpis>
 
@@ -122,60 +123,60 @@ export function Dashboard() {
           {/* ── General ── */}
           <Seccion id="general" titulo="General" sub="cuánta gente escribe y cómo la atiende el bot" />
           <FilaKpis>
-            <Kpi nombre="Conversaciones" valor={guion(s?.conversaciones ?? 0)} nota={`chats que se movieron ${enElPeriodo}`} />
+            <Kpi nombre="Conversaciones" valor={guion(s?.conversaciones ?? 0)} nota={`chats con algún mensaje ${enElPeriodo}`} />
             <Kpi nombre="Cotizaciones" valor={guion(s?.cotizaciones ?? 0)} nota={`enviadas ${enElPeriodo}`} />
             <Kpi
               nombre="Con día de visita"
               valor={guion(comprobado((k) => k.embudo.conDiaDeVisita))}
-              nota={listo ? `de ${listo.embudo.chats.toLocaleString("es-EC")} chats creados ${enElPeriodo}` : "chats que acordaron un día"}
+              nota={listo ? `de ${listo.embudo.chats.toLocaleString("es-EC")} chats que empezaron ${enElPeriodo}` : "chats que acordaron un día"}
             />
             <Kpi
               nombre="Respuesta del bot"
               valor={guion(s?.primeraRespuestaSegundos ? `${Math.round(s.primeraRespuestaSegundos)} s` : "—")}
-              nota="mediana hasta la primera respuesta"
+              nota="lo que suele tardar en contestar el primer mensaje"
             />
           </FilaKpis>
 
-          <div className="grid gap-4 lg:grid-cols-2">
-            <Bloque titulo="Conversaciones por día" nota={periodo.todos ? "todo el histórico · eje X: fecha" : `del 1 de ${periodo.mes} a hoy · eje X: fecha`}>
-              {cargando ? <Cargando /> : <LineChart data={porDia} unidad="conversaciones" etiqueta="Conversaciones por día" />}
+          {/* La serie por día pide ancho; lo cotizado son dos cifras y se dicen
+              como cifras (un gráfico de dos barras no informa más que ellas). */}
+          <div className="grid gap-4 lg:grid-cols-3">
+            <Bloque className="lg:col-span-2" titulo="Conversaciones por día" nota={periodo.todos ? "todo el histórico" : periodo.esElMesEnCurso ? `del 1 de ${periodo.mes} a hoy` : periodo.mes}>
+              {cargando ? <Cargando /> : (
+                <>
+                  {/* Dos proporciones: en dos tercios de pantalla el lienzo ancho;
+                      en celular el de siempre, o los rótulos quedan ilegibles. */}
+                  <div className="hidden lg:block"><LineChart ancho={860} alto={220} data={porDia} unidad="conversaciones" etiqueta="Conversaciones por día" /></div>
+                  <div className="lg:hidden"><LineChart data={porDia} unidad="conversaciones" etiqueta="Conversaciones por día" /></div>
+                </>
+              )}
             </Bloque>
-            <CuandoEscribenBloque c={c} estado={estado} />
             {/* Lo cotizado sí es un hecho (cada cotización queda guardada); lo
                 «vendido» del Kanban se marcaba a mano y ahora vive en Ventas. */}
-            <Bloque titulo="Dinero cotizado" nota={periodo.esElMesEnCurso ? "en juego y cotizado este mes" : `cotizado ${enElPeriodo}`}>
-              {cargando ? <Cargando /> : (
-                <BarChart
-                  ancho={420} alto={200} unidad="USD" fmt={usdCorto} etiqueta="Dinero en juego y cotizado"
-                  data={[
-                    ...(periodo.esElMesEnCurso ? [{ x: "En juego", y: s?.enJuego ?? 0 }] : []),
-                    { x: "Cotizado", y: s?.cotizado ?? 0 },
-                  ]}
-                />
+            <Bloque titulo="Dinero cotizado" nota={periodo.esElMesEnCurso ? "este mes" : enElPeriodo}>
+              <Cifra valor={guion(money(s?.cotizado ?? 0))}>suma de las cotizaciones enviadas</Cifra>
+              {periodo.esElMesEnCurso && (
+                <Cifras>
+                  <Campo etiqueta="En juego"><span className={mono}>{guion(money(s?.enJuego ?? 0))}</span> <span className="text-text2">en cotizaciones que siguen abiertas</span></Campo>
+                </Cifras>
               )}
-              <Cifras>
-                {periodo.esElMesEnCurso && <Campo etiqueta="En juego"><span className={mono}>{guion(money(s?.enJuego ?? 0))}</span> <span className="text-text2">cotizaciones abiertas</span></Campo>}
-                <Campo etiqueta="Cotizado"><span className={mono}>{guion(money(s?.cotizado ?? 0))}</span> <span className="text-text2">suma de las cotizaciones enviadas</span></Campo>
-              </Cifras>
             </Bloque>
           </div>
 
+          <CuandoEscribenBloque c={c} estado={estado} />
+
           <div className="grid gap-4 lg:grid-cols-3">
             <Bloque titulo="Plantillas de seguimiento" nota={enElPeriodo}>
-              {cargando || !fu ? <Cargando /> : (
-                <BarChart
-                  ancho={420} alto={200} unidad="mensajes" etiqueta="Seguimientos programados, enviados y respondidos"
-                  data={[{ x: "Programados", y: fu.scheduled }, { x: "Enviados", y: fu.sent }, { x: "Respondidos", y: fu.responded }]}
-                />
+              {cargando ? <Cargando /> : !fu ? <p className="text-[13px] text-text2">Sin datos todavía</p> : (
+                <Cifra valor={`${fu.responded} de ${fu.sent}`}>respondidos · {pct(fu.sent ? (fu.responded / fu.sent) * 100 : 0)} de los enviados</Cifra>
               )}
               <Cifras>
-                <Campo etiqueta="Responden"><span className={mono}>{guion(`${fu?.responded ?? 0} de ${fu?.sent ?? 0} · ${pct(fu?.sent ? (fu.responded / fu.sent) * 100 : 0)}`)}</span></Campo>
+                <Campo etiqueta="Programados"><span className={mono}>{guion(fu?.scheduled ?? 0)}</span></Campo>
                 <Campo etiqueta="Entregadas · leídas"><span className={mono}>{guion(`${fu?.template_delivered ?? 0} · ${fu?.template_read ?? 0}`)}</span></Campo>
-                <Campo etiqueta="Cancelados por respuesta"><span className={mono}>{guion(fu?.cancelled_by_reply ?? 0)}</span></Campo>
-                <Campo etiqueta="Ventanas perdidas"><span className={mono}>{guion(fu?.missed_windows ?? 0)}</span></Campo>
-                <Campo etiqueta="Pidieron no seguir"><span className={mono}>{guion(fu?.opt_outs ?? 0)}</span></Campo>
+                <Campo etiqueta="Cancelados: el cliente respondió antes"><span className={mono}>{guion(fu?.cancelled_by_reply ?? 0)}</span></Campo>
+                <Campo etiqueta="No salieron: se cerró la ventana de 24 h"><span className={mono}>{guion(fu?.missed_windows ?? 0)}</span></Campo>
+                <Campo etiqueta="Pidieron que no les escriban"><span className={mono}>{guion(fu?.opt_outs ?? 0)}</span></Campo>
                 <Campo etiqueta="Clientes molestos"><span className={mono}>{guion(fu?.negative ?? 0)}</span></Campo>
-                <Campo etiqueta="Hasta la respuesta"><span className={mono}>{guion(fu?.avg_response_seconds == null ? "—" : `${Math.round(fu.avg_response_seconds / 60)} min`)}</span></Campo>
+                <Campo etiqueta="Tardan en responder"><span className={mono}>{guion(fu?.avg_response_seconds == null ? "—" : `${Math.round(fu.avg_response_seconds / 60)} min`)}</span></Campo>
               </Cifras>
             </Bloque>
             <Bloque titulo="Estados de entrega" nota="lo que WhatsApp confirmó">
@@ -200,14 +201,12 @@ export function Dashboard() {
             </Bloque>
 
             <Bloque titulo="Inventario real" nota={inv?.lastSync ? `${inv.source ?? "catálogo"} · ${relTime(inv.lastSync, now)}` : "sin sincronizar"}>
-              {cargando || !inv ? <Cargando /> : (
-                <BarChart
-                  ancho={420} alto={200} unidad="modelos" etiqueta="Modelos disponibles, por confirmar y agotados"
-                  data={[{ x: "Disponibles", y: inv.available }, { x: "Por confirmar", y: inv.check }, { x: "Agotados", y: inv.out }]}
-                />
+              {cargando ? <Cargando /> : !inv ? <p className="text-[13px] text-text2">Sin datos todavía</p> : (
+                <Cifra valor={`${inv.available} de ${inv.total}`}>modelos disponibles</Cifra>
               )}
               <Cifras>
-                <Campo etiqueta="Modelos"><span className={mono}>{guion(inv?.total ?? 0)}</span></Campo>
+                <Campo etiqueta="Por confirmar"><span className={mono}>{guion(inv?.check ?? 0)}</span></Campo>
+                <Campo etiqueta="Agotados"><span className={mono}>{guion(inv?.out ?? 0)}</span></Campo>
                 <Campo etiqueta="Marcas"><span className={mono}>{guion(inv?.brands ?? 0)}</span></Campo>
                 <Campo etiqueta="Con imagen"><span className={mono}>{guion(`${inv?.withImage ?? 0} de ${inv?.total ?? 0} · ${pct(inv?.imageCoverage ?? 0)}`)}</span></Campo>
               </Cifras>
@@ -216,7 +215,7 @@ export function Dashboard() {
           </div>
 
           {fu && fu.byStageAndType.length > 0 && (
-            <Bloque titulo="Seguimientos por etapa y tipo" nota="rara vez hace falta: plegado">
+            <Bloque titulo="Seguimientos por etapa y tipo" nota="detalle">
               {/* Plegado: ocupa media pantalla y casi nunca se mira (Manuel, 23-oct). */}
               <details className="group">
                 <summary className="inline-flex cursor-pointer list-none items-center rounded-[6px] border border-line-strong px-3 py-1.5 text-[13px] font-medium select-none hover:bg-bg [&::-webkit-details-marker]:hidden">
