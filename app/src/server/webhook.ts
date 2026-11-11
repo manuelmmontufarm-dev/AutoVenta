@@ -6,6 +6,7 @@
  * `handleEchoWebhook`, que valida la misma firma por su cuenta antes de escribir.
  */
 import express from "express";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { WhatsAppAPIError } from "whatsapp-api-js/errors";
 import { getWa } from "../wa/client.js";
@@ -20,6 +21,8 @@ import {
   toRenderLine,
 } from "../render/quoteImage.js";
 import { createAdminRouter, exigirCredencial } from "./admin.js";
+import { paginaPrivacidad } from "./privacidad.js";
+import { negocio } from "../negocio/index.js";
 import { getBotPower } from "../services/botPower.js";
 import { shouldRunEmbeddedWorker } from "../workers/embeddedFollowUpWorker.js";
 
@@ -285,6 +288,13 @@ export function createServer(): express.Express {
 
   // API del panel en línea (mensajes, configuración de IA, tester).
   app.use("/api", createAdminRouter());
+
+  // La política de privacidad lleva el nombre del negocio de ESTA instancia
+  // (Meta la pide para publicar la app). Va antes del estático: si no, se
+  // serviría la plantilla con los `{{NEGOCIO}}` sin llenar.
+  app.get(["/privacy", "/privacy.html"], (_req, res) => {
+    res.type("html").send(paginaPrivacidad(path.join(siteDir, "privacy.html"), negocio));
+  });
 
   // Hub estático: paletas de estilos, docs y demo. `extensions` replica las
   // cleanUrls de Vercel (/estilos/01-medianoche-depot funciona sin .html).

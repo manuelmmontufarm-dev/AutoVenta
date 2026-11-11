@@ -1,0 +1,178 @@
+<!doctype html>
+<!--
+  ALTA DE WHATSAPP POR COEXISTENCIA (Embedded Signup de Meta).
+
+  Conecta el número que el negocio YA usa en la app de WhatsApp Business del
+  celular a la Cloud API, sin sacarlo de la app (coexistencia). El botón
+  «Add phone number» del panel de desarrolladores NO sirve para eso: registra el
+  número por SMS y lo saca de la app del celular.
+
+  Uso: https://<cliente>.up.railway.app/alta-whatsapp?app=<APP_ID>&config=<CONFIG_ID>
+    - APP_ID: la app del cliente (vive en SU portafolio).
+    - CONFIG_ID: Facebook Login for Business → Configurations → la de
+      «WhatsApp Embedded Signup».
+  La abre Manuel con su Facebook (admin del portafolio del cliente) en una
+  llamada con quien tiene el celular: Meta le pide escanear un QR desde la app
+  de WhatsApp Business.
+
+  Al terminar muestra el WABA ID y el Phone Number ID. No guarda ni manda nada:
+  el token permanente sale del usuario del sistema
+  (docs/CONECTAR_WHATSAPP_CLIENTE.md, paso 7).
+
+  Doc de Meta: developers.facebook.com/documentation/business-messaging/whatsapp/
+  embedded-signup/onboarding-business-app-users
+-->
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Conectar WhatsApp · AutoVenta</title>
+  <style>
+    :root { --tinta: #14213d; --suave: #5c6378; --linea: #d9dce4; --rojo: #c8102e; --verde: #1f7a4d; --fondo: #f6f1e4; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--fondo); color: var(--tinta); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+    main { max-width: 640px; margin: 0 auto; padding: 32px 16px 64px; }
+    .marca { font-weight: 800; letter-spacing: .08em; color: var(--rojo); font-size: 13px; text-transform: uppercase; }
+    h1 { margin: 6px 0 4px; font-size: 28px; line-height: 1.2; }
+    p { margin: 0 0 12px; }
+    .suave { color: var(--suave); }
+    ol { padding-left: 20px; margin: 0 0 20px; }
+    li { margin-bottom: 6px; }
+    .caja { background: #fff; border: 1px solid var(--linea); border-radius: 12px; padding: 18px; margin: 20px 0; }
+    button { font: inherit; font-weight: 700; color: #fff; background: #1877f2; border: 0; border-radius: 8px; padding: 12px 18px; cursor: pointer; width: 100%; }
+    button:disabled { background: #9db8e6; cursor: default; }
+    .aviso { border-left: 4px solid var(--rojo); padding-left: 12px; }
+    .ok { border-left: 4px solid var(--verde); padding-left: 12px; }
+    dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 12px 0 0; }
+    dt { color: var(--suave); }
+    dd { margin: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-all; }
+    #registro { white-space: pre-wrap; font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--suave); margin: 0; }
+  </style>
+</head>
+<body>
+<main>
+  <div class="marca">AutoVenta</div>
+  <h1>Conectar el WhatsApp del negocio</h1>
+  <p class="suave">Conecta el número que ya usan en la app de WhatsApp Business, sin sacarlo del celular.</p>
+
+  <div class="caja">
+    <ol>
+      <li>Ten en llamada a la persona que tiene el celular con el número.</li>
+      <li>Pulsa el botón y entra con <strong>tu</strong> Facebook (el que administra el portafolio del negocio).</li>
+      <li>Elige el portafolio del negocio y, cuando pregunte, <strong>«Conectar la app de WhatsApp Business»</strong>.</li>
+      <li>En el celular, la app de WhatsApp Business muestra un aviso o pide escanear un código: hay que aceptarlo.</li>
+      <li>Nunca aceptes «migrar» el número ni «eliminarlo de la app».</li>
+    </ol>
+    <p id="faltan" class="aviso" hidden></p>
+    <button id="conectar" type="button" disabled>Cargando…</button>
+  </div>
+
+  <div id="resultado" class="caja ok" hidden>
+    <p><strong>Listo.</strong> Copia estos datos en el panel (Ajustes → WhatsApp) y asigna la cuenta al usuario del sistema.</p>
+    <dl id="datos"></dl>
+  </div>
+
+  <div class="caja">
+    <p class="suave"><strong>Registro</strong></p>
+    <pre id="registro">—</pre>
+  </div>
+</main>
+
+<script>
+  (function () {
+    var params = new URLSearchParams(location.search);
+    var appId = (params.get("app") || "").trim();
+    var configId = (params.get("config") || "").trim();
+    var boton = document.getElementById("conectar");
+    var registro = document.getElementById("registro");
+    var lineas = [];
+
+    function anotar(texto) {
+      lineas.push(new Date().toLocaleTimeString() + "  " + texto);
+      registro.textContent = lineas.join("\n");
+    }
+
+    function mostrarDatos(datos) {
+      var dl = document.getElementById("datos");
+      dl.innerHTML = "";
+      Object.keys(datos).forEach(function (clave) {
+        if (!datos[clave]) return;
+        var dt = document.createElement("dt");
+        dt.textContent = clave;
+        var dd = document.createElement("dd");
+        dd.textContent = String(datos[clave]);
+        dl.appendChild(dt);
+        dl.appendChild(dd);
+      });
+      document.getElementById("resultado").hidden = false;
+    }
+
+    var faltan = [];
+    if (!/^\d+$/.test(appId)) faltan.push("app");
+    if (!/^\d+$/.test(configId)) faltan.push("config");
+    if (faltan.length) {
+      var aviso = document.getElementById("faltan");
+      aviso.hidden = false;
+      aviso.textContent = "Falta en el enlace: " + faltan.join(" y ") +
+        ". Ejemplo: /alta-whatsapp?app=<APP_ID>&config=<CONFIG_ID>";
+      boton.textContent = "Faltan datos en el enlace";
+      return;
+    }
+
+    // Lo que Meta cuenta del flujo llega por postMessage (sessionInfoVersion 3):
+    // el WABA ID, el Phone Number ID y en qué paso se quedó si se cancela.
+    window.addEventListener("message", function (evento) {
+      if (!/^https:\/\/([a-z0-9-]+\.)*facebook\.com$/.test(evento.origin)) return;
+      var datos;
+      try { datos = JSON.parse(evento.data); } catch (e) { return; }
+      if (!datos || datos.type !== "WA_EMBEDDED_SIGNUP") return;
+      var info = datos.data || {};
+      anotar("Meta: " + datos.event + " " + JSON.stringify(info));
+      if (/^FINISH/.test(datos.event)) {
+        mostrarDatos({
+          "Evento": datos.event,
+          "WABA ID": info.waba_id,
+          "Phone Number ID": info.phone_number_id,
+          "Business ID": info.business_id,
+        });
+      } else if (datos.event === "CANCEL") {
+        anotar("Se canceló en el paso: " + (info.current_step || "desconocido"));
+      } else if (datos.event === "ERROR") {
+        anotar("Error de Meta: " + (info.error_message || JSON.stringify(info)));
+      }
+    });
+
+    window.fbAsyncInit = function () {
+      FB.init({ appId: appId, autoLogAppEvents: true, xfbml: false, version: "v23.0" });
+      boton.disabled = false;
+      boton.textContent = "Conectar con Facebook";
+      anotar("SDK listo · app " + appId + " · configuración " + configId);
+    };
+
+    boton.addEventListener("click", function () {
+      anotar("Abriendo el alta de Meta…");
+      FB.login(function (respuesta) {
+        // El `code` solo serviría para canjearlo por un token de usuario; el
+        // bot usa el token del usuario del sistema, así que no se muestra.
+        if (respuesta && respuesta.authResponse && respuesta.authResponse.code) {
+          anotar("Meta devolvió el permiso (code recibido, no se usa).");
+        } else {
+          anotar("La ventana se cerró sin terminar: " + JSON.stringify(respuesta && respuesta.status));
+        }
+      }, {
+        config_id: configId,
+        response_type: "code",
+        override_default_response_type: true,
+        extras: {
+          setup: {},
+          featureType: "whatsapp_business_app_onboarding",
+          sessionInfoVersion: "3",
+        },
+      });
+    });
+  })();
+</script>
+<script async defer crossorigin="anonymous" src="https://connect.facebook.net/es_LA/sdk.js"></script>
+</body>
+</html>
