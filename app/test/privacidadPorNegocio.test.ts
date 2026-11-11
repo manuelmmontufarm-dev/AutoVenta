@@ -26,7 +26,7 @@ describe("política de privacidad por negocio", () => {
     const html = renderPrivacidad(plantilla, MUNDILLANTAS);
     expect(nombreDelResponsable(MUNDILLANTAS)).toBe("Competimotor y Mundillantas");
     expect(html).toContain("<title>Política de privacidad · AutoVenta / Competimotor y Mundillantas</title>");
-    expect(html).toContain('href="tel:+593991244698">+593 99 124 4698</a>');
+    expect(html).toContain('href="tel:+593985487924">+593 98 548 7924</a>');
     expect(html).not.toMatch(/Depot|280 1766|\{\{/);
   });
 

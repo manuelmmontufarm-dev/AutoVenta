@@ -26,7 +26,7 @@ function escaparHtml(texto: string): string {
     .replace(/"/g, "&quot;");
 }
 
-/** «+593 99 124 4698» → «+593991244698», para el `tel:`. */
+/** «+593 98 548 7924» → «+593985487924», para el `tel:`. */
 function telefonoParaEnlace(telefono: string): string {
   return telefono.replace(/[^\d+]/g, "");
 }
