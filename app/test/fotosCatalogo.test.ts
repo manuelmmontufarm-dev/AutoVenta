@@ -96,4 +96,26 @@ describe("Fotos del catálogo", () => {
 
     expect(sniffImageMime(Buffer.from("no soy una imagen"))).toBeNull();
   });
+
+  // 17-nov: la llanta sin foto de su modelo lleva una de reserva, marcada.
+  it("la foto de reserva existe, se decodifica y va marcada como referencial", () => {
+    const casos: Array<[string, string, string]> = [
+      ["ILINK", "LLANTA 265/70R16 ILINK TERRAMAX AT", "ilink-terramax-lsr1-at.jpg"],
+      ["VIKRANT", "LLANTA 750/16 VIKRANT TRACCION MEX", "vikrant-star-lug.jpg"],
+      ["VIKRANT", "LLANTA 700/15 VIKRANT MEX LISA", "vikrant-track-king.jpg"],
+      ["HAULMAX", "LLANTA 750R16 HAULMAX H-LUG TRACCION", "kapsen-hs268.png"],
+      ["BCT", "LLANTA 265/70R17 BCT A/T", "kapsen-practicalmax-at02.png"],
+      ["KENDA", "KENDA 700R15 KR12 12PR", "vikrant-track-king.jpg"],
+      ["DURUN", "DURUN 205/45R17 RU05", "naaats-fc19.jpg"],
+      ["MARCA NUEVA", "CUALQUIER COSA", "naaats-fc19.jpg"],
+    ];
+    for (const [marca, nombre, archivo] of casos) {
+      const foto = catalogMedia.fotoDeReserva(marca, nombre);
+      expect(foto.publicUrl).toBe(`/assets/catalog/${archivo}`);
+      expect(foto.sourceLabel).toBe(catalogMedia.ETIQUETA_FOTO_REFERENCIAL);
+      const bytes = readFileSync(path.join(SITE, foto.publicUrl.replace(/^\/+/, "")));
+      const mime = sniffImageMime(bytes);
+      expect(mime).toBe(archivo.endsWith(".png") ? "image/png" : "image/jpeg");
+    }
+  });
 });

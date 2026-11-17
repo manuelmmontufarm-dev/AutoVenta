@@ -349,7 +349,11 @@ export const PiecesConfigSchema = z.object({
 });
 
 export type PiecesConfig = z.infer<typeof PiecesConfigSchema>;
-export const DEFAULT_PIECES_CONFIG: PiecesConfig = PiecesConfigSchema.parse({});
+/** Con qué arranca este negocio antes de tocar Ajustes → Piezas (perfil: `plantillaPorDefecto`). */
+const ARRANQUE_DE_PIEZAS = negocio.piezas.plantillaPorDefecto
+  ? { plantilla: negocio.piezas.plantillaPorDefecto }
+  : {};
+export const DEFAULT_PIECES_CONFIG: PiecesConfig = PiecesConfigSchema.parse(ARRANQUE_DE_PIEZAS);
 
 let piecesCache: { value: PiecesConfig; at: number } | null = null;
 
@@ -359,7 +363,8 @@ export async function getPiecesConfig(): Promise<PiecesConfig> {
     const [row] = await sql<{ value: unknown }[]>`
       select value from settings where key = 'pieces_config'
     `;
-    const parsed = PiecesConfigSchema.safeParse(row?.value ?? {});
+    const guardado = row?.value && typeof row.value === "object" ? row.value : {};
+    const parsed = PiecesConfigSchema.safeParse({ ...ARRANQUE_DE_PIEZAS, ...guardado });
     const value = parsed.success ? parsed.data : DEFAULT_PIECES_CONFIG;
     piecesCache = { value, at: Date.now() };
     return value;

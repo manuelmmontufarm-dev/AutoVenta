@@ -142,6 +142,36 @@ export const MUNDILLANTAS: PerfilDeNegocio = {
     precioSinDescuento: "[PENDIENTE] frase bajo el precio sin descuento",
     notaDePrecios: "Precios por unidad incluyen IVA.",
     notaDePrecioUnitario: "Precio incluye IVA.",
+    // Jenny, 6-nov: «tarjetas de crédito todas hasta 6 meses sin intereses».
+    // 3 y 6 caben dentro de ese «hasta 6»; 12 es con intereses y no va.
+    cuotasSinIntereses: [3, 6],
+    // La oscura con rojo es la de Competimotor (#E42629) y la única que lleva
+    // el logo oficial de cada marca de llanta (17-nov).
+    plantillaPorDefecto: "diaNoche",
+    // Jenny, 6-nov: «garantía normal de fábrica y seguro contra impacto» en
+    // Kenda, Falken, Winrun y Maxxis, sin meses ni años. Se dice eso mismo,
+    // sin plazo; cuando lleguen las cifras a `garantias`, mandan ellas.
+    respaldo: [
+      {
+        icono: "escudoOk",
+        titulo: "SEGURO CONTRA IMPACTO",
+        detalle: "Incluido con su llanta. Las condiciones se las explica su asesor.",
+        marcas: ["Kenda", "Falken", "Winrun", "Maxxis"],
+      },
+      {
+        icono: "medalla",
+        titulo: "Garantía de fábrica",
+        detalle: "Respaldo de la marca contra defectos de fabricación",
+        marcas: ["Kenda", "Falken", "Winrun", "Maxxis"],
+      },
+      {
+        icono: "local",
+        titulo: "3 locales",
+        detalle: "Competimotor, Mundillantas Falken y Mundillantas Kenda, en Santo Domingo",
+      },
+    ],
+    horarioBajoElPrecio: true,
+    letraDelModelo: "deportiva",
   },
   // Sin `facturacion` no salen pre-facturas: correcto durante la prueba.
   // La alineación SOLO con 4 llantas (Jenny, 8-nov): «alineación no porque

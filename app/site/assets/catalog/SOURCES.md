@@ -57,3 +57,23 @@ Supercheap NZ…). Cada foto se abrió y se comparó con el dibujo del modelo; l
 dudoso se dejó sin foto (la pieza dibuja la llanta genérica). Algunas de
 Tireclub traen una marca de agua tenue. Igual que arriba: antes de producción,
 Mundillantas debe confirmar el permiso de uso con sus proveedores.
+
+## Mundillantas / Competimotor: modelos que faltaban (17-nov-2026)
+
+| Archivo | Modelo | Fuente |
+| --- | --- | --- |
+| `speedways-milestone.jpg` | Speedways Milestone (direccional) | SimpleTire, ficha Speedways Milestone SWT |
+| `goodyear-direction-sport.png` | Goodyear Direction Sport | Mantallanta (Quito) |
+| `kapsen-practicalmax-at02.png` | Kapsen PracticalMax AT02 | Mantallanta (Quito) |
+| `naaats-fc19.jpg` | Naaats FC19 | Mantallanta (Quito) |
+| `naaats-fc22.jpg` | Naaats FC22 | Mantallanta (Quito) |
+| `durun-b717.jpg` | Durun B717 | Supercheap Auto NZ (440 × 460, chica) |
+| `wanda-wr082.jpg` | Wanda WR082 | Big Tyres (Reino Unido) |
+
+Quedaron sin foto a propósito, por no tener una imagen confiable del modelo
+exacto: iLink Terramax AT / Terramax / Terramax LB (el nombre no dice si es
+LSR1 o LSR2) y Penter RT, Linglong LMB3 AT, Kenda KR12, Durun RU05, Vikrant
+(el artículo no nombra el dibujo), General Altimax (no dice si One o XP7),
+Opals FH111, Powerhub PW593, Speedways Loadking, BCT S800, Wanda WR098,
+Trazano RP288, Haulmax H-Rib / H-Lug, Altaire AD672, Michelin HT y Goodyear
+Full Max.
