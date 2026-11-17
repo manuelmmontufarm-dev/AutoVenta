@@ -37,6 +37,7 @@ import { aceptaLaOferta, opcionesDelMenuAbierto } from "../domain/ofertaVigente.
 import { leerOfertaVigente } from "../services/ofertaVigente.js";
 import { ultimoTurnoDelBot } from "../domain/cotizarLaUnica.js";
 import { respaldoCompleto } from "../domain/respaldoMarcas.js";
+import { conocimientoParaElTurno } from "../domain/conocimientoProducto.js";
 import { preguntaElLocal, preguntamosElLocal } from "../domain/storeSelection.js";
 import { preguntaElDia, preguntamosElDia, respondeAlDiaDeLaVisita } from "../domain/customerCommitment.js";
 import { ordenDeNoReusarLaVitrina, vitrinaQueNoEsSuMedida } from "../domain/vitrinaVieja.js";
@@ -466,6 +467,14 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   // corre aquí y el resultado le llega como hecho, registrado en la huella.
   const esPreguntaTecnica = preguntaTecnicaDeRespaldo(userText);
   if (esPreguntaTecnica) usedTools.push("respaldo_marcas");
+  // EL CONOCIMIENTO DE PRODUCTO TAMBIÉN VIAJA COMO HECHO (17-nov-2026): lonas,
+  // km, lluvia, uso, DOT, diferencias y competencia — las preguntas que el bot
+  // contestaba «no tengo ese dato» o contestaba mal. Ver domain/conocimientoProducto.ts.
+  // Los modelos «sobre la mesa» salen de los últimos mensajes de la visita.
+  const hechoDeConocimiento = conocimientoParaElTurno(
+    userText,
+    history.slice(-8).map((m) => (typeof m.content === "string" ? m.content : "")),
+  );
   // Las tres obligaciones del modelo débil (nivel 2 del T115, 31-ago):
   // pedir humano notifica, pedir cotización cotiza, cambiar cantidad recotiza.
   const pidioHumano = pidioHumanoExplicito(userText);
@@ -691,6 +700,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
             + JSON.stringify(respaldoCompleto()),
         }]
       : []),
+    ...(hechoDeConocimiento ? [{ role: "system" as const, content: hechoDeConocimiento }] : []),
     ...(ofrecioAsesorSinAvisar
       ? [{ role: "system" as const, content: ordenDeNotificarLoPrometido() }]
       : []),

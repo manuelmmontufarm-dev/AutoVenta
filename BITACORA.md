@@ -1,3 +1,23 @@
+## 17-nov-2026 · Depot · el bot contesta las preguntas de producto (rama `feat/conocimiento-llantas`)
+
+- **Qué:** ficha de los 35 modelos (Falken, Kenda, Winrun), 18 temas (lonas, km, treadwear, origen, DOT, lluvia,
+  ruido, uso, incluye, garantía, equivalencias, run-flat, consumo, presión…), comparativas contra BFG, Michelin,
+  Maxxis, Toyo, Cooper, Continental, General, Hankook y lonas por código y por modelo+medida, en
+  `assets/conocimiento-modelos.json`. `domain/conocimientoProducto.ts` detecta el tema y arma UN hecho que viaja al
+  vendedor y al Ángel Guardián (misma función); solo viaja si hay pregunta técnica. `toolItem` toma las lonas del
+  código cuando el nombre no trae «PR», y la comparación usa las fichas en vez de «No tengo fichas técnicas».
+  Documento completo para el equipo: `docs/CONOCIMIENTO-LLANTAS.md`.
+- **Por qué:** lectura de ~3.800 mensajes de clientes (ago–nov): «no tengo el dato» de lonas en ~82 conversaciones,
+  km dados o negados según la corrida, «Kenda… de origen chino» (c7900), «alineación y balanceo van aparte»
+  (c8590), ZE310R para montaña (c3), KR20 para Hilux (c18504). Manuel pidió pasarle al bot el documento.
+- **No se tocó:** la frase «ingeniería alemana» de Winrun (`conocimiento-marcas.json` y la pieza `diaNoche.ts`): la
+  investigación no la respalda, pero es frase de Depot; queda para que lo decidan.
+- **Probado:** 38 pruebas nuevas; suite completa 3.938 de 3.966 (fallan `buscarPorAroCompleto`, `hashesPiezasDepot`
+  y `unidadEnLaCantidad`, las tres igual en `origin/main` sin esta rama). Simulador: 8 de 8 preguntas reales
+  (`scripts/sim/conocimiento-producto.mjs`), leídas una por una; corrió sin las variables de Railway (worktree sin
+  `railway link`). **No probado** en WhatsApp real.
+- **Horas:** 1,5.
+
 ## 17-nov-2026 · Competimotor · cotización rediseñada, logos oficiales y foto en todas las llantas (rama `feat/competimotor-pdf-logos`)
 
 - **Qué:** la plantilla día y noche pasa a ser el punto de partida de Mundillantas/Competimotor
