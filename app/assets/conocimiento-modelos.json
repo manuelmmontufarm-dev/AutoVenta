@@ -1,0 +1,905 @@
+{
+ "version": "1.0",
+ "generado": "2026-11-17",
+ "fuente": "docs/CONOCIMIENTO-LLANTAS.md (investigación 17-nov-2026 + preguntas reales de clientes ago–nov 2026). Lo marcado con «aprox.» se dice como aproximado.",
+ "proposito": "Ficha por modelo, respuestas a las preguntas técnicas que más hacen los clientes y comparativas contra marcas que Depot no vende. Se inyecta como HECHO solo cuando el cliente pregunta algo de esto.",
+ "modelos": {
+  "ZE310R": {
+   "marca": "FALKEN",
+   "nombre": "Falken Ziex ZE310R Ecorun",
+   "tipo": "Turismo (auto)",
+   "alias": [
+    "ze310r",
+    "ze 310r",
+    "ze310 r",
+    "ziex 310"
+   ],
+   "uso": "Auto de pasajeros, ciudad y carretera. NO es para montaña, piedra ni camioneta.",
+   "datos": "Frenado en mojado clase A en la etiqueta europea (la mejor nota). UTQG 320 B A. Ecorun = baja resistencia, ahorra combustible. Falken dice +30 % de vida frente a la ZE914.",
+   "frase": "Es la Falken de auto: japonesa, con la mejor nota posible en frenado sobre mojado de la etiqueta europea."
+  },
+  "ZE310": {
+   "marca": "FALKEN",
+   "nombre": "Falken Ziex ZE310 Ecorun",
+   "tipo": "Turismo (auto)",
+   "alias": [
+    "ze310",
+    "ze 310",
+    "ziex"
+   ],
+   "uso": "Auto de pasajeros, ciudad y carretera. NO es para montaña, piedra ni camioneta.",
+   "datos": "Frenado en mojado clase A en la etiqueta europea. Baja resistencia a la rodadura (ahorra combustible).",
+   "frase": "Es la Falken de auto, con nota A en frenado sobre mojado."
+  },
+  "ZE914ER": {
+   "marca": "FALKEN",
+   "nombre": "Falken Ziex ZE914 Ecorun",
+   "tipo": "Turismo (auto)",
+   "alias": [
+    "ze914",
+    "ze 914",
+    "ze914er"
+   ],
+   "uso": "Auto y crossover de asfalto. Generación anterior a la ZE310.",
+   "datos": "Llanta de verano de 2012, reemplazada por la ZE310. En pruebas de revista quedó a media tabla en mojado.",
+   "frase": "Es la Falken de auto de la generación anterior; si hay ZE310 en su medida, esa es la más nueva."
+  },
+  "AZENISFK520L": {
+   "marca": "FALKEN",
+   "nombre": "Falken Azenis FK520L",
+   "tipo": "Deportiva UHP",
+   "alias": [
+    "fk520",
+    "azenis"
+   ],
+   "uso": "Auto deportivo o sedán de alta gama (aro 17–20), 100 % asfalto.",
+   "datos": "La deportiva tope de Falken (2023), sucesora de la FK510 (n.º 1 en desgaste en ADAC 2022). Más agarre y precisión; dura menos que una de turismo.",
+   "frase": "Es la deportiva tope de Falken, para autos de alta gama que piden agarre."
+  },
+  "AZENISRT615K": {
+   "marca": "FALKEN",
+   "nombre": "Falken Azenis RT615K+",
+   "tipo": "Deportiva de pista",
+   "alias": [
+    "rt615"
+   ],
+   "uso": "Track day y autos de competencia. NO recomendar para uso diario con lluvia.",
+   "datos": "UTQG 200 AA: mucho agarre en seco, dura poco y es floja en mojado.",
+   "frase": "Es una llanta de pista: mucho agarre en seco, pero dura poco y no es para el día a día con lluvia."
+  },
+  "ZIEXCT60AS": {
+   "marca": "FALKEN",
+   "nombre": "Falken Ziex CT60 A/S",
+   "tipo": "H/T para SUV (100 % asfalto)",
+   "alias": [
+    "ct60",
+    "ct 60",
+    "ziex ct"
+   ],
+   "uso": "SUV y crossover que NO sale del asfalto (Tucson, Sportage, RAV4, CX-5, Creta).",
+   "datos": "UTQG 600–740 AA según medida. Primera Falken diseñada para crossover (2017). Viene de fábrica en el Mazda CX-90. Buen agarre en seco y mojado, silenciosa, gasta menos que una A/T.",
+   "frase": "Es la Falken para SUV de asfalto: silenciosa, buena en lluvia y la que viene de fábrica en el Mazda CX-90."
+  },
+  "WILDPEAKATTRAIL": {
+   "marca": "FALKEN",
+   "nombre": "Falken Wildpeak A/T Trail",
+   "tipo": "A/T para SUV y crossover",
+   "alias": [
+    "a/t trail",
+    "at trail",
+    "trail"
+   ],
+   "uso": "SUV y crossover de uso mixto: 80 % asfalto / 20 % tierra (Sportage, Tucson, RAV4, Vitara, Creta, X-Trail, Duster). Lastre, camino de tierra y lodo ligero; no es para roca ni lodo profundo.",
+   "datos": "Sello de nieve 3PMSF. UTQG aprox. 680 AA (varía por medida). Solo medidas P y XL, no LT. 4,7/5 con 129 reseñas de dueños. Más cómoda y silenciosa que una A/T de camioneta.",
+   "frase": "Es la all-terrain de Falken pensada para SUV: se siente como llanta de carretera en la ciudad y aguanta lastre el fin de semana."
+  },
+  "WILDPEAKAT3W": {
+   "marca": "FALKEN",
+   "nombre": "Falken Wildpeak A/T3W",
+   "tipo": "A/T (camioneta y 4x4)",
+   "alias": [
+    "at3w",
+    "a/t3w",
+    "a/t 3w",
+    "at3wa",
+    "a/t3wa"
+   ],
+   "uso": "4x4 y camioneta on/off road. Generación anterior a la A/T4W.",
+   "datos": "Sello 3PMSF. UTQG 660. Vino de fábrica en el Jeep Gladiator 2020. Su versión europea/asiática (A/T3WA, misma familia) quedó 2.ª de 8 en el test ADAC 2025. Frente a la BFG KO2: más silenciosa, frena mejor en mojado; la KO2 tiene costado más duro.",
+   "frase": "Es la all-terrain clásica de Falken, la que vino de fábrica en el Jeep Gladiator."
+  },
+  "WILDPEAKAT4W": {
+   "marca": "FALKEN",
+   "nombre": "Falken Wildpeak A/T4W",
+   "tipo": "A/T (camioneta y 4x4)",
+   "alias": [
+    "at4w",
+    "a/t4w",
+    "a/t 4w",
+    "at 4w",
+    "wildpeak at",
+    "wildpeak a/t",
+    "wild peak",
+    "wildpeak"
+   ],
+   "uso": "Camioneta y 4x4 de uso mixto real: 50 % asfalto / 50 % tierra (Hilux, D-Max, BT-50, Ranger, Fortuner, Wingle). No es solo para 4x4: va perfecta en 4x2.",
+   "datos": "Nueva generación (2024) de la A/T3W: banda más rígida, costado de 3 capas en medidas seleccionadas, laminillas hasta el fondo (agarra hasta el final), sello 3PMSF. N.º 1 en el comparativo all-terrain 2025 de Tyre Reviews. En la prueba de Tire Rack 2024 frenó ~8 % mejor en mojado que la BFGoodrich KO3 (la KO3 gana en nieve). Hay versión P/XL (más cómoda) y LT de 8–10 lonas (para carga).",
+   "frase": "Es la llanta mixta más premiada del momento: primera en el comparativo all-terrain 2025 de Tyre Reviews y en mojado frena mejor que la BFGoodrich KO3."
+  },
+  "WILDPEAKRT01": {
+   "marca": "FALKEN",
+   "nombre": "Falken Wildpeak R/T01",
+   "tipo": "R/T (entre A/T y M/T)",
+   "alias": [
+    "rt01",
+    "r/t01",
+    "r/t 01",
+    "wildpeak rt",
+    "wildpeak r/t",
+    "falken rt",
+    "falken r/t"
+   ],
+   "uso": "4x4 que hace tierra, lodo y piedra seguido sin perder confort en carretera; look agresivo. Es la opción off-road, NO la «equilibrada».",
+   "datos": "Lanzada en 2024, costado de 3 capas resistente a cortes, medidas LT. Mejor que la A/T4W en roca y lodo, algo más ruidosa. Sin sello 3PMSF: en asfalto mojado queda por debajo de la A/T4W.",
+   "frase": "Es la Falken para campo de verdad: costado de 3 capas que aguanta piedra, pero sigue siendo manejable en carretera."
+  },
+  "WILDPEAKMT": {
+   "marca": "FALKEN",
+   "nombre": "Falken Wildpeak M/T",
+   "tipo": "M/T (barrosa)",
+   "alias": [
+    "wildpeak mt",
+    "wildpeak m/t",
+    "falken mt",
+    "falken m/t",
+    "mt01",
+    "m/t01"
+   ],
+   "uso": "Lodo, piedra, trocha, finca. NO para quien anda casi todo en asfalto mojado.",
+   "datos": "Costado DURASPEC de 3 capas, de las M/T más silenciosas del mercado. Velocidad Q (160 km/h). Como toda M/T frena peor en asfalto mojado, se gasta más rápido y consume más. Su versión de carrera ganó la clase Trophy Truck del NORRA 1000 en 2026.",
+   "frase": "Es la barrosa de Falken: costado de 3 capas y de las M/T más silenciosas, para lodo y trocha."
+  },
+  "WILDPEAKMT01": {
+   "igual_a": "WILDPEAKMT"
+  },
+  "KR20": {
+   "marca": "KENDA",
+   "nombre": "Kenda Kaiser KR20",
+   "tipo": "Turismo deportiva (auto)",
+   "alias": [
+    "kr20",
+    "kr 20",
+    "kr-20",
+    "kaiser",
+    "espina de pescado"
+   ],
+   "uso": "Auto de pasajeros con look deportivo, 100 % asfalto. NO es para camioneta, piedra ni montaña.",
+   "datos": "Dibujo direccional en V (espina de pescado). Buen agarre en seco y buen precio. OJO: los dueños la califican floja en lluvia (4,6/10 en mojado); para quien maneja mucho con lluvia conviene KR41 o KR203.",
+   "frase": "Es la Kenda de auto con dibujo deportivo en V: buen agarre en seco a buen precio."
+  },
+  "KR203": {
+   "marca": "KENDA",
+   "nombre": "Kenda Kenetica Eco KR203",
+   "tipo": "Turismo confort (auto)",
+   "alias": [
+    "kr203",
+    "kr 203",
+    "kr-203",
+    "kenetica",
+    "kinetica"
+   ],
+   "uso": "Auto urbano, taxi, Uber, ciudad y carretera. NO para piedra ni camioneta.",
+   "datos": "Silenciosa (68 dB) y cómoda. Etiqueta europea: mojado C, consumo D. Sucesora de la KR23.",
+   "frase": "Es la Kenda de confort para ciudad: silenciosa y suave, pensada para el día a día."
+  },
+  "KR23": {
+   "marca": "KENDA",
+   "nombre": "Kenda Komet Plus KR23",
+   "tipo": "Turismo básica (auto)",
+   "alias": [
+    "kr23",
+    "kr 23",
+    "komet"
+   ],
+   "uso": "Auto pequeño, uso urbano.",
+   "datos": "Modelo básico; Kenda ya la reemplazó por la KR203.",
+   "frase": "Es la Kenda básica de auto pequeño."
+  },
+  "KR26": {
+   "marca": "KENDA",
+   "nombre": "Kenda Vezda AST KR26",
+   "tipo": "Turismo (auto)",
+   "alias": [
+    "kr26",
+    "kr 26"
+   ],
+   "uso": "Auto de pasajeros, asfalto.",
+   "datos": "Llanta de turismo de verano.",
+   "frase": "Es una Kenda de turismo para auto."
+  },
+  "KR41": {
+   "marca": "KENDA",
+   "nombre": "Kenda Emera A1 KR41",
+   "tipo": "Deportiva UHP (auto)",
+   "alias": [
+    "kr41",
+    "kr 41",
+    "emera a1"
+   ],
+   "uso": "Sedán o auto deportivo, asfalto. La mejor Kenda de auto en lluvia.",
+   "datos": "Hecha en Taiwán. Compuesto de alta sílice, casi todas XL. Etiqueta europea mojado B. En pruebas de frenado en mojado frenó solo 1,9 % más largo que las premium.",
+   "frase": "Es la Kenda de auto que mejor agarra en lluvia: en pruebas frenó casi igual que las premium."
+  },
+  "KR32": {
+   "marca": "KENDA",
+   "nombre": "Kenda Kuavela SL KR32",
+   "tipo": "Turismo confort (auto)",
+   "alias": [
+    "kr32",
+    "kr 32",
+    "kuavela"
+   ],
+   "uso": "Sedán o auto con aro grande que busca silencio.",
+   "datos": "67 dB: la más silenciosa del catálogo Kenda. Mojado C.",
+   "frase": "Es la Kenda más silenciosa, para sedán que busca confort."
+  },
+  "KR605": {
+   "marca": "KENDA",
+   "nombre": "Kenda Emera SUV KR605",
+   "tipo": "Turismo SUV (100 % asfalto)",
+   "alias": [
+    "kr605",
+    "kr 605",
+    "emera suv"
+   ],
+   "uso": "SUV moderna con aro grande (17–22) que nunca sale del pavimento. NO para lastre frecuente.",
+   "datos": "XL en varias medidas. Etiqueta europea mojado C. Ej. 215/60R17 96H, tracción B, temperatura A.",
+   "frase": "Es la Kenda para SUV de ciudad con aro grande."
+  },
+  "KR15": {
+   "marca": "KENDA",
+   "nombre": "Kenda Klever H/P KR15",
+   "tipo": "H/T (SUV de carretera)",
+   "alias": [
+    "kr15",
+    "kr 15",
+    "klever hp",
+    "klever h/p"
+   ],
+   "uso": "SUV o 4x4 de carretera con tierra ligera (Vitara, Grand Vitara, SUV clásica aro 15).",
+   "datos": "M+S. UTQG 400 A A (tracción A en mojado). Cómoda y silenciosa. Velocidad S/T.",
+   "frase": "Es la Kenda de carretera para SUV: cómoda, silenciosa y con tracción A en mojado."
+  },
+  "KR50": {
+   "marca": "KENDA",
+   "nombre": "Kenda Klever H/T KR50",
+   "tipo": "H/T (SUV y camioneta de asfalto)",
+   "alias": [
+    "kr50",
+    "kr 50",
+    "kr-50",
+    "klever ht",
+    "klever h/t"
+   ],
+   "uso": "SUV y camioneta 100 % asfalto. Si el cliente hace lastre, mejor KR628.",
+   "datos": "Taco cerrado, silenciosa y cómoda. Treadwear 500 en 235/55R18.",
+   "frase": "Es la Kenda de carretera para SUV y camioneta: silenciosa y cómoda en asfalto."
+  },
+  "KR28": {
+   "marca": "KENDA",
+   "nombre": "Kenda Klever A/T KR28",
+   "tipo": "A/T (1.ª generación)",
+   "alias": [
+    "kr28",
+    "kr 28",
+    "kr-28"
+   ],
+   "uso": "Camioneta y 4x4 de uso mixto que prioriza confort en carretera. Es A/T (todo terreno mixta).",
+   "datos": "UTQG 660 A B. 4,5/5 con 99 reseñas de dueños. Sin sello 3PMSF. En inventario en medidas P (P245/75R16, P235/65R17, P265/65R17).",
+   "frase": "Es la Klever A/T de Kenda: todo terreno mixta con confort de carretera."
+  },
+  "KR608": {
+   "marca": "KENDA",
+   "nombre": "Kenda Klever A/T KR608",
+   "tipo": "A/T robusta (medidas LT)",
+   "alias": [
+    "kr608",
+    "kr 608"
+   ],
+   "uso": "Camioneta de trabajo que hace lastre con piedra (D-Max, Hilux, BT-50, Great Wall).",
+   "datos": "Otro dibujo de Klever A/T, con bloques rígidos que resisten cortes y limpian el barro. Casi todo en medidas LT de 6, 8 y 10 lonas.",
+   "frase": "Es la Klever A/T más robusta de Kenda, en medidas LT para trabajo."
+  },
+  "KR628": {
+   "marca": "KENDA",
+   "nombre": "Kenda Klever A/T2 KR628",
+   "tipo": "A/T (2.ª generación)",
+   "alias": [
+    "kr628",
+    "kr 628",
+    "kr-628",
+    "klever at2",
+    "klever a/t2",
+    "klever at",
+    "klever a/t"
+   ],
+   "uso": "SUV, camioneta y 4x4 de uso mixto: lluvia, asfalto y lastre. La Kenda «para todo».",
+   "datos": "Diseñada en el centro técnico de Kenda en Akron (EE. UU.). Sello de nieve 3PMSF en todas las medidas. UTQG 560 A B. 4,6/5 con 270 reseñas de dueños, 95 % la volvería a comprar. Silenciosa para ser A/T. Medidas P y LT de 10 lonas.",
+   "frase": "Es la all-terrain nueva de Kenda: sello de nieve 3PMSF, silenciosa y con 4,6 de 5 en 270 reseñas de dueños."
+  },
+  "KR601": {
+   "marca": "KENDA",
+   "nombre": "Kenda Klever R/T KR601",
+   "tipo": "R/T (entre A/T y M/T)",
+   "alias": [
+    "kr601",
+    "kr 601",
+    "kr-601",
+    "klever rt",
+    "klever r/t"
+   ],
+   "uso": "4x4 en tierra, piedra y lodo que igual rueda en carretera entre semana.",
+   "datos": "Costado de 3 lonas en todas las medidas (resiste cortes de piedra). M+S. En aro 15–16 son 6 lonas; en 17–18 grandes, 10 lonas rango E. 4,7/5 con 705 reseñas de dueños: la Kenda mejor calificada. Algo más pesada y ruidosa que una A/T.",
+   "frase": "Es la Kenda mejor calificada: 4,7 de 5 con más de 700 reseñas, con costado de 3 lonas que aguanta piedra."
+  },
+  "KR29": {
+   "marca": "KENDA",
+   "nombre": "Kenda Klever M/T KR29",
+   "tipo": "M/T (barrosa)",
+   "alias": [
+    "kr29",
+    "kr 29",
+    "kr-29",
+    "klever mt",
+    "klever m/t"
+   ],
+   "uso": "Lodo, cantera, trocha pesada. NO es la opción equilibrada para quien pide A/T.",
+   "datos": "Crestas que expulsan piedras, laminillas hasta el fondo. Aro 16–17 grande: 10 lonas rango E; aro 15 y flotación (31x10.50, 32x11.50, 33x12.50R15): 6 lonas. Más ruidosa en asfalto.",
+   "frase": "Es la barrosa de Kenda para lodo y trocha."
+  },
+  "KR629": {
+   "marca": "KENDA",
+   "nombre": "Kenda Klever M/T2 KR629",
+   "tipo": "M/T (2.ª generación)",
+   "alias": [
+    "kr629",
+    "kr 629",
+    "klever mt2",
+    "klever m/t2"
+   ],
+   "uso": "Lodo y off-road extremo, camionetas levantadas.",
+   "datos": "3 lonas en el costado, protector de aro, menos ruido que la KR29. Rango E (10 lonas); 35x12.50R20 de 12 lonas. 4,5/5 con 46 reseñas.",
+   "frase": "Es la barrosa nueva de Kenda para off-road extremo."
+  },
+  "KR33": {
+   "marca": "KENDA",
+   "nombre": "Kenda Komendo KR33",
+   "tipo": "Comercial C (van y furgoneta)",
+   "alias": [
+    "kr33",
+    "kr 33",
+    "komendo"
+   ],
+   "uso": "Furgoneta y van de reparto.",
+   "datos": "Estable con y sin carga. Lonas según medida (6–8).",
+   "frase": "Es la Kenda comercial para furgoneta y van."
+  },
+  "KR33A": {
+   "marca": "KENDA",
+   "nombre": "Kenda Komendo KR33A",
+   "tipo": "Comercial C (más carga)",
+   "alias": [
+    "kr33a",
+    "kr 33a"
+   ],
+   "uso": "Van y furgoneta con más carga.",
+   "datos": "La misma Komendo en medidas con índice de carga más alto: 8, 10 y 12 lonas según medida (225/70R15C = 8 lonas).",
+   "frase": "Es la Komendo reforzada para van con más carga."
+  },
+  "KR100": {
+   "marca": "KENDA",
+   "nombre": "Kenda Komendo 2 KR100",
+   "tipo": "Comercial C (van)",
+   "alias": [
+    "kr100",
+    "kr 100",
+    "komendo 2"
+   ],
+   "uso": "Furgoneta y van, ciudad y autopista.",
+   "datos": "Perfil plano y hombros grandes para más carga y desgaste parejo. 8 o 10 lonas según medida.",
+   "frase": "Es la Kenda comercial para van de reparto."
+  },
+  "KR12": {
+   "marca": "KENDA",
+   "nombre": "Kenda KR12",
+   "tipo": "Camión liviano (costillas)",
+   "alias": [
+    "kr12",
+    "kr 12"
+   ],
+   "uso": "Camión liviano de carga (7.00R15, 6.50R16, 7.00R16).",
+   "datos": "10 a 12 lonas según medida. Pregunta clave: si su camión usa tubo.",
+   "frase": "Es la Kenda para camión liviano de carga."
+  },
+  "R380": {
+   "marca": "WINRUN",
+   "nombre": "Winrun R380",
+   "tipo": "Turismo (auto)",
+   "alias": [
+    "r380",
+    "r 380"
+   ],
+   "uso": "Sedán, compacto y SUV pequeña de asfalto (Aveo, Sail, Spark, Rio, Picanto).",
+   "datos": "Etiqueta europea mojado B (mejor que varias de más precio), consumo D. UTQG 420 AA. Cómoda.",
+   "frase": "Es la Winrun de auto: económica y con nota B en frenado sobre mojado."
+  },
+  "R330": {
+   "marca": "WINRUN",
+   "nombre": "Winrun R330",
+   "tipo": "Deportiva UHP (auto)",
+   "alias": [
+    "r330",
+    "r 330"
+   ],
+   "uso": "Auto y SUV deportivo con aro grande al menor precio.",
+   "datos": "UTQG 420 AA. Etiqueta europea mojado C (B en las medidas grandes nuevas). Algo de ruido a alta velocidad.",
+   "frase": "Es la Winrun deportiva para aro grande al menor precio."
+  },
+  "MAXCLAWHT2": {
+   "marca": "WINRUN",
+   "nombre": "Winrun Maxclaw H/T2",
+   "tipo": "H/T (SUV y camioneta de asfalto)",
+   "alias": [
+    "maxclaw ht",
+    "maxclaw h/t"
+   ],
+   "uso": "SUV y camioneta 90 % carretera.",
+   "datos": "Compuesto all-season, huella plana para desgaste parejo.",
+   "frase": "Es la Winrun de carretera para SUV y camioneta."
+  },
+  "MAXCLAWAT": {
+   "marca": "WINRUN",
+   "nombre": "Winrun Maxclaw A/T",
+   "tipo": "A/T",
+   "alias": [
+    "maxclaw at",
+    "maxclaw a/t",
+    "maxclaw"
+   ],
+   "uso": "Camioneta y SUV de uso mixto al menor precio.",
+   "datos": "All-terrain de entrada.",
+   "frase": "Es la all-terrain económica, para uso mixto."
+  },
+  "MAXCLAWRT": {
+   "marca": "WINRUN",
+   "nombre": "Winrun Maxclaw R/T",
+   "tipo": "R/T",
+   "alias": [
+    "maxclaw rt",
+    "maxclaw r/t"
+   ],
+   "uso": "4x4 mixto con look agresivo.",
+   "datos": "Medidas LT (LT265/75R16 123/120R = 10 lonas, rango E).",
+   "frase": "Es la R/T económica, de look agresivo."
+  },
+  "MT305": {
+   "marca": "WINRUN",
+   "nombre": "Winrun MT305",
+   "tipo": "M/T (barrosa)",
+   "alias": [
+    "mt305",
+    "mt 305"
+   ],
+   "uso": "Off-road, lodo y piedra al menor precio.",
+   "datos": "Medidas grandes LT (35x12.50R17 = 10 lonas; 33x12.50R20 = 6 lonas). Ruidosa en asfalto como toda M/T.",
+   "frase": "Es la barrosa económica."
+  }
+ },
+ "marcas": {
+  "FALKEN": "Marca japonesa del grupo Sumitomo Rubber (el mismo de Dunlop en Japón), 8.º fabricante de llantas del mundo (Tyrepress 2026). Fabrica en plantas propias de Japón, Tailandia, Turquía, Indonesia, China, Brasil y Sudáfrica; lo que llega a Ecuador suele venir de Japón o Tailandia según el lote y la medida — el país exacto está escrito en el costado («MADE IN …»).",
+  "KENDA": "Marca TAIWANESA (nunca decir china), fundada en 1962 en Yuanlin, con centro técnico en Akron (EE. UU.); ~29.º fabricante del mundo. Tiene plantas en Taiwán, China, Vietnam e Indonesia; el país exacto está en el costado.",
+  "WINRUN": "Marca china (Guangzhou), la opción de entrada. Tiene homologación europea (marca E) y DOT de EE. UU.",
+  "GITI": "Marca de Singapur con origen indonesio, 14.º fabricante del mundo. Depot aún no la cotiza: no prometer condiciones."
+ },
+ "temas": {
+  "origen": "Falken es japonesa, Kenda taiwanesa y Winrun china; las tres con 5 años de garantía de fábrica. Si preguntan dónde se FABRICÓ la llanta (no la marca): Falken suele venir de Japón o Tailandia según el lote; el país exacto está escrito en el costado y se le muestra en la llanta. PROHIBIDO decir que Kenda es china.",
+  "lonas": "Lonas = rango de carga: C = 6 lonas, D = 8, E = 10, F = 12. Una llanta de auto normal (sin LT ni C) equivale a 4 lonas; XL = pasajero reforzada, no es LT. Las lonas de cada producto vienen en el campo «lonas» de la búsqueda; si no viene y la medida es LT/C, el asesor lo confirma — PROHIBIDO inventar un número o un rango («entre 6 y 10»).",
+  "km": "Dar SIEMPRE la cifra como aproximada y con su condición: Falken unos 86.500 km, Kenda unos 68.500, Winrun unos 58.000; dependen del uso, la presión y el mantenimiento (incluido cada 10.000 km). En obra, carga pesada o M/T decir antes que rinde menos. PROHIBIDO negarse a dar la cifra.",
+  "treadwear": "UTQG (treadwear · tracción · temperatura) solo existe en llantas de pasajero; las LT no lo llevan. Sirve para comparar dentro de una misma marca, no entre marcas. Usar el dato del modelo si está en su ficha; si no está, decir que esa medida no lo trae publicado.",
+  "dot": "El año está en el DOT del costado: los últimos 4 dígitos son semana y año (2325 = semana 23 de 2025). Todas las llantas son nuevas, no reencauchadas. Una llanta sin uso y bien guardada se considera nueva hasta 5 años desde su fabricación; la vida útil se cuenta desde que se monta. El DOT exacto del juego se le confirma (foto o en el local); no inventes un año.",
+  "lluvia": "Mejor agarre en mojado: en auto, Falken ZE310R/ZE310 (frenado en mojado clase A en la etiqueta europea), Kenda KR41 (B, casi como las premium) y Winrun R380 (B); KR203 y R330 son C. La Kenda KR20 es floja en lluvia: si maneja mucho con lluvia ofrecer KR41 o KR203. En camioneta: Falken A/T4W (frenó ~8 % mejor en mojado que la BFG KO3) y Kenda KR628/KR601. Una M/T siempre frena peor en asfalto mojado.",
+  "ruido": "H/T y turismo son las más suaves y silenciosas, A/T intermedias, R/T y M/T más duras y ruidosas. Una LT de 10 lonas se siente más dura que una P o XL. Una A/T como la A/T4W o la KR628 no zumba de forma molesta.",
+  "uso": "Tipo según uso: ciudad/carretera auto → turismo (ZE310R, KR203, KR41, R380); SUV solo asfalto → H/T (CT60, KR50, KR605, KR15, Maxclaw H/T2); ciudad + lastre → A/T (A/T Trail en SUV; A/T4W, KR628, KR608, KR28, Maxclaw A/T en camioneta); piedra, finca, look agresivo → R/T (R/T01, KR601, Maxclaw R/T); lodo y trocha → M/T (Wildpeak M/T, KR29, KR629, MT305). PROHIBIDO recomendar una llanta de turismo (ZE310R, KR20, KR203, R330, R380) para montaña, piedra o camioneta de uso mixto.",
+  "incluye": "El precio incluye IVA y Ecovalor, instalación completa (enllantaje), ALINEACIÓN Y BALANCEO, revisión del vehículo, mantenimiento con rotación cada 10.000 km sin costo y seguro contra golpes. El aro NO está incluido. Válvulas y nitrógeno no están confirmados: los confirma el asesor.",
+  "garantia": "Dos respaldos distintos: garantía de fábrica de 5 años contra defectos (las tres marcas) y seguro Depot contra golpes y estalladuras de HASTA 18 meses en Falken, 12 en Kenda y 6 en Winrun (llanta nueva sin costo por la dañada). Exclusiones, trámite o una llanta ya dañada → notificar_vendedor. Las garantías de kilometraje de EE. UU. NO aplican en Ecuador.",
+  "equivalencia": "Una medida distinta sirve si el diámetro total no cambia más de ±3 %: diámetro (mm) = aro × 25,4 + 2 × ancho × perfil / 100. Si cambia más, se descalibra el velocímetro y el ABS y puede rozar el guardafango. Índice de carga y velocidad igual o mayor que el original. Si cambia el ANCHO, además el ancho del aro debe estar en el rango de esa medida (lo revisa el técnico): PROHIBIDO decir «sin problema porque es el mismo aro». Más ancha no arregla que patine: pesan más el compuesto y la cocada.",
+  "runflat": "Run-flat no se instala: la llanta tiene que venir fabricada así. Si el carro trae inserto run-flat en el aro, un asesor revisa si va llanta normal.",
+  "consumo": "Gastan menos las de baja resistencia: Falken ZE310R/ZE310/ZE914 Ecorun y Kenda KR203 Kenetica Eco. M/T y R/T gastan más. La presión baja también sube el consumo.",
+  "presion": "La presión es la de la etiqueta del marco de la puerta, en frío. En Quito no hay que corregir por altura. El nitrógeno da una ventaja pequeña (pierde presión un poco más lento) y no tiene que ver con la altura.",
+  "reencauche": "Todas las llantas son nuevas. El reencauche no se recomienda en auto ni camioneta.",
+  "marcas_que_manejan": "Llantas Falken (premium, japonesa), Kenda (intermedia, taiwanesa) y Winrun (económica, china). Sunoco y Eurolub son LUBRICANTES, no llantas.",
+  "diferencia": "Para diferencias entre modelos usa las fichas de los modelos en mesa: tipo, uso y datos. A/T4W (camioneta, 50/50, versiones LT) vs A/T Trail (SUV, 80 % asfalto, más cómoda). A/T4W es la nueva generación de la A/T3W. KR28 (A/T confort) vs KR628 (A/T2 nueva, 3PMSF) vs KR608 (A/T robusta LT). KR50 es H/T (asfalto) y KR28 A/T (mixta). KR601 R/T vs KR29 M/T. CT60 (asfalto) vs A/T Trail (lastre)."
+ },
+ "competencia": {
+  "BFGOODRICH": "BFGoodrich (EE. UU., del grupo Michelin) es el ícono A/T (KO2/KO3). Falken A/T4W salió 1.ª en el comparativo all-terrain 2025 de Tyre Reviews y frenó ~8 % mejor en mojado que la KO3 (Tire Rack 2024); es más silenciosa y cómoda. La BFG es más dura de costado y gana en roca y nieve. Para Quito con lluvia, la Falken rinde mejor y cuesta menos.",
+  "MICHELIN": "Michelin (Francia) es la referencia en duración, y la más cara. Falken da unos 86.500 km promedio por bastante menos y con hasta 18 meses de seguro contra golpes.",
+  "MAXXIS": "Maxxis es taiwanesa como Kenda y de nivel parecido. En camioneta, la Kenda Klever R/T tiene 4,7/5 con más de 700 reseñas y la Klever A/T2 sello 3PMSF en todas sus medidas.",
+  "TOYO": "Toyo es japonesa como Falken, nivel parecido. La A/T4W compite de frente con la Toyo Open Country A/T III y suele ser más económica.",
+  "COOPER": "Cooper es del grupo Goodyear. En una comparativa que ya compartió un asesor: Falken A/T4W 9,5/10 contra Cooper Discoverer Road+Trail 8,8/10.",
+  "CONTINENTAL": "Continental (Alemania) es premium y líder en frenado en mojado. Si la ofrecen más barata, comparar lo que incluye: aquí el precio lleva instalación, alineación, balanceo, seguro contra golpes y mantenimiento cada 10.000 km.",
+  "GENERAL TIRE": "General (EE. UU., del grupo Continental): la Grabber A/T tiene buena fama en mojado. Nuestras equivalentes: Kenda KR628 (3PMSF) o Falken A/T4W.",
+  "HANKOOK": "Hankook es coreana, buena y de fábrica en varias marcas. En auto, la Falken ZE310R tiene nota A en mojado de la etiqueta europea.",
+  "BRIDGESTONE": "Bridgestone (Japón) es premium. Falken es la otra gran japonesa y suele ser más económica.",
+  "GOODYEAR": "Goodyear (EE. UU.) es premium. En A/T, la Falken A/T4W está entre las mejor calificadas de 2025.",
+  "PIRELLI": "Pirelli (Italia) es premium deportiva. En deportiva, la Falken Azenis FK520L o la Kenda KR41.",
+  "YOKOHAMA": "Yokohama (Japón) es premium-media; nivel parecido a Falken.",
+  "CHINAS": "Linglong, Triangle, Sailun, Westlake y similares son chinas económicas. Si el cliente no quiere chinas: Falken (japonesa) o Kenda (taiwanesa)."
+ },
+ "lonas_por_codigo": {
+  "_nota": "Lonas (ply rating) por código de Contífico. Del nombre del sistema («10PR») o deducidas del índice de carga LT según las tablas TRA de rango de carga (inventario 4-ago-2026).",
+  "356518": 8,
+  "356521": 10,
+  "356533": 10,
+  "356531": 10,
+  "358430": 6,
+  "356530": 10,
+  "356532": 10,
+  "356536": 10,
+  "356539": 10,
+  "3285B527": 6,
+  "K309B551": 6,
+  "3284B528": 6,
+  "32906026": 10,
+  "33042060": 6,
+  "33024001": 8,
+  "38664009": 8,
+  "33014002": 8,
+  "30683015": 10,
+  "33005026": 10,
+  "33005000": 10,
+  "36583003": 8,
+  "35405026": 10,
+  "38675005": 10,
+  "32966012": 10,
+  "33065004": 10,
+  "38685004": 10,
+  "36444032": 8,
+  "39233036": 10,
+  "38705000": 10,
+  "38805008": 10,
+  "2157514WNMAXCLAWATLT": 8,
+  "306C3002": 8,
+  "30492045": 6,
+  "31143001": 8,
+  "30463046": 8,
+  "30413009": 8,
+  "30603005": 8,
+  "307LB532": 8,
+  "307E3040": 8,
+  "305B3047": 8,
+  "32693061": 8,
+  "305B3005": 8,
+  "319M6008": 12,
+  "32774002": 10,
+  "307G4046": 10,
+  "3236B675": 12,
+  "30904098": 10,
+  "32086001": 12,
+  "32175002": 10,
+  "318941": 6,
+  "318959": 10,
+  "318907": 10,
+  "318931": 10,
+  "318949": 10,
+  "318973": 10,
+  "3813B502": 6,
+  "3808B509": 6,
+  "3810B505": 6,
+  "3820B503": 6,
+  "3272B506": 6,
+  "3800B606": 10,
+  "3801B605": 10,
+  "3802B604": 10,
+  "34304022": 10,
+  "3817B706": 10,
+  "32793002": 10,
+  "3806B709": 10,
+  "3806B733": 6,
+  "34324020": 10,
+  "33172081": 10,
+  "34334029": 10,
+  "36625028": 12,
+  "35125017WNMT305LT": 10,
+  "3312502WNMT305LT": 6,
+  "352853": 10,
+  "352855": 10,
+  "352858": 10,
+  "352862": 8,
+  "352856": 10,
+  "352868": 10,
+  "352871": 10,
+  "352879": 10,
+  "352881": 6,
+  "32512006": 6,
+  "35242007": 6,
+  "35222009": 6,
+  "35292002": 6,
+  "35232008": 6,
+  "35262005": 6,
+  "35282003": 6,
+  "35272004": 10,
+  "33374000": 10,
+  "2657516WRMAXCLAWRTLT": 10
+ },
+ "lonas_por_modelo_medida": {
+  "_nota": "Llave = diseño sin símbolos | medida sin símbolos (p. ej. KR628|26570R17). Varios valores = hay versiones distintas.",
+  "WILDPEAKAT4W|21575R15": [
+   8
+  ],
+  "WILDPEAKAT4W|23575R15": [
+   10
+  ],
+  "WILDPEAKAT4W|26575R16": [
+   10
+  ],
+  "WILDPEAKAT4W|26570R17": [
+   10
+  ],
+  "WILDPEAKAT4W|28570R17": [
+   6
+  ],
+  "WILDPEAKAT4W|26565R18": [
+   10
+  ],
+  "WILDPEAKAT4W|26570R18": [
+   10
+  ],
+  "WILDPEAKAT4W|27565R18": [
+   10
+  ],
+  "WILDPEAKAT4W|28555R20": [
+   10
+  ],
+  "KR628|31X10.50R15": [
+   6
+  ],
+  "KR628|5R15": [
+   6
+  ],
+  "KR628|9.50R15": [
+   6
+  ],
+  "KR628|22575R16": [
+   10
+  ],
+  "KR608|23570R16": [
+   6
+  ],
+  "KR608|24570R16": [
+   8
+  ],
+  "KR608|25570R16": [
+   8
+  ],
+  "KR608|26570R16": [
+   8
+  ],
+  "KR628|26575R16": [
+   10
+  ],
+  "KR608|26565R17": [
+   10
+  ],
+  "KR608|26570R17": [
+   8
+  ],
+  "KR628|26570R17": [
+   10
+  ],
+  "KR608|27570R17": [
+   10
+  ],
+  "KR628|28570R17": [
+   10
+  ],
+  "KR608|31570R17": [
+   10
+  ],
+  "KR608|25560R18": [
+   10
+  ],
+  "KR608|26560R18": [
+   8
+  ],
+  "KR628|27570R18": [
+   10
+  ],
+  "KR608|23555R19": [
+   10
+  ],
+  "KR608|25555R19": [
+   10
+  ],
+  "MAXCLAWAT|21575R14": [
+   8
+  ],
+  "KR33|5R13": [
+   8
+  ],
+  "KR33|17570R14": [
+   6
+  ],
+  "KR100|17570R14": [
+   8
+  ],
+  "KR33A|21575R14": [
+   8
+  ],
+  "KR100|5R14": [
+   8
+  ],
+  "KR33A|20570R15": [
+   8
+  ],
+  "KR33A|22570R15": [
+   8
+  ],
+  "KR33|5R15": [
+   8
+  ],
+  "KR100|5R15": [
+   8
+  ],
+  "KR12|7.00R15": [
+   12
+  ],
+  "KR100|21575R16": [
+   10
+  ],
+  "KR33A|21575R16": [
+   10
+  ],
+  "KR33A|22575R16": [
+   12
+  ],
+  "KR33A|23565R16": [
+   10
+  ],
+  "KR12|6.50R16": [
+   12
+  ],
+  "KR12|7.00R16": [
+   10
+  ],
+  "WILDPEAKMT|30X9.50R15": [
+   6
+  ],
+  "WILDPEAKMT|24575R16": [
+   10
+  ],
+  "WILDPEAKMT|26575R16": [
+   10
+  ],
+  "WILDPEAKMT|26570R17": [
+   10
+  ],
+  "WILDPEAKMT|28570R17": [
+   10
+  ],
+  "WILDPEAKMT|30555R20": [
+   10
+  ],
+  "KR29|21575R15": [
+   6
+  ],
+  "KR29|23575R15": [
+   6
+  ],
+  "KR29|31X10.50R15": [
+   6
+  ],
+  "KR29|32X11.50R15": [
+   6
+  ],
+  "KR29|33X12.50R15": [
+   6
+  ],
+  "KR29|24575R16": [
+   10
+  ],
+  "KR29|26575R16": [
+   10
+  ],
+  "KR29|28575R16": [
+   10
+  ],
+  "KR629|2.50R17": [
+   10
+  ],
+  "KR29|24570R17": [
+   10
+  ],
+  "KR29|26565R17": [
+   10
+  ],
+  "KR29|26570R17": [
+   6,
+   10
+  ],
+  "KR629|26570R17": [
+   10
+  ],
+  "KR29|28570R17": [
+   10
+  ],
+  "KR629|28570R17": [
+   10
+  ],
+  "KR629|2.50R20": [
+   12
+  ],
+  "MT305|35X12.50R17": [
+   10
+  ],
+  "MT305|33X12.50R20": [
+   6
+  ],
+  "WILDPEAKRT01|26575R16": [
+   10
+  ],
+  "WILDPEAKRT01|26570R17": [
+   10
+  ],
+  "WILDPEAKRT01|28570R17": [
+   10
+  ],
+  "WILDPEAKRT01|31570R17": [
+   8
+  ],
+  "WILDPEAKRT01|33X12.50R17": [
+   10
+  ],
+  "WILDPEAKRT01|27565R18": [
+   10
+  ],
+  "WILDPEAKRT01|27570R18": [
+   10
+  ],
+  "WILDPEAKRT01|27555R20": [
+   10
+  ],
+  "WILDPEAKRT01|33X12.50R20": [
+   6
+  ],
+  "KR601|21575R15": [
+   6
+  ],
+  "KR601|22575R15": [
+   6
+  ],
+  "KR601|23575R15": [
+   6
+  ],
+  "KR601|31X10.50R15": [
+   6
+  ],
+  "KR601|23570R16": [
+   6
+  ],
+  "KR601|24570R16": [
+   6
+  ],
+  "KR601|26570R16": [
+   6
+  ],
+  "KR601|26565R17": [
+   10
+  ],
+  "KR601|28560R18": [
+   10
+  ],
+  "MAXCLAWRT|26575R16": [
+   10
+  ]
+ }
+}

@@ -63,6 +63,7 @@ import { clienteDioSuMedida, hechoDeCamionetaVigente, medidasDelMensaje } from "
 import { ensureCatalogReady, findByCode, searchBySize, searchByText } from "./catalog.js";
 import { flotacionIncompleta, parseTireSize } from "../domain/tireSize.js";
 import { respaldoCompleto } from "../domain/respaldoMarcas.js";
+import { conocimientoParaElTurno } from "../domain/conocimientoProducto.js";
 import { logAiRun } from "./conversations.js";
 import { crearAlertaRepeticion } from "./conversationQuality.js";
 import { createBotAlert } from "./followUps.js";
@@ -860,6 +861,10 @@ export async function armarContexto(
     // revisor no puede verificar, lo borra; así que viaja como hecho.
     hechoDeOrigenDeMarcas(),
     hechoDePagos(),
+    // EL CONOCIMIENTO DE PRODUCTO (17-nov-2026): la MISMA función que arma el
+    // hecho del vendedor. Sin él, el revisor borra «10 lonas», «unos 68.500 km»
+    // o «la alineación va incluida» porque no puede verificarlos.
+    conocimientoParaElTurno(ultimoDelCliente, mensajes.slice(0, 8).map((m) => m.content ?? "")),
     // LAS DIRECCIONES TAMBIÉN (corrida 3, simulador): a «¿qué parte del sur?»
     // el revisor escribió «en el sector de Guamaní» — inventado; el local está
     // en Galo Molina y Av. Alonso de Angulo. Un dato que el revisor no tiene lo

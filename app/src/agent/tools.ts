@@ -112,6 +112,7 @@ import { ejemplosDeLaEscalera, nivelDeLinea, ordenDeNivel, reglasEscalera } from
 import { separarPorUso, tiposCompatibles, usoDeLosTextos, usoDeclarado, type UsoDeclarado } from "../domain/usoYTipo.js";
 import { condicionesDelRespaldo, costoPorKm, respaldoCompleto, respaldoDeMarca } from "../domain/respaldoMarcas.js";
 import { politica } from "../negocio/politica.js";
+import { fichaDeModelo, lonasPorCodigo } from "../domain/conocimientoProducto.js";
 import {
   debeBloquearReenvio, JUEGO_COMPLETO, medidaDesdeContenido, opcionesQueAlcanzan, tipoSolicitadoEn,
 } from "../domain/opcionesCandados.js";
@@ -4416,31 +4417,40 @@ function buildTechnicalGuidance(
   products: Array<{ brand: string; design: string }>,
   question: string,
 ): string {
-  const profiles = products
-    .map((product) => ({ product, profile: getTirePatternProfile(product.brand, product.design) }))
-    .filter((entry): entry is { product: { brand: string; design: string }; profile: NonNullable<ReturnType<typeof getTirePatternProfile>> } => Boolean(entry.profile));
-  if (!profiles.length) {
+  // Las 4 fichas del fabricante de tireKnowledge.ts primero; para el resto, la
+  // ficha de conocimiento-modelos.json (17-nov). Antes, comparar dos A/T
+  // devolvía «No tengo fichas técnicas verificadas» (c20987, c42061, c28369).
+  const entries = products.map((product) => {
+    const profile = getTirePatternProfile(product.brand, product.design);
+    const ficha = fichaDeModelo(product.design);
+    return {
+      product,
+      categoria: profile?.category ?? ficha?.tipo ?? null,
+      linea: profile
+        ? `${profile.category}; destaca en ${profile.strengths.join(", ")}.`
+        : ficha ? `${ficha.tipo}. ${ficha.uso}` : null,
+      offroad: profile ? /all-terrain|rugged|mud/.test(profile.category) : Boolean(ficha && /A\/T|R\/T|M\/T/.test(ficha.tipo)),
+      mojado: profile ? profile.strengths.some((s) => /mojado|aquaplan/.test(s)) : Boolean(ficha && /mojado clase A|mojado B|lluvia/.test(ficha.datos + ficha.uso)),
+    };
+  }).filter((e) => e.linea);
+  if (!entries.length) {
     return "ℹ️ No tengo fichas técnicas verificadas de estos diseños para recomendar uno por desempeño.";
   }
   const normalized = question.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  const mountain = /montan|ripio|barro|destapad|off.?road/.test(normalized);
+  const mountain = /montan|ripio|barro|destapad|off.?road|lastre|lodo|piedra/.test(normalized);
   const wet = /lluv|mojad|aquaplan/.test(normalized);
   const lines = ["🧭 *¿Cuál conviene más?*"];
-  for (const { product, profile } of profiles) {
-    lines.push(
-      `• *${product.brand} ${product.design}:* ${profile.category}; destaca en ${profile.strengths.join(", ")}.`,
-    );
-  }
+  for (const e of entries) lines.push(`• *${e.product.brand} ${e.product.design}:* ${e.linea}`);
   if (mountain) {
-    const allTerrain = profiles.find(({ profile }) => /all-terrain|rugged|mud/.test(profile.category));
+    const allTerrain = entries.find((e) => e.offroad);
     lines.push(
       allTerrain
         ? `🏔️ Para ripio o camino sin asfaltar, *${allTerrain.product.brand} ${allTerrain.product.design}* es la opción diseñada para ese uso.`
         : "🏔️ Si hablas de carretera pavimentada con curvas o lluvia, prioriza agarre en mojado. Para ripio o barro, ninguna de estas opciones de carretera es A/T; conviene buscar otro diseño.",
     );
   } else if (wet) {
-    const wetChoice = profiles.find(({ profile }) => profile.strengths.some((s) => /mojado|aquaplan/.test(s)));
-    if (wetChoice) lines.push(`🌧️ Para lluvia, la ficha del fabricante favorece a *${wetChoice.product.brand} ${wetChoice.product.design}*.`);
+    const wetChoice = entries.find((e) => e.mojado);
+    if (wetChoice) lines.push(`🌧️ Para lluvia, la ficha favorece a *${wetChoice.product.brand} ${wetChoice.product.design}*.`);
   }
   return lines.join("\n");
 }
@@ -4515,7 +4525,9 @@ export function toolItem(item: {
     // preguntan seguido: tres clientes en la semana del 8 al 11-sep (convs
     // 16974, 18294, 18880) y las tres veces el bot dijo que no tenía el dato
     // mientras mostraba el producto que lo trae. Ver `domain/datosDelNegocio.ts`.
-    lonas: lonasDelProducto(item.name) ?? undefined,
+    // Y cuando el nombre no trae el «NPR», del índice de carga LT revisado a
+    // mano (assets/conocimiento-modelos.json · lonas_por_codigo, 17-nov).
+    lonas: lonasDelProducto(item.name) ?? lonasPorCodigo(item.code) ?? undefined,
   };
 }
 
