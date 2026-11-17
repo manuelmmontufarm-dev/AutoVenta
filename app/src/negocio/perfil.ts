@@ -255,6 +255,36 @@ export interface PerfilDeNegocio {
      * de pieza; la verdad comercial es la política (`politica.cuotasSinIntereses`).
      */
     cuotasSinIntereses?: number[];
+    /**
+     * Con qué plantilla arranca un negocio que todavía no eligió una en
+     * Ajustes → Piezas. Sin el campo, la clásica (la de siempre). Lo guardado
+     * en `pieces_config` gana: esto es solo el punto de partida.
+     */
+    plantillaPorDefecto?: "clasica" | "diaNoche";
+    /**
+     * «SU COMPRA ESTÁ RESPALDADA» para un negocio que confirmó QUÉ respalda la
+     * compra pero todavía no CUÁNTO (meses, años). Solo se dibuja cuando la
+     * marca no tiene cifras en `garantias`: con cifras, mandan las cifras.
+     * `marcas` limita la tarjeta a esas marcas; sin él, vale para todas.
+     * Cada texto es lo que dijo el cliente, sin plazos inventados.
+     */
+    respaldo?: Array<{
+      icono: "escudoOk" | "medalla" | "local";
+      titulo: string;
+      detalle: string;
+      marcas?: string[];
+    }>;
+    /**
+     * Debajo del precio por llanta, cuando no hay descuento que mostrar, la
+     * cotización día y noche dice el horario (`horarioEnPalabras`) en vez de
+     * dejar el hueco. Depot no lo declara y su pieza no cambia.
+     */
+    horarioBajoElPrecio?: boolean;
+    /**
+     * Letra del nombre de la llanta en la plantilla día y noche. Sin el campo,
+     * la Archivo ancha de siempre. «deportiva» = Kanit negrita itálica.
+     */
+    letraDelModelo?: "deportiva";
   };
   /** Sin esto no salen pre-facturas mensuales (negocio sin servicio facturado). */
   facturacion?: Facturacion;

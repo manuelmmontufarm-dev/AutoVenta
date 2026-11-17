@@ -9,6 +9,7 @@
 import satori from "satori";
 import { renderAsync } from "@resvg/resvg-js";
 import { type CatalogAvailability, type CatalogItem } from "../domain/catalog.js";
+import { ETIQUETA_FOTO_REFERENCIAL } from "../domain/catalogMedia.js";
 import { medidaEstaPedida } from "../domain/medidaPedida.js";
 import { modoDePromocion } from "../domain/promocion.js";
 import { hastaEnPalabras, marcaConSegundaLlanta, segundaLlantaDe, type SegundaLlanta } from "../domain/promocionDeTemporada.js";
@@ -44,6 +45,8 @@ export interface RenderLine {
   golpesMeses: number | null;
   fabricaAnios: number;
   photo: RasterImage;
+  /** La foto no es la del modelo exacto: la pieza escribe «Foto referencial». */
+  fotoReferencial?: boolean;
   /** Black Friday: las pares con el 60 % (solo la cotización; la vitrina no la lleva). */
   segundaLlanta?: SegundaLlanta | null;
 }
@@ -175,6 +178,7 @@ function toPosterLine(
     golpesMeses: line.golpesMeses,
     fabricaAnios: line.fabricaAnios,
     photoUri: line.photo.dataUri,
+    fotoReferencial: line.fotoReferencial,
     tag: profile?.tag ?? null,
     posicionamiento: profile?.posicionamiento ?? null,
   };
@@ -417,6 +421,7 @@ export async function toRenderLine(
     // (0) no puede salir prometiendo «5 años de fábrica». Depot: siempre 5.
     fabricaAnios: garantiaDelPerfil(product.brand).fabricaAnios,
     photo: await productPhoto(product.brand, product.design, product.imageUrl),
+    fotoReferencial: product.imageSource === ETIQUETA_FOTO_REFERENCIAL,
   };
 }
 

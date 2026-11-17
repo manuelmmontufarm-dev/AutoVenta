@@ -99,6 +99,8 @@ export interface PosterLine {
   golpesMeses: number | null;
   fabricaAnios: number;
   photoUri: string;
+  /** La foto no es la del modelo exacto (solo la plantilla día y noche lo escribe). */
+  fotoReferencial?: boolean;
   /** Frase de posicionamiento de la marca (comparativa y opciones). */
   posicionamiento?: string | null;
   /** Etiqueta corta, ej. "MEJOR EQUILIBRIO". */

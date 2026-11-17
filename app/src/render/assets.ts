@@ -77,6 +77,10 @@ export function loadFontsDiaNoche(): FontSpec[] {
     f("DN Barlow", "Barlow-Bold.ttf", 700),
     f("DN Chakra", "ChakraPetch-SemiBold.ttf", 600),
     f("DN Chakra", "ChakraPetch-Bold.ttf", 700),
+    // Kanit negrita itálica: el nombre de la llanta de los negocios que piden
+    // letra «deportiva» (perfil: `piezas.letraDelModelo`). Vive en fonts/, no en
+    // dia-noche/, porque la clásica ya la usaba para el precio.
+    { name: "DN Deportiva", data: readFileSync(path.join(ASSETS, "fonts", "Kanit-700i.ttf")), weight: 700, style: "normal" },
   ];
   return fontsDiaNoche;
 }

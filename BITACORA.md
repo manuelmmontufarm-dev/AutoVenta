@@ -1,3 +1,23 @@
+## 17-nov-2026 · Competimotor · cotización rediseñada, logos oficiales y foto en todas las llantas (rama `feat/competimotor-pdf-logos`)
+
+- **Qué:** la plantilla día y noche pasa a ser el punto de partida de Mundillantas/Competimotor
+  (`piezas.plantillaPorDefecto`; lo guardado en Ajustes → Piezas gana). La cotización suma cuotas de 3 y 6 sin
+  intereses, «Su compra está respaldada» sin plazos (seguro contra impacto y garantía de fábrica solo en Kenda,
+  Falken, Winrun y Maxxis; en las demás, los 3 locales), el horario bajo el precio y el nombre de la llanta en Kanit
+  negrita itálica. Los títulos de lo incluido dejan de salir los dos como «Alineación y balanceo». 31 logos oficiales
+  de marca nuevos (`assets/brands/oficiales/FUENTES.md`), 7 fotos de modelo nuevas y foto de reserva marcada «Foto
+  referencial» para las 24 llantas sin foto de su modelo: 482 de 482 con foto.
+- **Por qué:** Manuel, 17-nov: el PDF de Competimotor se veía vacío al lado del de Depot y había llantas sin foto;
+  quiere mostrarles el bot bien armado antes de pedirles los datos que faltan y arrancar la prueba de 2 semanas.
+- **Falta (no es código):** logo de Townhall (35 llantas) y de otras 11 marcas chicas; meses y años de las garantías;
+  que Jenny diga si la iLink Terramax es LSR1 o LSR2 y qué dibujo son las Vikrant; revisar si Ajustes → Piezas de
+  Mundillantas en producción ya tiene una plantilla guardada (ganaría sobre la nueva).
+- **Probado:** suite completa 3.933 de 3.935 (las dos que fallan son `hashesPiezasDepot` solo en sus tres `texto-*` y
+  `unidadEnLaCantidad`, las dos sobre `quoteMessages.ts`, que esta rama no toca); las imágenes de Depot salen con el
+  mismo hash. Piezas renderizadas con el Excel de Fénix del 6-nov (`docs/clientes/muestras-17nov/`). **No probado**
+  en el simulador ni en WhatsApp real.
+- **Horas:** 0,7.
+
 ## 11-nov-2026 · Mundillantas · el bot va en «Competimotor Online», 098 548 7924 (rama `feat/mundillantas-numero-online`)
 
 - **Qué:** `telefono` del perfil de Mundillantas pasa de `+593 99 124 4698` a `+593 98 548 7924`. Se ve en

@@ -173,6 +173,12 @@ const ARCHIVO = { fontFamily: "DN Archivo", fontWeight: 800 };
 const CHAKRA = (peso: 600 | 700 = 700) => ({ fontFamily: "DN Chakra", fontWeight: peso });
 /** Barlow: el texto corrido. */
 const BARLOW = (peso: 400 | 500 | 600 | 700 = 400) => ({ fontFamily: "DN Barlow", fontWeight: peso });
+/**
+ * El nombre de la llanta. La Archivo ancha de siempre o, si el perfil pide
+ * letra «deportiva», Kanit negrita itálica (más angosta: rinde un cuerpo mayor).
+ */
+const DEPORTIVA = negocio.piezas.letraDelModelo === "deportiva";
+const MODELO = DEPORTIVA ? { fontFamily: "DN Deportiva", fontWeight: 700 } : ANCHO(800);
 
 const dinero = (n: number) =>
   `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -305,7 +311,10 @@ function pildoraMarca(brand: string, t: Tokens, alto: number, altoLogo: number, 
   const logo = logoOficial(brand);
   const contenido = logo && logo.width > 0 && logo.height > 0
     ? (() => {
-        const escala = Math.min(altoLogo / logo.height, anchoMax / logo.width);
+        // Un logo apilado o casi cuadrado (Nexen, Cooper, Minerva) al alto de
+        // una palabra horizontal queda ilegible: usa casi todo el alto de la píldora.
+        const apilado = logo.width / logo.height < 2.6;
+        const escala = Math.min((apilado ? alto - 5 : altoLogo) / logo.height, anchoMax / logo.width);
         return img(logo.dataUri, { width: Math.round(logo.width * escala), height: Math.round(logo.height * escala) });
       })()
     : text({ ...ANCHO(900), fontSize: Math.round(altoLogo * 0.85), color: "#141416" }, brand.trim().toUpperCase());
@@ -354,7 +363,13 @@ const TIPOS_DE_BENEFICIO: Array<{ clave: RegExp; titulo: string; icono: Icono }>
   { clave: /revisi/i, titulo: "REVISIÓN DEL VEHÍCULO", icono: "revision" },
   { clave: /mantenimiento/i, titulo: "MANTENIMIENTO", icono: "ciclo" },
   { clave: /seguro|golpe/i, titulo: "SEGURO CONTRA DAÑOS", icono: "escudoOk" },
-  { clave: /alinea|balance/i, titulo: "ALINEACIÓN Y BALANCEO", icono: "rueda" },
+  // «Enllantaje, balanceo y nitrógeno» y «Alineación (comprando las 4)» salían
+  // las dos como «ALINEACIÓN Y BALANCEO» (17-nov): cada una con su nombre. El
+  // título doble queda solo para el beneficio que nombra las dos cosas.
+  { clave: /enllantaje|montaje/i, titulo: "ENLLANTAJE Y BALANCEO", icono: "rueda" },
+  { clave: /alinea[^]*balance|balance[^]*alinea/i, titulo: "ALINEACIÓN Y BALANCEO", icono: "rueda" },
+  { clave: /alinea/i, titulo: "ALINEACIÓN", icono: "rueda" },
+  { clave: /balance/i, titulo: "BALANCEO", icono: "rueda" },
 ];
 
 /**
@@ -370,7 +385,8 @@ export function tarjetasDeBeneficios(beneficios: readonly string[] = []): Tarjet
     .map((texto) => {
       const tipo = TIPOS_DE_BENEFICIO.find((t) => t.clave.test(texto));
       return tipo
-        ? { titulo: tipo.titulo, detalle: texto, icono: tipo.icono }
+        // «Alineación» bajo el título «ALINEACIÓN» es decir lo mismo dos veces.
+        ? { titulo: tipo.titulo, detalle: texto.toUpperCase() === tipo.titulo ? "" : texto, icono: tipo.icono }
         : { titulo: texto.toUpperCase(), detalle: "", icono: "regalo" as const };
     });
 }
@@ -419,6 +435,15 @@ function parrafo(
         color: negrita ? colorNegrita : color,
       }, w)),
   );
+}
+
+/** «Foto referencial» al pie de la foto que no es la del modelo exacto. */
+function rotuloReferencial(line: PosterLine, cuerpo: number): SatoriNode | null {
+  if (!line.fotoReferencial) return null;
+  return text({
+    ...BARLOW(600), fontSize: cuerpo, position: "absolute", bottom: 5, left: 0, right: 0, textAlign: "center",
+    justifyContent: "center", color: "#5b6170",
+  }, "Foto referencial");
 }
 
 function especificaciones(line: PosterLine): { kg: string | null; kmh: string | null } {
@@ -722,6 +747,7 @@ export function optionsPosterDiaNoche(data: OptionsDiaNocheData, modo: ModoPieza
           ? null
           : el({ position: "absolute", bottom: 18, left: 28, width: 76, height: 12, borderRadius: "50%", backgroundColor: t.fotoSombra }),
         img(line.photoUri, { width: 112, height: 136, objectFit: "contain" }),
+        rotuloReferencial(line, 7),
       ),
 
       // Identidad
@@ -739,7 +765,7 @@ export function optionsPosterDiaNoche(data: OptionsDiaNocheData, modo: ModoPieza
                 }, line.tag.toUpperCase())
               : null,
         ),
-        text({ ...ANCHO(800), fontSize: 23, lineHeight: 1.05, marginTop: 10, color: t.txt }, line.design.toUpperCase()),
+        text({ ...MODELO, fontSize: DEPORTIVA ? 27 : 23, lineHeight: 1.05, marginTop: 10, color: t.txt }, line.design.toUpperCase()),
         filaPais(line.brand, t, [16, 11], 12.5, 8),
         specs ? text({ ...BARLOW(400), fontSize: 9.5, color: t.sub, marginTop: 9 }, specs) : null,
         selloDeMedida(line, t),
@@ -940,7 +966,9 @@ export function quotePosterDiaNoche(data: QuoteDiaNocheData, modo: ModoPieza): S
       text({ ...CHAKRA(700), fontSize: cuerpoTxt, letterSpacing: 1.4, color }, n === 1 ? "LLANTA" : "LLANTAS"),
     );
   const disenio = line.design.toUpperCase();
-  const cuerpoModelo = disenio.length <= 6 ? 54 : disenio.length <= 9 ? 42 : disenio.length <= 13 ? 32 : 26;
+  const cuerpoModelo = DEPORTIVA
+    ? (disenio.length <= 6 ? 62 : disenio.length <= 9 ? 50 : disenio.length <= 13 ? 40 : disenio.length <= 18 ? 32 : 27)
+    : disenio.length <= 6 ? 54 : disenio.length <= 9 ? 42 : disenio.length <= 13 ? 32 : 26;
   const total = dinero(data.total);
   // Black Friday (5-nov): con la 2.ª llanta cambian la franja, el panel de
   // precio, la insignia y el ahorro; sin ella la pieza sale como siempre.
@@ -960,7 +988,16 @@ export function quotePosterDiaNoche(data: QuoteDiaNocheData, modo: ModoPieza): S
         }]
       : []),
   ];
-  const hayRespaldo = Boolean(line.golpesMeses) || line.fabricaAnios > 0 || minis.length > 0;
+  // Negocio que confirmó QUÉ respalda la compra pero no por cuánto tiempo
+  // (perfil: `piezas.respaldo`): se dice eso mismo, sin plazo. Con cifras en
+  // `garantias` para la marca, mandan las cifras y esto no se dibuja.
+  const sinCifras = !line.golpesMeses && line.fabricaAnios <= 0;
+  const respaldoSinPlazo = !sinCifras ? [] : (negocio.piezas.respaldo ?? []).filter((r) =>
+    !r.marcas || r.marcas.some((m) => m.trim().toUpperCase() === line.brand.trim().toUpperCase()));
+  const [respaldoGrande, ...respaldoChicos] = respaldoSinPlazo;
+  for (const r of respaldoChicos) minis.push({ ic: r.icono, cifra: r.titulo, texto: r.detalle });
+  const hayRespaldo = Boolean(line.golpesMeses) || line.fabricaAnios > 0 || minis.length > 0 || Boolean(respaldoGrande);
+  const horarioBajoElPrecio = negocio.piezas.horarioBajoElPrecio ? sinPendiente(negocio.horarioEnPalabras) : "";
 
   return el({
     flexDirection: "column", width: DIA_NOCHE_ANCHO.cotizacion, padding: "26px 25px 20px",
@@ -990,15 +1027,16 @@ export function quotePosterDiaNoche(data: QuoteDiaNocheData, modo: ModoPieza): S
         // Foto con fondo propio: recuadro blanco liso, donde ese fondo se funde.
         ? el({
             width: 238, height: 238, flexShrink: 0, borderRadius: 12, overflow: "hidden", backgroundColor: "#ffffff",
-            border: `1px solid ${t.line}`, alignItems: "center", justifyContent: "center",
-          }, img(line.photoUri, { width: 226, height: 226, objectFit: "contain" }))
+            border: `1px solid ${t.line}`, alignItems: "center", justifyContent: "center", position: "relative",
+          }, img(line.photoUri, { width: 226, height: 226, objectFit: "contain" }), rotuloReferencial(line, 9))
         : el({ width: 238, height: 238, flexShrink: 0, position: "relative", alignItems: "center", justifyContent: "center" },
             el({ position: "absolute", bottom: 8, left: 44, width: 150, height: 20, borderRadius: "50%", backgroundColor: t.fotoSombra }),
             img(line.photoUri, { width: 228, height: 238, objectFit: "contain" }),
+            rotuloReferencial(line, 9),
           ),
       el({ flex: 1, minWidth: 0, flexDirection: "column", paddingLeft: 26 },
         el({}, pildoraMarca(line.brand, t, 27, 17, 110)),
-        text({ ...ANCHO(800), fontSize: cuerpoModelo, lineHeight: 0.95, letterSpacing: -0.5, marginTop: 10, color: t.txt }, disenio),
+        text({ ...MODELO, fontSize: cuerpoModelo, lineHeight: 0.95, letterSpacing: -0.5, marginTop: 10, color: t.txt }, disenio),
         el({ gap: 7, marginTop: 13 },
           text({ ...ANCHO(800), fontSize: 12.5, backgroundColor: ORO, color: "#16130a", borderRadius: 999, padding: "6px 13px" }, line.sizeLabel),
           line.loadSpeedLabel
@@ -1063,7 +1101,12 @@ export function quotePosterDiaNoche(data: QuoteDiaNocheData, modo: ModoPieza): S
                     ),
               ),
             )
-          : null,
+          : horarioBajoElPrecio
+            ? el({ flexDirection: "column", marginTop: 14, paddingTop: 11, borderTop: `1px solid ${t.line}` },
+                text({ ...CHAKRA(700), fontSize: 8, letterSpacing: 1.6, color: t.tenue }, "LE ATENDEMOS"),
+                text({ ...BARLOW(600), fontSize: 10.5, lineHeight: 1.35, marginTop: 4, color: t.txt }, horarioBajoElPrecio),
+              )
+            : null,
       ),
       el({
         flex: 1, minHeight: 150, flexDirection: "column", borderRadius: 14, padding: "17px 17px 14px", color: "#ffffff",
@@ -1114,7 +1157,21 @@ export function quotePosterDiaNoche(data: QuoteDiaNocheData, modo: ModoPieza): S
     !hayRespaldo ? null : el({ gap: 10, marginTop: 12 },
       // Sin seguro NI garantía confirmada (cliente nuevo con garantías en 0) la
       // tarjeta no se dibuja: «0 años de garantía» sería una promesa en contra.
-      !line.golpesMeses && line.fabricaAnios <= 0 ? null : el({
+      sinCifras ? (!respaldoGrande ? null : el({
+        // Sola (marca sin respaldo propio) ocupa el ancho entero y va más baja.
+        ...(minis.length ? { width: 377, flexShrink: 0, minHeight: 143 } : { flex: 1, minHeight: 96 }), alignItems: "center", gap: 18, padding: "14px 20px", borderRadius: 14,
+        border: `${t.bordeAncho}px solid ${t.seguroBorde}`, backgroundImage: t.seguro, ...sombra(t.sombra),
+      },
+        el({
+          width: 40, height: 40, flexShrink: 0, borderRadius: 10, alignItems: "center", justifyContent: "center",
+          backgroundImage: "linear-gradient(135deg, #f0413b, #c81e24)", boxShadow: "0 6px 16px rgba(229,44,42,0.35)",
+        }, icono(respaldoGrande.icono, 18, "#ffffff")),
+        el({ flexDirection: "column", flex: 1 },
+          text({ ...ANCHO(800), fontSize: 19, lineHeight: 1.1, color: t.txt }, respaldoGrande.titulo.toUpperCase()),
+          respaldoGrande.marcas ? text({ ...BARLOW(600), fontSize: 12, marginTop: 6, color: t.seguroOro }, `Con su ${marca}`) : null,
+          text({ ...BARLOW(400), fontSize: respaldoGrande.marcas ? 9.5 : 11, lineHeight: 1.47, color: t.sub, marginTop: 7, maxWidth: minis.length ? 250 : 480 }, respaldoGrande.detalle),
+        ),
+      )) : el({
         width: 377, flexShrink: 0, minHeight: 143, alignItems: "center", gap: 18, padding: "14px 20px", borderRadius: 14,
         border: `${t.bordeAncho}px solid ${t.seguroBorde}`, backgroundImage: t.seguro, ...sombra(t.sombra),
       },
@@ -1135,7 +1192,7 @@ export function quotePosterDiaNoche(data: QuoteDiaNocheData, modo: ModoPieza): S
               : `Garantía de fábrica ${marca} contra defectos de fabricación.`),
         ),
       ),
-      el({ flex: 1, flexDirection: "column", gap: 10 },
+      !minis.length ? null : el({ flex: 1, flexDirection: "column", gap: 10 },
         ...minis.map((m) =>
           el({
             flex: 1, minHeight: 66, alignItems: "center", gap: 12, padding: "0 14px", borderRadius: 14,
@@ -1145,9 +1202,10 @@ export function quotePosterDiaNoche(data: QuoteDiaNocheData, modo: ModoPieza): S
               width: 26, height: 26, flexShrink: 0, borderRadius: 7, alignItems: "center", justifyContent: "center",
               backgroundColor: t.icoOroBg, border: `1px solid ${t.icoOroBorde}`,
             }, icono(m.ic, 12, t.icoOro)),
-            el({ flexDirection: "column" },
-              text({ ...ANCHO(800), fontSize: 15, color: t.txt }, m.cifra),
-              text({ ...BARLOW(400), fontSize: 8, color: t.sub, marginTop: 3 }, m.texto),
+            el({ flexDirection: "column", flex: 1, minWidth: 0 },
+              // «Garantía de fábrica» no cabe al cuerpo de «5 años»: baja un punto y medio.
+              text({ ...ANCHO(800), fontSize: m.cifra.length > 10 ? 11.5 : 15, color: t.txt }, m.cifra),
+              text({ ...BARLOW(400), fontSize: 8, lineHeight: 1.3, color: t.sub, marginTop: 3 }, m.texto),
             ),
           )),
       ),

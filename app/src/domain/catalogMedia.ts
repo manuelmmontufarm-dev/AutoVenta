@@ -358,6 +358,14 @@ export const FOTOS_POR_MODELO: readonly FotoPorModelo[] = [
   { marca: "FALKEN", modelo: new RegExp("WI[LD]*PEA[KL]\\s*A/?T\\s*4W"), publicUrl: "/assets/catalog/falken-wildpeak-at4w.png", sourceUrl: "https://falkentire.com", sourceLabel: "Falken Tyre" },
   { marca: "FALKEN", modelo: new RegExp("A/?T[\\s/-]*TRAIL"), publicUrl: "/assets/catalog/falken-wildpeak-at-trail.png", sourceUrl: "https://falkentire.com", sourceLabel: "Falken Tyre" },
   { marca: "FALKEN", modelo: new RegExp("WI[LD]*PEA[KL]\\s*M/?T\\s*-?0?1"), publicUrl: "/assets/catalog/falken-wildpeak-mt01.jpg", sourceUrl: "https://falkentire.com", sourceLabel: "Falken Tyre" },
+  // 17-nov-2026: modelos que seguían sin foto en el inventario de Mundillantas.
+  { marca: "SPEEDWAYS", modelo: new RegExp("MILE ?STONE"), publicUrl: "/assets/catalog/speedways-milestone.jpg", sourceUrl: "https://images.simpletire.com/images/q_auto/f_jpg,q_auto,h_1000/line-images/15315/15315-sidetread/speedways-milestone-swt.jpg", sourceLabel: "SimpleTire" },
+  { marca: "GOODYEAR", modelo: new RegExp("DIRECTION ?SPORT(?!\\s*2)"), publicUrl: "/assets/catalog/goodyear-direction-sport.png", sourceUrl: "https://mantallanta.com/en/products/goodyear-direction-sport-195-60r15-88h", sourceLabel: "Mantallanta" },
+  { marca: "KAPSEN", modelo: new RegExp("AT ?-?02(?!\\d)"), publicUrl: "/assets/catalog/kapsen-practicalmax-at02.png", sourceUrl: "https://mantallanta.com/en/products/kapsen-practicalmax-at02-lt-265-75r16-123-120s", sourceLabel: "Mantallanta" },
+  { marca: "NAAATS", modelo: new RegExp("FC ?-?19(?!\\d)"), publicUrl: "/assets/catalog/naaats-fc19.jpg", sourceUrl: "https://mantallanta.com/en/products/naats-fc19-235-55r17-99v", sourceLabel: "Mantallanta" },
+  { marca: "NAAATS", modelo: new RegExp("FC ?-?22(?!\\d)"), publicUrl: "/assets/catalog/naaats-fc22.jpg", sourceUrl: "https://mantallanta.com/en/products/naaats-fc22-225-60r18-104h", sourceLabel: "Mantallanta" },
+  { marca: "DURUN", modelo: new RegExp("\\bB ?-?717\\b"), publicUrl: "/assets/catalog/durun-b717.jpg", sourceUrl: "https://ik.imagekit.io/ntvz9dezi1x/tyre/durun/b_717.jpg", sourceLabel: "Supercheap Auto NZ" },
+  { marca: "WANDA", modelo: new RegExp("WR ?-?082(?!\\d)"), publicUrl: "/assets/catalog/wanda-wr082.jpg", sourceUrl: "https://admin.bigtyres.co.uk/media/landingpages/pattern/wanda_wr082.jpg", sourceLabel: "Big Tyres (Reino Unido)" },
 ];
 
 export function resolveCatalogMediaPorNombre(brand: string, name: string): CatalogMedia | null {
@@ -374,4 +382,47 @@ export function resolveCatalogMedia(brand: string, design: string): CatalogMedia
 
 function normalize(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+// ---------------------------------------------------------------------------
+// Foto de reserva: ninguna llanta sale sin foto (17-nov-2026)
+// ---------------------------------------------------------------------------
+
+/** Con esta etiqueta la pieza escribe «Foto referencial» sobre la imagen. */
+export const ETIQUETA_FOTO_REFERENCIAL = "Foto referencial";
+
+/**
+ * Para la llanta cuyo modelo exacto no tiene foto confiable. Primero una de
+ * la MISMA marca y del mismo tipo; al final, una sin marca a la vista según
+ * el tipo que diga el nombre. Nunca se presenta como la exacta: viaja con
+ * `ETIQUETA_FOTO_REFERENCIAL` y la pieza lo dice. El primero que casa gana.
+ */
+const FOTOS_DE_RESERVA: ReadonlyArray<{ marca?: string; modelo: RegExp; archivo: string }> = [
+  // El artículo no dice si es LSR1 o LSR2: va la LSR1, de la misma familia.
+  { marca: "ILINK", modelo: /TERRAMAX/, archivo: "ilink-terramax-lsr1-at.jpg" },
+  { marca: "ILINK", modelo: /PENTER/, archivo: "ilink-wildwolf-mt.jpg" },
+  // El artículo no nombra el dibujo: los dos que Vikrant vende en esas medidas.
+  { marca: "VIKRANT", modelo: /TRACC/, archivo: "vikrant-star-lug.jpg" },
+  { marca: "VIKRANT", modelo: /LISA|DIRECC/, archivo: "vikrant-track-king.jpg" },
+  { marca: "LINGLONG", modelo: /\bA\/?T\b/, archivo: "linglong-crosswind-at.png" },
+  { marca: "GOODYEAR", modelo: /FULL ?MAX/, archivo: "goodyear-fortera-comfortred.jpg" },
+  { marca: "OPALS", modelo: /./, archivo: "opals-fh666.jpg" },
+  { marca: "WANDA", modelo: /./, archivo: "wanda-wr082.jpg" },
+  { marca: "TRAZANO", modelo: /./, archivo: "trazano-sl369.jpg" },
+  { marca: "SPEEDWAYS", modelo: /./, archivo: "speedways-milestone.jpg" },
+  // La KR12 es llanta lisa de camioneta de carga, diga o no «LISA» el artículo.
+  { marca: "KENDA", modelo: /KR ?12\b/, archivo: "vikrant-track-king.jpg" },
+  // Sin marca a la vista, por tipo. El orden importa: tracción antes que A/T.
+  { modelo: /TRACC|\bLUG\b|\bM\/?T\b/, archivo: "kapsen-hs268.png" },
+  { modelo: /LISA|DIRECC|\bRIB\b/, archivo: "vikrant-track-king.jpg" },
+  { modelo: /\b[AR]\/?T\b/, archivo: "kapsen-practicalmax-at02.png" },
+  { modelo: /\bH\/?T\b|R\d{2}C\b/, archivo: "trazano-h188.jpg" },
+  { modelo: /./, archivo: "naaats-fc19.jpg" },
+];
+
+export function fotoDeReserva(brand: string, name: string): CatalogMedia {
+  const marca = normalize(brand);
+  const nombre = name.toUpperCase();
+  const foto = FOTOS_DE_RESERVA.find((f) => (!f.marca || normalize(f.marca) === marca) && f.modelo.test(nombre))!;
+  return { publicUrl: `/assets/catalog/${foto.archivo}`, sourceUrl: "", sourceLabel: ETIQUETA_FOTO_REFERENCIAL };
 }

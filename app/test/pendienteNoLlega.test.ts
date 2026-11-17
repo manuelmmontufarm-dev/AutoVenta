@@ -176,17 +176,27 @@ describe("lo que Depot promete no se cuela en las piezas de otro negocio", () =>
   // Las muestras del 4-nov salieron con «3 cuotas · 6 cuotas sin intereses»
   // (el [3, 6] de Depot escrito en diaNoche.ts) y con los rótulos de garantía
   // sobre secciones vacías.
-  it("sin cuotas declaradas no hay cuotas, ni rótulos de garantía vacíos", () => {
+  // 17-nov: Mundillantas ya declara sus cuotas ([3, 6], dentro del «hasta 6
+  // meses sin intereses» de Jenny) y QUÉ respalda la compra, sin plazos. Lo
+  // que sigue prohibido es un plazo que nadie confirmó.
+  it("las cuotas son las declaradas y el respaldo no trae meses ni años inventados", () => {
     for (const modo of ["dia", "noche"] as const) {
       const cotizacion = textoDe(quotePosterDiaNoche({ number: "COT-1", dateLabel: FECHA, line: linea({ pvpConIva: 90 }), total: 276 }, modo));
       const opciones = textoDe(optionsPosterDiaNoche({ dateLabel: FECHA, sizeLabel: "205/55R16", lines: [linea()] }, modo));
+      expect(cotizacion).toContain("3 cuotas de $92.00");
+      expect(cotizacion).toContain("6 cuotas de $46.00");
       for (const texto of [cotizacion, opciones]) {
-        // Sin `piezas.cuotasSinIntereses` no se calcula ninguna cuota. El pie
-        // sí dice «hasta 6 meses sin intereses»: eso lo confirmó Jenny el 6-nov.
-        expect(texto).not.toMatch(/cuotas/i);
-        expect(texto).not.toMatch(/3 y 6 meses|\b3 meses/i);
+        expect(texto).not.toMatch(/12 cuotas|3 y 6 meses|\b3 meses/i);
+        expect(texto).not.toMatch(/meses de seguro|años de garantía|\d+ años/i);
       }
-      expect(cotizacion).not.toContain("SU COMPRA ESTÁ RESPALDADA");
+      // Marca sin respaldo propio (Sailun): solo los locales, sin seguro ni garantía.
+      expect(cotizacion).toContain("3 LOCALES");
+      expect(cotizacion).not.toMatch(/SEGURO CONTRA IMPACTO|Garantía de fábrica/);
+      // Una de las cuatro que Jenny nombró el 6-nov: seguro y garantía, sin plazo.
+      const kenda = textoDe(quotePosterDiaNoche({ number: "COT-1", dateLabel: FECHA, line: linea({ brand: "KENDA" }), total: 276 }, modo));
+      expect(kenda).toContain("SEGURO CONTRA IMPACTO");
+      expect(kenda).toContain("Garantía de fábrica");
+      expect(kenda).not.toMatch(/meses de seguro|años de garantía|\d+ años/i);
     }
     const clasica = textoDe(quotePoster({ number: "COT-1", dateLabel: FECHA, line: linea(), subtotal: 240, iva: 36, total: 276 }, tema));
     expect(clasica).not.toContain("GARANTÍAS QUE TE RESPALDAN");

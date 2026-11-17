@@ -18,7 +18,7 @@ import { sql } from "../../db/client.js";
 import { negocio } from "../../negocio/index.js";
 import type { AroProducto } from "../../domain/aroProducto.js";
 import { extractCatalogSizeLabel, inferCatalogDesign, type CatalogItem } from "../../domain/catalog.js";
-import { resolveCatalogMedia, resolveCatalogMediaPorNombre } from "../../domain/catalogMedia.js";
+import { resolveCatalogMedia, resolveCatalogMediaPorNombre, fotoDeReserva } from "../../domain/catalogMedia.js";
 import { getCell, normalizarFilaDeCatalogo, type FilaCruda } from "./sheets.js";
 import { LLANTA, tel9 } from "./contifico.js";
 import type {
@@ -536,7 +536,10 @@ export const fuenteArchivoCatalogo: FuenteDeCatalogo = {
       // Sin foto en el archivo, la del catálogo de fotos. Se busca al cargar y no
       // al subir: una foto nueva en el código vale sin volver a subir el Excel.
       if (item && !item.imageUrl) {
-        const media = resolveCatalogMedia(item.brand, item.design) ?? resolveCatalogMediaPorNombre(item.brand, item.name);
+        // Y sin foto del modelo, una de reserva marcada «Foto referencial»:
+        // ninguna llanta de un catálogo subido sale con el dibujo genérico.
+        const media = resolveCatalogMedia(item.brand, item.design) ?? resolveCatalogMediaPorNombre(item.brand, item.name)
+          ?? fotoDeReserva(item.brand, item.name);
         if (media) Object.assign(item, { imageUrl: media.publicUrl, imageSource: media.sourceLabel });
       }
       if (item) items.push(item);
