@@ -493,13 +493,41 @@
    "uso": "Off-road, lodo y piedra al menor precio.",
    "datos": "Medidas grandes LT (35x12.50R17 = 10 lonas; 33x12.50R20 = 6 lonas). Ruidosa en asfalto como toda M/T.",
    "frase": "Es la barrosa económica."
+  },
+  "SC5": {
+   "marca": "CONTINENTAL",
+   "nombre": "Continental ContiSportContact 5",
+   "tipo": "Deportiva UHP (auto)",
+   "alias": [
+    "sportcontact 5",
+    "sport contact 5",
+    "sc5",
+    "contisportcontact"
+   ],
+   "uso": "Auto deportivo o sedán de alta gama, asfalto. La versión SSR (con estrella *) es RUN-FLAT de equipo original BMW: solo para autos que usan run-flat.",
+   "datos": "Deportiva premium de verano, muy buena en frenado seco y mojado. SSR = run-flat (rueda sin aire una distancia corta); * = homologada para BMW. FR = protector de aro.",
+   "frase": "Es la deportiva premium de Continental, la referencia en frenado en mojado."
+  },
+  "EXTREMECONTACTSPORT02": {
+   "marca": "CONTINENTAL",
+   "nombre": "Continental ExtremeContact Sport 02",
+   "tipo": "Deportiva de verano (auto)",
+   "alias": [
+    "extremecontact",
+    "extreme contact"
+   ],
+   "uso": "Auto deportivo, asfalto seco y mojado.",
+   "datos": "Deportiva de verano de máximo agarre (sucesora de la ExtremeContact Sport).",
+   "frase": "Es la deportiva de verano de Continental para máximo agarre."
   }
  },
  "marcas": {
   "FALKEN": "Marca japonesa del grupo Sumitomo Rubber (el mismo de Dunlop en Japón), 8.º fabricante de llantas del mundo (Tyrepress 2026). Fabrica en plantas propias de Japón, Tailandia, Turquía, Indonesia, China, Brasil y Sudáfrica; lo que llega a Ecuador suele venir de Japón o Tailandia según el lote y la medida — el país exacto está escrito en el costado («MADE IN …»).",
   "KENDA": "Marca TAIWANESA (nunca decir china), fundada en 1962 en Yuanlin, con centro técnico en Akron (EE. UU.); ~29.º fabricante del mundo. Tiene plantas en Taiwán, China, Vietnam e Indonesia; el país exacto está en el costado.",
   "WINRUN": "Marca china (Guangzhou), la opción de entrada. Tiene homologación europea (marca E) y DOT de EE. UU.",
-  "GITI": "Marca de Singapur con origen indonesio, 14.º fabricante del mundo. Depot aún no la cotiza: no prometer condiciones."
+  "GITI": "Marca de Singapur con origen indonesio, 14.º fabricante del mundo. Depot aún no la cotiza: no prometer condiciones.",
+  "CONTINENTAL": "Marca alemana (Continental AG, Hannover), 4.º fabricante de llantas del mundo (Tyrepress 2026), premium, líder en frenado en mojado. Tiene planta en Ecuador (Continental Tire Andina, Cuenca), aunque sus deportivas suelen venir de Europa. Depot tiene pocas unidades sueltas, no es marca de línea.",
+  "WANLI": "Marca china económica (Guangzhou). Depot tiene solo unidades sueltas. Sin pruebas independientes conocidas; garantía y condiciones las confirma el asesor."
  },
  "temas": {
   "origen": "Falken es japonesa, Kenda taiwanesa y Winrun china; las tres con 5 años de garantía de fábrica. Si preguntan dónde se FABRICÓ la llanta (no la marca): Falken suele venir de Japón o Tailandia según el lote; el país exacto está escrito en el costado y se le muestra en la llanta. PROHIBIDO decir que Kenda es china.",

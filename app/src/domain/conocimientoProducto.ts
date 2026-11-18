@@ -191,8 +191,29 @@ export function competidoresEnTexto(texto: string): string[] {
   return COMPETIDORES.filter(([, re]) => re.test(n)).map(([marca]) => marca);
 }
 
+/**
+ * Las marcas de la ficha que el cliente nombra («¿la Haida es buena?»). «BF»
+ * es BFGoodrich; «general» a secas es una palabra común, así que General Tire
+ * solo cuenta con «general tire» o el nombre de su línea.
+ */
+export function marcasEnTexto(texto: string): string[] {
+  const n = ` ${normalizar(texto)} `;
+  const vistas: string[] = [];
+  for (const marca of Object.keys(cargar().marcas)) {
+    const patron = marca === "GENERAL"
+      ? /general\s+tire|grabber|altimax/
+      : marca === "BFGOODRICH"
+        ? /(?<![a-z0-9])(?:bf\s?goodrich|bfg|bf)(?![a-z0-9])/
+        : new RegExp(`(?<![a-z0-9])${escapar(normalizar(marca))}(?![a-z0-9])`);
+    if (patron.test(n)) vistas.push(marca);
+  }
+  return vistas;
+}
+
 /** Pregunta abierta sobre un modelo nombrado: «¿qué tal la KR628?», «la trail es buena?». */
 const PREGUNTA_ABIERTA = /\?|que\s+tal|es\s+buen|son\s+buen|sirve|recomiend|conviene|para\s+que/;
+
+const OPINION_DE_MARCA = /que\s+tal|es\s+buen|son\s+buen|recomiend|conviene|calidad|confiable|dura|de\s+donde|mejor/;
 
 const MAX_MODELOS = 4;
 
@@ -228,7 +249,10 @@ export function conocimientoParaElTurno(
   const temas = temasDeLaPregunta(textoDelCliente);
   const competidores = competidoresEnTexto(textoDelCliente);
   const nombrados = modelosEnTexto(textoDelCliente);
-  const preguntaPorModelo = nombrados.length > 0 && PREGUNTA_ABIERTA.test(normalizar(textoDelCliente));
+  // Una marca a secas solo cuenta si se pregunta POR ELLA («¿qué tal la Haida?»):
+  // «¿tienen Kenda?» es disponibilidad, va al catálogo y no gasta este hecho.
+  const preguntaPorModelo = (nombrados.length > 0 && PREGUNTA_ABIERTA.test(normalizar(textoDelCliente)))
+    || (marcasEnTexto(textoDelCliente).length > 0 && OPINION_DE_MARCA.test(normalizar(textoDelCliente)));
   if (!temas.length && !competidores.length && !preguntaPorModelo) return null;
 
   const enMesa: string[] = [];
@@ -239,9 +263,14 @@ export function conocimientoParaElTurno(
     "CONOCIMIENTO DE PRODUCTO (ficha del negocio; el bot PUEDE afirmarlo tal cual y NO debe mandarlo al asesor ni decir «no tengo el dato»):",
   ];
   for (const tema of temas) if (b.temas[tema]) lineas.push(`• ${tema.toUpperCase()}: ${b.temas[tema]}`);
-  const marcas = new Set(modelos.map((m) => b.modelos.get(m)?.marca).filter(Boolean) as string[]);
-  if (temas.includes("origen")) for (const m of ["FALKEN", "KENDA", "WINRUN"]) marcas.add(m);
-  for (const marca of marcas) if (b.marcas[marca]) lineas.push(`• MARCA ${marca}: ${b.marcas[marca]}`);
+  // Marcas: las que nombró el cliente, las de los modelos sobre la mesa y, si
+  // pregunta el origen sin contexto, las primeras de la ficha (las de la casa).
+  const marcas = new Set([
+    ...marcasEnTexto(textoDelCliente),
+    ...(modelos.map((m) => b.modelos.get(m)?.marca?.toUpperCase()).filter(Boolean) as string[]),
+  ]);
+  if (temas.includes("origen") && !marcas.size) for (const m of Object.keys(b.marcas).slice(0, 4)) marcas.add(m);
+  for (const marca of [...marcas].slice(0, 6)) if (b.marcas[marca]) lineas.push(`• MARCA ${marca}: ${b.marcas[marca]}`);
   for (const llave of modelos) {
     const f = b.modelos.get(llave);
     if (f) lineas.push(`• MODELO ${f.nombre} — ${f.tipo}. Para: ${f.uso} Datos: ${f.datos} Frase: «${f.frase}»`);
