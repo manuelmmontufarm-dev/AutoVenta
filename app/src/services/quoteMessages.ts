@@ -469,7 +469,11 @@ export function buildStoreLinksBlock(
   destacado?: string | null,
   opciones?: { soloDestacado?: boolean },
 ): string {
-  const conMapa = business.stores.filter((store) => Boolean(store.mapsUrl));
+  // Con `referencia` (Competimotor, 17-nov) entran TODOS los locales, también
+  // el que todavía no tiene link: si no, «Mundillantas Kenda» desaparecía de la
+  // lista y el cliente no sabía que existía. Cada uno dice dónde queda.
+  const conReferencia = business.stores.some((store) => store.referencia);
+  const conMapa = business.stores.filter((store) => Boolean(store.mapsUrl) || (conReferencia && store.referencia));
   if (!conMapa.length) return "";
   // El nombre llega completo desde la base («Depot Tire Quito Sur»), pero
   // también abreviado desde quien solo tiene «Cumbayá» a mano. Un `soloDestacado`
@@ -482,6 +486,11 @@ export function buildStoreLinksBlock(
     : opciones?.soloDestacado
       ? [elegido]
       : [elegido, ...conMapa.filter((store) => store !== elegido)];
+  if (conReferencia) {
+    return mostrados
+      .map((store) => `📍 *${store.name}*: ${store.referencia ?? store.address}${store.mapsUrl ? `\n${store.mapsUrl}` : ""}`)
+      .join("\n\n");
+  }
   return mostrados.map((store) => `📍 *${store.name}*: ${store.mapsUrl}`).join("\n");
 }
 

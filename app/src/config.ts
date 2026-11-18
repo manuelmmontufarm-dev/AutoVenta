@@ -52,6 +52,8 @@ export interface Store {
   lat: number;
   lng: number;
   mapsUrl?: string;
+  /** Dónde queda en pocas palabras (perfil: `referencia`); solo si el nombre no lo dice. */
+  referencia?: string;
 }
 
 export interface BusinessConfig {
@@ -96,6 +98,7 @@ export const business: BusinessConfig = {
     lat: local.lat,
     lng: local.lng,
     ...(local.mapsUrl ? { mapsUrl: local.mapsUrl } : {}),
+    ...(local.referencia ? { referencia: local.referencia } : {}),
   })),
   taxRate: negocio.iva,
   currency: negocio.moneda,

@@ -77,6 +77,13 @@ export function conDondeQueda(bloque: string): string {
   return `${lineas.join("\n\n")}\n\n${bloque}`;
 }
 
+/** ¿Algún bloque ya trae la lista de locales con su ubicación (links o referencias)? */
+function yaDijoDondeQuedan(bloques: readonly string[]): boolean {
+  const locales = negocio.locales.filter((local) => local.mapsUrl || local.referencia);
+  return bloques.some((b) =>
+    locales.some((local) => (local.mapsUrl && b.includes(local.mapsUrl)) || (local.referencia && b.includes(local.referencia))));
+}
+
 /** Quita las líneas numeradas: con botones, repetirlas es ruido. */
 function sinLineasNumeradas(bloque: string): string {
   return bloque
@@ -114,6 +121,11 @@ export interface OpcionesDeBotones {
   mensajeDelCliente?: string | null;
   /** Ahora, para calcular «mañana» y el día siguiente hábil. */
   ahora?: Date;
+  /**
+   * Los bloques ANTERIORES del mismo turno. Si alguno ya dijo dónde quedan los
+   * locales, la pregunta del local no lo repite (17-nov: salía dos veces).
+   */
+  bloquesAnteriores?: readonly string[];
   /** ¿El local atiende ese día? Sin predicado se asume que sí. */
   estaAbierto?: (fecha: Date) => boolean;
 }
@@ -202,7 +214,7 @@ export function botonesParaBloque(
     const locales = negocio.locales;
     if (locales.length < 2 || locales.length > MAX_BOTONES) return null;
     return {
-      cuerpo: conDondeQueda(bloque),
+      cuerpo: yaDijoDondeQuedan([...(opciones.bloquesAnteriores ?? []), bloque]) ? bloque : conDondeQueda(bloque),
       botones: locales.map((local) => ({
         id: `local:${local.slug}${sufijo}`,
         titulo: local.nombreCorto,

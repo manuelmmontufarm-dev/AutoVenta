@@ -738,6 +738,7 @@ async function botonesDelUltimoBloque(
     const propuesta = botonesParaBloque(ultimo, {
       ciclo: conversation.current_cycle,
       mensajeDelCliente,
+      bloquesAnteriores: bloques.slice(0, -1),
       estaAbierto: (fecha) => algunLocalAbre(hours, fecha),
     });
     if (!propuesta || propuesta.botones.length < 2) return null;
