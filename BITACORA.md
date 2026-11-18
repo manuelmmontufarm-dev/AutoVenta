@@ -1,3 +1,15 @@
+## 17-nov-2026 · Bot · el mensaje de ausencia de WhatsApp Business ya no pausa al bot (rama `fix/ausencia-no-pausa`)
+
+- **Qué:** un eco que es respuesta automática de la app de WhatsApp Business (texto típico de ausencia/bienvenida,
+  o enviado a menos de 6 s del mensaje del cliente) se guarda con `automatica: true` y NO pasa la conversación a
+  humano. `esRespuestaAutomatica` en `domain/echoPayload.ts`; la usa `wa/echoes.ts`.
+- **Por qué:** Competimotor, 17-nov 18:15: el celular (coexistencia) mandó «Gracias por tu mensaje. En este momento no
+  podemos responder…» fuera de horario; el bot lo leyó como un asesor contestando, se pausó y Manuel se quedó sin
+  respuesta al «eran rin 14».
+- **Probado:** `echoes.test.ts` (3 casos nuevos: texto de ausencia, eco en segundos, persona que sí pausa),
+  `echoesWiring.test.ts`, typecheck.
+- **Horas:** 0,3.
+
 ## 17-nov-2026 · Depot · el bot contesta las preguntas de producto (rama `feat/conocimiento-llantas`)
 
 - **Qué:** ficha de los 35 modelos (Falken, Kenda, Winrun), 18 temas (lonas, km, treadwear, origen, DOT, lluvia,
