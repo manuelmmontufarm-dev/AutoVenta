@@ -58,6 +58,13 @@ export interface Local {
   lng: number;
   mapsUrl?: string;
   /**
+   * Dónde queda, en pocas palabras, para cuando el nombre no lo dice
+   * («Mundillantas Falken» no dice dónde; «Cumbayá» sí). Con esto, al preguntar
+   * a cuál local va, el mensaje de los botones lista cada local con su
+   * referencia y su link de Maps. Sin el campo, la pregunta sale como siempre.
+   */
+  referencia?: string;
+  /**
    * Clave con la que este local guarda su horario en `settings.store_hours`.
    * Existe aparte de `slug` porque los horarios de Depot ya están guardados en
    * producción bajo `cumbaya` y `quitoSur`, y renombrarlos ahí sería una

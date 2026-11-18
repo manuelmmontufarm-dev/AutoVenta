@@ -1,3 +1,16 @@
+## 17-nov-2026 · Competimotor · la pregunta del local dice dónde queda cada uno (rama `fix/locales-con-ubicacion`)
+
+- **Qué:** campo opcional `referencia` en cada local del perfil. Con él, el mensaje de los botones «¿A cuál local le
+  queda mejor ir?» lista antes cada local con su referencia y su link de Maps (`conDondeQueda` en
+  `domain/botones.ts`). Cargado solo en Mundillantas/Competimotor; Depot no lo declara y no cambia.
+- **Por qué:** Manuel, 17-nov 19:46: los botones «Mundillantas Falken / Mundillantas Kenda / Competimotor» no dicen
+  dónde queda cada uno; en Depot sí, porque los locales se llaman como su barrio.
+- **Nota:** el primer «3» de Manuel a las 19:45 se perdió porque el servicio se estaba reiniciando (cambio de
+  `BOT_APAGADO_EXCEPTO` para Joaquín); el turno solo vio «alo?». No es un error del bot.
+- **Probado:** `localesConDondeQueda.test.ts`, `botones.test.ts`, suite completa (3.978 de 3.980; las dos que fallan
+  ya venían de `main`). **No probado** en WhatsApp real.
+- **Horas:** 0,3.
+
 ## 17-nov-2026 · Bot · la lámina y el texto en el mismo orden, y «escribiendo…» a los 3 s (rama `fix/orden-y-escribiendo`)
 
 - **Qué:** la lámina de opciones ordena las tarjetas de menor a mayor precio, igual que la lista escrita
