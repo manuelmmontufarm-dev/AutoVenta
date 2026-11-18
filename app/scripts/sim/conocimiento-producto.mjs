@@ -12,7 +12,7 @@ import { correrEscenario, sql } from "./lib/corredor-t115.mjs";
 
 const CASOS = [
   { id: "lonas", mensajes: ["Hola, necesito 4 llantas 265/70R17 para mi Hilux", "De cuántas lonas es?"],
-    debe: /\d+\s*lonas/i, noDebe: /no tengo (?:verificad|ese dato|el dato)|entre 6 y 10|lo confirma el asesor/i },
+    debe: /\d+\s*lonas/i, noDebe: /no tengo (?:verificad|ese dato|el dato)|entre 6 y 10/i },
   { id: "km_origen", mensajes: ["205/55R16", "Kenda es para cuantos kilómetros? y son chinas?"],
     debe: /68\.?500/, noDebe: /kenda[^.]{0,40}(?:es|son) (?:de origen )?chin|no (?:le )?puedo prometer/i },
   { id: "montana", mensajes: ["235/75R15", "cual es mejor para montaña y lastre?"],

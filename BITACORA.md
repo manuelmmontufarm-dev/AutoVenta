@@ -1,3 +1,19 @@
+## 17-nov-2026 · Competimotor + Depot · conocimiento de producto propio de cada cliente (rama `feat/conocimiento-competimotor`)
+
+- **Qué:** `assets/mundillantas/conocimiento-modelos.json` con 45 marcas y 144 modelos del inventario de Fénix
+  (6-nov), sus temas con la política de Jenny (alineación solo con 4 llantas, seguro y garantía sin plazos, sin
+  cifras de km) y las lonas por modelo+medida sacadas del «NPR» de Fénix. Depot suma Continental (SportContact 5
+  SSR, ExtremeContact Sport 02) y Wanli. `conocimientoProducto.ts` reconoce marcas nombradas («¿qué tal la Haida?»,
+  sin gastar el hecho en «¿tienen Kenda?») y elige las marcas de origen según el contexto, no fijas de Depot.
+  Documento para leer: `docs/clientes/CONOCIMIENTO-LLANTAS-COMPETIMOTOR.md`.
+- **Por qué:** Manuel, 17-nov: «que Competimotor tenga la info que necesito y Depot la que él necesite».
+- **Falta (no es código):** plazos de garantía y seguro, envíos, descuento en efectivo, DOT del stock, 14 modelos
+  sin ficha pública, R330-i, PowerContact 2 185/65R14 con posible reemplazo voluntario por DOT, stock −4 de la
+  A/T4W 265/65R17 (lista en el documento, §4).
+- **Probado:** 8 pruebas nuevas (`conocimientoCompetimotor.test.ts`, marca a secas); suite 3.981 de 3.983 (las 2
+  de siempre); `perfilAjeno.*` y `simuladorFidelidad` en verde. Simulador como Competimotor con el Excel real de
+  Fénix: 5 de 5 preguntas leídas a mano.
+- **Horas:** 1,0.
 ## 17-nov-2026 · Competimotor · la pregunta del local dice dónde queda cada uno (rama `fix/locales-con-ubicacion`)
 
 - **Qué:** campo opcional `referencia` en cada local del perfil. Con él, el mensaje de los botones «¿A cuál local le

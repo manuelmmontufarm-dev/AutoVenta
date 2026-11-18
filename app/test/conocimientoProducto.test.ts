@@ -139,3 +139,12 @@ describe("lonas resueltas por modelo y medida (simulador 17-nov: «lo confirma e
     expect(conocimientoParaElTurno("Que treadwear es? Y que Dot es?")).toMatch(/CADA tema/);
   });
 });
+
+describe("marca a secas (17-nov)", () => {
+  it("«¿qué tal es Kenda?» trae la línea de la marca", () => {
+    expect(conocimientoParaElTurno("que tal es kenda")).toMatch(/MARCA KENDA/);
+  });
+  it("«¿tienen Kenda?» es disponibilidad: no gasta el hecho", () => {
+    expect(conocimientoParaElTurno("tienen kenda?")).toBeNull();
+  });
+});

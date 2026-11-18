@@ -1,0 +1,2189 @@
+{
+ "version": "1.0",
+ "generado": "2026-11-17",
+ "fuente": "docs/clientes/CONOCIMIENTO-LLANTAS-COMPETIMOTOR.md (investigación 17-nov-2026) + política confirmada por Jenny (6 y 8-nov).",
+ "proposito": "Ficha por modelo, respuestas a las preguntas técnicas que más hacen los clientes y comparativas contra marcas que Depot no vende. Se inyecta como HECHO solo cuando el cliente pregunta algo de esto.",
+ "modelos": {
+  "ZE310R": {
+   "marca": "FALKEN",
+   "nombre": "Falken Ziex ZE310R Ecorun",
+   "tipo": "Turismo (auto)",
+   "alias": [
+    "ze310r",
+    "ze 310r",
+    "ze310 r",
+    "ziex 310"
+   ],
+   "uso": "Auto de pasajeros, ciudad y carretera. NO es para montaña, piedra ni camioneta.",
+   "datos": "Frenado en mojado clase A en la etiqueta europea (la mejor nota). UTQG 320 B A. Ecorun = baja resistencia, ahorra combustible. Falken dice +30 % de vida frente a la ZE914.",
+   "frase": "Es la Falken de auto: japonesa, con la mejor nota posible en frenado sobre mojado de la etiqueta europea."
+  },
+  "ZE914ER": {
+   "marca": "FALKEN",
+   "nombre": "Falken Ziex ZE914 Ecorun",
+   "tipo": "Turismo (auto)",
+   "alias": [
+    "ze914",
+    "ze 914",
+    "ze914er"
+   ],
+   "uso": "Auto y crossover de asfalto. Generación anterior a la ZE310.",
+   "datos": "Llanta de verano de 2012, reemplazada por la ZE310. En pruebas de revista quedó a media tabla en mojado.",
+   "frase": "Es la Falken de auto de la generación anterior; si hay ZE310 en su medida, esa es la más nueva."
+  },
+  "AZENISFK520L": {
+   "marca": "FALKEN",
+   "nombre": "Falken Azenis FK520L",
+   "tipo": "Deportiva UHP",
+   "alias": [
+    "fk520",
+    "azenis"
+   ],
+   "uso": "Auto deportivo o sedán de alta gama (aro 17–20), 100 % asfalto.",
+   "datos": "La deportiva tope de Falken (2023), sucesora de la FK510 (n.º 1 en desgaste en ADAC 2022). Más agarre y precisión; dura menos que una de turismo.",
+   "frase": "Es la deportiva tope de Falken, para autos de alta gama que piden agarre."
+  },
+  "ZIEXCT60AS": {
+   "marca": "FALKEN",
+   "nombre": "Falken Ziex CT60 A/S",
+   "tipo": "H/T para SUV (100 % asfalto)",
+   "alias": [
+    "ct60",
+    "ct 60",
+    "ziex ct"
+   ],
+   "uso": "SUV y crossover que NO sale del asfalto (Tucson, Sportage, RAV4, CX-5, Creta).",
+   "datos": "UTQG 600–740 AA según medida. Primera Falken diseñada para crossover (2017). Viene de fábrica en el Mazda CX-90. Buen agarre en seco y mojado, silenciosa, gasta menos que una A/T.",
+   "frase": "Es la Falken para SUV de asfalto: silenciosa, buena en lluvia y la que viene de fábrica en el Mazda CX-90."
+  },
+  "WILDPEAKATTRAIL": {
+   "marca": "FALKEN",
+   "nombre": "Falken Wildpeak A/T Trail",
+   "tipo": "A/T para SUV y crossover",
+   "alias": [],
+   "uso": "SUV y crossover de uso mixto: 80 % asfalto / 20 % tierra (Sportage, Tucson, RAV4, Vitara, Creta, X-Trail, Duster). Lastre, camino de tierra y lodo ligero; no es para roca ni lodo profundo.",
+   "datos": "Sello 3PMSF. UTQG aprox. 680 AA (varía por medida). Solo medidas P y XL, no LT. 4,7/5 con 129 reseñas de dueños. Más cómoda y silenciosa que una A/T de camioneta.",
+   "frase": "Es la all-terrain de Falken pensada para SUV: se siente como llanta de carretera en el asfalto y aguanta lastre cuando toca."
+  },
+  "WILDPEAKAT3W": {
+   "marca": "FALKEN",
+   "nombre": "Falken Wildpeak A/T3W",
+   "tipo": "A/T (camioneta y 4x4)",
+   "alias": [
+    "at3w",
+    "a/t3w",
+    "a/t 3w",
+    "at3wa",
+    "a/t3wa"
+   ],
+   "uso": "4x4 y camioneta on/off road. Generación anterior a la A/T4W.",
+   "datos": "Sello 3PMSF. UTQG 660. Vino de fábrica en el Jeep Gladiator 2020. Su versión europea/asiática (A/T3WA, misma familia) quedó 2.ª de 8 en el test ADAC 2025. Frente a la BFG KO2: más silenciosa, frena mejor en mojado; la KO2 tiene costado más duro.",
+   "frase": "Es la all-terrain clásica de Falken, la que vino de fábrica en el Jeep Gladiator."
+  },
+  "WILDPEAKAT4W": {
+   "marca": "FALKEN",
+   "nombre": "Falken Wildpeak A/T4W",
+   "tipo": "A/T (camioneta y 4x4)",
+   "alias": [
+    "at4w",
+    "a/t4w",
+    "a/t 4w",
+    "at 4w",
+    "wildpeak at",
+    "wildpeak a/t",
+    "wild peak",
+    "wildpeak"
+   ],
+   "uso": "Camioneta y 4x4 de uso mixto real: 50 % asfalto / 50 % tierra (Hilux, D-Max, BT-50, Ranger, Fortuner, Wingle). No es solo para 4x4: va perfecta en 4x2.",
+   "datos": "Nueva generación (2024) de la A/T3W: banda más rígida, costado de 3 capas en medidas seleccionadas, laminillas hasta el fondo (agarra hasta el final), sello 3PMSF. N.º 1 en el comparativo all-terrain 2025 de Tyre Reviews. En la prueba de Tire Rack 2024 frenó ~8 % mejor en mojado que la BFGoodrich KO3 (la KO3 gana en nieve). Hay versión P/XL (más cómoda) y LT de 8–10 lonas (para carga).",
+   "frase": "Es la llanta mixta más premiada del momento: primera en el comparativo all-terrain 2025 de Tyre Reviews y en mojado frena mejor que la BFGoodrich KO3."
+  },
+  "WILDPEAKRT01": {
+   "marca": "FALKEN",
+   "nombre": "Falken Wildpeak R/T01",
+   "tipo": "R/T (entre A/T y M/T)",
+   "alias": [
+    "rt01",
+    "r/t01",
+    "r/t 01",
+    "wildpeak rt",
+    "wildpeak r/t"
+   ],
+   "uso": "4x4 que hace tierra, lodo y piedra seguido sin perder confort en carretera; look agresivo. Es la opción off-road, NO la «equilibrada».",
+   "datos": "Lanzada en 2024, costado de 3 capas resistente a cortes, medidas LT. Mejor que la A/T4W en roca y lodo, algo más ruidosa. Sin sello 3PMSF: en asfalto mojado queda por debajo de la A/T4W.",
+   "frase": "Es la Falken para campo de verdad: costado de 3 capas que aguanta piedra, pero sigue siendo manejable en carretera."
+  },
+  "WILDPEAKMT": {
+   "marca": "FALKEN",
+   "nombre": "Falken Wildpeak M/T",
+   "tipo": "M/T (barrosa)",
+   "alias": [
+    "wildpeak mt",
+    "wildpeak m/t",
+    "mt01",
+    "m/t01"
+   ],
+   "uso": "Lodo, piedra, trocha, finca. NO para quien anda casi todo en asfalto mojado.",
+   "datos": "Costado DURASPEC de 3 capas, de las M/T más silenciosas del mercado. Velocidad Q (160 km/h). Como toda M/T frena peor en asfalto mojado, se gasta más rápido y consume más. Su versión de carrera ganó la clase Trophy Truck del NORRA 1000 en 2026.",
+   "frase": "Es la barrosa de Falken: costado de 3 capas y de las M/T más silenciosas, para lodo y trocha."
+  },
+  "WILDPEAKMT01": {
+   "igual_a": "WILDPEAKMT"
+  },
+  "KR20": {
+   "marca": "KENDA",
+   "nombre": "Kenda Kaiser KR20",
+   "tipo": "Turismo deportiva (auto)",
+   "alias": [
+    "kr20",
+    "kr 20",
+    "kr-20",
+    "kaiser",
+    "espina de pescado"
+   ],
+   "uso": "Auto de pasajeros con look deportivo, 100 % asfalto. NO es para camioneta, piedra ni montaña.",
+   "datos": "Dibujo direccional en V (espina de pescado). Buen agarre en seco y buen precio. OJO: los dueños la califican floja en lluvia (4,6/10 en mojado); para quien maneja mucho con lluvia conviene KR41 o KR203.",
+   "frase": "Es la Kenda de auto con dibujo deportivo en V: buen agarre en seco a buen precio."
+  },
+  "KR203": {
+   "marca": "KENDA",
+   "nombre": "Kenda Kenetica Eco KR203",
+   "tipo": "Turismo confort (auto)",
+   "alias": [
+    "kr203",
+    "kr 203",
+    "kr-203",
+    "kenetica",
+    "kinetica"
+   ],
+   "uso": "Auto urbano, taxi, Uber, ciudad y carretera. NO para piedra ni camioneta.",
+   "datos": "Silenciosa (68 dB) y cómoda. Etiqueta europea: mojado C, consumo D. Sucesora de la KR23.",
+   "frase": "Es la Kenda de confort para ciudad: silenciosa y suave, pensada para el día a día."
+  },
+  "KR23": {
+   "marca": "KENDA",
+   "nombre": "Kenda Komet Plus KR23",
+   "tipo": "Turismo básica (auto)",
+   "alias": [
+    "kr23",
+    "kr 23",
+    "komet"
+   ],
+   "uso": "Auto pequeño, uso urbano.",
+   "datos": "Modelo básico; Kenda ya la reemplazó por la KR203.",
+   "frase": "Es la Kenda básica de auto pequeño."
+  },
+  "KR41": {
+   "marca": "KENDA",
+   "nombre": "Kenda Emera A1 KR41",
+   "tipo": "Deportiva UHP (auto)",
+   "alias": [
+    "kr41",
+    "kr 41",
+    "emera a1"
+   ],
+   "uso": "Sedán o auto deportivo, asfalto. La mejor Kenda de auto en lluvia.",
+   "datos": "Hecha en Taiwán. Compuesto de alta sílice, casi todas XL. Etiqueta europea mojado B. En pruebas de frenado en mojado frenó solo 1,9 % más largo que las premium.",
+   "frase": "Es la Kenda de auto que mejor agarra en lluvia: en pruebas frenó casi igual que las premium."
+  },
+  "KR605": {
+   "marca": "KENDA",
+   "nombre": "Kenda Emera SUV KR605",
+   "tipo": "Turismo SUV (100 % asfalto)",
+   "alias": [
+    "kr605",
+    "kr 605",
+    "emera suv"
+   ],
+   "uso": "SUV moderna con aro grande (17–22) que nunca sale del pavimento. NO para lastre frecuente.",
+   "datos": "XL en varias medidas. Etiqueta europea mojado C. Ej. 215/60R17 96H, tracción B, temperatura A.",
+   "frase": "Es la Kenda para SUV de ciudad con aro grande."
+  },
+  "KR15": {
+   "marca": "KENDA",
+   "nombre": "Kenda Klever H/P KR15",
+   "tipo": "H/T (SUV de carretera)",
+   "alias": [
+    "kr15",
+    "kr 15",
+    "klever hp",
+    "klever h/p"
+   ],
+   "uso": "SUV o 4x4 de carretera con tierra ligera (Vitara, Grand Vitara, SUV clásica aro 15).",
+   "datos": "M+S. UTQG 400 A A (tracción A en mojado). Cómoda y silenciosa. Velocidad S/T.",
+   "frase": "Es la Kenda de carretera para SUV: cómoda, silenciosa y con tracción A en mojado."
+  },
+  "KR50": {
+   "marca": "KENDA",
+   "nombre": "Kenda Klever H/T KR50",
+   "tipo": "H/T (SUV y camioneta de asfalto)",
+   "alias": [
+    "kr50",
+    "kr 50",
+    "kr-50",
+    "klever ht",
+    "klever h/t"
+   ],
+   "uso": "SUV y camioneta 100 % asfalto. Si el cliente hace lastre, mejor KR628.",
+   "datos": "Taco cerrado, silenciosa y cómoda. Treadwear 500 en 235/55R18.",
+   "frase": "Es la Kenda de carretera para SUV y camioneta: silenciosa y cómoda en asfalto."
+  },
+  "KR28": {
+   "marca": "KENDA",
+   "nombre": "Kenda Klever A/T KR28",
+   "tipo": "A/T (1.ª generación)",
+   "alias": [
+    "kr28",
+    "kr 28",
+    "kr-28"
+   ],
+   "uso": "Camioneta y 4x4 de uso mixto que prioriza confort en carretera. Es A/T (todo terreno mixta): asfalto con lluvia y lastre.",
+   "datos": "UTQG 660 A B. 4,5/5 con 99 reseñas de dueños. Sin sello 3PMSF. Es la A/T de 1.ª generación; la KR628 es la nueva. Las lonas dependen de la medida: confirmarlas en la descripción del sistema.",
+   "frase": "Es la Klever A/T de Kenda: todo terreno mixta con confort de carretera."
+  },
+  "KR608": {
+   "marca": "KENDA",
+   "nombre": "Kenda Klever A/T KR608",
+   "tipo": "A/T robusta (medidas LT)",
+   "alias": [
+    "kr608",
+    "kr 608"
+   ],
+   "uso": "Camioneta de trabajo que hace lastre con piedra (D-Max, Hilux, BT-50, Great Wall).",
+   "datos": "Otro dibujo de Klever A/T, con bloques rígidos que resisten cortes y limpian el barro. Casi todo en medidas LT de 6, 8 y 10 lonas.",
+   "frase": "Es la Klever A/T más robusta de Kenda, en medidas LT para trabajo."
+  },
+  "KR628": {
+   "marca": "KENDA",
+   "nombre": "Kenda Klever A/T2 KR628",
+   "tipo": "A/T (2.ª generación)",
+   "alias": [
+    "kr628",
+    "kr 628",
+    "kr-628",
+    "klever at2",
+    "klever a/t2",
+    "klever at",
+    "klever a/t"
+   ],
+   "uso": "SUV, camioneta y 4x4 de uso mixto: lluvia, asfalto y lastre. La Kenda «para todo».",
+   "datos": "Diseñada en el centro técnico de Kenda en Akron (EE. UU.). Sello 3PMSF en todas las medidas (certificación de tracción en condiciones severas). UTQG 560 A B. 4,6/5 con 270 reseñas de dueños, 95 % la volvería a comprar. Silenciosa para ser A/T. Medidas P y LT de 10 lonas.",
+   "frase": "Es la all-terrain nueva de Kenda para lluvia, asfalto y lastre: silenciosa y con 4,6 de 5 en 270 reseñas de dueños."
+  },
+  "KR601": {
+   "marca": "KENDA",
+   "nombre": "Kenda Klever R/T KR601",
+   "tipo": "R/T (entre A/T y M/T)",
+   "alias": [
+    "kr601",
+    "kr 601",
+    "kr-601",
+    "klever rt",
+    "klever r/t"
+   ],
+   "uso": "4x4 en tierra, piedra y lodo que igual rueda en carretera entre semana.",
+   "datos": "Costado de 3 lonas en todas las medidas (resiste cortes de piedra). M+S. En aro 15–16 son 6 lonas; en 17–18 grandes, 10 lonas rango E. 4,7/5 con 705 reseñas de dueños: la Kenda mejor calificada. Algo más pesada y ruidosa que una A/T.",
+   "frase": "Es la Kenda mejor calificada: 4,7 de 5 con más de 700 reseñas, con costado de 3 lonas que aguanta piedra."
+  },
+  "KR29": {
+   "marca": "KENDA",
+   "nombre": "Kenda Klever M/T KR29",
+   "tipo": "M/T (barrosa)",
+   "alias": [
+    "kr29",
+    "kr 29",
+    "kr-29",
+    "klever mt",
+    "klever m/t"
+   ],
+   "uso": "Lodo, cantera, trocha pesada. NO es la opción equilibrada para quien pide A/T.",
+   "datos": "Crestas que expulsan piedras, laminillas hasta el fondo. Aro 16–17 grande: 10 lonas rango E; aro 15 y flotación (31x10.50, 32x11.50, 33x12.50R15): 6 lonas. Más ruidosa en asfalto.",
+   "frase": "Es la barrosa de Kenda para lodo y trocha."
+  },
+  "KR629": {
+   "marca": "KENDA",
+   "nombre": "Kenda Klever M/T2 KR629",
+   "tipo": "M/T (2.ª generación)",
+   "alias": [
+    "kr629",
+    "kr 629",
+    "klever mt2",
+    "klever m/t2"
+   ],
+   "uso": "Lodo y off-road extremo, camionetas levantadas.",
+   "datos": "3 lonas en el costado, protector de aro, menos ruido que la KR29. Rango E (10 lonas); 35x12.50R20 de 12 lonas. 4,5/5 con 46 reseñas.",
+   "frase": "Es la barrosa nueva de Kenda para off-road extremo."
+  },
+  "KR33": {
+   "marca": "KENDA",
+   "nombre": "Kenda Komendo KR33",
+   "tipo": "Comercial C (van y furgoneta)",
+   "alias": [
+    "kr33",
+    "kr 33",
+    "komendo"
+   ],
+   "uso": "Furgoneta y van de reparto.",
+   "datos": "Estable con y sin carga. Lonas según medida (6–8).",
+   "frase": "Es la Kenda comercial para furgoneta y van."
+  },
+  "KR33A": {
+   "marca": "KENDA",
+   "nombre": "Kenda Komendo KR33A",
+   "tipo": "Comercial C (más carga)",
+   "alias": [
+    "kr33a",
+    "kr 33a"
+   ],
+   "uso": "Van y furgoneta con más carga.",
+   "datos": "La misma Komendo en medidas con índice de carga más alto: 8, 10 y 12 lonas según medida (225/70R15C = 8 lonas).",
+   "frase": "Es la Komendo reforzada para van con más carga."
+  },
+  "KR12": {
+   "marca": "KENDA",
+   "nombre": "Kenda KR12",
+   "tipo": "Camión liviano (costillas)",
+   "alias": [
+    "kr12",
+    "kr 12"
+   ],
+   "uso": "Camión liviano de carga (medidas tipo 7.00R15 y 7.00R16).",
+   "datos": "10 a 12 lonas según medida (en el sistema: 7.00R15 de 12 lonas y 7.00R16 de 10 lonas). Dibujo de costillas. Pregunta clave: si su camión usa tubo.",
+   "frase": "Es la Kenda para camión liviano de carga."
+  },
+  "R380": {
+   "marca": "WINRUN",
+   "nombre": "Winrun R380",
+   "tipo": "Turismo (auto)",
+   "alias": [
+    "r380",
+    "r 380"
+   ],
+   "uso": "Sedán, compacto y SUV pequeña de asfalto (Aveo, Sail, Spark, Rio, Picanto).",
+   "datos": "Etiqueta europea mojado B (mejor que varias de más precio), consumo D. UTQG 420 AA. Cómoda.",
+   "frase": "Es la Winrun de auto: económica y con nota B en frenado sobre mojado."
+  },
+  "R330": {
+   "marca": "WINRUN",
+   "nombre": "Winrun R330",
+   "tipo": "Deportiva UHP (auto)",
+   "alias": [
+    "r330",
+    "r 330"
+   ],
+   "uso": "Auto y SUV deportivo con aro grande al menor precio.",
+   "datos": "UTQG 420 AA. Etiqueta europea mojado C (B en las medidas grandes nuevas). Algo de ruido a alta velocidad.",
+   "frase": "Es la Winrun deportiva para aro grande al menor precio."
+  },
+  "MAXCLAWHT2": {
+   "marca": "WINRUN",
+   "nombre": "Winrun Maxclaw H/T2",
+   "tipo": "H/T (SUV y camioneta de asfalto)",
+   "alias": [
+    "maxclaw ht",
+    "maxclaw h/t"
+   ],
+   "uso": "SUV y camioneta 90 % carretera.",
+   "datos": "Compuesto all-season, huella plana para desgaste parejo.",
+   "frase": "Es la Winrun de carretera para SUV y camioneta."
+  },
+  "MAXCLAWAT": {
+   "marca": "WINRUN",
+   "nombre": "Winrun Maxclaw A/T",
+   "tipo": "A/T",
+   "alias": [
+    "maxclaw at",
+    "maxclaw a/t",
+    "maxclaw"
+   ],
+   "uso": "Camioneta y SUV de uso mixto al menor precio.",
+   "datos": "All-terrain de entrada.",
+   "frase": "Es la all-terrain económica, para uso mixto."
+  },
+  "MAXCLAWRT": {
+   "marca": "WINRUN",
+   "nombre": "Winrun Maxclaw R/T",
+   "tipo": "R/T",
+   "alias": [
+    "maxclaw rt",
+    "maxclaw r/t"
+   ],
+   "uso": "4x4 mixto con look agresivo.",
+   "datos": "Medidas LT (LT265/75R16 123/120R = 10 lonas, rango E).",
+   "frase": "Es la R/T económica, de look agresivo."
+  },
+  "MT305": {
+   "marca": "WINRUN",
+   "nombre": "Winrun MT305",
+   "tipo": "M/T (barrosa)",
+   "alias": [
+    "mt305",
+    "mt 305"
+   ],
+   "uso": "Off-road, lodo y piedra al menor precio.",
+   "datos": "Medidas grandes LT (35x12.50R17 = 10 lonas; 33x12.50R20 = 6 lonas). Ruidosa en asfalto como toda M/T.",
+   "frase": "Es la barrosa económica."
+  },
+  "RD105B": {
+   "marca": "TIANFU",
+   "nombre": "Tianfu RD105B",
+   "tipo": "comercial C (camioneta de carga liviana)",
+   "alias": [
+    "rd105b",
+    "rd105",
+    "rd 105b"
+   ],
+   "uso": "Camionetas pequeñas de carga y furgonetas con rin 12 (155R12 8PR).",
+   "datos": "sin datos públicos; 155R12LT 8 lonas 88/86 (según la descripción de Fénix).",
+   "frase": "Llanta reforzada de 8 lonas para carguita pequeña rin 12, buena opción económica para trabajo diario."
+  },
+  "TH30": {
+   "marca": "TOWNHALL",
+   "nombre": "Townhall TH-30",
+   "tipo": "comercial C (carga liviana)",
+   "alias": [
+    "th-30",
+    "th30",
+    "th 30"
+   ],
+   "uso": "Camionetas de carga liviana rin 12.",
+   "datos": "sin datos públicos; 155R12 8PR según Fénix.",
+   "frase": "Llanta de 8 lonas para carga liviana rin 12, económica y resistente para el trabajo."
+  },
+  "TH161": {
+   "marca": "TOWNHALL",
+   "nombre": "Townhall TH-161",
+   "tipo": "turismo (pasajero)",
+   "alias": [
+    "th-161",
+    "th161",
+    "th 161"
+   ],
+   "uso": "Autos y crossovers pequeños de uso urbano y carretera.",
+   "datos": "sin datos públicos; se ofrece en rin 13 a 16 con índices H/V según Fénix (p. ej. 185/65R14 86H, 195/50R15 82V).",
+   "frase": "Llanta de pasajero económica para el día a día en ciudad y carretera."
+  },
+  "THAT802": {
+   "marca": "TOWNHALL",
+   "nombre": "Townhall TH-AT802",
+   "tipo": "A/T",
+   "alias": [
+    "th-at802",
+    "at802",
+    "th at802",
+    "thAT802"
+   ],
+   "uso": "Pickups y SUV con uso mixto asfalto/lastre.",
+   "datos": "Minorista UE la clasifica como 4x4 económica 'all season'; diseño de bloques con ranuras abiertas en hombro (Walmart MX). Sin etiqueta UE ni UTQG confirmados.",
+   "frase": "All terrain económica para pickup: aguanta asfalto y lastre a buen precio."
+  },
+  "THMT802": {
+   "marca": "TOWNHALL",
+   "nombre": "Townhall TH-MT802",
+   "tipo": "M/T",
+   "alias": [
+    "th-mt802",
+    "mt802",
+    "th mt802"
+   ],
+   "uso": "Pickups y 4x4 que entran a lodo y caminos de tierra.",
+   "datos": "sin datos públicos; 6PR según Fénix.",
+   "frase": "Llanta de lodo de bloque grande para quien entra seguido a finca o camino de tierra."
+  },
+  "THHT802": {
+   "marca": "TOWNHALL",
+   "nombre": "Townhall TH-HT802",
+   "tipo": "H/T",
+   "alias": [
+    "th-ht802",
+    "ht802",
+    "th ht802"
+   ],
+   "uso": "SUV y camionetas que andan casi siempre en asfalto.",
+   "datos": "sin datos públicos",
+   "frase": "Llanta de carretera para SUV, silenciosa y económica para uso en asfalto."
+  },
+  "TH661": {
+   "marca": "TOWNHALL",
+   "nombre": "Townhall TH-661",
+   "tipo": "turismo UHP",
+   "alias": [
+    "th-661",
+    "th661"
+   ],
+   "uso": "Autos y sedanes con rin 17 y perfil bajo.",
+   "datos": "sin datos públicos; 215/45R17 91W según Fénix.",
+   "frase": "Llanta deportiva de perfil bajo para rin 17 a precio económico."
+  },
+  "THHP802": {
+   "marca": "TOWNHALL",
+   "nombre": "Townhall TH-HP802 (HP-802)",
+   "tipo": "H/T / SUV de alto desempeño",
+   "alias": [
+    "th-hp802",
+    "hp802",
+    "hp-802",
+    "hp 802"
+   ],
+   "uso": "SUV y crossovers rin 18 a 20 en asfalto.",
+   "datos": "sin datos públicos",
+   "frase": "Llanta de carretera para SUV con rin grande, buen precio frente a marcas conocidas."
+  },
+  "WR082": {
+   "marca": "WANDA",
+   "nombre": "Wanda WR082",
+   "tipo": "comercial C",
+   "alias": [
+    "wr082",
+    "wr 082",
+    "wr-082"
+   ],
+   "uso": "Furgonetas, carguitas y remolques.",
+   "datos": "Minoristas la describen como llanta de verano para utilitarios livianos, remolques y caravanas; también vendida como Journey. 155R12C 8PR 88/86N según Fénix.",
+   "frase": "Llanta reforzada de carga para camioneta pequeña o remolque, aguanta peso a buen precio."
+  },
+  "WR098": {
+   "marca": "WANDA",
+   "nombre": "Wanda WR098",
+   "tipo": "comercial C",
+   "alias": [
+    "wr098",
+    "wr 098",
+    "wr-098"
+   ],
+   "uso": "Vehículos utilitarios livianos (van).",
+   "datos": "Listada como llanta de van en 155/80R12 (rezulteo). Resto sin datos públicos.",
+   "frase": "Llanta de van reforzada de 8 lonas para carga liviana rin 12."
+  },
+  "WR9001": {
+   "marca": "WANDA",
+   "nombre": "Wanda WR9001 A/T",
+   "tipo": "A/T",
+   "alias": [
+    "wr9001",
+    "wr 9001",
+    "wr-9001"
+   ],
+   "uso": "SUV y pickups con uso mixto.",
+   "datos": "Minorista UE: A/T a precio atractivo para uso campo traviesa. Sin etiqueta UE detallada encontrada.",
+   "frase": "All terrain económica para camioneta que alterna asfalto y lastre."
+  },
+  "WR9006": {
+   "marca": "WANDA",
+   "nombre": "Wanda WR9006 M/T (Journey Terrapass M/T)",
+   "tipo": "M/T",
+   "alias": [
+    "wr9006",
+    "wr 9006",
+    "terrapass"
+   ],
+   "uso": "Pickups 4x4 en lodo y trocha.",
+   "datos": "Aparece como Journey Terrapass M/T WR9006 (245/75R16 120/116Q). 10PR LT según Fénix.",
+   "frase": "Llanta de lodo de 10 lonas para pickup que trabaja en finca y camino de tierra."
+  },
+  "RX3": {
+   "marca": "JOYROAD",
+   "nombre": "Joyroad HP RX3",
+   "tipo": "turismo",
+   "alias": [
+    "rx3",
+    "rx 3",
+    "hp rx3"
+   ],
+   "uso": "Autos compactos y medianos.",
+   "datos": "Registrada en EPREL (UE); vendida como llanta de verano/toda estación para compactos. Grados de etiqueta no verificados.",
+   "frase": "Llanta de pasajero económica para autos pequeños rin 12."
+  },
+  "HD918": {
+   "marca": "KAPSEN",
+   "nombre": "Kapsen HD918 (también Habilead)",
+   "tipo": "turismo",
+   "alias": [
+    "hd918",
+    "hd 918",
+    "hd-918"
+   ],
+   "uso": "Autos de uso urbano y carretera.",
+   "datos": "Registrada en EPREL (p. ej. 195/50R15 82V); llanta de verano. Grados de etiqueta no verificados.",
+   "frase": "Llanta de pasajero económica, ideal para uso diario en ciudad."
+  },
+  "RS23": {
+   "marca": "KAPSEN",
+   "nombre": "Kapsen/Habilead PracticalMax A/T RS23",
+   "tipo": "A/T (LT)",
+   "alias": [
+    "rs23",
+    "rs 23",
+    "practicalmax"
+   ],
+   "uso": "Pickups y SUV con uso mixto y carga.",
+   "datos": "Registrada en EPREL en medidas LT (p. ej. LT265/70R17). TyreReviews la lista como A/T para SUV/4x4; algunos minoristas la marcan como 'verano'. 8PR según Fénix.",
+   "frase": "All terrain de 8 lonas para pickup que carga y sale a lastre."
+  },
+  "AT02": {
+   "marca": "KAPSEN",
+   "nombre": "Kapsen AT02 (no confirmado)",
+   "tipo": "A/T (LT)",
+   "alias": [
+    "at02",
+    "at 02",
+    "ltat02"
+   ],
+   "uso": "Pickups grandes (285/75R16).",
+   "datos": "sin datos públicos; el nombre de modelo no se pudo confirmar.",
+   "frase": "All terrain para pickup grande, pensada para trabajo y lastre."
+  },
+  "HD667": {
+   "marca": "HAIDA",
+   "nombre": "Haida HD667",
+   "tipo": "turismo",
+   "alias": [
+    "hd667",
+    "hd 667"
+   ],
+   "uso": "Autos pequeños y medianos.",
+   "datos": "sin datos públicos",
+   "frase": "Llanta de pasajero económica para uso diario."
+  },
+  "HD921": {
+   "marca": "HAIDA",
+   "nombre": "Haida HD921",
+   "tipo": "turismo (sport)",
+   "alias": [
+    "hd921",
+    "hd 921"
+   ],
+   "uso": "Autos con rin 15 a 16 de perfil bajo.",
+   "datos": "Minorista UE: llanta de verano para manejo diario, marca de enfoque económico.",
+   "frase": "Llanta deportiva de perfil bajo a precio económico."
+  },
+  "HDEXCONFORT": {
+   "marca": "HAIDA",
+   "nombre": "Haida HD EX Comfort (no confirmado)",
+   "tipo": "turismo",
+   "alias": [
+    "hd ex confort",
+    "hdex confort",
+    "hdexconfort",
+    "hdex-comfort",
+    "hd exconfort",
+    "ex comfort"
+   ],
+   "uso": "Autos de uso urbano y carretera, enfoque confort.",
+   "datos": "sin datos públicos; el nombre comercial no aparece en bases internacionales.",
+   "frase": "Llanta de pasajero cómoda y silenciosa para uso diario."
+  },
+  "RUNSPIRIT": {
+   "marca": "HAIDA",
+   "nombre": "Haida Runspirit (no confirmado)",
+   "tipo": "turismo",
+   "alias": [
+    "runspirit",
+    "run spirit"
+   ],
+   "uso": "Autos sedán y hatchback.",
+   "datos": "sin datos públicos; 185/65R15 88H y 195/65R15 91V según Fénix.",
+   "frase": "Llanta de pasajero económica para sedán, buen precio para cambiar las cuatro."
+  },
+  "HD737": {
+   "marca": "HAIDA",
+   "nombre": "Haida HD737",
+   "tipo": "comercial C (van/LT)",
+   "alias": [
+    "hd737",
+    "hd 737"
+   ],
+   "uso": "Furgonetas y camionetas de carga.",
+   "datos": "Walmart EE. UU.: toda estación, 205/75R16C 110/108R; 4,2/5 con solo 5 reseñas. 10PR según Fénix.",
+   "frase": "Llanta de carga de 10 lonas para van o camioneta de trabajo."
+  },
+  "HD818": {
+   "marca": "HAIDA",
+   "nombre": "Haida HD818 A/T",
+   "tipo": "A/T (LT)",
+   "alias": [
+    "hd818",
+    "hd 818"
+   ],
+   "uso": "Pickups con uso mixto.",
+   "datos": "sin datos públicos; 235/75R15LT 10PR según Fénix.",
+   "frase": "All terrain de 10 lonas, aguanta peso y lastre."
+  },
+  "HD828": {
+   "marca": "HAIDA",
+   "nombre": "Haida HD828 A/T",
+   "tipo": "A/T (LT)",
+   "alias": [
+    "hd828",
+    "hd 828"
+   ],
+   "uso": "Pickups y SUV en asfalto, lastre, lodo leve y arena.",
+   "datos": "Minorista EE. UU.: A/T toda estación para LT/SUV; garantía de 55.000 millas en 285/70R17 (según el minorista). Reseñas mínimas (1 opinión). Sin etiqueta UE confirmada.",
+   "frase": "All terrain para pickup que va de la carretera al camino de lastre, con buen precio por lo que ofrece."
+  },
+  "HD665": {
+   "marca": "HAIDA",
+   "nombre": "Haida HD665",
+   "tipo": "turismo",
+   "alias": [
+    "hd665",
+    "hd 665"
+   ],
+   "uso": "Autos sedán rin 16.",
+   "datos": "sin datos públicos",
+   "frase": "Llanta de pasajero económica para sedán rin 16."
+  },
+  "HD668": {
+   "marca": "HAIDA",
+   "nombre": "Haida HD668",
+   "tipo": "turismo / SUV ligera",
+   "alias": [
+    "hd668",
+    "hd 668"
+   ],
+   "uso": "Crossovers y sedanes rin 16.",
+   "datos": "sin datos públicos",
+   "frase": "Llanta económica para crossover de uso urbano."
+  },
+  "HD837": {
+   "marca": "HAIDA",
+   "nombre": "Haida HD837",
+   "tipo": "H/T (SUV)",
+   "alias": [
+    "hd837",
+    "hd 837"
+   ],
+   "uso": "SUV y crossovers en asfalto.",
+   "datos": "Gemela probable de Mileking MK837 (toda estación SUV, según minoristas; no confirmado que sean idénticas).",
+   "frase": "Llanta de carretera para SUV, cómoda y económica."
+  },
+  "HD868": {
+   "marca": "HAIDA",
+   "nombre": "Haida HD868 M/T",
+   "tipo": "M/T (LT)",
+   "alias": [
+    "hd868",
+    "hd 868"
+   ],
+   "uso": "Pickups 4x4 en lodo, piedra y trocha.",
+   "datos": "Minorista: banda profunda con bloques grandes y separados para evacuar lodo. 10PR LT según Fénix.",
+   "frase": "Llanta de lodo de 10 lonas para quien entra a finca o trocha en invierno."
+  },
+  "HD927": {
+   "marca": "HAIDA",
+   "nombre": "Haida HD927",
+   "tipo": "turismo UHP",
+   "alias": [
+    "hd927",
+    "hd 927"
+   ],
+   "uso": "Sedanes y SUV de rin 17 a 19 de perfil bajo.",
+   "datos": "sin datos públicos; 215/45R17 91W según Fénix.",
+   "frase": "Llanta deportiva de perfil bajo a precio económico."
+  },
+  "HD878": {
+   "marca": "HAIDA",
+   "nombre": "Haida HD878 R/T",
+   "tipo": "R/T (LT)",
+   "alias": [
+    "hd878",
+    "hd 878"
+   ],
+   "uso": "Pickups y Jeep con uso mixto pesado.",
+   "datos": "Minoristas EE. UU.: rugged terrain, banda autolimpiante y compuesto resistente a pinchazos (afirmación comercial). 10PR 121/118R en 285/70R17 según Fénix.",
+   "frase": "R/T de 10 lonas: más agarre que una A/T en lodo sin ser tan ruidosa como una de lodo."
+  },
+  "HD829": {
+   "marca": "HAIDA",
+   "nombre": "Haida HD829 A/T",
+   "tipo": "A/T (LT)",
+   "alias": [
+    "hd829",
+    "hd 829"
+   ],
+   "uso": "Pickups grandes rin 18-20.",
+   "datos": "Listada como A/T por minorista EE. UU. 10PR según Fénix.",
+   "frase": "All terrain de 10 lonas para pickup grande."
+  },
+  "HD937": {
+   "marca": "HAIDA",
+   "nombre": "Haida HD937",
+   "tipo": "turismo UHP / SUV",
+   "alias": [
+    "hd937",
+    "hd 937"
+   ],
+   "uso": "Sedanes y SUV de rin 19-20.",
+   "datos": "Minoristas la listan como alto desempeño (verano o toda estación según la fuente).",
+   "frase": "Llanta de alto desempeño para rin grande a precio muy competitivo."
+  },
+  "H188": {
+   "marca": "TRAZANO",
+   "nombre": "Trazano Radial H188",
+   "tipo": "comercial C (van/LT)",
+   "alias": [
+    "h188",
+    "h 188",
+    "radial h188"
+   ],
+   "uso": "Furgonetas y camionetas de carga en vía pavimentada.",
+   "datos": "ZC Rubber: llanta de carga liviana para vías pavimentadas, carcasa de poliéster con cinturones de acero. Registrada en EPREL. 195R14C 8PR según Fénix.",
+   "frase": "Llanta de carga de 8 lonas hecha por el fabricante más grande de China."
+  },
+  "RP288": {
+   "marca": "TRAZANO",
+   "nombre": "Trazano RP288 (posible variante del RP28 de ZC Rubber, no confirmado)",
+   "tipo": "turismo",
+   "alias": [
+    "rp288",
+    "rp 288",
+    "rp28"
+   ],
+   "uso": "Autos sedán.",
+   "datos": "sin datos públicos; 185/60R15 84H según Fénix.",
+   "frase": "Llanta de pasajero del grupo ZC Rubber, económica para uso diario."
+  },
+  "MAX9": {
+   "marca": "ILINK",
+   "nombre": "iLink L-Max 9",
+   "tipo": "comercial C (van)",
+   "alias": [
+    "max9",
+    "max 9",
+    "l-max 9",
+    "lmax9"
+   ],
+   "uso": "Furgonetas y camionetas de carga.",
+   "datos": "Listada en Blackcircles (UK) como llanta de van. 215R14C 112/110 según Fénix.",
+   "frase": "Llanta de carga para van rin 14, reforzada y económica."
+  },
+  "TERRAMAX": {
+   "marca": "ILINK",
+   "nombre": "iLink Terramax LSR1 A/T",
+   "tipo": "A/T",
+   "alias": [
+    "terramax",
+    "lsr1",
+    "terramax at",
+    "terramax lb"
+   ],
+   "uso": "SUV y pickups; 15 a 17 pulgadas.",
+   "datos": "Blackcircles: A/T de entrada con ranuras autolimpiantes y banda afinada para carretera (cómoda en asfalto).",
+   "frase": "All terrain económica que se siente cómoda en carretera y se defiende en lastre."
+  },
+  "MULTIMI": {
+   "marca": "ILINK",
+   "nombre": "iLink Multimile A/S",
+   "tipo": "comercial C (van)",
+   "alias": [
+    "multimi",
+    "multimile",
+    "multi mile"
+   ],
+   "uso": "Furgonetas y camionetas de carga.",
+   "datos": "Blackcircles: llanta de van toda estación, rin 14 a 17. 235/65R16C 115/113 según Fénix.",
+   "frase": "Llanta de carga para van de reparto, pensada para rodar mucho."
+  },
+  "PENTERRT": {
+   "marca": "ILINK",
+   "nombre": "iLink R/T 'Penter' (nombre no confirmado)",
+   "tipo": "R/T (LT)",
+   "alias": [
+    "penter",
+    "penter rt"
+   ],
+   "uso": "Pickups con uso mixto pesado.",
+   "datos": "sin datos públicos; 245/75R16LT 120/116 según Fénix.",
+   "frase": "R/T para pickup de trabajo: agarre extra en lodo y lastre."
+  },
+  "WILDWOLF": {
+   "marca": "ILINK",
+   "nombre": "iLink Wildwolf M/T",
+   "tipo": "M/T (LT)",
+   "alias": [
+    "wildwolf",
+    "wild wolf",
+    "wildwolf mt"
+   ],
+   "uso": "Pickups 4x4 en lodo.",
+   "datos": "Blackcircles la lista como M/T en 10 medidas.",
+   "frase": "Llanta de lodo para pickup 4x4 que sale de la vía."
+  },
+  "ROCK787": {
+   "marca": "ROCKBLADE",
+   "nombre": "Rockblade Rock 787 R/T",
+   "tipo": "R/T (LT)",
+   "alias": [
+    "rock 787",
+    "rock787",
+    "787"
+   ],
+   "uso": "Pickups y SUV con uso mixto pesado.",
+   "datos": "sin datos públicos para este modelo; 27x8.50R14LT 6PR letras blancas según Fénix.",
+   "frase": "R/T con letras blancas para pickup rin 14, agarre y look a buen precio."
+  },
+  "DIRECC": {
+   "marca": "TORNEL",
+   "nombre": "Tornel (diseño direccional, modelo no identificado)",
+   "tipo": "turismo",
+   "alias": [
+    "direcc"
+   ],
+   "uso": "Autos sedán y hatchback.",
+   "datos": "sin datos públicos sobre un modelo 'Direccional'; 185/60R15 según Fénix (en catálogo mexicano Tornel tiene p. ej. 'Real').",
+   "frase": "Llanta mexicana de JK Tornel para auto, económica y conocida."
+  },
+  "WONDERTH1": {
+   "marca": "TOURADOR",
+   "nombre": "Tourador X Wonder TH1",
+   "tipo": "turismo",
+   "alias": [
+    "wonder th1",
+    "th1",
+    "x wonder th1"
+   ],
+   "uso": "Autos sedán y hatchback.",
+   "datos": "Registrada en EPREL. Prueba TyreReviews: último lugar, poco agarre en seco y mojado. TheTyreLab: 4,5/10 'recomendada con condiciones'.",
+   "frase": "Llanta de pasajero de bajo precio para uso urbano tranquilo."
+  },
+  "WONDERTH2": {
+   "marca": "TOURADOR",
+   "nombre": "Tourador X Wonder TH2",
+   "tipo": "turismo",
+   "alias": [
+    "wonder th2",
+    "th2",
+    "x wonder th2"
+   ],
+   "uso": "Autos sedán.",
+   "datos": "sin datos públicos",
+   "frase": "Llanta de pasajero económica para uso diario."
+  },
+  "FORCEATII": {
+   "marca": "TOURADOR",
+   "nombre": "Tourador X Force A/T II",
+   "tipo": "A/T",
+   "alias": [
+    "force atii",
+    "force at ii",
+    "force at2",
+    "force at 2",
+    "x force"
+   ],
+   "uso": "Pickups y SUV con uso mixto.",
+   "datos": "sin datos públicos; existe en catálogos UE como 'X Force ATII' (265/70R16, 265/65R17).",
+   "frase": "All terrain de buen precio para pickup que alterna asfalto y lastre."
+  },
+  "COMFORTSUV": {
+   "marca": "TOURADOR",
+   "nombre": "Tourador Comfort SUV (nombre exacto no confirmado)",
+   "tipo": "H/T",
+   "alias": [],
+   "uso": "SUV en asfalto.",
+   "datos": "sin datos públicos",
+   "frase": "Llanta de carretera cómoda para SUV."
+  },
+  "AN906": {
+   "marca": "ANNAITE",
+   "nombre": "Annaite AN906",
+   "tipo": "A/T (LT)",
+   "alias": [
+    "an906",
+    "an 906"
+   ],
+   "uso": "Pickups y SUV con uso mixto y carga.",
+   "datos": "Minoristas la listan como A/T; uno como llanta de verano. 225/75R15LT 6PR según Fénix.",
+   "frase": "All terrain económica para pickup de trabajo."
+  },
+  "FORZAHT2": {
+   "marca": "XBRI",
+   "nombre": "XBRI Forza H/T 2",
+   "tipo": "H/T",
+   "alias": [
+    "forza ht 2",
+    "forza ht2",
+    "forza h/t 2"
+   ],
+   "uso": "SUV, 4x4 y crossovers mayormente en asfalto.",
+   "datos": "Rezulteo: llanta de verano para SUV/4x4/crossover, uso en carretera y caminos mejores; posicionada como opción de bajo costo.",
+   "frase": "Llanta de carretera para SUV de marca brasileña conocida, cómoda y de buen precio."
+  },
+  "ECOLOGY": {
+   "marca": "XBRI",
+   "nombre": "XBRI Ecology",
+   "tipo": "turismo (eco)",
+   "alias": [
+    "ecology"
+   ],
+   "uso": "Autos de uso diario buscando ahorro de combustible.",
+   "datos": "Llanta 'verde' de baja resistencia al rodar para ahorro de combustible (reseña brasileña). Grados de etiqueta no verificados.",
+   "frase": "Llanta de pasajero que ayuda a ahorrar gasolina."
+  },
+  "BRUTUS": {
+   "marca": "XBRI",
+   "nombre": "XBRI Brutus A/T (no confirmado)",
+   "tipo": "A/T (LT)",
+   "alias": [
+    "brutus",
+    "brutus at"
+   ],
+   "uso": "Pickups.",
+   "datos": "sin datos públicos; XBRI sí tiene Forza A/T y Forza M/T, pero 'Brutus' no aparece en fuentes.",
+   "frase": "All terrain para pickup grande rin 18."
+  },
+  "RT02": {
+   "marca": "DURUN",
+   "nombre": "Durun RT02",
+   "tipo": "R/T (según nombre; no confirmado)",
+   "alias": [
+    "rt02",
+    "rt 02",
+    "rt-02"
+   ],
+   "uso": "Pickups y SUV con uso mixto.",
+   "datos": "Catálogo UE la lista (73 medidas) como llanta de verano; categoría R/T inferida del nombre.",
+   "frase": "Llanta todo terreno con hombro agresivo, para pickup que sale a lastre."
+  },
+  "HG918": {
+   "marca": "DURUN",
+   "nombre": "Durun HG918",
+   "tipo": "H/T (SUV)",
+   "alias": [
+    "hg918",
+    "hg-918",
+    "hg 918"
+   ],
+   "uso": "SUV y crossovers en asfalto.",
+   "datos": "Catálogo UE: llanta de verano (59 entradas).",
+   "frase": "Llanta de carretera para SUV, económica."
+  },
+  "K325": {
+   "marca": "DURUN",
+   "nombre": "Durun Terrain Grabber A/T K325",
+   "tipo": "A/T",
+   "alias": [
+    "k325",
+    "k 325",
+    "terrain grabber"
+   ],
+   "uso": "Pickups y SUV con uso mixto, mucho fuera de vía.",
+   "datos": "Rezulteo: A/T para 4x4 que ruedan sobre todo fuera de carretera y buscan precio razonable.",
+   "frase": "All terrain de precio razonable para pickup que anda en lastre."
+  },
+  "C212": {
+   "marca": "DURUN",
+   "nombre": "Durun C212",
+   "tipo": "comercial C (van)",
+   "alias": [
+    "c212",
+    "c 212",
+    "c-212"
+   ],
+   "uso": "Furgonetas y camionetas de carga.",
+   "datos": "Rezulteo: llanta de van económica de verano, rin 10 a 16. 235/65R16C 115/113R 8PR existe en UK.",
+   "frase": "Llanta de carga para van de reparto, reforzada y económica."
+  },
+  "RU05": {
+   "marca": "DURUN",
+   "nombre": "Durun RU05 (no confirmado; hay RU06)",
+   "tipo": "turismo UHP",
+   "alias": [
+    "ru05",
+    "ru 05"
+   ],
+   "uso": "Autos con rin 17 de perfil bajo.",
+   "datos": "sin datos públicos; 205/45R17 según Fénix.",
+   "frase": "Llanta deportiva de perfil bajo económica."
+  },
+  "RH01": {
+   "marca": "DURUN",
+   "nombre": "Durun RH01",
+   "tipo": "H/T (SUV)",
+   "alias": [
+    "rh01",
+    "rh 01"
+   ],
+   "uso": "SUV en asfalto.",
+   "datos": "sin datos públicos",
+   "frase": "Llanta de carretera para SUV rin 17."
+  },
+  "M636": {
+   "marca": "DURUN",
+   "nombre": "Durun M636",
+   "tipo": "turismo UHP",
+   "alias": [
+    "m636",
+    "m 636",
+    "m-636"
+   ],
+   "uso": "Autos con rin 17 de perfil bajo.",
+   "datos": "WhatTyre la lista como llanta de verano; sin especificaciones.",
+   "frase": "Llanta deportiva económica para rin 17."
+  },
+  "K334": {
+   "marca": "DURUN",
+   "nombre": "Durun K334 M/T",
+   "tipo": "M/T (LT)",
+   "alias": [
+    "k334",
+    "k 334"
+   ],
+   "uso": "Pickups 4x4 en lodo.",
+   "datos": "sin datos públicos; 285/70R17LT 10PR según Fénix.",
+   "frase": "Llanta de lodo de 10 lonas para pickup que trabaja en finca."
+  },
+  "VIKRANTLISA": {
+   "marca": "VIKRANT",
+   "nombre": "Vikrant convencional lisa (pantanera/direccional)",
+   "tipo": "camión liviano, convencional diagonal con tubo – direccional (lisa)",
+   "alias": [
+    "set mex",
+    "set mx",
+    "700/15",
+    "825/16",
+    "700-15",
+    "8.25-16"
+   ],
+   "uso": "Eje delantero de camiones livianos y buses pequeños (7.00-15 10PR, 8.25-16 16PR).",
+   "datos": "Diagonal (convencional) con tubo, diseño liso/rib para eje direccional. 'SET' = llanta+tubo+defensa (inferido). Modelo exacto sin datos públicos.",
+   "frase": "Llanta convencional lisa de la India (grupo JK) para la dirección del camión, muy resistente."
+  },
+  "VIKRANTTRACCION": {
+   "marca": "VIKRANT",
+   "nombre": "Vikrant convencional de tracción",
+   "tipo": "camión liviano, convencional diagonal con tubo – tracción",
+   "alias": [
+    "traccion set mex",
+    "750/16 traccion",
+    "7.50-16",
+    "750-16"
+   ],
+   "uso": "Eje de tracción de camiones livianos (7.50-16 16PR).",
+   "datos": "Diagonal con tubo, taco de tracción. Modelo exacto sin datos públicos.",
+   "frase": "Llanta de tracción convencional de 16 lonas para camión liviano, aguanta carga y lastre."
+  },
+  "PW593": {
+   "marca": "POWERHUB",
+   "nombre": "Powerhub PW593",
+   "tipo": "camión liviano radial (LT 7.00R15) – direccional (lisa)",
+   "alias": [
+    "pw593",
+    "pw 593"
+   ],
+   "uso": "Eje delantero de camiones livianos.",
+   "datos": "sin datos públicos; LT700R15 12PR lisa, sin tubo ('sola') según Fénix.",
+   "frase": "Llanta radial lisa de 12 lonas para la dirección del camioncito."
+  },
+  "HRIB": {
+   "marca": "HAULMAX",
+   "nombre": "Haulmax H-Rib",
+   "tipo": "camión liviano convencional – direccional (lisa)",
+   "alias": [
+    "h-rib",
+    "h rib",
+    "hrib"
+   ],
+   "uso": "Eje delantero de camión liviano (7.50-15 14PR).",
+   "datos": "sin datos públicos",
+   "frase": "Llanta lisa de 14 lonas para la dirección de camión liviano."
+  },
+  "HLUG": {
+   "marca": "HAULMAX",
+   "nombre": "Haulmax H-Lug",
+   "tipo": "camión liviano convencional – tracción",
+   "alias": [
+    "h-lug",
+    "h lug",
+    "hlug"
+   ],
+   "uso": "Eje de tracción de camión liviano (7.00-16).",
+   "datos": "sin datos públicos",
+   "frase": "Llanta de tracción de taco para camión liviano que entra a lastre."
+  },
+  "ALLTERRAIN": {
+   "marca": "SUMAXX",
+   "nombre": "Sumaxx All-Terrain A/T",
+   "tipo": "A/T",
+   "alias": [
+    "all-terrain",
+    "all terrain at"
+   ],
+   "uso": "Pickups y SUV con uso mixto.",
+   "datos": "Registrada en EPREL (p. ej. LT285/70R17); la ficha del fabricante la describe como robusta fuera de vía. Grados de etiqueta no verificados.",
+   "frase": "All terrain de marca especializada en 4x4, robusta para lastre y carretera."
+  },
+  "MAXRANGERRT": {
+   "marca": "SUMAXX",
+   "nombre": "Sumaxx Max Ranger R/T",
+   "tipo": "R/T (LT)",
+   "alias": [
+    "max ranger",
+    "max ranger rt",
+    "ranger rt"
+   ],
+   "uso": "Pickups con uso mixto pesado.",
+   "datos": "Solo un minorista filipino la lista, como llanta para terreno variado. 10PR según Fénix.",
+   "frase": "R/T de 10 lonas para pickup que trabaja en lodo y piedra."
+  },
+  "SPEEDWAY": {
+   "marca": "WIDEWAY",
+   "nombre": "Wideway Speedway",
+   "tipo": "H/T (SUV)",
+   "alias": [
+    "speedway"
+   ],
+   "uso": "SUV en asfalto, manejo dinámico.",
+   "datos": "Listada como llanta de verano para SUV orientada a carretera.",
+   "frase": "Llanta de carretera para SUV con buen agarre en asfalto."
+  },
+  "COMMERCIAL": {
+   "marca": "CENTARA",
+   "nombre": "Centara Commercial",
+   "tipo": "comercial C (van)",
+   "alias": [],
+   "uso": "Furgonetas y camionetas de carga en carretera.",
+   "datos": "Minoristas: llanta de carretera para van y carga liviana (unos dicen verano, otros toda estación); 235/65R16C 115/113R existe en UK. 8PR según Fénix.",
+   "frase": "Llanta de carga de 8 lonas para van, económica."
+  },
+  "ADVENTUREAT": {
+   "marca": "CENTARA",
+   "nombre": "Centara Adventure A/T",
+   "tipo": "A/T (LT)",
+   "alias": [
+    "adventure at",
+    "adventure a/t",
+    "adventure"
+   ],
+   "uso": "Pickups y SUV con uso mixto.",
+   "datos": "Minoristas: A/T toda estación para SUV y pickups. EPREL: LT285/70R17 121S clase C2.",
+   "frase": "All terrain de 10 lonas para pickup grande."
+  },
+  "MK837": {
+   "marca": "MILEKING",
+   "nombre": "Mileking MK837",
+   "tipo": "H/T (SUV)",
+   "alias": [
+    "mk837",
+    "mk 837"
+   ],
+   "uso": "SUV y crossovers en asfalto.",
+   "datos": "Minoristas: toda estación, simétrica, para SUV/crossover/4x4.",
+   "frase": "Llanta de carretera para SUV, cómoda y económica."
+  },
+  "MK937": {
+   "marca": "MILEKING",
+   "nombre": "Mileking MK937",
+   "tipo": "turismo UHP",
+   "alias": [
+    "mk937",
+    "mk 937"
+   ],
+   "uso": "Sedanes y SUV de rin grande.",
+   "datos": "Minoristas: alto desempeño, banda asimétrica; medidas de 16 a 21 pulgadas.",
+   "frase": "Llanta de alto desempeño para rin 20 a precio económico."
+  },
+  "ECOSPEEDAT": {
+   "marca": "MINERVA",
+   "nombre": "Minerva Ecospeed (variante SUV; 'AT' no confirmado)",
+   "tipo": "H/T (SUV)",
+   "alias": [
+    "ecospeed at",
+    "ecospeed"
+   ],
+   "uso": "SUV y crossovers en asfalto.",
+   "datos": "Probablemente Ecospeed2 SUV (verano, uso carretera); no confirmado que exista versión A/T.",
+   "frase": "Llanta de marca belga para SUV, de carretera."
+  },
+  "ECOSPEED2": {
+   "marca": "MINERVA",
+   "nombre": "Minerva Ecospeed2 SUV",
+   "tipo": "H/T (SUV)",
+   "alias": [
+    "ecospeed2",
+    "ecospeed 2",
+    "eco speed 2"
+   ],
+   "uso": "SUV y crossovers en asfalto.",
+   "datos": "Etiqueta UE reportada: combustible C, mojado C, ruido B 71 dB (varía por medida; aprox.).",
+   "frase": "Llanta de marca belga para SUV con etiqueta europea completa."
+  },
+  "GREENMAX": {
+   "marca": "LINGLONG",
+   "nombre": "Linglong Green-Max All Season",
+   "tipo": "turismo / SUV toda estación",
+   "alias": [
+    "green max",
+    "green-max",
+    "greenmax"
+   ],
+   "uso": "SUV y crossovers en asfalto.",
+   "datos": "225/65R17 102H: etiqueta UE C / D / 72 dB (WhatTyre). Prueba AutoBild en esta medida (aprox.): frenado seco 42,9 m vs 39,5 m mejor; mojado 59,4 m vs 46,3 m mejor. 3PMSF no confirmado.",
+   "frase": "Llanta de Linglong, uno de los fabricantes chinos más grandes, para SUV en carretera."
+  },
+  "RLB490": {
+   "marca": "DOUBLE COIN",
+   "nombre": "Double Coin RLB490",
+   "tipo": "camión (17.5) – tracción",
+   "alias": [
+    "rlb490",
+    "rlb 490"
+   ],
+   "uso": "Eje de tracción de camiones medianos (235/75R17.5).",
+   "datos": "Minoristas: tracción de perfil bajo, nervios laterales contra roce de bordillo; 143/141J en 235/75R17.5 (16PR).",
+   "frase": "Llanta de tracción de Double Coin, marca de camión con décadas en el mercado."
+  },
+  "HH309": {
+   "marca": "HIFLY",
+   "nombre": "Hifly HH309",
+   "tipo": "camión (17.5) – tracción",
+   "alias": [
+    "hh309",
+    "hh 309"
+   ],
+   "uso": "Eje de tracción de camiones medianos.",
+   "datos": "Catálogo TBR de Hifly; distribuidor australiano la lista como llanta de tracción. 16PR según Fénix.",
+   "frase": "Llanta de tracción económica de 16 lonas para camión mediano."
+  },
+  "LWT52": {
+   "marca": "LANWOO",
+   "nombre": "Lanwoo LWT52",
+   "tipo": "camión (17.5) – direccional/arrastre (lisa)",
+   "alias": [
+    "lwt52",
+    "lwt 52"
+   ],
+   "uso": "Eje delantero o de arrastre de camión mediano.",
+   "datos": "sin datos públicos; 18PR lisa según Fénix.",
+   "frase": "Llanta lisa de 18 lonas para la dirección del camión mediano."
+  },
+  "X5PRO": {
+   "marca": "LANWOO",
+   "nombre": "Lanwoo X5 Pro",
+   "tipo": "camión (17.5) – mixta (todas las posiciones)",
+   "alias": [
+    "x5 pro",
+    "x5pro",
+    "x5"
+   ],
+   "uso": "Camiones medianos con uso mixto carretera/lastre.",
+   "datos": "sin datos públicos; 18PR mixta según Fénix.",
+   "frase": "Llanta mixta de 18 lonas para camión que alterna carretera y lastre."
+  },
+  "LWD66": {
+   "marca": "LANWOO",
+   "nombre": "Lanwoo LWD66",
+   "tipo": "camión (17.5) – tracción",
+   "alias": [
+    "lwd66",
+    "lwd 66"
+   ],
+   "uso": "Eje de tracción de camión mediano.",
+   "datos": "sin datos públicos; 215/75R17.5 18PR según Fénix.",
+   "frase": "Llanta de tracción de 18 lonas para camión mediano."
+  },
+  "SR516": {
+   "marca": "STERPRISIN",
+   "nombre": "Sterprisin SR516",
+   "tipo": "camión (17.5) – direccional (lisa)",
+   "alias": [
+    "sr516",
+    "sr 516"
+   ],
+   "uso": "Eje delantero de camión mediano.",
+   "datos": "sin datos públicos; 235/75R17.5 16 lonas lisa según Fénix.",
+   "frase": "Llanta lisa de 16 lonas, la opción más económica para la dirección del camión."
+  },
+  "STERPRISINLISA": {
+   "marca": "STERPRISIN",
+   "nombre": "Sterprisin 9.5R17.5 lisa (modelo no indicado)",
+   "tipo": "camión (17.5) – direccional (lisa)",
+   "alias": [
+    "9.5r17.5 lisa 18 lonas"
+   ],
+   "uso": "Eje delantero de camión mediano.",
+   "datos": "sin datos públicos",
+   "frase": "Llanta lisa de 18 lonas para camión mediano, económica."
+  },
+  "FLAMA": {
+   "marca": "FENIXWAY",
+   "nombre": "Fenixway 'Flama' 66 (nombre no confirmado)",
+   "tipo": "camión (17.5) – direccional (lisa)",
+   "alias": [
+    "flama",
+    "flama 66"
+   ],
+   "uso": "Eje delantero de camión mediano (9.5R17.5).",
+   "datos": "sin datos públicos; 18 lonas lisa según Fénix.",
+   "frase": "Llanta lisa de 18 lonas para la dirección del camión mediano."
+  },
+  "RH621": {
+   "marca": "ROADX",
+   "nombre": "RoadX RH621",
+   "tipo": "camión – direccional/regional (lisa)",
+   "alias": [
+    "rh621",
+    "rh 621"
+   ],
+   "uso": "Eje direccional en uso regional.",
+   "datos": "Minoristas EE. UU.: llanta regional para eje direccional, 5 nervios, 18PR (rango J).",
+   "frase": "Llanta lisa de 18 lonas del grupo Sailun para la dirección del camión."
+  },
+  "SP929": {
+   "marca": "SPORTRAK",
+   "nombre": "Sportrak SP929",
+   "tipo": "camión (17.5) – tracción",
+   "alias": [
+    "sp929",
+    "sp 929"
+   ],
+   "uso": "Eje de tracción de camión mediano.",
+   "datos": "sin datos públicos; 9.5R17.5 18 lonas según Fénix.",
+   "frase": "Llanta de tracción de 18 lonas para camión mediano."
+  },
+  "TB906": {
+   "marca": "FULL RUN",
+   "nombre": "Fullrun TB906",
+   "tipo": "camión/bus (22.5) – direccional y arrastre (lisa)",
+   "alias": [
+    "tb906",
+    "tb 906",
+    "tb906-4"
+   ],
+   "uso": "Ejes direccional y de arrastre en carretera.",
+   "datos": "Minoristas EE. UU.: carretera, toda estación, para eje direccional y de remolque; 275/70R22.5 148/145M 16PR existe.",
+   "frase": "Llanta lisa para dirección o arrastre de camión y bus en carretera."
+  },
+  "TR666": {
+   "marca": "TRIANGLE",
+   "nombre": "Triangle TR666",
+   "tipo": "camión (22.5) – mixta (todas las posiciones)",
+   "alias": [
+    "tr666",
+    "tr 666"
+   ],
+   "uso": "Camiones de servicio mixto carretera/fuera de vía, trayectos cortos.",
+   "datos": "Triangle la clasifica como todas las posiciones de servicio mixto; compuesto resistente a cortes y desgarros; 275/80R22.5 149/146M 16PR (BigTyres la lista en eje direccional).",
+   "frase": "Llanta mixta de Triangle para camión que entra a obra o lastre, resistente a cortes."
+  },
+  "MAP1": {
+   "marca": "MAXXIS",
+   "nombre": "Maxxis MA-P1",
+   "tipo": "turismo",
+   "alias": [
+    "map1",
+    "ma-p1",
+    "ma p1",
+    "map 1"
+   ],
+   "uso": "Auto pequeño de ciudad (aro 12-14), uso diario en asfalto.",
+   "datos": "Llanta de turismo. En la página de Maxxis EE. UU. aparece como DISCONTINUADA. Maxxis Taiwán publica UTQG 380 AA en la serie 55 y 440 AA en las series 60/65/70. En EE. UU. tenía garantía de 40.000 mi (serie 55) y 50.000 mi (series 60-70). La garantía de millaje de EE. UU. es solo referencia y no aplica en Ecuador. No hay pruebas de revistas. Fuerte: dura y es barata. Débil: es un diseño antiguo.",
+   "frase": "La Maxxis MA-P1 es una llanta económica y durable para auto pequeño, con buen agarre en asfalto (traction A en la norma de EE. UU.)."
+  },
+  "MP10": {
+   "marca": "MAXXIS",
+   "nombre": "Maxxis Pragmatra MP10",
+   "tipo": "turismo",
+   "alias": [
+    "mp10",
+    "mp-10",
+    "mp 10",
+    "pragmatra",
+    "pragmatra mp10"
+   ],
+   "uso": "Sedán o hatchback compacto, ciudad y carretera.",
+   "datos": "Llanta de turismo de verano lanzada en 2016 y vendida sobre todo en Latinoamérica, Rusia y China. Viene en índices de velocidad H y V. UTQG y etiqueta EU: no confirmados. No hay pruebas de ADAC ni de Auto Bild. Los usuarios elogian el agarre en seco. Pensada para durar y para baja resistencia a la rodadura.",
+   "frase": "La Maxxis Pragmatra MP10 es una llanta de turismo pensada para durar y ahorrar combustible en el uso diario."
+  },
+  "MAP5": {
+   "marca": "MAXXIS",
+   "nombre": "Maxxis MA-P5 Mecotra",
+   "tipo": "turismo",
+   "alias": [
+    "map5",
+    "ma-p5",
+    "ma p5",
+    "mecotra",
+    "map 5"
+   ],
+   "uso": "Auto y sedán, uso diario, enfocada en lluvia y en ahorro.",
+   "datos": "Llanta de turismo registrada en el EPREL europeo (clase C1, por ejemplo en 185/70R13 y 165/80R13). Maxxis dice que tiene mejor agarre en mojado, menos resistencia a la rodadura y menos ruido. UTQG: no confirmado. Pruebas independientes: no confirmadas.",
+   "frase": "La Maxxis Mecotra MA-P5 es una llanta de auto pensada para frenar bien en lluvia y gastar menos combustible."
+  },
+  "MAZ1": {
+   "marca": "MAXXIS",
+   "nombre": "Maxxis MA-Z1 Victra",
+   "tipo": "H/T deportiva (UHP)",
+   "alias": [
+    "maz1",
+    "ma-z1",
+    "ma z1",
+    "victra",
+    "victra z1"
+   ],
+   "uso": "Auto deportivo o sedán con aro 15-16 que busca agarre.",
+   "datos": "Llanta deportiva de alto desempeño. UTQG 280 AA A, según tyrereviews (la fuente no es del fabricante). Compuesto blando: agarra mucho y dura menos. No tiene garantía de millaje en EE. UU.",
+   "frase": "La Maxxis Victra MA-Z1 es de compuesto deportivo con traction AA, para quien quiere agarre en curva y frenado."
+  },
+  "MAT1ESCAPADE": {
+   "marca": "MAXXIS",
+   "nombre": "Maxxis MA-T1 Escapade",
+   "tipo": "turismo (touring)",
+   "alias": [
+    "mat1",
+    "ma-t1",
+    "ma t1",
+    "escapade",
+    "mat1 escapade"
+   ],
+   "uso": "Sedán o minivan, carretera, máxima duración.",
+   "datos": "Llanta touring. Maxxis EE. UU. publica UTQG 700 AA en las medidas T y 560 AA en las V; Maxxis Taiwán, 720 AA (BSW). En EE. UU. aparece discontinuada. Garantía en EE. UU.: 100.000 mi en las T y 60.000 mi en las V. La garantía de millaje de EE. UU. es solo referencia y no aplica en Ecuador. Fuerte: kilometraje muy alto. Débil: no es deportiva.",
+   "frase": "La Maxxis Escapade MA-T1 tiene treadwear 700 a 720, de las más duraderas de su tipo, ideal para quien recorre muchos kilómetros."
+  },
+  "AT771": {
+   "marca": "MAXXIS",
+   "nombre": "Maxxis Bravo Series AT-771",
+   "tipo": "A/T",
+   "alias": [
+    "at771",
+    "at-771",
+    "at 771",
+    "bravo at",
+    "bravo 771",
+    "bravo"
+   ],
+   "uso": "Camioneta, SUV y pickup: asfalto más lastre y barro ligero.",
+   "datos": "Llanta todo terreno con marca M+S. UTQG 500 A A / 500 A B según la medida (Maxxis). Etiqueta EU de la gama, según tyrereviews: D en combustible, D en mojado y 71 dB. No confirmamos que tenga 3PMSF. En tyrereviews los usuarios le dan 8,9/10 en desgaste. Quejas: un poco ruidosa en carretera y floja en nieve, lo cual no importa en Santo Domingo. Garantía en EE. UU.: 50.000 mi en medidas no LT. La garantía de millaje de EE. UU. es solo referencia y no aplica en Ecuador.",
+   "frase": "La Maxxis Bravo AT-771 es todo terreno con treadwear 500, aguanta bien el lastre y es silenciosa para ser A/T."
+  },
+  "MAS1MARAUDER": {
+   "marca": "MAXXIS",
+   "nombre": "Maxxis MA-S1 Marauder",
+   "tipo": "turismo/SUV de letras (H/T)",
+   "alias": [
+    "mas1",
+    "ma-s1",
+    "ma s1",
+    "marauder",
+    "marauder mas1"
+   ],
+   "uso": "Pickup, SUV clásica o auto con aro 15-18 y estética de letras.",
+   "datos": "Llanta para pasajero y SUV. Las fuentes no coinciden en su categoría: unas la llaman all-season y otras de verano (performance). Construcción: doble cinturón de acero y capa de nylon en espiral; dibujo unidireccional. Viene en índices H y S. UTQG 360 A A. No tiene pruebas de revista relevantes.",
+   "frase": "La Maxxis Marauder MA-S1 es para camioneta o SUV que quiere buen agarre en asfalto, con traction A y temperatura A."
+  },
+  "MCV5": {
+   "marca": "MAXXIS",
+   "nombre": "Maxxis MCV5 Vansmart",
+   "tipo": "comercial (furgoneta)",
+   "alias": [
+    "mcv5",
+    "mcv-5",
+    "vansmart",
+    "van smart",
+    "mcv5 vansmart"
+   ],
+   "uso": "Furgoneta, van de carga o pasajeros: trabajo diario con peso.",
+   "datos": "Llanta comercial (C, 8PR) para furgonetas y utes. Según los distribuidores tiene buen costo por kilómetro, compuesto que se calienta poco y cinturón que reduce el esfuerzo. Es de verano y viene de aro 12 a 17. No lleva UTQG porque es comercial.",
+   "frase": "La Maxxis Vansmart MCV5 es de 8 lonas, hecha para furgoneta de trabajo que anda cargada todo el día."
+  },
+  "AT980": {
+   "marca": "MAXXIS",
+   "nombre": "Maxxis AT-980 Bravo (en Europa: Wormdrive AT-980E)",
+   "tipo": "A/T",
+   "alias": [
+    "at980",
+    "at-980",
+    "at 980",
+    "bravo 980",
+    "wormdrive",
+    "worm drive"
+   ],
+   "uso": "Camioneta 4x4 y pickup que entra a lastre, piedra y barro medio.",
+   "datos": "Llanta todo terreno agresiva: tacos profundos en zigzag y capa de nylon contra pinchazos. En Australia los usuarios le dan 81 % (Tyre Review AU, 148 reseñas) y 4,1/5 (ProductReview), con lo mejor en durabilidad y lo peor en ruido y mojado. Un usuario dice que fue descontinuada en Australia (no confirmado). UTQG: no confirmado (las LT no lo llevan).",
+   "frase": "La Maxxis AT-980 es una todo terreno de taco agresivo y lona reforzada, para la camioneta que entra a fincas y lastre."
+  },
+  "MP15": {
+   "marca": "MAXXIS",
+   "nombre": "Maxxis Pragmatra MP15 (SUV)",
+   "tipo": "H/T",
+   "alias": [
+    "mp15",
+    "mp-15",
+    "mp 15",
+    "pragmatra suv",
+    "pragmatra mp15"
+   ],
+   "uso": "SUV o crossover urbano en asfalto.",
+   "datos": "Llanta de verano para SUV y crossover, lanzada en 2017 para China. Tiene dibujo 3D para bajar el ruido y un flanco que reparte la carga. Hecha para asfalto (Rezulteo). UTQG y pruebas: no confirmados.",
+   "frase": "La Maxxis Pragmatra MP15 es para SUV de ciudad, silenciosa y cómoda en asfalto."
+  },
+  "MAZ4": {
+   "marca": "MAXXIS",
+   "nombre": "Maxxis Victra MA-Z4S",
+   "tipo": "UHP",
+   "alias": [
+    "maz4",
+    "ma-z4",
+    "ma-z4s",
+    "maz4s",
+    "victra z4s",
+    "z4s"
+   ],
+   "uso": "Auto deportivo o sedán con aro 18 de perfil bajo.",
+   "datos": "Llanta de ultra alto desempeño lanzada en 2007. UTQG 420 AA A, según tyrereviews (no del fabricante). No tiene garantía de millaje en EE. UU.",
+   "frase": "La Maxxis Victra MA-Z4S es deportiva de perfil bajo, con traction AA (lo más alto) para frenar y curvear seguro."
+  },
+  "BRAVURIS": {
+   "marca": "BARUM",
+   "nombre": "Barum Bravuris (versión exacta no confirmada, probablemente Bravuris 5HM o Bravuris 2)",
+   "tipo": "turismo",
+   "alias": [
+    "bravuris",
+    "barum bravuris"
+   ],
+   "uso": "Auto pequeño, uso diario económico.",
+   "datos": "Modelo exacto no confirmado: la descripción de Fénix solo dice BRAVURIS. Es de Barum, la marca económica de Continental. Ver BRAVURIS 5HM para las pruebas.",
+   "frase": "La Barum Bravuris tiene ingeniería Continental a precio económico, ideal para auto de uso diario."
+  },
+  "BRAVURIS5HM": {
+   "marca": "BARUM",
+   "nombre": "Barum Bravuris 5HM",
+   "tipo": "turismo",
+   "alias": [
+    "bravuris 5hm",
+    "5hm",
+    "bravuris5",
+    "bravuris 5"
+   ],
+   "uso": "Auto y sedán, ciudad y carretera.",
+   "datos": "Llanta de verano. ADAC 2023 (205/55R16): «satisfactorio», con frenado en seco apenas bueno y en mojado solo satisfactorio. ADAC 2022 (215/60R16, SUV): puesto 13 de 18. ADAC 2021: puesto 15 de 17. Fuertes: muy bajo consumo de combustible y desgaste algo mejor que el promedio. En Europa ya la reemplazó la Bravuris 6.",
+   "frase": "La Barum Bravuris 5HM es de la familia Continental: gasta poco combustible y dura bien, buena opción por precio."
+  },
+  "POWERCONTACT2": {
+   "marca": "CONTINENTAL",
+   "nombre": "Continental PowerContact 2",
+   "tipo": "turismo (touring)",
+   "alias": [
+    "powercontact 2",
+    "power contact 2",
+    "powercontac 2",
+    "power contac 2",
+    "pc2",
+    "powercontact",
+    "power contact"
+   ],
+   "uso": "Auto y sedán, uso diario y carretera; hecha para las vías andinas.",
+   "datos": "Fabricada en Cuenca, Ecuador, por Continental Tire Andina. Según Continental Ecuador tiene treadwear 600 y 20 % más kilometraje que la versión anterior; trae ContiSafetySystem, ContiShield (resiste impactos) y ECOPlus (ahorro de combustible). OJO: Continental Ecuador tiene un programa voluntario de reemplazo gratuito por DOT para 175/65R14, 185/65R14 y 205/60R16. Hay que revisar el DOT de las 185/65R14 en stock. La fecha del aviso no está confirmada.",
+   "frase": "La Continental PowerContact 2 se fabrica aquí en Cuenca con tecnología alemana, frena muy bien en lluvia y tiene treadwear 600."
+  },
+  "ALTIMAX": {
+   "marca": "GENERAL",
+   "nombre": "General Tire Altimax (probablemente Altimax XP7; no confirmado)",
+   "tipo": "turismo",
+   "alias": [
+    "altimax",
+    "altimax xp7",
+    "xp7",
+    "general altimax"
+   ],
+   "uso": "Auto pequeño o sedán, uso diario.",
+   "datos": "En tiendas de Colombia (Alkosto) la 165/60R14 se vende como Altimax XP7 75T, con país de origen Ecuador. Continental Ecuador tuvo un reemplazo voluntario de la XP7 en 165/70R13 y 185/65R14; la 165/60R14 no estaba en la lista. UTQG y pruebas: no confirmados.",
+   "frase": "La General Altimax es de fabricación nacional (Continental en Cuenca), económica y fácil de reponer."
+  },
+  "ATX": {
+   "marca": "GENERAL",
+   "nombre": "General Grabber ATX",
+   "tipo": "A/T",
+   "alias": [
+    "grabber atx",
+    "grabber",
+    "general atx"
+   ],
+   "uso": "Camioneta y SUV: asfalto más lastre, uso mixto.",
+   "datos": "Llanta todo terreno. La 225/70R16 103T aparece como fabricada en Ecuador y de «doble propósito». Varias medidas tienen 3PMSF, pero no está confirmado en 225/70R16. UTQG para esta medida: no confirmado.",
+   "frase": "La General Grabber ATX es todo terreno fabricada en Ecuador, buena para la camioneta que alterna asfalto y lastre."
+  },
+  "N2000": {
+   "marca": "NEXEN",
+   "nombre": "Nexen N2000",
+   "tipo": "turismo deportiva (HP)",
+   "alias": [
+    "n2000",
+    "n 2000",
+    "n-2000",
+    "nexen n2000"
+   ],
+   "uso": "Auto y sedán aro 15 que busca algo de desempeño.",
+   "datos": "Llanta de verano de alto desempeño. UTQG 380 A A. En tyrereviews no tiene pruebas de revistas; los usuarios le dan 7,9/10 (14 reseñas). Garantía en EE. UU.: 60.000 mi. La garantía de millaje de EE. UU. es solo referencia y no aplica en Ecuador. Es un modelo antiguo, de nivel económico.",
+   "frase": "La Nexen N2000 es deportiva a buen precio, con traction A y temperatura A."
+  },
+  "NFPRIMUSV": {
+   "marca": "NEXEN",
+   "nombre": "Nexen N'Fera Primus V",
+   "tipo": "turismo (touring premium)",
+   "alias": [
+    "nf primus v",
+    "nfera primus",
+    "n'fera primus",
+    "primus v",
+    "primus"
+   ],
+   "uso": "Auto y sedán, comodidad en carretera.",
+   "datos": "Es la versión V (velocidad hasta 240 km/h) de la N'Fera Primus, una touring de verano. Los usuarios elogian el agarre y la comodidad; uno reporta desgaste rápido. UTQG: no confirmado.",
+   "frase": "La Nexen N'Fera Primus V es cómoda y silenciosa, con buen agarre en carretera."
+  },
+  "NFRU5": {
+   "marca": "NEXEN",
+   "nombre": "Nexen N'Fera RU5",
+   "tipo": "H/T (SUV de alto desempeño)",
+   "alias": [
+    "nf ru5",
+    "nfera ru5",
+    "n'fera ru5",
+    "ru5"
+   ],
+   "uso": "SUV con aro 20, carretera.",
+   "datos": "Llanta all-season para SUV. La 255/45R20 105V XL tiene UTQG 500 A A. Hombro asimétrico para estabilidad. Garantía en EE. UU.: 65.000 mi. La garantía de millaje de EE. UU. es solo referencia y no aplica en Ecuador. Discount Tire la marca como descontinuada.",
+   "frase": "La Nexen N'Fera RU5 es para SUV de aro 20: cómoda, silenciosa y con treadwear 500."
+  },
+  "CS1": {
+   "marca": "COOPER",
+   "nombre": "Cooper CS1",
+   "tipo": "turismo (touring)",
+   "alias": [
+    "cs1",
+    "cs-1",
+    "cs 1",
+    "cooper cs1"
+   ],
+   "uso": "Auto y sedán, uso diario.",
+   "datos": "Touring vendida en México, Centro y Sudamérica desde 2015. La 195/65R15 91T tiene UTQG 520 A B. Un catálogo dice que podría estar descontinuada o con distribución limitada.",
+   "frase": "La Cooper CS1 es touring americana para auto, con treadwear 520 para que dure."
+  },
+  "COBRARADIALGT": {
+   "marca": "COOPER",
+   "nombre": "Cooper Cobra Radial G/T (letras blancas)",
+   "tipo": "turismo/clásica (letras blancas)",
+   "alias": [
+    "cobra",
+    "cobra radial",
+    "cobra gt",
+    "cobra radial gt",
+    "cobra g/t"
+   ],
+   "uso": "Camioneta o auto clásico y muscle car aro 15; estética de letras blancas (LB).",
+   "datos": "Llanta all-season con letras blancas en relieve. UTQG 440 A B (por ejemplo, 225/70R15 100T y en Canadá índice 96T). Garantía en EE. UU.: 40.000 mi. La garantía de millaje de EE. UU. es solo referencia y no aplica en Ecuador. Las letras vienen con una capa protectora azul que se lava.",
+   "frase": "La Cooper Cobra Radial G/T es la clásica de letras blancas para camioneta o auto clásico, con treadwear 440."
+  },
+  "MTEVOLUTION": {
+   "marca": "COOPER",
+   "nombre": "Cooper Evolution M/T",
+   "tipo": "M/T",
+   "alias": [
+    "evolution mt",
+    "evolution m/t",
+    "mt evolution",
+    "cooper evolution",
+    "evolution"
+   ],
+   "uso": "Pickup 4x4 de trabajo pesado: barro, finca, lastre suelto.",
+   "datos": "Llanta para barro LT, rango E (10PR), con 18/32 de profundidad. Los usuarios le dan 4,3/5 (SimpleTire) y 8,2/10 (Tiregrades), con lo más bajo en ruido. No lleva UTQG porque es LT.",
+   "frase": "La Cooper Evolution M/T es de 10 lonas, para barro y finca de verdad; aguanta lo que le pongas."
+  },
+  "RHLISA": {
+   "marca": "GOODYEAR",
+   "nombre": "Goodyear Regional RHS 17.5 (probable; la descripción de Fénix dice «RH LISA», no confirmado)",
+   "tipo": "comercial (camión liviano)",
+   "alias": [
+    "rh lisa",
+    "regional rhs"
+   ],
+   "uso": "Camión liviano o bus: eje direccional y toda posición, carretera regional.",
+   "datos": "La Regional RHS 235/75R17.5 de 16 lonas es 132/130L. Se vende en México, Panamá y Colombia para eje direccional y toda posición. Que «RH LISA» sea la RHS no está confirmado.",
+   "frase": "La Goodyear 235/75R17.5 de 16 lonas es para camión liviano o bus, buena en dirección y en toda posición."
+  },
+  "WEATHERREADY": {
+   "marca": "GOODYEAR",
+   "nombre": "Goodyear Assurance WeatherReady",
+   "tipo": "turismo all-weather",
+   "alias": [
+    "weatherready",
+    "weather ready",
+    "assurance weatherready"
+   ],
+   "uso": "Auto o crossover, mucha lluvia y carretera.",
+   "datos": "UTQG 700 A A. Tiene 3PMSF (Tire Rack). Garantía en EE. UU.: 60.000 mi. La garantía de millaje de EE. UU. es solo referencia y no aplica en Ecuador. Ya existe la sucesora, WeatherReady 2. Está diseñada para lluvia y nieve; en el calor de la Costa la nieve no aplica, pero la lluvia sí.",
+   "frase": "La Goodyear WeatherReady está hecha para lluvia fuerte, con treadwear 700 y traction A."
+  },
+  "FULLMAX": {
+   "marca": "GOODYEAR",
+   "nombre": "Goodyear 265/60R18 «Full Max» (modelo no identificado; ¿Assurance CS Fuel Max? no confirmado)",
+   "tipo": "H/T",
+   "alias": [
+    "full max",
+    "fullmax",
+    "fuel max"
+   ],
+   "uso": "SUV o pickup aro 18 en carretera.",
+   "datos": "No encontramos ningún modelo Goodyear llamado «Full Max». La coincidencia más cercana es la Assurance CS Fuel Max 265/60R18 110H, para SUV. No confirmado; hay que revisar el costado de la llanta.",
+   "frase": "La Goodyear 265/60R18 es para SUV o camioneta en carretera, de una marca americana premium."
+  },
+  "PROXESST3": {
+   "marca": "TOYO",
+   "nombre": "Toyo Proxes ST III",
+   "tipo": "H/T deportiva (SUV/pickup)",
+   "alias": [
+    "proxes st3",
+    "proxes st iii",
+    "st3",
+    "st iii",
+    "proxes st"
+   ],
+   "uso": "Pickup o SUV deportiva en asfalto, buscando agarre y estética.",
+   "datos": "Llanta all-season para SUV y camioneta deportiva. La mayoría de fuentes dan UTQG 500 A A; una dice 400. En las reseñas es excelente en seco y floja en nieve. Garantía en EE. UU.: 40.000 mi.",
+   "frase": "La Toyo Proxes ST III es japonesa y deportiva para camioneta, con agarre de auto en asfalto."
+  },
+  "TYDRB": {
+   "marca": "TOYO",
+   "nombre": "Toyo DRB (probable; modelo no confirmado)",
+   "tipo": "turismo (confort)",
+   "alias": [
+    "tydrb",
+    "toyo drb"
+   ],
+   "uso": "Sedán con aro 18, comodidad.",
+   "datos": "No pudimos confirmar el modelo. Si es la Toyo DRB, sería una llanta de confort del mercado japonés. UTQG y pruebas: no confirmados.",
+   "frase": "La Toyo 245/45R18 es japonesa, pensada para andar cómodo y silencioso."
+  },
+  "ALLTERRAINUSA": {
+   "marca": "BFGOODRICH",
+   "nombre": "BFGoodrich All-Terrain T/A (KO2 o KO3; versión no confirmada)",
+   "tipo": "A/T",
+   "alias": [
+    "all-terrain",
+    "ko2",
+    "ko3",
+    "ta ko2",
+    "t/a ko2",
+    "t/a ko3"
+   ],
+   "uso": "Pickup o SUV 4x4 que entra a lastre, piedra y fincas.",
+   "datos": "La KO2 fue reemplazada por la KO3 en 2024. Ambas tienen 3PMSF. La KO3 se fabrica en EE. UU., Brasil y Tailandia, y su garantía en EE. UU. es de 50.000 mi. La garantía de millaje de EE. UU. es solo referencia y no aplica en Ecuador. Es LT, así que no lleva UTQG. La versión del stock (KO2 o KO3) no está confirmada; hay que revisar el costado.",
+   "frase": "La BFGoodrich All-Terrain es la referencia mundial en todo terreno: resiste cortes en lastre y piedra."
+  },
+  "HT": {
+   "marca": "MICHELIN",
+   "nombre": "Michelin 245/70R17 H/T (probablemente Primacy LTX o Defender LTX M/S; no confirmado)",
+   "tipo": "H/T",
+   "alias": [
+    "primacy ltx"
+   ],
+   "uso": "Pickup o SUV en carretera, máxima duración.",
+   "datos": "El modelo exacto no está confirmado. Si es la Primacy LTX 245/70R17 110T, tiene 10/32 de profundidad y garantía en EE. UU. de 55.000 mi. La garantía de millaje de EE. UU. es solo referencia y no aplica en Ecuador.",
+   "frase": "La Michelin 245/70R17 de carretera es de las que más duran, para camioneta que anda en asfalto."
+  }
+ },
+ "marcas": {
+  "FALKEN": "Marca japonesa del grupo Sumitomo Rubber (el mismo de Dunlop en Japón), 8.º fabricante de llantas del mundo (Tyrepress 2026). Fabrica en plantas propias de Japón, Tailandia, Turquía, Indonesia, China, Brasil y Sudáfrica; lo que llega a Ecuador suele venir de Japón o Tailandia según el lote y la medida — el país exacto está escrito en el costado («MADE IN …»).",
+  "KENDA": "Marca TAIWANESA (nunca decir china), fundada en 1962 en Yuanlin, con centro técnico en Akron (EE. UU.); ~29.º fabricante del mundo. Tiene plantas en Taiwán, China, Vietnam e Indonesia; el país exacto está en el costado.",
+  "WINRUN": "Marca china (Guangzhou), la opción de entrada. Tiene homologación europea (marca E) y DOT de EE. UU.",
+  "HAIDA": "Marca china de Sichuan Haida Rubber Group (ex Sichuan Rubber Factory, fundada 1970, controlada por el Estado), fabricada en Sichuan, China (homologación ECE a nombre de Sichuan Tyre & Rubber Co., Jianyang). Mismo grupo que TIANFU y MILEKING. Nivel económico. Reputación: llanta barata y de amplio catálogo (pasajero, UHP, A/T, R/T, M/T); casi sin pruebas independientes publicadas; cumple para uso diario pero no compite en frenado mojado con marcas medias.",
+  "TIANFU": "Marca china del mismo grupo Sichuan Haida Rubber (Sichuan, China), hermana de HAIDA y MILEKING. Nivel económico, orientada a medidas comerciales y de carga liviana. Reputación: sin pruebas independientes publicadas; se vende por precio.",
+  "MILEKING": "Marca china del grupo Sichuan Haida / Sichuan Tyre & Rubber (homologación ECE compartida HAIDA/Mileking, Sichuan). Un minorista la ubica en el grupo 'Acmex' (no confirmado). Nivel económico. Varios de sus diseños son gemelos de Haida (MK837≈HD837, MK937≈HD937; inferido por la numeración, no confirmado). Reputación: económica, sin pruebas independientes.",
+  "TOWNHALL": "Marca china de fabricante NO confirmado públicamente (los códigos TH- se parecen a los de Qingdao Taihao Tyre, Shandong, pero no hay fuente que lo diga: no confirmado). Nivel económico. Se vende en México y Latinoamérica (Walmart MX, MercadoLibre) con A/T, H/T, M/T y pasajero. Reputación: marca de precio, sin pruebas independientes ni etiqueta UE encontrada.",
+  "DURUN": "Marca china de Shandong Yongtai Chemical Group (Guangrao, Shandong, China); Durun International Trade es su filial exportadora. Nivel económico/entrada. No se encontró relación con Sentury (no confirmado). Reputación: llanta de precio con presencia en Europa, Nueva Zelanda y EE. UU.; desempeño básico, pocas pruebas independientes.",
+  "ILINK": "Marca china producida por Shandong Longyue Rubber Co. (Shandong); las fuentes discrepan si Longyue pertenece al grupo Zodo o a Yuelong Tire Group. Nivel económico (TyreReviews la clasifica 'budget'). Vendida en Reino Unido (Halfords, Blackcircles) y Oceanía. Reputación: económica, aceptable para uso normal; no destaca en mojado.",
+  "TOURADOR": "Marca china de Qingdao Otai Tire (en el mercado desde 2017), fabricada en China y también en Tailandia según minoristas europeos; registros UE vía Honch Husdow (Chipre). Nivel económico. Reputación: en una prueba de TyreReviews el X Wonder TH1 quedó último con diferencia grande y poco agarre en seco y mojado; TheTyreLab le da 4,5/10.",
+  "SUMAXX": "Marca china de Qingdao Sunforce Tyre Co. (Qingdao, Shandong), especializada en 4x4/todoterreno; registrada en la base de etiquetas UE (EPREL). Nivel económico. Reputación: enfocada en A/T para pickups; sin pruebas independientes publicadas.",
+  "WANDA": "Marca china de Tianjin Wanda Tyre Group (Tianjin, fundada 1988); también se vende como 'Journey' o 'WD' en algunos mercados. Nivel económico. Fuerte en llantas de remolque, van y especiales. Reputación: correcta para carga liviana; poca prueba independiente en pasajero.",
+  "XBRI": "Marca brasileña (XBRI Pneus, ligada al grupo chino Sunset Tires) fabricada en China, Camboya, Vietnam, Tailandia y Serbia; anunció planta en Paraná, Brasil, en sociedad con Linglong (fechas aún inciertas). Nivel económico-medio en Sudamérica. Reputación: muy difundida en Brasil, con opiniones de buen precio/rendimiento; pocas pruebas técnicas independientes.",
+  "LANWOO": "Marca china; la marca registrada pertenece a Shandong Kaixuan Tire Co. (registro de marca 2015; fabricante real no confirmado). Nivel económico. Fuera de Ecuador casi solo aparece en pasajero; sus modelos de camión (LWT52, LWD66, X5 PRO) no tienen fichas públicas. Reputación: sin datos públicos.",
+  "KAPSEN": "Marca china de Shandong Huasheng Rubber Co. (Guangrao, Shandong, fundada 1994), hermana de HABILEAD (los modelos se comparten: RS23, HD918). No se encontró vínculo con Sailun ni Shengtai (no confirmado). Nivel económico. Reputación: muy vendida en Europa como opción barata; desempeño básico.",
+  "HAULMAX": "Marca diseñada en Australia y fabricada en China (minorista australiano la atribuye a Harvest Tyres, fundada 2004); conocida sobre todo en llantas industriales/OTR y de remolque. Que las medidas convencionales 7.50-15 y 7.00-16 sean del mismo dueño no está confirmado. Nivel económico. Reputación: sin datos públicos para estas medidas.",
+  "CENTARA": "Marca china de entrada fabricada por Shandong Zhongyi Rubber Co. (Shandong), según minoristas. Nivel económico. Vendida en Reino Unido, Australia y EE. UU. Reputación: llanta de precio, adecuada para uso normal; sin pruebas independientes destacadas.",
+  "STERPRISIN": "Sin datos públicos sobre el fabricante ni la marca (no aparece en bases europeas ni de EE. UU.). Probablemente marca china de importador (no confirmado). Nivel económico. Reputación: sin datos públicos.",
+  "JOYROAD": "Marca china de volumen; las fuentes discrepan sobre el fabricante (Shandong Haohua Tire o Shandong Zhongyi Rubber). Registrada en la base de etiquetas UE. Nivel económico. Reputación: llanta de precio, vendida en Reino Unido y EE. UU.; sin pruebas destacadas.",
+  "ROCKBLADE": "Marca china del grupo Zodo Tire (fábricas en China); registros UE vía importador HJH China Supplies con correo de zodotire.cn. Nivel económico, gama 4x4 (H/T, A/T, R/T, M/T). Reputación: sin pruebas independientes publicadas.",
+  "TORNEL": "Marca mexicana (familia Tornel, primera llanta en 1933) comprada por JK Tyre de la India en 2008; hoy JK Tornel S.A. de C.V. la fabrica en sus plantas de México. Nivel económico-medio. Reputación: marca histórica en México, conocida por precio y llantas convencionales; calidad correcta sin destacar.",
+  "ANNAITE": "Marca china; las fuentes discrepan: Annaite Tyre Co. (Qingdao, Shandong, ligada al grupo Xingyuan) o Shandong Zhongyi Rubber. Nivel económico. Fuerte en camión y carga liviana; vendida en Sudáfrica y Latinoamérica. Reputación: llanta de precio, sin pruebas independientes.",
+  "POWERHUB": "Sin datos públicos sobre el fabricante (no aparece en bases internacionales). Probablemente marca china de importador (no confirmado). Nivel económico. Reputación: sin datos públicos.",
+  "WIDEWAY": "Marca china con base de producción en Shouguang (Weifang, Shandong), según un directorio comercial. Nivel económico, aunque se publicita como 'premium' (afirmación del vendedor, no verificada). Vendida en Reino Unido, Australia y Nueva Zelanda. Reputación: sin pruebas independientes.",
+  "DOUBLE COIN": "Marca china del grupo estatal Shanghai Huayi (Double Coin Holdings, Shanghai); fabricada en China. Nivel medio-económico en camión, con presencia de décadas en EE. UU. y Europa. Reputación: una de las marcas chinas de camión más conocidas; carcasas consideradas reencauchables (dato de mercado, no prueba formal).",
+  "HIFLY": "Marca china de Shandong Hengfeng Rubber & Plastic (Shandong, fundada 1995; cuatro plantas en Shandong según un minorista). NO es de Sailun: ninguna fuente la vincula. Nivel económico. Reputación: muy difundida en camión, van y pasajero barato; rendimiento básico.",
+  "FENIXWAY": "Sin datos públicos sobre la marca ni el fabricante (no aparece en ninguna base consultada). Probablemente marca china de importador (no confirmado). Reputación: sin datos públicos.",
+  "ROADX": "Marca vinculada a Sailun Group (Qingdao, China): en la base de etiquetas UE el proveedor de RoadX es Sailun Europe GmbH. Fabricada en China (planta exacta no confirmada; Sailun también produce en Vietnam y Camboya). Nivel económico-medio. Reputación: respaldada por un fabricante grande con buena fama en camión.",
+  "SPORTRAK": "Marca china de Sportrak Tire Group Ltd / Sportrak Tire Co. (Huangdao, Qingdao, Shandong), empresa comercializadora fundada en 2009; fabricante real no confirmado. Nivel económico. Reputación: sin datos públicos en camión.",
+  "LINGLONG": "Marca de Shandong Linglong Tire (Zhaoyuan, Shandong), de las mayores llanteras chinas y en el top 20 mundial; plantas en China, Tailandia y Serbia; proveedor de equipo original de varias marcas. Nivel medio. Reputación: la más sólida de las chinas en esta lista; tiene etiqueta UE y aparece en pruebas de AutoBild (frena peor en mojado que las líderes).",
+  "TRIANGLE": "Marca de Triangle Tyre Co. (Weihai, Shandong, China), fabricante estatal grande; fuerte en camión y OTR. Nivel medio-económico. Reputación: marca china de camión reconocida internacionalmente, con buena relación precio/duración.",
+  "TRAZANO": "Marca de ZC Rubber / Zhongce Rubber Group (Hangzhou, China), el mayor fabricante de llantas de China (también hace Westlake y Goodride); en la UE la registra Zhongce Europe GmbH. Nivel económico. Reputación: respaldo de fabricante grande; calidad consistente para su precio.",
+  "FULL RUN": "FULLRUN: marca de Qingdao Fullrun Tyre Tech Corp. (Qingdao, Shandong; registrado ante la NHTSA de EE. UU.), que también hace Antyre, Autogrip, Fullway, Highplus y Turnpike. Nivel económico. Reputación: muy vendida en camión en EE. UU. y Latinoamérica por precio.",
+  "MINERVA": "Marca belga de Deldo Autobanden N.V. (mayorista de Brasschaat, Bélgica, creada en 1992), fabricada en China (un minorista menciona a South China Tire & Rubber; no confirmado oficialmente; antiguamente parte se hacía en Rumania con Continental). Nivel económico. Reputación: marca de mayorista europeo con etiqueta UE completa; rendimiento correcto para su precio.",
+  "VIKRANT": "Marca india del grupo JK Tyre (JK compró Vikrant Tyres de Mysore en 1997; dato de conocimiento general, no reverificado en esta búsqueda); fabricada en la India. Nivel económico-medio. Especialista en llantas convencionales (diagonales) de camión y carga liviana; JK la comercializa junto a JK y Tornel. Reputación: carcasas consideradas buenas para reencauche (según un minorista).",
+  "MAXXIS": "Taiwán. Dueño: Cheng Shin Rubber Ind. Co. (CST), con sede en Changhua. Tiene fábricas en Taiwán, China (varias en Xiamen, además de Kunshan y Chongqing), Tailandia (Rayong), Vietnam (Dong Nai), Indonesia e India. No está confirmado qué planta abastece a Ecuador; las medidas de auto y camioneta para Latinoamérica suelen venir de China, Taiwán o Tailandia. Ranking: fuera del top 10 mundial. Históricamente estuvo cerca de los puestos 9 a 12, pero no confirmamos su posición en Tyrepress 2026 ni en Tire Business 2025. Nivel: medio, la marca de valor más seria de Asia. Reputación: duradera y bien construida por su precio, aunque en lluvia frena peor que las premium.",
+  "COOPER": "EE. UU., fundada en Findlay, Ohio. Desde 2021 pertenece a Goodyear, que es el n.º 3 mundial. Fábricas: Findlay (OH), Texarkana (AR), Tupelo (MS), Guadalajara (México), Kruševac (Serbia) y Kunshan (China). No está confirmado qué planta surte a Ecuador. Nivel: medio-alto, con fuerte presencia en camioneta y 4x4. Reputación: robusta y de buen rendimiento en kilometraje, con modelos clásicos como la Cobra de letras blancas y una buena línea off-road.",
+  "CONTINENTAL": "Alemania (Hannover). Dueño: Continental AG. Es el n.º 4 mundial en Tyrepress 2026, con €13,80 mil millones en ventas de llantas en 2025, y también el 4.º en Tire Business 2025. En Ecuador tiene planta propia: Continental Tire Andina en Cuenca, la ex-ERCO fundada en 1955, que pasó a ser de Continental en 1987 al comprar General Tire y tiene mayoría Continental desde 2009. Esa planta fabrica Continental, General y Barum para auto, camioneta y camión, y exporta a la región andina. Nivel: premium. Reputación: frenado en mojado de primera. La PowerContact 2 que vendemos es fabricada en Cuenca.",
+  "NEXEN": "Corea del Sur. Dueño: Nexen Tire Corp. (grupo Nexen). Fábricas: Yangsan y Changnyeong (Corea), Qingdao (China) y Žatec (República Checa, desde 2019); la planta en EE. UU. está en pausa. No está confirmado qué planta surte a Ecuador. Ranking: fuera del top 10, aproximadamente entre los puestos 18 y 22 (no confirmado). Nivel: medio, con buena relación precio-calidad. Equipa de fábrica a algunos autos europeos y coreanos. Reputación: cómoda y silenciosa para su precio; dura menos que las premium y casi no aparece en pruebas de revistas.",
+  "GOODYEAR": "EE. UU. (Akron, Ohio). Dueño: The Goodyear Tire & Rubber Co. Es el n.º 3 mundial en Tyrepress 2026, con €15,56 mil millones en 2025. En Sudamérica produce en Brasil, Perú, Chile y Colombia; la planta de Yumbo (Colombia) estuvo en huelga y con posible cierre en 2026. No está confirmado de qué planta viene lo que se vende en Ecuador. Nivel: premium. Reputación: marca muy conocida, con buen equilibrio y fuerte en camión y camioneta. Algunos modelos de Latinoamérica son distintos de los de EE. UU.",
+  "BARUM": "República Checa (Otrokovice). Es la marca económica de Continental AG desde 1993. Se fabrica en Otrokovice y también en la planta Continental de Cuenca, Ecuador, según El Mercurio (2023). Su ranking es el de Continental (n.º 4). Nivel: económico o de presupuesto, pero con ingeniería Continental. Reputación: gasta poco combustible y dura un poco más que el promedio. En las pruebas ADAC sale «satisfactorio», con frenado en seco y mojado por debajo de las premium.",
+  "GENERAL": "General Tire, fundada en Akron (EE. UU.) en 1915. Desde 1987 es marca de Continental AG, la n.º 4 mundial. En la región se fabrica en Cuenca, Ecuador (Continental Tire Andina, ex-ERCO): los catálogos colombianos indican país de origen Ecuador para la Altimax XP7 y la Grabber ATX 225/70R16. También tiene plantas en EE. UU. y México. Nivel: medio, la marca de valor de Continental. Reputación: llanta nacional confiable y fácil de reponer; la Grabber ATX tiene buena fama en camioneta.",
+  "TOYO": "Japón (Itami, Hyogo). Dueño: Toyo Tire Corporation. Fábricas: Japón (Sendai, Kuwana), EE. UU. (White, Georgia), Malasia, Serbia (Inđija) y China. No está confirmado qué planta surte a Ecuador. Ranking: fuera del top 10, alrededor de los puestos 12 a 15 (no confirmado). Nivel: medio-alto, casi premium en SUV, off-road y alto desempeño. Reputación: muy buena en pickups y SUV deportivas (líneas Proxes y Open Country) y es dueña de Nitto.",
+  "BFGOODRICH": "EE. UU. Desde 1990 es marca de Michelin, la n.º 1 mundial. La All-Terrain T/A KO3 se fabrica en EE. UU., Brasil y Tailandia, según Discount Tire y un proveedor. Nivel: premium en todo terreno. Reputación: la All-Terrain es la referencia mundial de llanta A/T: dura, resiste cortes en lastre y piedra, y cuesta más.",
+  "MICHELIN": "Francia (Clermont-Ferrand). Dueño: Compagnie Générale des Établissements Michelin. Es el n.º 1 mundial en Tyrepress 2026, con €24,75 mil millones en 2025, y también en Tire Business 2025. Tiene plantas en todos los continentes; en Latinoamérica, en Brasil y México. No está confirmado de dónde viene lo que llega a Ecuador. Nivel: premium. Reputación: la que más dura y la más pareja en mojado; es la más cara, pero el costo por kilómetro suele ser bueno."
+ },
+ "temas": {
+  "origen": "Cada llanta tiene su país escrito en el costado («MADE IN …»). Marcas: Falken japonesa (Sumitomo Rubber), Kenda TAIWANESA (nunca decir china), Maxxis taiwanesa, Winrun china; el resto según su ficha de MARCA. Si preguntan dónde se FABRICÓ una llanta concreta, el país exacto está en el costado y el asesor se lo confirma.",
+  "lonas": "Lonas = rango de carga: C = 6 lonas, D = 8, E = 10, F = 12. Una llanta de auto normal (sin LT ni C) equivale a 4 lonas; XL = pasajero reforzada, no es LT. Las lonas de cada producto vienen en el campo «lonas» de la búsqueda; si no viene y la medida es LT/C, el asesor lo confirma — PROHIBIDO inventar un número o un rango («entre 6 y 10»).",
+  "km": "No hay una cifra de km garantizada por la tienda: el rendimiento depende del uso, la carga, la presión, la alineación y las vías (en Santo Domingo el calor y el lastre gastan más rápido). Para comparar duración entre modelos de una misma marca usa el treadwear (UTQG) de la ficha. PROHIBIDO inventar un número de km o prometer uno.",
+  "treadwear": "UTQG (treadwear · tracción · temperatura) solo existe en llantas de pasajero; las LT no lo llevan. Sirve para comparar dentro de una misma marca, no entre marcas. Usar el dato del modelo si está en su ficha; si no está, decir que esa medida no lo trae publicado.",
+  "dot": "El año está en el DOT del costado: los últimos 4 dígitos son semana y año (2325 = semana 23 de 2025). Todas las llantas son nuevas, no reencauchadas. Una llanta sin uso y bien guardada se considera nueva hasta 5 años desde su fabricación; la vida útil se cuenta desde que se monta. El DOT exacto del juego se le confirma (foto o en el local); no inventes un año.",
+  "lluvia": "Para lluvia, la ficha del modelo dice su agarre en mojado cuando hay dato (etiqueta europea A/B/C o UTQG tracción AA/A/B). En Santo Domingo llueve mucho: priorizar llantas con buen mojado y cambiar antes de que se gaste la cocada (a ~3 mm). Una M/T siempre frena peor en asfalto mojado. No compares en lluvia modelos sin dato.",
+  "ruido": "H/T y turismo son las más suaves y silenciosas, A/T intermedias, R/T y M/T más duras y ruidosas. Una LT de 10 lonas se siente más dura que una P o XL. Una A/T como la A/T4W o la KR628 no zumba de forma molesta.",
+  "uso": "Tipo según uso: ciudad/carretera en auto → turismo; SUV solo asfalto → H/T; asfalto + lastre → A/T; piedra, finca, look agresivo → R/T; lodo y trocha → M/T; furgoneta y carga → comercial C/LT; camión → llanta de camión (direccional adelante, tracción atrás). PROHIBIDO recomendar una llanta de turismo para montaña, lastre o camioneta de uso mixto. Usa el tipo y uso de la ficha de cada modelo.",
+  "incluye": "Comprando las 4 llantas incluye enllantaje, balanceo, nitrógeno y ALINEACIÓN. Con 1, 2 o 3 llantas incluye enllantaje, balanceo y nitrógeno (la alineación no). El aro no está incluido. Se vende cualquier número de llantas.",
+  "garantia": "Kenda, Falken, Winrun y Maxxis tienen garantía de fábrica contra defectos y seguro contra impacto incluido con la llanta; los plazos y condiciones los explica el asesor (no prometas meses ni años). En las demás marcas, la garantía de fábrica del fabricante; lo que cubre lo confirma el asesor. Una llanta ya dañada o un reclamo → notificar_vendedor.",
+  "equivalencia": "Una medida distinta sirve si el diámetro total no cambia más de ±3 %: diámetro (mm) = aro × 25,4 + 2 × ancho × perfil / 100. Si cambia más, se descalibra el velocímetro y el ABS y puede rozar el guardafango. Índice de carga y velocidad igual o mayor que el original. Si cambia el ANCHO, además el ancho del aro debe estar en el rango de esa medida (lo revisa el técnico): PROHIBIDO decir «sin problema porque es el mismo aro». Más ancha no arregla que patine: pesan más el compuesto y la cocada.",
+  "runflat": "Run-flat no se instala: la llanta tiene que venir fabricada así. Si el carro trae inserto run-flat en el aro, un asesor revisa si va llanta normal.",
+  "consumo": "Gastan menos las de baja resistencia: Falken ZE310R/ZE310/ZE914 Ecorun y Kenda KR203 Kenetica Eco. M/T y R/T gastan más. La presión baja también sube el consumo.",
+  "presion": "La presión es la de la etiqueta del marco de la puerta, en frío. La tienda infla con nitrógeno (va incluido): pierde presión un poco más lento que el aire; igual conviene revisar la presión cada mes, con el calor sube.",
+  "reencauche": "Todas las llantas son nuevas. El reencauche no se recomienda en auto ni camioneta.",
+  "marcas_que_manejan": "Kenda, Falken, Winrun y Maxxis (las de garantía y seguro contra impacto) y además muchas otras según medida: Haida, Townhall, Durun, iLink, Tourador, Sumaxx, Wanda, Cooper, Continental, Nexen, Goodyear, Toyo, General, Michelin, BFGoodrich y otras. Lo que hay en su medida sale de la búsqueda.",
+  "diferencia": "Para diferencias entre modelos usa las fichas de los modelos en mesa: tipo, uso y datos. Si un modelo no tiene ficha, compara solo lo que dice su medida (LT/C, índice de carga y velocidad) y su tipo, sin inventar."
+ },
+ "competencia": {},
+ "lonas_por_codigo": {
+  "_nota": "Competimotor: las lonas salen del nombre del artículo («8PR»)."
+ },
+ "lonas_por_modelo_medida": {
+  "_nota": "Del «NPR» del artículo de Fénix (inventario 6-nov-2026).",
+  "KR33A|21575R14": [
+   8
+  ],
+  "ROCK787|27X8.50R14": [
+   6
+  ],
+  "KR33A|20570R15": [
+   8
+  ],
+  "KR601|21575R15": [
+   6
+  ],
+  "HD737|22570R15": [
+   10
+  ],
+  "RS23|22570R15": [
+   8
+  ],
+  "KR33A|22570R15": [
+   8
+  ],
+  "AN906|22575R15": [
+   6
+  ],
+  "HD818|23575R15": [
+   10
+  ],
+  "HD828|23575R15": [
+   6
+  ],
+  "KR29|23575R15": [
+   6
+  ],
+  "KR601|23575R15": [
+   6
+  ],
+  "THMT802|23575R15": [
+   6
+  ],
+  "KR628|30X9.5R15": [
+   6
+  ],
+  "HD828|31X10.5R15": [
+   6
+  ],
+  "KR29|31X10.5R15": [
+   6
+  ],
+  "KR601|31X10.5R15": [
+   6
+  ],
+  "KR628|31X10.5R15": [
+   6
+  ],
+  "FORCEATII|31X10.5R15": [
+   6
+  ],
+  "THAT802|31X10.5R15": [
+   6
+  ],
+  "THMT802|31X10.5R15": [
+   6
+  ],
+  "AT771|22570R16": [
+   6
+  ],
+  "MCV5|23565R16": [
+   8
+  ],
+  "HD828|23570R16": [
+   6
+  ],
+  "KR601|23570R16": [
+   6
+  ],
+  "KR601|24570R16": [
+   6
+  ],
+  "KR608|24570R16": [
+   8
+  ],
+  "KR29|24575R16": [
+   10
+  ],
+  "ALLTERRAIN|24575R16": [
+   10
+  ],
+  "WR9006|24575R16": [
+   10
+  ],
+  "KR608|25570R16": [
+   8
+  ],
+  "AT980|25570R16": [
+   8
+  ],
+  "HD828|26570R16": [
+   8
+  ],
+  "KR608|26570R16": [
+   8
+  ],
+  "WILDPEAKAT4W|26575R16": [
+   10
+  ],
+  "HD868|26575R16": [
+   10
+  ],
+  "KR29|26575R16": [
+   10
+  ],
+  "KR628|26575R16": [
+   10
+  ],
+  "KR29|28575R16": [
+   10
+  ],
+  "RLB490|23575R17": [
+   16
+  ],
+  "RHLISA|23575R17": [
+   16
+  ],
+  "LWT52|23575R17": [
+   18
+  ],
+  "X5PRO|23575R17": [
+   18
+  ],
+  "LWD66|21575R17": [
+   18
+  ],
+  "LWT52|21575R17": [
+   18
+  ],
+  "X5PRO|21575R17": [
+   18
+  ],
+  "KR29|26565R17": [
+   10
+  ],
+  "KR601|26565R17": [
+   10
+  ],
+  "KR608|26565R17": [
+   10
+  ],
+  "MTEVOLUTION|26570R17": [
+   10
+  ],
+  "WILDPEAKAT4W|26570R17": [
+   10
+  ],
+  "WILDPEAKMT|26570R17": [
+   10
+  ],
+  "KR608|26570R17": [
+   10
+  ],
+  "KR29|26570R17": [
+   10
+  ],
+  "KR629|26570R17": [
+   10
+  ],
+  "FORCEATII|26570R17": [
+   8
+  ],
+  "KR608|27570R17": [
+   10
+  ],
+  "K334|28570R17": [
+   10
+  ],
+  "WILDPEAKAT4W|28570R17": [
+   10
+  ],
+  "HD828|28570R17": [
+   10
+  ],
+  "HD878|28570R17": [
+   10
+  ],
+  "KR29|28570R17": [
+   10
+  ],
+  "MAXRANGERRT|28570R17": [
+   10
+  ],
+  "WILDPEAKAT4W|31570R17": [
+   8
+  ],
+  "KR608|31570R17": [
+   10
+  ],
+  "KR608|25560R18": [
+   10
+  ],
+  "ADVENTUREAT|26560R18": [
+   10
+  ],
+  "HD829|26560R18": [
+   10
+  ],
+  "KR608|26560R18": [
+   8
+  ],
+  "WILDPEAKAT4W|27565R18": [
+   10
+  ],
+  "WILDPEAKAT4W|27570R18": [
+   10
+  ],
+  "KR608|23555R19": [
+   10
+  ],
+  "KR608|25555R19": [
+   10
+  ],
+  "HD829|27555R20": [
+   10
+  ],
+  "HD868|27565R20": [
+   10
+  ],
+  "WILDPEAKMT|33X12.5R20": [
+   10
+  ],
+  "TR666|27580R22": [
+   16
+  ]
+ }
+}
