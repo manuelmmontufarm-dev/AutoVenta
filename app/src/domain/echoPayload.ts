@@ -124,3 +124,31 @@ export function tipoDeEco(eco: EchoMessage): "text" | "image" | "pdf" | "locatio
   if (eco.type === "location") return "location";
   return "text";
 }
+
+/**
+ * ¿El eco es una respuesta automática de la app de WhatsApp Business (mensaje
+ * de ausencia o de bienvenida) y no una persona contestando?
+ *
+ * 17-nov-2026, Competimotor (coexistencia): a las 18:15 el celular mandó solo
+ * «Gracias por tu mensaje. En este momento no podemos responder…» y el bot lo
+ * tomó como un asesor escribiendo: se pausó y el cliente se quedó sin respuesta.
+ * Meta no marca esos envíos en el eco, así que se reconocen por dos lados:
+ *  · el texto típico de un mensaje automático, o
+ *  · que salió a los pocos segundos del mensaje del cliente: nadie lee y
+ *    escribe una respuesta en el celular tan rápido.
+ */
+const SEGUNDOS_DE_UNA_AUTOMATICA = 6;
+const TEXTO_AUTOMATICO = new RegExp([
+  "no (podemos|estamos disponibles para) (responder|atender)",
+  "te (responderemos|contestaremos|atenderemos) (lo antes posible|pronto|en breve)",
+  "le (responderemos|contestaremos|atenderemos) (lo antes posible|pronto|en breve)",
+  "fuera de(l)? (nuestro )?horario",
+  "nuestro horario de atenci[oó]n",
+  "d[eé]janos (tu|su) (mensaje|solicitud|consulta)",
+  "gracias por (comunicarte|contactarnos|escribirnos)",
+].join("|"), "i");
+
+export function esRespuestaAutomatica(texto: string, segundosDesdeElCliente: number | null): boolean {
+  if (TEXTO_AUTOMATICO.test(texto)) return true;
+  return segundosDesdeElCliente !== null && segundosDesdeElCliente >= 0 && segundosDesdeElCliente < SEGUNDOS_DE_UNA_AUTOMATICA;
+}

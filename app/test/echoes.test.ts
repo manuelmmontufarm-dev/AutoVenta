@@ -1,6 +1,7 @@
 import { createHmac } from "node:crypto";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
+  esRespuestaAutomatica,
   contenidoDeEco,
   esPayloadDeEco,
   extraerEcos,
@@ -142,5 +143,25 @@ describe("registro de envíos propios: el bot no se pausa por su propio eco", ()
   it("ignora un id vacío en vez de guardar basura", () => {
     registrarEnviado(undefined);
     expect(esEnvioPropio("undefined")).toBe(false);
+  });
+});
+
+describe("esRespuestaAutomatica: el mensaje de ausencia del celular no pausa al bot", () => {
+  // 17-nov-2026, Competimotor: este texto salió solo a las 18:15 y pausó al bot.
+  const AUSENCIA = "Gracias por tu mensaje. En este momento no podemos responder, déjanos tu solicitud y te responderemos lo antes posible. 😊";
+
+  it("reconoce el mensaje de ausencia de WhatsApp Business por su texto", () => {
+    expect(esRespuestaAutomatica(AUSENCIA, 120)).toBe(true);
+    expect(esRespuestaAutomatica("Hola, estamos fuera de horario. Le atenderemos pronto.", null)).toBe(true);
+  });
+
+  it("reconoce cualquier eco que sale a los pocos segundos del cliente", () => {
+    expect(esRespuestaAutomatica("Bienvenido a Competimotor", 1.5)).toBe(true);
+  });
+
+  it("una persona contestando sigue pausando al bot", () => {
+    expect(esRespuestaAutomatica("Sí, la de rin 14 la tenemos, le paso precio", 45)).toBe(false);
+    expect(esRespuestaAutomatica("Gracias por tu mensaje, ya te cotizo", 30)).toBe(false);
+    expect(esRespuestaAutomatica("ok", null)).toBe(false);
   });
 });

@@ -25,6 +25,7 @@
 import {
   contenidoDeEco,
   esPayloadDeEco,
+  esRespuestaAutomatica,
   extraerEcos,
   firmaValida,
   tipoDeEco,
@@ -38,6 +39,15 @@ import {
 } from "../services/conversations.js";
 import { registrarEcoDescartado, registrarEcoGuardado } from "../services/echoHealth.js";
 import { esEnvioPropio } from "./outboundRegistry.js";
+import { sql } from "../db/client.js";
+
+/** Segundos entre el último mensaje del cliente y el eco; null si no hay. */
+async function segundosDesdeElCliente(conversationId: number, eco: Date): Promise<number | null> {
+  const [fila] = await sql<{ at: Date | null }[]>`
+    select max(created_at) as at from messages where conversation_id = ${conversationId} and role = 'user'
+  `;
+  return fila?.at ? (eco.getTime() - new Date(fila.at).getTime()) / 1000 : null;
+}
 
 export interface EchoOutcome {
   /** true = el payload era un eco y ya está resuelto; no lo toque handle_post. */
@@ -94,6 +104,10 @@ async function guardarEco(eco: EchoMessage): Promise<boolean> {
   // Un eco es un mensaje que SALIÓ del negocio: nunca reabre un ciclo cerrado.
   const conversation = await getOrCreateConversation(eco.to, undefined, false);
   const occurredAt = eco.timestamp ? new Date(Number(eco.timestamp) * 1000) : new Date();
+  // Mensaje de ausencia o de bienvenida del celular: se guarda (el cliente lo
+  // vio) pero no es una persona tomando el chat, así que el bot no se pausa.
+  const automatica = !propio
+    && esRespuestaAutomatica(contenidoDeEco(eco), await segundosDesdeElCliente(conversation.id, occurredAt));
 
   const esNuevo = await appendMessage(
     conversation.id,
@@ -106,13 +120,17 @@ async function guardarEco(eco: EchoMessage): Promise<boolean> {
       // etiqueta "Vendedor" y la auditoría no lo cuenta como mérito del bot.
       authorKind: "owner",
       status: "sent",
-      metadata: { origen: "echo", waType: eco.type ?? "text" },
+      metadata: { origen: "echo", waType: eco.type ?? "text", ...(automatica ? { automatica: true } : {}) },
       occurredAt,
     },
   );
 
   // Solo un mensaje ajeno y nuevo significa handoff. El eco de nuestro propio
   // envío no puede pausar al bot por su propia respuesta.
+  if (esNuevo && !propio && automatica) {
+    console.log(`🤖 Conv ${conversation.id}: respuesta automática de WhatsApp Business, el bot sigue atendiendo.`);
+    return false;
+  }
   if (esNuevo && !propio) {
     await registrarEcoGuardado();
     await setConversationAssignee(conversation.id, "human", "persona_escribio");
