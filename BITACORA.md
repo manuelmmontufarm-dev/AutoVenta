@@ -1,3 +1,13 @@
+## 17-nov-2026 · Todos · el conocimiento de producto es de cada cliente (rama `fix/conocimiento-por-cliente`)
+
+- **Qué:** `conocimiento-modelos.json` pasa de `assets/` (común) a `assets/depot/` y se carga con `rutaDeAsset`.
+  Un negocio sin archivo propio no recibe el hecho de conocimiento de producto.
+- **Por qué:** el PR #47 lo dejó en la carpeta común y el bot de Competimotor también recibía los datos de Depot
+  (seguro 18/12/6 meses, km, «alineación y balanceo incluidos»). Su bot está apagado salvo para el número de Manuel,
+  así que ningún cliente lo vio. El conocimiento propio de Competimotor viene en otra rama.
+- **Probado:** `conocimientoPorCliente.test.ts` (falla con el código del #47, pasa con este); `perfilAjeno.*` y
+  `simuladorFidelidad` en verde; suite 3.939 de 3.967 (fallan las 3 de siempre, igual en `origin/main`).
+- **Horas:** 0,2.
 ## 17-nov-2026 · Bot · el mensaje de ausencia de WhatsApp Business ya no pausa al bot (rama `fix/ausencia-no-pausa`)
 
 - **Qué:** un eco que es respuesta automática de la app de WhatsApp Business (texto típico de ausencia/bienvenida,
