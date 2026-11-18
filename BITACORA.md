@@ -1,3 +1,14 @@
+## 17-nov-2026 · Competimotor · las ubicaciones de los locales salen una sola vez y con los tres (rama `fix/locales-una-vez`)
+
+- **Qué:** `buildStoreLinksBlock`, con `referencia` en el perfil, lista TODOS los locales con su referencia y su link
+  (Kenda sin link ya no desaparece). Y la pregunta del local con botones no repite las ubicaciones si otro bloque del
+  mismo turno ya las dijo (`bloquesAnteriores` en `botonesParaBloque`). Depot no cambia.
+- **Por qué:** Manuel, 17-nov 19:56, «dónde quedan sus locales»: salió un mensaje con dos links (sin Kenda) y después
+  la pregunta repitió las tres ubicaciones. Se sentía como un bug.
+- **Probado:** `localesConDondeQueda.test.ts` (3 casos nuevos), `botones`, `quoteMessages`, suite completa (3.989 de
+  3.991; las dos que fallan ya venían de `main`). **No probado** en WhatsApp real.
+- **Horas:** 0,3.
+
 ## 17-nov-2026 · Competimotor + Depot · conocimiento de producto propio de cada cliente (rama `feat/conocimiento-competimotor`)
 
 - **Qué:** `assets/mundillantas/conocimiento-modelos.json` con 45 marcas y 144 modelos del inventario de Fénix
