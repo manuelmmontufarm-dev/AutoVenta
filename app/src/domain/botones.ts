@@ -73,8 +73,8 @@ export function conDondeQueda(bloque: string): string {
   const conReferencia = negocio.locales.filter((local) => local.referencia);
   if (!conReferencia.length) return bloque;
   const lineas = conReferencia.map((local) =>
-    `📍 *${local.nombreCorto}*: ${local.referencia}${local.mapsUrl ? `\n${local.mapsUrl}` : ""}`);
-  return `${lineas.join("\n\n")}\n\n${bloque}`;
+    `📍 *${local.nombreCorto}* (${local.referencia}): ${local.mapsUrl ?? ""}`.trimEnd());
+  return `${lineas.join("\n")}\n\n${bloque}`;
 }
 
 /** ¿Algún bloque ya trae la lista de locales con su ubicación (links o referencias)? */

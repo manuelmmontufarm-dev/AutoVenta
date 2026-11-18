@@ -18,15 +18,17 @@ process.env.DATABASE_URL ||= "postgresql://manue@localhost/postgres";
 const { botonesParaBloque, conDondeQueda } = await import("../src/domain/botones.js");
 const { PREGUNTA_DE_LOCAL, preguntaElLocal } = await import("../src/domain/storeSelection.js");
 const { buildStoreLinksBlock } = await import("../src/services/quoteMessages.js");
+const { estructurarTurno } = await import("../src/domain/estructuraDelTurno.js");
+const { motivoDeUbicacion } = await import("../src/domain/ubicacionPedida.js");
 
 describe("Competimotor: la pregunta del local dice dónde queda cada uno", () => {
   const bloque = `${PREGUNTA_DE_LOCAL} 📍`;
 
   it("lista los tres con su referencia, y el link de Maps cuando hay", () => {
     const cuerpo = conDondeQueda(bloque);
-    expect(cuerpo).toContain("📍 *Mundillantas Falken*: Vía Quevedo km 2 y Manuel Borrero\nhttps://maps.app.goo.gl/swNHGotRKPLJn3LZA");
-    expect(cuerpo).toContain("📍 *Mundillantas Kenda*: Vía Quevedo km 1½, a una cuadra del Banco Pichincha");
-    expect(cuerpo).toContain("📍 *Competimotor*: Vía Quevedo km 1½ y Juan León Mera\nhttps://maps.app.goo.gl/QTFCzK2KDRXULRwz7");
+    expect(cuerpo).toContain("📍 *Mundillantas Falken* (Vía Quevedo km 2 y Manuel Borrero): https://maps.app.goo.gl/swNHGotRKPLJn3LZA");
+    expect(cuerpo).toMatch(/📍 \*Mundillantas Kenda\* \(Vía Quevedo km 1½, a una cuadra del Banco Pichincha\): https:\/\/www\.google\.com\/maps\/search\//);
+    expect(cuerpo).toContain("📍 *Competimotor* (Vía Quevedo km 1½ y Juan León Mera): https://maps.app.goo.gl/QTFCzK2KDRXULRwz7");
     // La pregunta va al final, pegada a los botones.
     expect(cuerpo.endsWith(bloque)).toBe(true);
   });
@@ -43,19 +45,46 @@ describe("Competimotor: la pregunta del local dice dónde queda cada uno", () =>
   // (sin Kenda) y después la pregunta repitió las tres ubicaciones.
   it("el mensaje de ubicaciones trae los tres locales, Kenda incluido", () => {
     const bloque = buildStoreLinksBlock();
-    expect(bloque).toContain("📍 *Mundillantas Falken*: Vía Quevedo km 2 y Manuel Borrero\nhttps://maps.app.goo.gl/swNHGotRKPLJn3LZA");
-    expect(bloque).toContain("📍 *Mundillantas Kenda*: Vía Quevedo km 1½, a una cuadra del Banco Pichincha");
-    expect(bloque).toContain("📍 *Competimotor*: Vía Quevedo km 1½ y Juan León Mera\nhttps://maps.app.goo.gl/QTFCzK2KDRXULRwz7");
+    // Una línea por local, con su link: ninguna línea sin link.
+    const lineas = bloque.split("\n");
+    expect(lineas).toHaveLength(3);
+    for (const linea of lineas) expect(linea).toMatch(/^📍 \*[^*]+\* \([^)]+\): https:\/\//);
+    expect(bloque).toContain("Mundillantas Kenda* (Vía Quevedo km 1½, a una cuadra del Banco Pichincha): https://www.google.com/maps/search/");
   });
 
   it("con un local elegido, solo ese", () => {
     expect(buildStoreLinksBlock("Competimotor", { soloDestacado: true }))
-      .toBe("📍 *Competimotor*: Vía Quevedo km 1½ y Juan León Mera\nhttps://maps.app.goo.gl/QTFCzK2KDRXULRwz7");
+      .toBe("📍 *Competimotor* (Vía Quevedo km 1½ y Juan León Mera): https://maps.app.goo.gl/QTFCzK2KDRXULRwz7");
   });
 
   it("si el turno ya mandó las ubicaciones, la pregunta del local no las repite", () => {
     const conBotones = botonesParaBloque(bloque, { ciclo: 3, bloquesAnteriores: ["Hola", buildStoreLinksBlock()] });
     expect(conBotones?.cuerpo).toBe(bloque);
     expect(conBotones?.botones).toHaveLength(3);
+  });
+
+  // 17-nov 20:10, conv 1: el modelo escribió las direcciones sin link, se pegó
+  // el bloque de mapas y el turno mandó los links sueltos en otra burbuja.
+  it("el turno real: cada link sale junto a su local y las direcciones no se repiten", () => {
+    const delModelo = [
+      "Claro, le puedo mandar las ubicaciones por mapas de los 3 locales para que escoja el más cercano.",
+      "",
+      "📍 *Mundillantas Falken*: Vía Quevedo km 2 y Manuel Borrero",
+      "",
+      "📍 *Mundillantas Kenda*: Vía Quevedo km 1½, a una cuadra del Banco Pichincha",
+      "",
+      "📍 *Competimotor*: Vía Quevedo km 1½ y Juan León Mera",
+    ].join("\n");
+    const { texto } = estructurarTurno(`${delModelo}\n---\n${buildStoreLinksBlock()}`);
+    const [prosa, links] = texto.split("\n---\n");
+    expect(prosa).toBe("Claro, le puedo mandar las ubicaciones por mapas de los 3 locales para que escoja el más cercano.");
+    expect(links.split("\n")).toHaveLength(3);
+    for (const linea of links.split("\n")) expect(linea).toMatch(/^📍 \*[^*]+\* \([^)]+\): https:\/\//);
+  });
+
+  it("«qué locales tiene» manda las ubicaciones de una", () => {
+    expect(motivoDeUbicacion("hola que locales tiene")).toBe("la_pidio");
+    expect(motivoDeUbicacion("cuántas sucursales tienen")).toBe("la_pidio");
+    expect(motivoDeUbicacion("dónde quedan sus locales")).toBe("la_pidio");
   });
 });

@@ -74,8 +74,10 @@ describe("Mundillantas · solo lo confirmado", () => {
     expect(por("competimotor").lat).toBeCloseTo(-0.2595733, 6);
     expect(por("competimotor").lng).toBeCloseTo(-79.1829972, 6);
     expect(por("competimotor").mapsUrl).toBe("https://maps.app.goo.gl/QTFCzK2KDRXULRwz7");
-    // Kenda sigue sin pin propio: NO lleva link (no se manda el de otro local).
-    expect(por("local2").mapsUrl).toBeUndefined();
+    // Kenda sigue sin pin propio: NUNCA el link de otro local. Desde el 17-nov
+    // lleva la búsqueda de Google Maps con su propio nombre y dirección.
+    expect(por("local2").mapsUrl).toMatch(/^https:\/\/www\.google\.com\/maps\/search\/\?api=1&query=Mundillantas%20Kenda/);
+    expect(por("local2").mapsUrl).not.toBe(por("matriz").mapsUrl);
     for (const l of negocio.locales) expect(l.nombreCorto.length).toBeLessThanOrEqual(20);
   });
 
