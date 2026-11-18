@@ -24,10 +24,7 @@
  * turnos de medida, local o día.
  */
 import { readFileSync } from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-
-const ASSETS = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "assets");
+import { rutaDeAsset } from "../negocio/assets.js";
 
 interface FichaModelo {
   marca: string;
@@ -64,7 +61,10 @@ function cargar(): Base {
   if (base) return base;
   const vacia: Base = { modelos: new Map(), marcas: {}, temas: {}, competencia: {}, lonas: new Map(), lonasModeloMedida: new Map(), alias: [] };
   try {
-    const cruda = JSON.parse(readFileSync(path.join(ASSETS, "conocimiento-modelos.json"), "utf8")) as {
+    const cruda = JSON.parse(// Es conocimiento DEL CLIENTE (seguro, km, qué incluye): `assets/<negocio>/`.
+      // Sin archivo propio el negocio no recibe nada — 17-nov: el de Depot vivía
+      // en la carpeta común y le llegaba también a Competimotor.
+      readFileSync(rutaDeAsset("conocimiento-modelos.json"), "utf8")) as {
       modelos?: Record<string, Partial<FichaModelo> & { igual_a?: string }>;
       marcas?: Record<string, string>;
       temas?: Record<string, string>;
