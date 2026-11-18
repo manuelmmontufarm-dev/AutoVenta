@@ -198,3 +198,46 @@ export function sinPagoSinRespuesta(texto: string, opciones: { estricto?: boolea
   return sinFrasesDelTema(texto, (f) =>
     preguntaPorElPago(f) && !frase.includes(f) && (Boolean(opciones.estricto) || !respondeElPago(f))).texto;
 }
+
+/**
+ * LO QUE EL NEGOCIO NO CONFIRMÓ LO CONFIRMA UN ASESOR.
+ *
+ * Producción Competimotor, 17-nov-2026 21:25 (conv 40), tras cotizar 4 Falken:
+ *
+ *   CLIENTE: «en efectivo cuánto sale?»
+ *   BOT: «Se acepta efectivo, transferencia y tarjeta de crédito.»
+ *   CLIENTE: «y si pago en efectivo hay descuento?»
+ *   BOT: «Se acepta efectivo, transferencia y tarjeta de crédito. …»
+ *
+ * Mundillantas no dijo si hay descuento por efectivo (`descuentoEnEfectivo`
+ * en null). El prompt ya manda al asesor lo que no está en la política, pero
+ * `el_pago_se_responde` borraba esa frase (no traía «no sube» ni «sin
+ * intereses») y ponía las formas de pago, que no contestan nada. Manuel: lo
+ * que es propio de la empresa y no está especificado, que lo confirme un asesor.
+ */
+export const DESCUENTO_LO_CONFIRMA_EL_ASESOR =
+  "Si hay algún descuento por pagar en efectivo, eso se lo confirma un asesor del local.";
+
+const sinTildes = (t: string) => t.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+
+/** ¿El cliente pregunta si en efectivo hay descuento, o cuánto sale en efectivo? */
+export function preguntaPorDescuentoEnEfectivo(texto: string | null | undefined): boolean {
+  const n = sinTildes(texto ?? "");
+  if (!/\b(?:efectivo|cash|contado)\b/.test(n)) return false;
+  return /\bdescuentos?\b|\brebajas?\b|\bmas barat\w*\b|\bmenos\b|\bcuanto\b|\bprecio\b|\bvalor\b|\bsale\b|\bqueda\b/.test(n);
+}
+
+/**
+ * Quita del borrador lo que el bot diría del descuento o del pago sin tenerlo
+ * confirmado («no hay descuento», «sí hay descuento», «se acepta…»). Se queda
+ * la frase con el precio de la cotización, que es un hecho del catálogo,
+ * mientras no hable de descuento ni diga que en efectivo es igual.
+ */
+export function sinFrasesDeDescuentoSinDato(texto: string): string {
+  return sinFrasesDelTema(texto, (f) => {
+    const n = sinTildes(f);
+    const deDescuento = /\bdescuent\w*\b|\brebaj\w*\b/.test(n);
+    if (!deDescuento && /\$\s?\d/.test(f) && !niegaDescuentoEnEfectivo(f)) return false;
+    return deDescuento || preguntaPorElPago(f);
+  }).texto;
+}

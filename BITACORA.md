@@ -1,3 +1,18 @@
+## 17-nov-2026 · Bot · lo que el negocio no confirmó lo confirma un asesor: descuento en efectivo (rama `fix/pago-sin-dato-al-asesor`)
+
+- **Qué:** si el cliente pregunta por descuento en efectivo («y si pago en efectivo hay descuento?», «en efectivo
+  cuánto sale?») y el negocio no lo tiene cargado (`descuentoEnEfectivo` en null), `el_pago_se_responde` ya no pone
+  las formas de pago: dice «Si hay algún descuento por pagar en efectivo, eso se lo confirma un asesor del local.»,
+  deja el precio de la cotización, quita cualquier «no hay» / «sí hay» descuento del modelo y deja una alerta
+  `descuento_sin_dato` en el panel.
+- **Por qué:** Manuel, 17-nov 21:25 (Competimotor, conv 40): a las dos preguntas el bot contestó «Se acepta
+  efectivo, transferencia y tarjeta de crédito.». El prompt ya manda al asesor lo que no está en la política, pero el
+  candado borraba esa frase (no traía «no sube» ni «sin intereses») y ponía la política, que no contesta nada.
+- **Depot:** tiene descuento cargado: sigue con su frase de siempre (lo fija la prueba).
+- **Probado:** `descuentoSinDatoAlAsesor` (los dos turnos reales), suite completa (3.999 de 4.001; las dos que fallan
+  ya venían de `main`), `tsc`. **No probado** en WhatsApp real.
+- **Horas:** 0,5.
+
 ## 17-nov-2026 · Bot · los links de los locales salen con su nombre y de una (rama `fix/locales-links-claros`)
 
 - **Qué:** (1) «qué locales tiene», «cuántas sucursales», «sus locales» cuentan como pedir la ubicación: salen los

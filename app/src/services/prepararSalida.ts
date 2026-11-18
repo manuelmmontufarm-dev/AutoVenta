@@ -77,7 +77,7 @@ import { sinFraseColgando } from "../domain/fraseColgando.js";
 import { soloQuitaOReordena } from "../domain/soloQuita.js";
 import { esFraseDelDescuento, hablaDelDescuento, respuestaDelDescuento } from "../domain/ahorro.js";
 import { ahorroVigente } from "./ahorroVigente.js";
-import { hayDescuentoEnEfectivo, hayPoliticaDePagos, mencionaDescuentoEnEfectivo, politicaDePagos, preguntaPorElPago, niegaDescuentoEnEfectivo, respondeElPagoCompleto, sinDescuentoNegado, sinPagoSinRespuesta } from "../domain/datosDelNegocio.js";
+import { DESCUENTO_LO_CONFIRMA_EL_ASESOR, hayDescuentoEnEfectivo, hayPoliticaDePagos, preguntaPorDescuentoEnEfectivo, sinFrasesDeDescuentoSinDato, mencionaDescuentoEnEfectivo, politicaDePagos, preguntaPorElPago, niegaDescuentoEnEfectivo, respondeElPagoCompleto, sinDescuentoNegado, sinPagoSinRespuesta } from "../domain/datosDelNegocio.js";
 import { sinNumerosDeCotizacion } from "../domain/numerosDeCotizacion.js";
 import { precioDeLaOpcionGuardada, precioDelProducto, promocionVigente, type SegundaLlanta } from "../domain/promocionDeTemporada.js";
 import { sinPrecioPorLlantaConPromo } from "../domain/sinPrecioPorLlantaConPromo.js";
@@ -968,6 +968,24 @@ export const PASOS: readonly PasoDeSalida[] = [
       // Sin formas de pago confirmadas en la política no hay respuesta que
       // poner: el texto pasa sin tocar y el bot no promete ninguna.
       if (!hayPoliticaDePagos() || !preguntaPorElPago(ctx.textoDelCliente)) return texto;
+      // Descuento en efectivo que el negocio NO confirmó (Competimotor, conv 40,
+      // 17-nov): no se niega ni se promete, lo confirma un asesor. El precio de
+      // la cotización se queda; las formas de pago no contestan esa pregunta.
+      if (!hayDescuentoEnEfectivo() && preguntaPorDescuentoEnEfectivo(ctx.textoDelCliente)) {
+        const resto = sinFrasesDeDescuentoSinDato(texto);
+        console.warn(`💳 Conv ${ctx.conversation.id}: descuento en efectivo sin dato del negocio; lo confirma un asesor.`);
+        await createBotAlert({
+          conversationId: ctx.conversation.id,
+          cycle: ctx.conversation.current_cycle,
+          type: "descuento_sin_dato",
+          priority: "medium",
+          summary: "El cliente preguntó si hay descuento en efectivo y el negocio no lo tiene cargado",
+          exactReason: `Cliente: «${(ctx.textoDelCliente ?? "").slice(0, 200)}»`,
+          suggestedAction: "Contéstele si hay descuento por efectivo. Si lo hay, cárguelo en la política para que el bot lo diga solo.",
+          dedupeKey: `descuento_sin_dato:${ctx.conversation.id}:${ctx.conversation.current_cycle}`,
+        }).catch(() => undefined);
+        return resto.trim() ? `${DESCUENTO_LO_CONFIRMA_EL_ASESOR}\n---\n${resto}` : DESCUENTO_LO_CONFIRMA_EL_ASESOR;
+      }
       // La frase de pago que no responde sale (12-sep, conv 3, 17:32): la
       // política y «no le puedo confirmar un recargo» llegaron en el mismo
       // turno. Ver `sinPagoSinRespuesta`.
