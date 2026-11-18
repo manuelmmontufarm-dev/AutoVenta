@@ -95,7 +95,7 @@ import { avisoDeMedidaEnOpciones, LINEA_SIN_STOCK_EXACTO, siguientePasoPorMedida
 import { CAMPO_EQUIVALENTES, equivalentesAMostrar, reglaDeMostrarEquivalentes } from "../domain/equivalentesPorMostrar.js";
 import { extractFlotationSizes, extractTireSizes, formatFlotationSize, formatTireSize, parseTireSize, type TireSize, type FlotationSize, flotacionIncompleta, medidaGuardable } from "../domain/tireSize.js";
 import { marcaPreguntada, pidioCotizacionExplicita, ultimaMarcaPedida } from "../domain/consultaConRespaldo.js";
-import { armarLista, confirmacionDeLaOpcion, opcionPorPosicion, posicionElegida } from "../domain/listaDeOpciones.js";
+import { armarLista, ordenDeLaLista, confirmacionDeLaOpcion, opcionPorPosicion, posicionElegida } from "../domain/listaDeOpciones.js";
 import { cotizarLaUnicaDeUnaVez, ultimoTurnoDelBot } from "../domain/cotizarLaUnica.js";
 import { consienteEsta, type OfertaDeCotizar } from "../domain/ofertaVigente.js";
 import { leerOfertaVigente } from "../services/ofertaVigente.js";
@@ -2458,7 +2458,10 @@ export function buildTools(ctx: AgentContext) {
             codigoRecomendado: entregarRecomendacion ? entregada.code : null,
             ...(await getPiecesConfig()),
             brandProfiles: await brandProfilesForRender(),
-            products: await Promise.all(products.map((product) => toRenderLine(product))),
+            // MISMO ORDEN QUE LA LISTA ESCRITA (17-nov): de menor a mayor precio,
+            // con el mismo orden estable que `armarLista`. Antes la lámina iba
+            // por su lado y «la 1» del texto era la última tarjeta de la imagen.
+            products: await Promise.all(ordenDeLaLista(products).map((product) => toRenderLine(product))),
           }),
         `Opciones disponibles${sizeLabel ? ` en ${sizeLabel}` : ""} 🏁`,
         `Opciones-${business.name.replace(/\s/g, "")}.png`,

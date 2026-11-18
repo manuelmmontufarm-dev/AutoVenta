@@ -50,6 +50,29 @@ const POR_QUE_RETOMA = {
     `La última respuesta de una persona tiene más de ${config.pipeline.humanTurnHours} h: el bot le contestó.`,
 } as const;
 
+/**
+ * ¿Va a contestar el bot? La misma regla que `decidirQuienContesta`, pero SOLO
+ * leyendo: no devuelve el chat, no levanta alertas. Para el «escribiendo…»
+ * temprano, que se adelanta al turno y no puede decidir nada por él.
+ */
+export async function vaAContestarElBot(conversationId: number, ahora: Date = new Date()): Promise<boolean> {
+  const [conv] = await sql<{
+    assigned_to: string | null; bot_paused_until: Date | null; bot_paused_reason: string | null;
+  }[]>`
+    select assigned_to, bot_paused_until, bot_paused_reason from conversations where id=${conversationId}
+  `;
+  if (!conv) return false;
+  return quienContesta({
+    asignadoA: conv.assigned_to,
+    pausaHasta: conv.bot_paused_until,
+    motivoDeLaPausa: conv.bot_paused_reason,
+    autorDelUltimoSaliente: await autorDelUltimoSaliente(conversationId),
+    ultimoSalienteHumanoEn: await ultimoSalienteHumanoEn(conversationId),
+    horasDelTurnoHumano: config.pipeline.humanTurnHours,
+    ahora,
+  }).contesta === "bot";
+}
+
 export async function decidirQuienContesta(
   conversationId: number,
   textoDelCliente: string,

@@ -1,3 +1,16 @@
+## 17-nov-2026 · Bot · la lámina y el texto en el mismo orden, y «escribiendo…» a los 3 s (rama `fix/orden-y-escribiendo`)
+
+- **Qué:** la lámina de opciones ordena las tarjetas de menor a mayor precio, igual que la lista escrita
+  (`ordenDeLaLista` en `domain/listaDeOpciones.ts`, junto a `armarLista`). Y el «escribiendo…» sale 3 s después de
+  cada mensaje del cliente si el bot va a contestar (`vaAContestarElBot`, solo lectura), en vez de esperar a que
+  termine de agrupar los mensajes. La respuesta sale con los mismos tiempos de siempre.
+- **Por qué:** Manuel, 17-nov 19:21 (Competimotor): la imagen mostraba General $92 · Opals $72 · Townhall $52 y el
+  texto «1 · Townhall … 3 · General»; «la 1» del cliente era la última tarjeta. Y el «escribiendo…» tardaba: se
+  sentía lento aunque la respuesta llegara a tiempo. Vale para Depot y Competimotor.
+- **Probado:** `ordenLaminaYTexto.test.ts` (caso real y empate), `turnoDelHumano`, typecheck, suite completa.
+  **No probado** en WhatsApp real.
+- **Horas:** 0,5.
+
 ## 17-nov-2026 · Todos · el conocimiento de producto es de cada cliente (rama `fix/conocimiento-por-cliente`)
 
 - **Qué:** `conocimiento-modelos.json` pasa de `assets/` (común) a `assets/depot/` y se carga con `rutaDeAsset`.

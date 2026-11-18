@@ -110,7 +110,7 @@ import {
 import { esAcuseSimple, esPreguntaCualLeCotizo } from "./domain/ofertaAceptada.js";
 import { respuestaDirectaDeUbicacionFueraDeCobertura } from "./domain/visitaImposible.js";
 import { puedeSaludarComoPrimerContacto } from "./domain/turnoDelHumano.js";
-import { decidirQuienContesta } from "./services/turnoDelHumano.js";
+import { decidirQuienContesta, vaAContestarElBot } from "./services/turnoDelHumano.js";
 import { quiereComprarADistancia } from "./domain/compraADistancia.js";
 import { registrarDondeEstaElCliente } from "./services/dondeEstaElCliente.js";
 import { avisarCompraADistancia } from "./services/compraADistancia.js";
@@ -823,8 +823,26 @@ async function recibirMensaje(
     return;
   }
 
+  // «ESCRIBIENDO…» A LOS 3 SEGUNDOS (Manuel, 17-nov): antes salía recién al
+  // terminar de agrupar los mensajes (5 s de espera) y los chequeos, y el
+  // cliente sentía que nadie lo leía. La respuesta sale igual que siempre; solo
+  // se adelanta la señal. Mismas condiciones que el «escribiendo…» del turno:
+  // bot encendido y chat del bot. Un timer por mensaje es inofensivo: Meta lo
+  // trata como un solo indicador.
+  const conversacionId = conversation.id;
+  setTimeout(() => {
+    void (async () => {
+      if (!(await isBotActive()) && !(await contestaAunApagado(from))) return;
+      if (!(await vaAContestarElBot(conversacionId))) return;
+      await showTyping(waMessageId);
+    })().catch(() => {});
+  }, ESCRIBIENDO_TEMPRANO_MS);
+
   pipeline.push(from, waMessageId, texto, name, receivedAt, quotedWaMessageId);
 }
+
+/** Cuánto después del mensaje del cliente aparece el «escribiendo…». */
+const ESCRIBIENDO_TEMPRANO_MS = 3_000;
 
 setWaHandlers({
   message: async ({ from, name, message, received }) => {
