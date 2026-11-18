@@ -79,6 +79,16 @@ export function armarLista(
 }
 
 /**
+ * Las opciones de la LÁMINA en el orden de la lista escrita: de menor a mayor
+ * precio, con el mismo orden estable que `armarLista`. Así la tarjeta de arriba
+ * es «la 1» del texto (Manuel, 17-nov: la imagen iba de la más cara a la más
+ * barata y el texto al revés).
+ */
+export function ordenDeLaLista<T extends { minimumPriceWithTax?: number | null }>(productos: readonly T[]): T[] {
+  return [...productos].sort((a, b) => (a.minimumPriceWithTax ?? 0) - (b.minimumPriceWithTax ?? 0));
+}
+
+/**
  * `1 · KENDA KR20 — $80.50 c/u · 4 = $322.00`; con Black Friday, la cuenta de
  * la lámina: `1 · KENDA KR601 — 2 × $181.69 + 2 × $72.68 = $508.74 (−60 % en la 2.ª llanta)`.
  */
