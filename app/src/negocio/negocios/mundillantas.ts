@@ -83,6 +83,7 @@ export const MUNDILLANTAS: PerfilDeNegocio = {
       lat: PIN_FALKEN.lat,
       lng: PIN_FALKEN.lng,
       mapsUrl: MAPS_FALKEN,
+      referencia: "Vía Quevedo km 2 y Manuel Borrero",
       claveHorario: "matriz",
       comoLoNombran: /\bmundi(llantas)?\s+falken\b|\bfalken\s+mundi|\bmanuel\s+borrero\b|\bkm\.?\s*2\b|\bkilometro\s+2\b|\bmatriz\b/,
     },
@@ -96,6 +97,7 @@ export const MUNDILLANTAS: PerfilDeNegocio = {
       lat: PIN_FALKEN.lat,
       lng: PIN_FALKEN.lng,
       claveHorario: "local2",
+      referencia: "Vía Quevedo km 1½, a una cuadra del Banco Pichincha",
       comoLoNombran: /\bmundi(llantas)?\s+kenda\b|\bkenda\s+mundi|\bbanco\s+pichincha\b/,
     },
     {
@@ -106,6 +108,7 @@ export const MUNDILLANTAS: PerfilDeNegocio = {
       lat: PIN_COMPETIMOTOR.lat,
       lng: PIN_COMPETIMOTOR.lng,
       mapsUrl: MAPS_COMPETIMOTOR,
+      referencia: "Vía Quevedo km 1½ y Juan León Mera",
       claveHorario: "competimotor",
       comoLoNombran: /\bcompetimotor\b|\bcompeti\s*motor\b|\bjuan\s+leon\s+mera\b/,
     },

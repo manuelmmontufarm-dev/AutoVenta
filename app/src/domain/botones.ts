@@ -62,6 +62,21 @@ export function escalonesDelMenu(bloque: string): Preferencia[] {
   return orden.filter((k) => bloque.includes(`*${ETIQUETA_DEL_ESCALON[k]}*`));
 }
 
+/**
+ * La pregunta del local con dónde queda cada uno, antes de los botones.
+ *
+ * Manuel, 17-nov (Competimotor): «Mundillantas Falken / Mundillantas Kenda /
+ * Competimotor» no le dicen al cliente cuál le queda cerca; en Depot sí, porque
+ * los locales se llaman como su barrio. Solo con `referencia` en el perfil.
+ */
+export function conDondeQueda(bloque: string): string {
+  const conReferencia = negocio.locales.filter((local) => local.referencia);
+  if (!conReferencia.length) return bloque;
+  const lineas = conReferencia.map((local) =>
+    `📍 *${local.nombreCorto}*: ${local.referencia}${local.mapsUrl ? `\n${local.mapsUrl}` : ""}`);
+  return `${lineas.join("\n\n")}\n\n${bloque}`;
+}
+
 /** Quita las líneas numeradas: con botones, repetirlas es ruido. */
 function sinLineasNumeradas(bloque: string): string {
   return bloque
@@ -187,7 +202,7 @@ export function botonesParaBloque(
     const locales = negocio.locales;
     if (locales.length < 2 || locales.length > MAX_BOTONES) return null;
     return {
-      cuerpo: bloque,
+      cuerpo: conDondeQueda(bloque),
       botones: locales.map((local) => ({
         id: `local:${local.slug}${sufijo}`,
         titulo: local.nombreCorto,
