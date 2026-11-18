@@ -1,3 +1,18 @@
+## 17-nov-2026 · Bot · los links de los locales salen con su nombre y de una (rama `fix/locales-links-claros`)
+
+- **Qué:** (1) «qué locales tiene», «cuántas sucursales», «sus locales» cuentan como pedir la ubicación: salen los
+  mapas de una, sin preguntar «¿le mando la ubicación?». (2) Con `referencia`, cada local va en UNA línea:
+  `📍 *Nombre* (referencia): link`. (3) Mundillantas Kenda lleva la búsqueda de Google Maps con su nombre y
+  dirección, hasta tener su ficha. (4) `estructurarTurno` quita la línea «📍 *Nombre*» que el modelo escribió sin
+  link si llega la misma con link.
+- **Por qué:** Manuel, 17-nov 20:06–20:10: el bot nombró los locales y preguntó si mandaba la ubicación; al «si» salió
+  un mensaje con las direcciones y OTRO con dos links sueltos. `estructurarTurno` saca las líneas con link a su propia
+  burbuja, y con el link en otra línea quedaban sin nombre.
+- **Depot:** su bloque ya era una línea por local (`📍 *Depot Tire …*: link`); `localesDepotLinks.test.ts` lo fija.
+- **Probado:** `localesConDondeQueda` (turno real de las 20:10), `localesDepotLinks`, `perfilMundillantas`, suite
+  completa (3.994 de 3.996; las dos que fallan ya venían de `main`). **No probado** en WhatsApp real.
+- **Horas:** 0,5.
+
 ## 17-nov-2026 · Competimotor · las ubicaciones de los locales salen una sola vez y con los tres (rama `fix/locales-una-vez`)
 
 - **Qué:** `buildStoreLinksBlock`, con `referencia` en el perfil, lista TODOS los locales con su referencia y su link

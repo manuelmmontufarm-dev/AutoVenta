@@ -487,9 +487,13 @@ export function buildStoreLinksBlock(
       ? [elegido]
       : [elegido, ...conMapa.filter((store) => store !== elegido)];
   if (conReferencia) {
+    // UNA LÍNEA POR LOCAL, con el link en la misma línea (17-nov): el turno
+    // saca las líneas con link a su propio mensaje (`estructurarTurno`), y con
+    // el link en otra línea el cliente recibía los links sueltos sin saber de
+    // qué local era cada uno.
     return mostrados
-      .map((store) => `📍 *${store.name}*: ${store.referencia ?? store.address}${store.mapsUrl ? `\n${store.mapsUrl}` : ""}`)
-      .join("\n\n");
+      .map((store) => `📍 *${store.name}* (${store.referencia ?? store.address}): ${store.mapsUrl ?? ""}`.trimEnd())
+      .join("\n");
   }
   return mostrados.map((store) => `📍 *${store.name}*: ${store.mapsUrl}`).join("\n");
 }

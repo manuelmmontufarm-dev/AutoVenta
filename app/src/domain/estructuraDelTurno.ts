@@ -144,8 +144,29 @@ export function estructurarTurno(texto: string): TurnoEstructurado {
     if (limpio.texto) parrafos.push(limpio.texto);
   });
 
+  // LA LÍNEA DEL LOCAL VA UNA SOLA VEZ, CON SU LINK (17-nov, Competimotor): el
+  // modelo escribió «📍 *Competimotor*: Vía Quevedo…» sin link y después llegó
+  // el bloque de mapas; salían las direcciones dos veces. Una línea de prosa
+  // que empieza con «📍 *Nombre*» se va si hay un link de ese mismo nombre.
+  const nombresConLink = links
+    .map((l) => l.match(/^📍\s*\*([^*]+)\*/)?.[1]?.trim())
+    .filter((n): n is string => Boolean(n));
+  if (nombresConLink.length) {
+    for (let i = 0; i < parrafos.length; i += 1) {
+      parrafos[i] = parrafos[i]
+        .split("\n")
+        .filter((linea) => {
+          const nombre = linea.trim().match(/^📍\s*\*([^*]+)\*/)?.[1]?.trim();
+          return !nombre || !nombresConLink.includes(nombre);
+        })
+        .join("\n")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+    }
+  }
+
   const mensajes = [
-    parrafos.join("\n\n"),
+    parrafos.filter(Boolean).join("\n\n"),
     links.join("\n"),
     pregunta ?? "",
   ].filter(Boolean);

@@ -36,6 +36,12 @@ const PIN_FALKEN = { lat: -0.2617224, lng: -79.186715 };
 const PIN_COMPETIMOTOR = { lat: -0.2595733, lng: -79.1829972 };
 const MAPS_FALKEN = "https://maps.app.goo.gl/swNHGotRKPLJn3LZA";
 const MAPS_COMPETIMOTOR = "https://maps.app.goo.gl/QTFCzK2KDRXULRwz7";
+// Kenda no tiene ficha propia todavía (Jenny reenvió el pin de Falken). Manuel,
+// 17-nov: mientras tanto, la búsqueda de Google Maps con su nombre y dirección.
+// No es una coordenada inventada: Maps busca y muestra lo que encuentre.
+const MAPS_KENDA = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+  "Mundillantas Kenda, Vía Quevedo km 1.5, Santo Domingo, Ecuador",
+)}`;
 
 export const MUNDILLANTAS: PerfilDeNegocio = {
   id: "mundillantas",
@@ -96,6 +102,7 @@ export const MUNDILLANTAS: PerfilDeNegocio = {
       // NUNCA se inventa una coordenada: queda el de Falken hasta el real.
       lat: PIN_FALKEN.lat,
       lng: PIN_FALKEN.lng,
+      mapsUrl: MAPS_KENDA,
       claveHorario: "local2",
       referencia: "Vía Quevedo km 1½, a una cuadra del Banco Pichincha",
       comoLoNombran: /\bmundi(llantas)?\s+kenda\b|\bkenda\s+mundi|\bbanco\s+pichincha\b/,
