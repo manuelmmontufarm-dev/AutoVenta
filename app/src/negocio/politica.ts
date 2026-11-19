@@ -45,6 +45,13 @@ export interface PoliticaComercial {
   beneficioDeRedes: string | null;
   /** ¿Vende sin que el cliente pase por el local (paga a distancia y se envía)? */
   vendeADistancia: boolean;
+  /**
+   * Datos del negocio que el cliente pregunta y que el negocio CONFIRMÓ, cada
+   * uno en una frase y palabra por palabra (envíos, parte de pago, cómo se
+   * atiende). Van al prompt y a los hechos del guardián: el bot los puede
+   * afirmar y el revisor no los tacha. Sin el campo (Depot), nada cambia.
+   */
+  hechosConfirmados?: string[];
   /** Servicios que ofrece además de llantas, para el prompt («mantenimiento preventivo automotriz»). */
   serviciosQueOfrece: string[];
   /** «quiteño»: el gentilicio del tono cálido del prompt. */

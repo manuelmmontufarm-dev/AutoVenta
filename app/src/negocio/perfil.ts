@@ -295,6 +295,27 @@ export interface PerfilDeNegocio {
      */
     plantillaPorDefecto?: "clasica" | "diaNoche";
     /**
+     * CÓMO SE NOMBRA EL SEGURO de este negocio en el texto, el PDF y las piezas.
+     * Sin el campo, el de Depot («contra golpes y estalladuras», «cubre golpes,
+     * cortes o cualquier daño…»). Otro negocio no puede heredar esa promesa:
+     * Competimotor lo llama «seguro contra impacto» y se hace válido con la
+     * factura (Jenny, 18-nov-2026).
+     */
+    seguro?: {
+      /** Tras «12 meses»: «de seguro contra impacto». */
+      enTexto: string;
+      /** Título de la tarjeta del PDF y del sello de la clásica: «SEGURO CONTRA IMPACTO». */
+      titulo: string;
+      /** Etiqueta corta del PDF: «Impacto». */
+      etiqueta: string;
+      /** Tras «12 meses» en las filas de la clásica (Depot: «contra golpes»). */
+      corto: string;
+      /** Bajo los meses, en la plantilla día y noche (Depot: «GRATIS, INCLUIDO EN EL PRECIO»). */
+      insignia: string;
+      /** La letra chica que el negocio confirmó, sin agregarle cobertura. */
+      detalle: string;
+    };
+    /**
      * «SU COMPRA ESTÁ RESPALDADA» para un negocio que confirmó QUÉ respalda la
      * compra pero todavía no CUÁNTO (meses, años). Solo se dibuja cuando la
      * marca no tiene cifras en `garantias`: con cifras, mandan las cifras.
@@ -400,6 +421,36 @@ export function comoPatronConTildes(texto: string): string {
  * Es el respaldo del encabezado de las piezas cuando falta el archivo del logo.
  * Reproduce cómo se dibujaba «DEPOT» + «TIRE» a mano.
  */
+/**
+ * La garantía de fábrica dicha bien: «1 año», «5 años», y las fracciones en
+ * meses —«1,5 años» es «18 meses», «0,5» son «6 meses»— para que nunca salga
+ * «1 años» ni «0.5 años de fábrica» (Jenny, 18-nov-2026: Falken 1,5 y Winrun
+ * 0,5). Con años enteros mayores que uno sale lo de siempre: Depot no cambia.
+ */
+export function plazoDeFabrica(anios: number): { cifra: string; unidad: string } {
+  if (Number.isInteger(anios)) return { cifra: String(anios), unidad: anios === 1 ? "año" : "años" };
+  const meses = Math.round(anios * 12);
+  return { cifra: String(meses), unidad: meses === 1 ? "mes" : "meses" };
+}
+
+/** «1 año», «18 meses», «5 años». */
+export function plazoDeFabricaEnTexto(anios: number): string {
+  const { cifra, unidad } = plazoDeFabrica(anios);
+  return `${cifra} ${unidad}`;
+}
+
+/** Los textos del seguro del negocio vivo, con los de Depot como respaldo. */
+export function textosDelSeguro(perfil: PerfilDeNegocio): NonNullable<PerfilDeNegocio["piezas"]["seguro"]> {
+  return perfil.piezas.seguro ?? {
+    enTexto: "contra golpes y estalladuras",
+    titulo: "GARANTÍA CONTRA GOLPES",
+    etiqueta: "Golpes",
+    corto: "contra golpes",
+    insignia: "GRATIS, INCLUIDO EN EL PRECIO",
+    detalle: "Cubre golpes, cortes o cualquier daño que sufra la llanta. Sin costo adicional para usted.",
+  };
+}
+
 export function nombreEnDosTonos(perfil: PerfilDeNegocio, nombre = perfil.nombre): Array<[string, boolean]> {
   return nombre
     .split(/\s+/)

@@ -16,7 +16,7 @@ import { piecesConfigEnMemoria } from "./settings.js";
 import { etiquetaDePromocion } from "../domain/promocion.js";
 import type { SegundaLlanta } from "../domain/promocionDeTemporada.js";
 import { depotLogo } from "../render/assets.js";
-import { negocio, sinPendiente } from "../negocio/index.js";
+import { negocio, plazoDeFabricaEnTexto, sinPendiente, textosDelSeguro } from "../negocio/index.js";
 import { identidades } from "../negocio/identidad.js";
 
 // La frase de impuestos sale del perfil (candado R-10: lo pendiente sale con
@@ -286,8 +286,8 @@ export function comparisonDocument(products: readonly CatalogItem[], images: (st
             widths: ["*", "*"],
             body: [
               [
-                warrantyBadge(`${warranty.roadHazardMonths ?? "-"} MESES`, "Golpes"),
-                warrantyBadge(fabricaAnios ? `${fabricaAnios} AÑOS` : "-", "Fábrica"),
+                warrantyBadge(`${warranty.roadHazardMonths ?? "-"} MESES`, textosDelSeguro(negocio).etiqueta),
+                warrantyBadge(fabricaAnios ? plazoDeFabricaEnTexto(fabricaAnios).toUpperCase() : "-", "Fábrica"),
               ],
             ],
           },
@@ -414,7 +414,7 @@ function singleQuoteDocument(quote: Quote, line: QuoteLine, image: string | null
       },
       {
         columns: [
-          ...(warranty.roadHazard ? [warrantyCard("GARANTÍA CONTRA GOLPES", warranty.roadHazard, "#fff0ef", RED)] : []),
+          ...(warranty.roadHazard ? [warrantyCard(textosDelSeguro(negocio).titulo, warranty.roadHazard, "#fff0ef", RED)] : []),
           warrantyCard("GARANTÍA DE FÁBRICA", warranty.factory, "#edf2ff", "#315bd9"),
         ],
         columnGap: 12,

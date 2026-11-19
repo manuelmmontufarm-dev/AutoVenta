@@ -143,6 +143,23 @@ El 4-nov-2026 se buscó «Competillantas» en Google, Google Maps y la Bibliotec
 - [EMIS: Sat Mundillantas S.A.S.](https://www.emis.com/php/company-profile/EC/Sat_Mundillantas_SAS_en_16805667.html)
 - La reunión con Andrés Tamayo (26-oct) y el chat con Joaquín (3-nov)
 
+## Respuestas de Jenny del 18-nov-2026
+
+Fuentes: `Preguntas-Competimotor-Mundillantas-respondido-18nov.xlsx` y
+`Preguntas-operativas-Competimotor-Mundillantas-respondido-18nov.xlsx` (en `docs/clientes/` del checkout principal).
+
+- **Stock: un solo stock grande.** El bot cotiza con la columna `Existencia` del reporte de Fénix (el total de todos los locales), no con las columnas por local (`Principal, Compe, Matriz, Tsachila, La Feria`). Los locales quedan cerca: si una llanta no está en uno, la piden por radio y la traen enseguida. Jenny: «debe tomar en cuenta el stock total», «debe ver solo el total». Lo fija `app/test/stockUnicoCompetimotor.test.ts`. **Abierto:** en el Excel real del 6-nov `Existencia` suma 4.092 y las cuatro columnas de local con datos 2.413; en 204 filas la diferencia es exactamente 5 y `Principal` viene vacía. Manuel se lo pregunta a Jenny.
+- **Garantías** (seguro contra impacto / fábrica / km): Kenda 12 meses / 1 año / hasta 70.000 km; Falken 18 meses / 1,5 años / hasta 100.000 km; Winrun 6 meses / 0,5 años / hasta 50.000 km; Maxxis 12 meses / 1 año / hasta 60.000 km. El seguro vale solo con la factura y solo en esas cuatro marcas.
+- **Tecnología:** Kenda «tecnología taiwanesa 100 % garantizada» (país: China); Falken «tecnología japonesa, llantas reforzadas»; Winrun «una de las líneas de la marca Kenda»; Maxxis «tecnología taiwanesa». País de Falken, Winrun y Maxxis: en blanco.
+- **Mantenimiento cada 10.000 km:** incluido comprando 2 o 4 llantas. Qué incluye: no lo dijo.
+- **Envíos:** sí, por Laar Courier o Transportes Bemaut. Quién paga: no lo dijo.
+- **Parte de pago:** reciben aros y llantas usadas.
+- **Instalación:** por orden de llegada y también con cita. Cuánto demora: no lo dijo.
+- **Zona:** un solo local para el bot, Vía Quevedo km 1½ y Juan León Mera.
+- **Promoción de diciembre:** habrá, del 10 al 31; no dijo cuál. El bot no la anuncia.
+- **Precios:** el Excel trae 4 listas: A = normal, B = con tarjeta de crédito, C = efectivo, D = mayorista sin servicios, solo para llevar. El bot cotiza la A; cómo mostrar las otras lo decide Manuel.
+- **Operativo:** Jenny sube el Excel cada día a las 8 am; sí pueden exportar las facturas con teléfono; el logo de Mundillantas, el pin de Kenda y los aros los manda después.
+
 ## Reuniones con Mundillantas
 
 - **4-nov-2026 · Pitch (dijeron que sí):** [transcripción + análisis](../reuniones/2026-11-04-mundillantas-competimotor.md). Marcas Mundillantas + Competimotor, Fénix en servidor local, prueba de 2 semanas.

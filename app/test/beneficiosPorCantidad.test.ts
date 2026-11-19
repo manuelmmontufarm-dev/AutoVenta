@@ -28,10 +28,12 @@ const DE_MUNDILLANTAS: Benefit[] = (MUNDILLANTAS.beneficiosDeArranque ?? []).map
   beneficio(i + 1, b.text, b.minQuantity ?? null));
 
 describe("INCLUYE de Mundillantas según cuántas llantas lleva", () => {
-  it("el perfil siembra los dos: lo de siempre y la alineación con mínimo 4", () => {
+  // Jenny, 18-nov: el mantenimiento cada 10.000 km va comprando 2 o 4 llantas.
+  it("el perfil siembra lo de siempre, la alineación con mínimo 4 y el mantenimiento con mínimo 2", () => {
     expect(DE_MUNDILLANTAS.map((b) => [b.text, b.minQuantity])).toEqual([
       ["Enllantaje, balanceo y nitrógeno", null],
       ["Alineación (comprando las 4 llantas)", 4],
+      ["Mantenimiento cada 10.000 km (comprando 2 o 4 llantas)", 2],
     ]);
   });
 
@@ -40,14 +42,19 @@ describe("INCLUYE de Mundillantas según cuántas llantas lleva", () => {
       expect(applicableBenefits(DE_MUNDILLANTAS, { quantity }).map((b) => b.text)).toEqual([
         "Enllantaje, balanceo y nitrógeno",
         "Alineación (comprando las 4 llantas)",
+        "Mantenimiento cada 10.000 km (comprando 2 o 4 llantas)",
       ]);
     }
   });
 
-  it("con 1, 2 o 3 llantas NO hay alineación", () => {
-    for (const quantity of [1, 2, 3]) {
+  it("con 1, 2 o 3 llantas NO hay alineación; el mantenimiento desde 2", () => {
+    expect(applicableBenefits(DE_MUNDILLANTAS, { quantity: 1 }).map((b) => b.text)).toEqual([
+      "Enllantaje, balanceo y nitrógeno",
+    ]);
+    for (const quantity of [2, 3]) {
       expect(applicableBenefits(DE_MUNDILLANTAS, { quantity }).map((b) => b.text)).toEqual([
         "Enllantaje, balanceo y nitrógeno",
+        "Mantenimiento cada 10.000 km (comprando 2 o 4 llantas)",
       ]);
     }
   });

@@ -18,7 +18,7 @@ import {
 import { guideTireImage } from "./assets.js";
 import { etiquetaDePromocion, type ModoPromocion } from "../domain/promocion.js";
 import { cuentaDeSegundaLlanta, type SegundaLlanta } from "../domain/promocionDeTemporada.js";
-import { negocio, pieDeLocales, localesEnUnaLinea, sinPendiente } from "../negocio/index.js";
+import { negocio, pieDeLocales, localesEnUnaLinea, plazoDeFabrica, plazoDeFabricaEnTexto, sinPendiente, textosDelSeguro } from "../negocio/index.js";
 import { localesDeIdentidad } from "../negocio/identidad.js";
 
 /**
@@ -363,9 +363,9 @@ export function quotePoster(data: QuotePosterData, theme: Theme): SatoriNode {
         // Garantía de fábrica en 0 = sin confirmar con el cliente nuevo: su
         // sello no se dibuja (nunca «0 AÑOS»). Con Depot siempre es 5.
         ...(golpes
-          ? [seal(String(line.golpesMeses), "MESES", "GARANTÍA CONTRA GOLPES"), divider(p.border)]
-          : line.fabricaAnios > 0 ? [seal(String(line.fabricaAnios), "AÑOS", "GARANTÍA DE FÁBRICA"), divider(p.border)] : []),
-        ...(line.fabricaAnios > 0 ? [seal(String(line.fabricaAnios), "AÑOS", "GARANTÍA DE FÁBRICA"), divider(p.border)] : []),
+          ? [seal(String(line.golpesMeses), "MESES", textosDelSeguro(negocio).titulo), divider(p.border)]
+          : line.fabricaAnios > 0 ? [seal(plazoDeFabrica(line.fabricaAnios).cifra, plazoDeFabrica(line.fabricaAnios).unidad.toUpperCase(), "GARANTÍA DE FÁBRICA"), divider(p.border)] : []),
+        ...(line.fabricaAnios > 0 ? [seal(plazoDeFabrica(line.fabricaAnios).cifra, plazoDeFabrica(line.fabricaAnios).unidad.toUpperCase(), "GARANTÍA DE FÁBRICA"), divider(p.border)] : []),
         ...(negocio.piezas.antiguedadClasica
           ? [seal(
               negocio.piezas.antiguedadClasica.replace(/\D+/g, "") || negocio.piezas.antiguedadClasica,
@@ -649,10 +649,10 @@ export function comparePoster(data: ComparePosterData, theme: Theme): SatoriNode
       line.vitrinaSegundaLlanta ? selloVitrina(line.vitrinaSegundaLlanta, 17, 14) : null,
       el({}, availabilityChip(line.availability)),
       el({ flexDirection: "column", gap: 8 },
-        golpes ? garantiaFila(`${golpes} contra golpes`, p.dark) : null,
+        golpes ? garantiaFila(`${golpes} ${textosDelSeguro(negocio).corto}`, p.dark) : null,
         // Garantía de fábrica en 0 = todavía sin confirmar con el cliente
         // nuevo: se omite la fila, nunca se dibuja «0 años».
-        line.fabricaAnios > 0 ? garantiaFila(`${line.fabricaAnios} años de fábrica`, p.dark) : null,
+        line.fabricaAnios > 0 ? garantiaFila(`${plazoDeFabricaEnTexto(line.fabricaAnios)} de fábrica`, p.dark) : null,
       ),
       line.posicionamiento
         ? text({ fontSize: 15, color: p.tenue, lineHeight: 1.45 }, line.posicionamiento)
@@ -885,7 +885,7 @@ export function optionsPoster(data: OptionsPosterData, theme: Theme): SatoriNode
           ? el({ alignItems: "center", gap: 8 },
               check(16, "#b98a1e"),
               text({ fontSize: 14, fontWeight: 500, color: p.dark },
-                [golpes ? `${golpes} contra golpes` : "", primera.fabricaAnios > 0 ? `${primera.fabricaAnios} años fábrica` : ""]
+                [golpes ? `${golpes} ${textosDelSeguro(negocio).corto}` : "", primera.fabricaAnios > 0 ? `${plazoDeFabricaEnTexto(primera.fabricaAnios)} fábrica` : ""]
                   .filter(Boolean).join(" · ")),
             )
           : null,

@@ -20,8 +20,18 @@ export const POLITICA_MUNDILLANTAS: PoliticaComercial = {
   descuentoEnEfectivo: null,
   // No ofrecieron beneficio por redes; si lo piden, va acá palabra por palabra.
   beneficioDeRedes: null,
-  // Pregunta 8 (¿envían a otras ciudades?): sin confirmar, no se promete envío.
-  vendeADistancia: false,
+  // Jenny, 18-nov: envían a otras ciudades por Laar Courier o Transportes
+  // Bemaut. Quién paga y cuánto cuesta no lo dijo: lo coordina el asesor.
+  vendeADistancia: true,
+  // Respuestas de Jenny del 18-nov (`docs/clientes/Preguntas-…-respondido-18nov.xlsx`),
+  // sin agregarles plazos, precios ni condiciones que ella no escribió.
+  hechosConfirmados: [
+    "Envíos a otras ciudades: sí, por Laar Courier o Transportes Bemaut. Quién paga el envío y cuánto cuesta lo confirma un asesor.",
+    "Reciben aros y llantas usadas como parte de pago. Cuánto se le reconoce lo evalúa un asesor.",
+    "Instalación: se atiende por orden de llegada y también con cita. Cuánto se demora no está confirmado.",
+    "El seguro contra impacto se hace válido solo con la factura de la compra y solo en Kenda, Falken, Winrun y Maxxis.",
+    "El mantenimiento cada 10.000 km va incluido comprando 2 o 4 llantas. Qué incluye no está confirmado: lo explica un asesor.",
+  ],
   // Lo que dicen los letreros de sus locales (fotos de Jenny, 6-nov). El bot
   // los nombra pero no los cotiza: van al asesor (`productosQueDerivaAlAsesor`).
   serviciosQueOfrece: ["alineación y balanceo", "frenos", "mecánica", "lubricantes", "baterías"],
