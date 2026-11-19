@@ -1,5 +1,8 @@
 # Cómo crear plantillas de WhatsApp en Meta sin entrar al Facebook del cliente
 
+> Qué plantillas lleva cada cliente y cuándo se hacen: [cliente-nuevo/PLANTILLAS.md](cliente-nuevo/PLANTILLAS.md)
+> (paso 8 de la [guía de cliente nuevo](cliente-nuevo/README.md)). Este archivo son los comandos.
+
 Probado el 18-nov-2026 con Depot Tire y Competimotor. Se hace desde la terminal con el
 token que el bot ya usa. No hace falta abrir WhatsApp Manager ni el Facebook del cliente.
 

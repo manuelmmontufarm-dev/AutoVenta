@@ -10,6 +10,12 @@ ENCENDIDO, confirmado por Manuel el 4-nov-2026): **un push a `main` sale a
 todos los clientes en el mismo deploy** — júntalo y sácalo fuera del horario
 de Depot (lu–sá 8:30–17:30).
 
+## Cliente nuevo: una sola carpeta
+
+[`docs/cliente-nuevo/`](docs/cliente-nuevo/README.md) — los pasos en orden para dar de alta un
+cliente, las preguntas que hay que hacerle, los errores que ya cometimos y las plantillas de
+WhatsApp. Se empieza siempre por ahí, y lo que se aprende con cada cliente se anota ahí el mismo día.
+
 ## Antes de arreglar un error: leé el orden
 
 [`docs/COMO-ARREGLAR-EL-BOT.md`](docs/COMO-ARREGLAR-EL-BOT.md) — el lazo de seis

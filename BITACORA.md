@@ -1,3 +1,17 @@
+## 18-nov-2026 · Docs · guía única para dar de alta un cliente nuevo (rama `docs/guia-cliente-nuevo`)
+
+- **Qué:** carpeta `docs/cliente-nuevo/` como único punto de entrada: `README.md` (12 pasos en orden, del sí del
+  cliente al bot encendido), `PREGUNTAS.md` (bloques A–E con lo que hay que pedirle al cliente y dónde se carga),
+  `ERRORES.md` (44 errores de Depot y Competimotor con la forma correcta) y `PLANTILLAS.md` (las plantillas de
+  WhatsApp que lleva cada cliente). Entran al repo las guías de detalle que estaban sin commitear y que la guía
+  enlaza: `ALTA_META_CLIENTE_NUEVO.md`, `PLANTILLAS_META.md`, `TECH_PROVIDER.md`, `clientes/mundillantas-meta.md`,
+  los Excel de preguntas, la reunión del 18-nov y `app/scripts/meta/suscribir-waba.sh`. Enlace desde `CLAUDE.md`.
+- **Por qué:** Manuel, 18-nov: un solo lugar fácil de encontrar con el paso a paso, los errores y las preguntas,
+  que se vaya completando con cada cliente, sin olvidar las plantillas.
+- **Probado:** los enlaces de la guía abren (0 rotos). Solo documentos y un script que ya se usó el 17-nov; no toca
+  el bot. **Sin confirmar:** el estado de aprobación de las plantillas en Meta (quedaron PENDING al enviarlas).
+- **Horas:** 1.
+
 ## 20-nov-2026 · Bot · La insignia de la lámina no promete descuento en las opciones que no lo tienen, y dice BLACK FRIDAY (rama `fix/lamina-bf-insignia`)
 
 - **Qué:** `render/diaNoche.ts` (`optionsPosterDiaNoche`). Si alguna opción de la lámina no tiene descuento, la

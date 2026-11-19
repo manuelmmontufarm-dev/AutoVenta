@@ -1,5 +1,8 @@
 # Alta de un cliente nuevo en AutoVenta
 
+> **Guía completa, en orden:** [../cliente-nuevo/README.md](../cliente-nuevo/README.md). Este
+> archivo es el detalle de Railway, variables, semilla y simulador (pasos 4, 5 y 9 de esa guía).
+
 > Receta para poner a un segundo (tercer, cuarto…) cliente sobre el **mismo código** que Depot.
 > Escrita el 4-nov-2026 para Mundillantas/Competimotor (Sprint 3 del
 > [plan multicliente](../planning/PLAN-MULTICLIENTE-MASTER-PROMPT.md), R-37). Contexto y nombres
