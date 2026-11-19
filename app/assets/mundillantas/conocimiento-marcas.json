@@ -1,69 +1,95 @@
 {
  "version": "1",
  "generado": "2026-11-18",
- "proposito": "Origen, tecnología, garantía, seguro y rendimiento por marca, tal como Jenny los devolvió el 18-nov-2026 (docs/clientes/Preguntas-Competimotor-Mundillantas-respondido-18nov.xlsx, hojas Preguntas y Garantías). Lo que ella dejó en blanco NO está: el país de origen de Falken, Winrun y Maxxis queda POR CONFIRMAR. Los km son los que ella escribió con «hasta»: se dicen como máximo aproximado.",
+ "proposito": "Origen, tecnología, garantía, seguro y rendimiento por marca, tal como Jenny los devolvió el 18-nov-2026 (docs/clientes/Preguntas-Competimotor-Mundillantas-respondido-18nov.xlsx, hojas Preguntas y Garantías). El país de origen llegó esa noche: dónde se hace cada una y de qué tecnología es. Los km son los que ella escribió con «hasta»: se dicen como máximo aproximado.",
  "marcas": {
   "KENDA": {
    "origen": {
     "pais": "China",
-    "frase_de_venta": "Kenda es una llanta de tecnología taiwanesa, 100 % garantizada."
+    "frase_de_venta": "Kenda se hace en China y es de tecnología taiwanesa, 100 % garantizada."
    },
-   "garantia_fabrica": { "anios": 1, "cubre": "Defectos de fabricación." },
+   "garantia_fabrica": {
+    "anios": 1,
+    "cubre": "Defectos de fabricación."
+   },
    "seguro": {
     "meses": 12,
     "frase_de_venta": "Hasta 12 meses de seguro contra impacto. Se hace válido con la factura de su compra."
    },
-   "rendimiento": { "km_promedio": 70000, "texto": "Hasta 70.000 km aproximados, según el uso y el mantenimiento." },
+   "rendimiento": {
+    "km_promedio": 70000,
+    "texto": "Hasta 70.000 km aproximados, según el uso y el mantenimiento."
+   },
    "nota": "Jenny dio el rendimiento como «hasta 70 mil kilómetros»: es el máximo aproximado, se dice «hasta»."
   },
   "FALKEN": {
    "origen": {
-    "frase_de_venta": "Falken es de tecnología japonesa y viene reforzada: son llantas reforzadas."
+    "pais": "Tailandia",
+    "frase_de_venta": "Falken se hace en Tailandia y es de tecnología japonesa; viene reforzada: son llantas reforzadas."
    },
-   "garantia_fabrica": { "anios": 1.5, "cubre": "Defectos de fabricación." },
+   "garantia_fabrica": {
+    "anios": 1.5,
+    "cubre": "Defectos de fabricación."
+   },
    "seguro": {
     "meses": 18,
     "frase_de_venta": "Hasta 18 meses de seguro contra impacto. Se hace válido con la factura de su compra."
    },
-   "rendimiento": { "km_promedio": 100000, "texto": "Hasta 100.000 km aproximados, según el uso y el mantenimiento." },
-   "nota": "Garantía de fábrica de 1,5 años (18 meses). País de origen: Jenny lo dejó en blanco, no se afirma. Rendimiento dado como «hasta 100 mil kilómetros»."
+   "rendimiento": {
+    "km_promedio": 100000,
+    "texto": "Hasta 100.000 km aproximados, según el uso y el mantenimiento."
+   },
+   "nota": "Garantía de fábrica de 1,5 años (18 meses). Rendimiento dado como «hasta 100 mil kilómetros»."
   },
   "WINRUN": {
    "origen": {
-    "frase_de_venta": "Winrun es una de las líneas de la marca Kenda."
+    "pais": "China",
+    "frase_de_venta": "Winrun se hace en China; es una de las líneas de la marca Kenda."
    },
-   "garantia_fabrica": { "anios": 0.5, "cubre": "Defectos de fabricación." },
+   "garantia_fabrica": {
+    "anios": 0.5,
+    "cubre": "Defectos de fabricación."
+   },
    "seguro": {
     "meses": 6,
     "frase_de_venta": "Hasta 6 meses de seguro contra impacto. Se hace válido con la factura de su compra."
    },
-   "rendimiento": { "km_promedio": 50000, "texto": "Hasta 50.000 km aproximados, según el uso y el mantenimiento." },
-   "nota": "Garantía de fábrica de 0,5 años (6 meses). País de origen: Jenny lo dejó en blanco, no se afirma. Rendimiento dado como «hasta 50 mil kilómetros»."
+   "rendimiento": {
+    "km_promedio": 50000,
+    "texto": "Hasta 50.000 km aproximados, según el uso y el mantenimiento."
+   },
+   "nota": "Garantía de fábrica de 0,5 años (6 meses). Rendimiento dado como «hasta 50 mil kilómetros»."
   },
   "MAXXIS": {
    "origen": {
-    "frase_de_venta": "Maxxis es de tecnología taiwanesa."
+    "pais": "China",
+    "frase_de_venta": "Maxxis se hace en China y es de tecnología taiwanesa."
    },
-   "garantia_fabrica": { "anios": 1, "cubre": "Defectos de fabricación." },
+   "garantia_fabrica": {
+    "anios": 1,
+    "cubre": "Defectos de fabricación."
+   },
    "seguro": {
     "meses": 12,
     "frase_de_venta": "Hasta 12 meses de seguro contra impacto. Se hace válido con la factura de su compra."
    },
-   "rendimiento": { "km_promedio": 60000, "texto": "Hasta 60.000 km aproximados, según el uso y el mantenimiento." },
-   "nota": "País de origen: Jenny lo dejó en blanco, no se afirma. Rendimiento dado como «hasta 60 mil kilómetros»."
+   "rendimiento": {
+    "km_promedio": 60000,
+    "texto": "Hasta 60.000 km aproximados, según el uso y el mantenimiento."
+   },
+   "nota": "Rendimiento dado como «hasta 60 mil kilómetros»."
   }
  },
  "servicios_incluidos": {
   "mantenimiento_gratuito": {
-   "texto": "Mantenimiento cada 10.000 km incluido comprando 2 o 4 llantas.",
-   "frase_de_venta": "Comprando 2 o 4 llantas, el mantenimiento cada 10.000 km va incluido."
+   "texto": "Mantenimiento cada 10.000 km incluido comprando 2 o 4 llantas: rotación de llantas, revisión mecánica y nitrógeno, sin costo.",
+   "frase_de_venta": "Comprando 2 o 4 llantas, el mantenimiento cada 10.000 km va incluido: rotación de llantas, revisión mecánica y nitrógeno, sin costo."
   }
  },
  "argumento_para_subir_de_nivel": [],
  "reglas_de_uso": [
   "El seguro contra impacto se hace válido solo con la factura de la compra y solo en Kenda, Falken, Winrun y Maxxis.",
-  "Los km son los que dio el negocio como «hasta»: dilos así, como máximo aproximado según el uso.",
-  "Qué incluye el mantenimiento cada 10.000 km no está confirmado: si lo preguntan, lo explica un asesor."
+  "Los km son los que dio el negocio como «hasta»: dilos así, como máximo aproximado según el uso."
  ],
  "ejemplos_de_respuesta": {}
 }

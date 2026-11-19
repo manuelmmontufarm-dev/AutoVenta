@@ -11,6 +11,10 @@
  */
 import type { PoliticaComercial } from "../politica.js";
 
+/** El envío a otras ciudades, en una frase: es la única que hay que cambiar para un envío gratis. */
+const ENVIO_A_OTRAS_CIUDADES =
+  "Envíos a otras ciudades: sí, por Laar Courier o Transportes Bemaut, y el envío lo paga el cliente. Cuánto cuesta lo confirma un asesor.";
+
 export const POLITICA_MUNDILLANTAS: PoliticaComercial = {
   // Jenny, 6-nov: «efectivo, transferencia, tarjetas de crédito todas hasta 6
   // meses sin intereses. Y 1 año con intereses». No nombró descuento por
@@ -21,16 +25,22 @@ export const POLITICA_MUNDILLANTAS: PoliticaComercial = {
   // No ofrecieron beneficio por redes; si lo piden, va acá palabra por palabra.
   beneficioDeRedes: null,
   // Jenny, 18-nov: envían a otras ciudades por Laar Courier o Transportes
-  // Bemaut. Quién paga y cuánto cuesta no lo dijo: lo coordina el asesor.
+  // Bemaut, y (18-nov, noche) el envío lo paga el cliente. Cuánto cuesta: el asesor.
   vendeADistancia: true,
   // Respuestas de Jenny del 18-nov (`docs/clientes/Preguntas-…-respondido-18nov.xlsx`),
   // sin agregarles plazos, precios ni condiciones que ella no escribió.
   hechosConfirmados: [
-    "Envíos a otras ciudades: sí, por Laar Courier o Transportes Bemaut. Quién paga el envío y cuánto cuesta lo confirma un asesor.",
+    // ENVÍO GRATIS: Jenny dijo el 18-nov (noche) que por Black Friday «podemos
+    // hacer envío gratis», pero NO lo confirmó. Para prenderlo cuando lo
+    // confirme, cambiar SOLO esta frase (p. ej. «…: el envío es gratis hasta el
+    // 30-nov») y desplegar; nada más lo dice.
+    ENVIO_A_OTRAS_CIUDADES,
     "Reciben aros y llantas usadas como parte de pago. Cuánto se le reconoce lo evalúa un asesor.",
-    "Instalación: se atiende por orden de llegada y también con cita. Cuánto se demora no está confirmado.",
+    // Jenny, 18-nov (noche): «hora y media, porque se hace un chequeo general del carro».
+    "Instalación: se atiende por orden de llegada y también con cita, y demora hora y media porque se hace un chequeo general del carro.",
     "El seguro contra impacto se hace válido solo con la factura de la compra y solo en Kenda, Falken, Winrun y Maxxis.",
-    "El mantenimiento cada 10.000 km va incluido comprando 2 o 4 llantas. Qué incluye no está confirmado: lo explica un asesor.",
+    // Jenny, 18-nov (noche): incluye «rotación de llantas, revisión mecánica y nitrógeno gratis».
+    "El mantenimiento cada 10.000 km va incluido comprando 2 o 4 llantas: rotación de llantas, revisión mecánica y nitrógeno, sin costo.",
   ],
   // Lo que dicen los letreros de sus locales (fotos de Jenny, 6-nov). El bot
   // los nombra pero no los cotiza: van al asesor (`productosQueDerivaAlAsesor`).

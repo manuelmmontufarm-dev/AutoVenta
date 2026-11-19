@@ -150,11 +150,11 @@ Fuentes: `Preguntas-Competimotor-Mundillantas-respondido-18nov.xlsx` y
 
 - **Stock: un solo stock grande.** El bot cotiza con la columna `Existencia` del reporte de Fénix (el total de todos los locales), no con las columnas por local (`Principal, Compe, Matriz, Tsachila, La Feria`). Los locales quedan cerca: si una llanta no está en uno, la piden por radio y la traen enseguida. Jenny: «debe tomar en cuenta el stock total», «debe ver solo el total». Lo fija `app/test/stockUnicoCompetimotor.test.ts`.
 - **Garantías** (seguro contra impacto / fábrica / km): Kenda 12 meses / 1 año / hasta 70.000 km; Falken 18 meses / 1,5 años / hasta 100.000 km; Winrun 6 meses / 0,5 años / hasta 50.000 km; Maxxis 12 meses / 1 año / hasta 60.000 km. El seguro vale solo con la factura y solo en esas cuatro marcas.
-- **Tecnología:** Kenda «tecnología taiwanesa 100 % garantizada» (país: China); Falken «tecnología japonesa, llantas reforzadas»; Winrun «una de las líneas de la marca Kenda»; Maxxis «tecnología taiwanesa». País de Falken, Winrun y Maxxis: en blanco.
-- **Mantenimiento cada 10.000 km:** incluido comprando 2 o 4 llantas. Qué incluye: no lo dijo.
-- **Envíos:** sí, por Laar Courier o Transportes Bemaut. Quién paga: no lo dijo.
+- **Origen y tecnología** (país completado el 18-nov en la noche): Falken hecha en Tailandia, tecnología japonesa, llantas reforzadas; Kenda hecha en China, «tecnología taiwanesa 100 % garantizada»; Maxxis hecha en China, tecnología taiwanesa; Winrun hecha en China, «una de las líneas de la marca Kenda».
+- **Mantenimiento cada 10.000 km:** incluido comprando 2 o 4 llantas: rotación de llantas, revisión mecánica y nitrógeno, sin costo.
+- **Envíos:** sí, por Laar Courier o Transportes Bemaut; el envío lo paga el cliente. Cuánto cuesta: no lo dijo (lo confirma un asesor). Jenny comentó que por Black Friday «podemos hacer envío gratis», pero **no está confirmado** y el bot no lo promete (se prende cambiando una frase en `politicas/mundillantas.ts`).
 - **Parte de pago:** reciben aros y llantas usadas.
-- **Instalación:** por orden de llegada y también con cita. Cuánto demora: no lo dijo.
+- **Instalación:** por orden de llegada y también con cita; demora hora y media porque se hace un chequeo general del carro.
 - **Zona:** un solo local para el bot, Vía Quevedo km 1½ y Juan León Mera.
 - **Promoción de diciembre:** habrá, del 10 al 31; no dijo cuál. El bot no la anuncia.
 - **Precios:** el Excel trae 4 listas: A = normal, B = con tarjeta de crédito, C = efectivo, D = mayorista sin servicios, solo para llevar. Manuel, 18-nov: transferencia = efectivo (C). La cotización, la lámina y el PDF van con A. Si el cliente pregunta por descuentos, efectivo, transferencia o tarjeta, el bot manda en un mensaje los tres precios (A, B, C) de las llantas cotizadas, leídos del Excel. D nunca se muestra. Una B o C mayor que A o menor que D no se usa (tipeo).

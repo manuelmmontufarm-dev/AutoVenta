@@ -51,7 +51,7 @@ describe("Mundillantas · solo lo confirmado", () => {
     expect(negocio.beneficiosDeArranque).toEqual([
       { text: "Enllantaje, balanceo y nitrógeno" },
       { text: "Alineación (comprando las 4 llantas)", minQuantity: 4 },
-      { text: "Mantenimiento cada 10.000 km (comprando 2 o 4 llantas)", minQuantity: 2 },
+      { text: "Mantenimiento cada 10.000 km: rotación, revisión mecánica y nitrógeno (comprando 2 o 4 llantas)", minQuantity: 2 },
     ]);
     expect(negocio.piezas.todasIncluyen.startsWith("[PENDIENTE]")).toBe(false);
   });

@@ -1,3 +1,15 @@
+## 18-nov-2026 · Bot · Competimotor: segunda tanda de respuestas de Jenny (rama `feat/competimotor-respuestas-2`)
+
+- **Qué:** envío a otras ciudades lo paga el cliente (el envío gratis de Black Friday no está confirmado y no se
+  promete; se prende cambiando una frase de la política); mantenimiento cada 10.000 km = rotación de llantas, revisión
+  mecánica y nitrógeno; instalación de hora y media por el chequeo general; origen: Falken Tailandia (tecnología
+  japonesa), Kenda y Maxxis China (tecnología taiwanesa), Winrun China. La pieza día y noche toma el origen del perfil
+  (`piezas.origenDeMarcas`, con bandera de Tailandia); sin el campo, la tabla de siempre (Depot igual).
+- **Por qué:** respuestas de Jenny del 18-nov en la noche.
+- **Probado:** `competimotorRespuestas2` (en rojo antes), simulador (4 preguntas × 3 corridas), humo, fidelidad, perfil
+  ajeno, suite. **No probado** en WhatsApp real.
+- **Horas:** 1.
+
 ## 18-nov-2026 · Bot · Competimotor: el precio según cómo paga (rama `feat/competimotor-respuestas-18nov`)
 
 - **Qué:** el lector del Excel de Fénix guarda Precio B (tarjeta) y Precio C (efectivo y transferencia) como campos

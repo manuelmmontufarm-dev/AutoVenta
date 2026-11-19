@@ -2,10 +2,9 @@
  * LAS RESPUESTAS DE JENNY DEL 18-NOV-2026, CARGADAS EN EL BOT DE COMPETIMOTOR.
  *
  * Fuente: `docs/clientes/Preguntas-Competimotor-Mundillantas-respondido-18nov.xlsx`
- * (hojas Preguntas y Garantías). Lo que ella dejó en blanco sigue pendiente:
- * el país de origen de Falken, Winrun y Maxxis, qué incluye el mantenimiento,
- * quién paga el envío, cuánto demora la instalación y cuál es la promoción de
- * diciembre.
+ * (hojas Preguntas y Garantías). Lo que dejó en blanco lo respondió esa noche
+ * casi todo (ver `competimotorRespuestas2.test.ts`); siguen pendientes el costo
+ * del envío y la promoción de diciembre.
  */
 import { describe, expect, it } from "vitest";
 
@@ -100,11 +99,12 @@ describe("conocimiento de marcas: origen, km y tecnología", () => {
     expect(k.garantiaFabricaAnios).toBe(1);
   });
 
-  it("Falken: tecnología japonesa y reforzada, hasta 100.000 km, país pendiente", () => {
+  // El país llegó esa misma noche (ver competimotorRespuestas2): Tailandia.
+  it("Falken: tecnología japonesa y reforzada, hasta 100.000 km, hecha en Tailandia", () => {
     const f = respaldoDeMarca("FALKEN")!;
     expect(f.origen.fraseDeVenta).toMatch(/japonesa/i);
     expect(f.origen.fraseDeVenta).toMatch(/reforzad/i);
-    expect(f.origen.pais).toBe("POR CONFIRMAR");
+    expect(f.origen.pais).toBe("Tailandia");
     expect(f.kmPromedio).toBe(100000);
     expect(f.seguroMeses).toBe(18);
     expect(f.garantiaFabricaAnios).toBe(1.5);
@@ -133,7 +133,7 @@ describe("mantenimiento cada 10.000 km: comprando 2 o 4 llantas", () => {
 
   it("y va en el INCLUYE de una base nueva desde 2 llantas", () => {
     expect(negocio.beneficiosDeArranque).toContainEqual({
-      text: "Mantenimiento cada 10.000 km (comprando 2 o 4 llantas)",
+      text: "Mantenimiento cada 10.000 km: rotación, revisión mecánica y nitrógeno (comprando 2 o 4 llantas)",
       minQuantity: 2,
     });
   });
@@ -158,7 +158,8 @@ describe("lo que Jenny dejó en blanco sigue pendiente", () => {
   it("el panel ya no pide las garantías, y sí lo que falta", () => {
     const faltantes = faltantesDelPerfil(negocio).join(" | ");
     expect(faltantes).not.toMatch(/garant[ií]as por marca/);
-    for (const falta of [/pa[ií]s de origen/i, /mantenimiento/i, /env[ií]o/i, /instalaci[oó]n/i, /diciembre/i]) {
+    // País, mantenimiento e instalación llegaron esa noche; el costo del envío y diciembre no.
+    for (const falta of [/env[ií]o/i, /diciembre/i]) {
       expect(faltantes).toMatch(falta);
     }
   });

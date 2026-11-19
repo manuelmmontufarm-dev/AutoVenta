@@ -27,12 +27,10 @@ import type { PerfilDeNegocio } from "../perfil.js";
  */
 export const PENDIENTES_NUMERICOS = [
   "Mundillantas Kenda · pin (Jenny reenvió el mismo de Falken el 6-nov; puesto el de Falken; 18-nov: «ya le pido este»)",
-  // Respuestas del 18-nov (`docs/clientes/Preguntas-…-respondido-18nov.xlsx`):
-  // lo que Jenny dejó en blanco. Las garantías por marca ya llegaron.
-  "país de origen de Falken, Winrun y Maxxis (en blanco el 18-nov; Kenda: China)",
-  "mantenimiento cada 10.000 km: qué incluye (el 18-nov solo dijo que va comprando 2 o 4 llantas)",
-  "envíos a otras ciudades: quién paga y cuánto cuesta (el 18-nov solo dijo Laar Courier o Transportes Bemaut)",
-  "instalación de un juego de 4: cuánto demora (el 18-nov solo dijo orden de llegada o con cita)",
+  // Lo que Jenny todavía no dijo. El 18-nov (tarde y noche) respondió las
+  // garantías, el país de origen, qué incluye el mantenimiento, quién paga el
+  // envío y cuánto demora la instalación.
+  "envíos a otras ciudades: cuánto cuesta (lo paga el cliente; el envío gratis de Black Friday no está confirmado)",
   "promoción de diciembre: cuál es (el 18-nov solo dijo «desde el 10 hasta el 31»; no se anuncia)",
 ];
 
@@ -242,6 +240,14 @@ export const MUNDILLANTAS: PerfilDeNegocio = {
     // Cómo se llama SU seguro (no el de Depot, que «cubre golpes, cortes o
     // cualquier daño»). Jenny, 18-nov: «solo con la factura y solo en marcas
     // maxxis, falken, kenda y winrun». Nada más: ni qué cubre ni exclusiones.
+    // Jenny, 18-nov (noche): dónde se hace cada marca y de qué tecnología es.
+    // La primera bandera es el país donde se hace; la segunda, la tecnología.
+    origenDeMarcas: {
+      FALKEN: { banderas: ["tailandia", "japon"], pais: "TAILANDIA", nota: "tecnología japonesa" },
+      KENDA: { banderas: ["china", "taiwan"], pais: "CHINA", nota: "tecnología taiwanesa" },
+      MAXXIS: { banderas: ["china", "taiwan"], pais: "CHINA", nota: "tecnología taiwanesa" },
+      WINRUN: { banderas: ["china"], pais: "CHINA", nota: "línea de la marca Kenda" },
+    },
     seguro: {
       enTexto: "de seguro contra impacto",
       titulo: "SEGURO CONTRA IMPACTO",
@@ -256,14 +262,15 @@ export const MUNDILLANTAS: PerfilDeNegocio = {
   // Sin `facturacion` no salen pre-facturas: correcto durante la prueba.
   // La alineación SOLO con 4 llantas (Jenny, 8-nov): «alineación no porque
   // solo se da cuando lleva las 4 llantas». El mantenimiento cada 10.000 km:
-  // Jenny, 18-nov, «si incluido sea 2 o 4 llantas» (qué incluye: pendiente).
+  // Jenny, 18-nov, «si incluido sea 2 o 4 llantas»; y esa noche, qué incluye:
+  // «rotación de llantas, revisión mecánica y nitrógeno gratis».
   // `min_quantity` no sabe de «2 o 4»: con 3 también sale, y el texto lo aclara.
   // OJO: esto siembra solo una base NUEVA; en producción la fila se agrega en
   // Ajustes → Promociones (ver el PR del 18-nov).
   beneficiosDeArranque: [
     { text: "Enllantaje, balanceo y nitrógeno" },
     { text: "Alineación (comprando las 4 llantas)", minQuantity: 4 },
-    { text: "Mantenimiento cada 10.000 km (comprando 2 o 4 llantas)", minQuantity: 2 },
+    { text: "Mantenimiento cada 10.000 km: rotación, revisión mecánica y nitrógeno (comprando 2 o 4 llantas)", minQuantity: 2 },
   ],
   pendientesNumericos: PENDIENTES_NUMERICOS,
 };
