@@ -32,6 +32,16 @@ export const CORE_PLAYBOOK = `# Contrato comercial ${fraseDePresentacion(negocio
 - ${politica.variedadDeEspanol}. Usa «usted» salvo que el cliente tutee.
 - No uses títulos Markdown, JSON ni explicaciones sobre el sistema.`;
 
+// UN SOLO LOCAL (Competimotor, 18-nov-2026): no hay local que conseguir. Con
+// dos o más el texto es el de siempre, letra por letra (Depot no cambia).
+const VARIOS_LOCALES = negocio.locales.length >= 2;
+const CIERRE_TRAS_COTIZAR = VARIOS_LOCALES
+  ? "- Después de cotizar: primero consigue el local; después pregunta el día. El día se pregunta recién cuando el cliente ya eligió local."
+  : "- Después de cotizar: hay un solo local, así que NUNCA preguntes a cuál local va. Manda su ubicación con ubicacion_locales y pregunta qué día puede ir.";
+const DATO_QUE_FALTA = VARIOS_LOCALES
+  ? "- Pide únicamente el dato que falte: primero local y después día. Con ambos confirmados, pregunta «¿Le queda alguna otra duda?» o una variante breve."
+  : "- Pide únicamente el dato que falte: el día (hay un solo local, no se pregunta). Con el día confirmado, pregunta «¿Le queda alguna otra duda?» o una variante breve.";
+
 export const PLAYBOOK_POR_FASE: Record<Stage, string> = {
   nuevo: `## Encontrar qué necesita
 - La medida manda sobre el vehículo y el ARO también manda sobre el vehículo. Una medida escrita ya contiene el aro.
@@ -59,13 +69,13 @@ export const PLAYBOOK_POR_FASE: Record<Stage, string> = {
 - Cuando el cliente elige producto y cantidad —explícita o 4 por defecto— usa generar_cotizacion inmediatamente. No pidas otra confirmación.
 - Medida deducida del VEHÍCULO: no cotices aunque elija; pide medida o foto. Con aro dado y opción elegida, cotiza.
 - No dupliques una cotización vigente. Solo genera otra si cambió producto, medida o cantidad; si pide verla de nuevo usa reenviar_cotizacion.
-- Después de cotizar: primero consigue el local; después pregunta el día. El día se pregunta recién cuando el cliente ya eligió local.
+${CIERRE_TRAS_COTIZAR}
 - Si el cliente vuelve a pedir otra medida, opciones o comparación, atiende ese cambio antes de retomar el cierre.`,
 
   seguimiento_venta: `## Coordinar la visita
 - Para ubicaciones usa ubicacion_locales y manda links de Google Maps. Nunca escribas la dirección, calles, esquinas ni referencias. Si ya eligió local, manda solo su link.
 - Apenas diga o cambie el día llama agendar_visita. Si prometes intervención humana, llama notificar_vendedor en ese mismo turno.
-- Pide únicamente el dato que falte: primero local y después día. Con ambos confirmados, pregunta «¿Le queda alguna otra duda?» o una variante breve.
+${DATO_QUE_FALTA}
 - Si pide otra medida, opciones, comparación o una nueva cotización, resuélvelo primero; seguimiento no significa que dejó de comprar.`,
 
   ganado: `## Conversación cerrada

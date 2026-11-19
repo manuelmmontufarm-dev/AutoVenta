@@ -280,11 +280,18 @@ const depotLogoCache = new Map<string, RasterImage | null>();
  * Devuelve null si falta todo archivo; quien llama dibuja el nombre en texto,
  * que es lo que hacían las piezas antes de tener el logo.
  */
-export function depotLogo(variant: "blanco" | "color" = "blanco", identidad?: string): RasterImage | null {
+export function depotLogo(variant: "blanco" | "color" = "blanco", identidadPedida?: string): RasterImage | null {
+  // UN SERVICIO DE UNA SOLA MARCA (Competimotor, 18-nov) no tiene otra con qué
+  // encabezar: sin identidad pedida —el informe diario, una pieza de un chat
+  // sin local— va la suya, no el logo combinado del negocio.
+  const identidad = identidadPedida ?? (negocio.identidades?.length === 1 ? negocio.identidades[0].id : undefined);
   const clave = `${identidad ?? ""}:${variant}`;
   if (depotLogoCache.has(clave)) return depotLogoCache.get(clave)!;
   let result: RasterImage | null = null;
+  // Para fondo oscuro, primero la versión blanca de la marca
+  // (`logo-<identidad>-blanco.png`); la de color sobre negro no se lee.
   const candidatos = [
+    ...(identidad && variant === "blanco" ? [path.join(ASSETS, negocio.id, `logo-${identidad}-blanco.png`)] : []),
     ...(identidad ? [path.join(ASSETS, negocio.id, `logo-${identidad}.png`)] : []),
     path.join(ASSETS, negocio.id, variant === "blanco" ? "logo-blanco.png" : "logo.png"),
   ];

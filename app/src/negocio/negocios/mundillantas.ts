@@ -3,8 +3,13 @@
  * de 2 semanas desde el pitch del 4-nov-2026.
  *
  * UN negocio con DOS marcas comerciales: Mundillantas (2 locales) y
- * Competimotor (1 local). El bot se presenta con las dos y, cuando el cliente
- * elige local, habla y cotiza con la marca de ese local.
+ * Competimotor (1 local). Hasta el 18-nov-2026 un solo bot se presentaba con
+ * las dos; en el cierre (acta `docs/reuniones/2026-11-18-competimotor-cierre.md`,
+ * 31:12–32:20) Jenny pidió lo contrario: dos marcas que se venden por separado,
+ * cada una con su número, sus asesores y sus ventas. Desde entonces CADA
+ * SERVICIO ES UNA MARCA (`identidadPorDefecto` + la variable `IDENTIDAD`, ver
+ * `perfilDelServicio`): el de hoy, «Competimotor Online», es Competimotor y
+ * nada más; Mundillantas levantará el suyo con `IDENTIDAD=mundillantas`.
  *
  * Acá va SOLO lo confirmado en el pitch, en las respuestas de Jenny del
  * 6-nov y del 8-nov-2026 (`docs/clientes/mundillantas-arranque.md`) y en la ficha
@@ -43,6 +48,47 @@ const MAPS_KENDA = `https://www.google.com/maps/search/?api=1&query=${encodeURIC
   "Mundillantas Kenda, Vía Quevedo km 1.5, Santo Domingo, Ecuador",
 )}`;
 
+type Respaldo = NonNullable<PerfilDeNegocio["piezas"]["respaldo"]>;
+
+/**
+ * El respaldo de las piezas: seguro y garantía (de las cuatro marcas de llanta,
+ * igual en los dos servicios) y la tarjeta de locales, que es lo único que
+ * cambia de una marca a otra — el de Competimotor no puede listar a Mundillantas.
+ */
+function respaldoCon(locales: Respaldo[number]): Respaldo {
+  return [
+    {
+      icono: "escudoOk",
+      titulo: "SEGURO CONTRA IMPACTO",
+      detalle: "Incluido con su llanta. Las condiciones se las explica su asesor.",
+      marcas: ["Kenda", "Falken", "Winrun", "Maxxis"],
+    },
+    {
+      icono: "medalla",
+      titulo: "Garantía de fábrica",
+      detalle: "Respaldo de la marca contra defectos de fabricación",
+      marcas: ["Kenda", "Falken", "Winrun", "Maxxis"],
+    },
+    locales,
+  ];
+}
+
+const LOS_TRES_LOCALES: Respaldo[number] = {
+  icono: "local",
+  titulo: "3 locales",
+  detalle: "Competimotor, Mundillantas Falken y Mundillantas Kenda, en Santo Domingo",
+};
+const LOCALES_MUNDILLANTAS: Respaldo[number] = {
+  icono: "local",
+  titulo: "2 locales",
+  detalle: "Mundillantas Falken y Mundillantas Kenda, en Santo Domingo",
+};
+const LOCAL_COMPETIMOTOR: Respaldo[number] = {
+  icono: "local",
+  titulo: "Nuestro local",
+  detalle: "Vía Quevedo km 1½ y Juan León Mera, Santo Domingo",
+};
+
 export const MUNDILLANTAS: PerfilDeNegocio = {
   id: "mundillantas",
   nombre: "Mundillantas",
@@ -70,12 +116,29 @@ export const MUNDILLANTAS: PerfilDeNegocio = {
   // letreros muestran más (Toyo, BFGoodrich, Aeolus); el catálogo manda.
   marcas: ["Kenda", "Falken", "Winrun", "Maxxis"],
   identidades: [
-    { id: "mundillantas", nombre: "Mundillantas", locales: ["matriz", "local2"] },
-    { id: "competimotor", nombre: "Competimotor", locales: ["competimotor"] },
+    {
+      id: "mundillantas",
+      nombre: "Mundillantas",
+      locales: ["matriz", "local2"],
+      delServicio: {
+        // Tienen 3 números (uno por local) y se quedan con uno por marca
+        // (acta 18-nov, 02:30); el de Mundillantas no lo eligieron todavía.
+        telefono: "[PENDIENTE] número de WhatsApp de Mundillantas",
+        piezas: { respaldo: respaldoCon(LOCALES_MUNDILLANTAS) },
+      },
+    },
+    {
+      id: "competimotor",
+      nombre: "Competimotor",
+      locales: ["competimotor"],
+      delServicio: { piezas: { respaldo: respaldoCon(LOCAL_COMPETIMOTOR) } },
+    },
   ],
-  // Antes de elegir local, el bot habla por las dos marcas (decidido en
-  // MULTICLIENTE.md §3.3: un solo número de WhatsApp para las dos).
-  // Competimotor primero: Manuel lo pidió así el 6-nov, igual que el logo.
+  // UNA MARCA POR SERVICIO (cierre del 18-nov). Sin `IDENTIDAD`, el servicio
+  // es Competimotor: es el único que existe y el número del bot es el suyo.
+  identidadPorDefecto: "competimotor",
+  // La frase combinada que salía hasta el 18-nov («Competimotor y
+  // Mundillantas») ya no la ve nadie: cada servicio se presenta con su marca.
   presentacion: { modo: "combinada", frase: "Competimotor y Mundillantas" },
   // Los tres están sobre la Vía Quevedo, así que «quevedo» no elige ninguno.
   // «falken» y «kenda» solos tampoco: son marcas que el cliente pide.
@@ -161,25 +224,7 @@ export const MUNDILLANTAS: PerfilDeNegocio = {
     // Jenny, 6-nov: «garantía normal de fábrica y seguro contra impacto» en
     // Kenda, Falken, Winrun y Maxxis, sin meses ni años. Se dice eso mismo,
     // sin plazo; cuando lleguen las cifras a `garantias`, mandan ellas.
-    respaldo: [
-      {
-        icono: "escudoOk",
-        titulo: "SEGURO CONTRA IMPACTO",
-        detalle: "Incluido con su llanta. Las condiciones se las explica su asesor.",
-        marcas: ["Kenda", "Falken", "Winrun", "Maxxis"],
-      },
-      {
-        icono: "medalla",
-        titulo: "Garantía de fábrica",
-        detalle: "Respaldo de la marca contra defectos de fabricación",
-        marcas: ["Kenda", "Falken", "Winrun", "Maxxis"],
-      },
-      {
-        icono: "local",
-        titulo: "3 locales",
-        detalle: "Competimotor, Mundillantas Falken y Mundillantas Kenda, en Santo Domingo",
-      },
-    ],
+    respaldo: respaldoCon(LOS_TRES_LOCALES),
     horarioBajoElPrecio: true,
     letraDelModelo: "deportiva",
   },

@@ -36,7 +36,7 @@ import { politica } from "../negocio/politica.js";
 import { findByCode } from "./catalog.js";
 import { buildStoreLinksBlockOnce } from "./storeLinks.js";
 import { preguntamosElLocal } from "../domain/storeSelection.js";
-import { composeBlocks } from "./quoteMessages.js";
+import { composeBlocks, invitacionConMapas } from "./quoteMessages.js";
 import { porQueNoPasaPorElLocal } from "./dondeEstaElCliente.js";
 import { cierreSinVisita } from "../domain/compraADistancia.js";
 import { logFunnelEvent, updateConversationFacts } from "./conversations.js";
@@ -403,7 +403,7 @@ export async function tryCotizarLoElegido(ctx: CotizarLoElegidoContext, texto: s
   );
   return composeBlocks(
     confirmacion,
-    mapas ? `Puede pasar sin compromiso a verlas y probarlas en su vehículo.\n${mapas}` : null,
+    mapas ? invitacionConMapas(mapas) : null,
     ...(sinVisita ? cierreSinVisita(sinVisita) : []),
   );
 }

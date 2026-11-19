@@ -39,8 +39,9 @@ export const LISTA_BLANCA = [
   // QUÉ NEGOCIO ATIENDE: el perfil de `src/negocio/` con sus locales, sus
   // zonas, su IVA y sus garantías. Es lo más determinante de todo lo que el bot
   // dice, así que el simulador tiene que correr con el mismo que producción: si
-  // no, se prueban conversaciones de otra llantera.
-  /^NEGOCIO$/,
+  // no, se prueban conversaciones de otra llantera. `IDENTIDAD` elige la marca
+  // en un negocio de una marca por servicio (Competimotor / Mundillantas).
+  /^(NEGOCIO|IDENTIDAD)$/,
   // El worker de seguimientos: cada cuánto despierta y cuántos toma.
   /^FOLLOW_UP_(BATCH_SIZE|LEASE_MINUTES|POLL_MS)$/,
   // Los números que el hub muestra como facturación.

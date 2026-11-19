@@ -33,7 +33,7 @@ import { cantidadPedidaPorElCliente, esReferenciaPluralAlMenu, esRespuestaDelMen
 import { buildTools, type AgentContext } from "../agent/tools.js";
 import { buildStoreLinksBlockOnce } from "./storeLinks.js";
 import { preguntamosElLocal } from "../domain/storeSelection.js";
-import { composeBlocks } from "./quoteMessages.js";
+import { composeBlocks, invitacionConMapas } from "./quoteMessages.js";
 import { porQueNoPasaPorElLocal } from "./dondeEstaElCliente.js";
 import { cierreSinVisita } from "../domain/compraADistancia.js";
 import { config } from "../config.js";
@@ -138,7 +138,7 @@ export async function tryRecotizarPorCantidad(
     : await buildStoreLinksBlockOnce(ctx.conversation.id);
   return composeBlocks(
     `Listo, se la ajusté a ${nueva} 👍`,
-    mapas ? `Puede pasar sin compromiso a verlas y probarlas en su vehículo.\n${mapas}` : null,
+    mapas ? invitacionConMapas(mapas) : null,
     ...(sinVisita ? cierreSinVisita(sinVisita) : []),
   );
 }

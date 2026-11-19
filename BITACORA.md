@@ -1,3 +1,17 @@
+## 18-nov-2026 · Bot · Competimotor habla solo como Competimotor y no pregunta «a cuál local» (rama `fix/competimotor-marca-unica`)
+
+- **Qué:** (1) Una marca por servicio: `identidadPorDefecto` en el perfil + variable `IDENTIDAD`; `perfilDelServicio`
+  reduce el perfil vivo a esa marca (nombre, locales, logo, teléfono, tarjeta de locales). Sin `IDENTIDAD`, el
+  servicio de hoy es Competimotor. (2) Logos de Competimotor solo. (3) Un negocio con un solo local no pregunta
+  «¿a cuál local?»: «Aquí queda nuestro local» + mapa y «¿Qué día cree que puede ir?» (cotización, cotización
+  directa, «dónde quedan», candado de lo que falta, playbook). (4) Avisos al asesor del único local.
+- **Por qué:** cierre del 18-nov (acta, 31:12–32:20): Jenny vio el saludo y el PDF con las dos marcas: «esto no puede
+  pasar». Manuel, 18-nov tarde: con un solo local el bot no pregunta el local.
+- **Depot:** hashes de piezas, playbook, guardián, prompt y cierres de visita idénticos a `main` (comparado).
+- **Probado:** `competimotorMarcaUnica` y `insistirCierreLocalUnico` (en rojo antes), simulador `--perfil mundillantas`
+  (saludo, cotización hasta la visita, «dónde quedan»), `sim:humo`, `--perfil ejemplo --humo`, suite completa
+  (4.022 de 4.024; las dos que fallan ya venían de `main`). **No probado** en WhatsApp real.
+- **Horas:** 2.
 ## 18-nov-2026 · Competimotor · el Excel de cada día: un lugar a la vista y que se lea bien siempre (rama `feat/competimotor-carga-excel`)
 
 - **Qué:** (1) El lector de `archivo.ts` lee el inventario de Fénix venga como venga: .xls/.xlsx/.csv

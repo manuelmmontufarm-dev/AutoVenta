@@ -28,7 +28,7 @@
 import { alternativaDelCatalogo, borradorNiegaElStock, CATEGORIAS_CON_ALTERNATIVA, type AlternativaDelCatalogo } from "./alternativaDelCatalogo.js";
 import { fraseDelAvisoEn, ORACION_DE_MEDIDAS_DISTINTAS } from "../domain/avisoDeMedidas.js";
 import { preguntaElDia } from "../domain/customerCommitment.js";
-import { preguntaElLocal } from "../domain/storeSelection.js";
+import { hayQueElegirLocal, preguntaElLocal } from "../domain/storeSelection.js";
 import { elClienteDijoQueAvisa } from "../domain/clientePosterga.js";
 import { sinRepartoInventado } from "../domain/porcentajeDeUso.js";
 import { todasLasLineas } from "../domain/tireTypes.js";
@@ -87,7 +87,7 @@ import { conPreguntaEnSuPropioMensaje } from "../domain/preguntaSola.js";
 import { despedidaQueCorresponde } from "../domain/cierrePerdido.js";
 import { motivoDeUbicacion, ofrecioLaUbicacion } from "../domain/ubicacionPedida.js";
 import { pideOtroDia } from "./rutaOtroDia.js";
-import { buildStoreLinksBlock } from "./quoteMessages.js";
+import { buildStoreLinksBlock, buildVisitPlanQuestion, ubicacionDelLocalUnico } from "./quoteMessages.js";
 import { buildStoreLinksBlockOnce } from "./storeLinks.js";
 import { business } from "../config.js";
 import { productosDelCatalogoMencionados } from "./catalog.js";
@@ -699,6 +699,7 @@ export const PASOS: readonly PasoDeSalida[] = [
       console.log(
         `📍 Ubicación pegada en la conv ${ctx.conversation.id} (${motivo})`,
       );
+      if (!hayQueElegirLocal) return await conElLocalUnico(texto, mapas, ctx.conversation.id);
       return `${texto}\n---\n${mapas}`;
     },
   },
@@ -1621,6 +1622,45 @@ export interface SalidaPreparada {
  * tengo?»); si ofrece una llanta permitida, la oferta queda declarada para que
  * un «sí» la cotice.
  */
+/**
+ * UN SOLO LOCAL Y EL CLIENTE PREGUNTÓ DÓNDE QUEDA (Manuel, 18-nov-2026,
+ * Competimotor): «Aquí queda nuestro local» con su mapa, y enseguida la
+ * pregunta del día — no hay a cuál local ir, así que no hay nada más que
+ * decidir. La dirección escrita en prosa se quita: el mapa ya la dice, y
+ * salía dos veces (simulador, 18-nov: el guardián la agregó en texto). Con dos
+ * o más locales no se llama: Depot sigue por el camino de siempre.
+ */
+export async function conElLocalUnico(texto: string, mapas: string, conversationId: number): Promise<string> {
+  const local = business.stores[0];
+  const normal = (v: string) => v.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const repiten = [local?.address, local?.referencia]
+    .filter((v): v is string => Boolean(v && v.length >= 12))
+    .map(normal);
+  const sinDireccion = texto
+    .split("\n")
+    .filter((linea) => linea.includes("http") || !repiten.some((d) => normal(linea).includes(d)))
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  const bloques = [sinDireccion, ubicacionDelLocalUnico(undefined, mapas)];
+  // La pregunta del día va si el turno no pregunta ya otra cosa y la visita
+  // no está registrada: dos preguntas en un turno se contestan a medias.
+  const [estado] = await sql<{ visit_date: Date | null; con_cotizacion: boolean }[]>`
+    select c.visit_date,
+      exists(select 1 from quotes q where q.conversation_id=c.id and q.cycle=c.current_cycle) as con_cotizacion
+    from conversations c where c.id=${conversationId}
+  `;
+  if (!estado?.visit_date && !sinDireccion.includes("?")) {
+    bloques.push(buildVisitPlanQuestion({
+      conDescuentoAutorizado: false,
+      locales: business.stores.map((store) => store.name),
+      conCotizacion: Boolean(estado?.con_cotizacion),
+      enlaces: false,
+    }));
+  }
+  return bloques.filter(Boolean).join("\n---\n");
+}
+
 async function cerrarConLaAlternativa(
   texto: string,
   ctx: ContextoDeSalida,
