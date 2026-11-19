@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { authHeaders } from "../data/realSource";
+import { useInventario } from "../data/inventario";
+import { navigate } from "../router";
 
 /**
  * Ajustes → Catálogo. Para negocios sin API de inventario ni de facturación
@@ -139,6 +141,7 @@ export function SeccionCatalogoArchivo({ onError }: { onError: (v: string) => vo
   const [aviso, setAviso] = useState("");
   const [verMapeo, setVerMapeo] = useState(false);
   const input = useRef<HTMLInputElement>(null);
+  const porArchivo = useInventario((s) => s.porArchivo) === true;
 
   const cargar = useCallback(() => {
     api<{ catalog: EstadoCatalogo }>("/api/catalog/status")
@@ -193,7 +196,11 @@ export function SeccionCatalogoArchivo({ onError }: { onError: (v: string) => vo
         <div className="flex items-center gap-2">
           {aviso && <span className="text-[12px] text-text2">{aviso}</span>}
           <Boton onClick={() => setVerMapeo((v) => !v)}>{verMapeo ? "Ocultar columnas" : "Columnas del archivo"}</Boton>
-          <Boton principal disabled={ocupado} onClick={() => input.current?.click()}>{ocupado ? "Subiendo…" : "Subir archivo"}</Boton>
+          {/* Con catálogo por archivo la subida diaria vive en Inventario (avisa
+              si el archivo viene mal y pide confirmar); acá queda el mapeo. */}
+          {porArchivo
+            ? <Boton principal onClick={() => navigate("inventario")}>Subir el inventario de hoy</Boton>
+            : <Boton principal disabled={ocupado} onClick={() => input.current?.click()}>{ocupado ? "Subiendo…" : "Subir archivo"}</Boton>}
           <input
             ref={input}
             type="file"
