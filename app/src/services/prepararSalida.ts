@@ -103,7 +103,9 @@ import {
   preguntaCualTrasMenuSinElegir,
   type MetadataDePieza,
 } from "../domain/equivalentePendiente.js";
-import { findByCode } from "./catalog.js";
+import { catalogoConPreciosPorPago, findByCode } from "./catalog.js";
+import { preciosPorPagoDeLaConversacion } from "./preciosPorPago.js";
+import { preguntaPorPrecioSegunPago } from "../domain/preciosPorPago.js";
 import { contextoDeEquivalencias } from "./medidasDelPedido.js";
 import { sinEquivalenciasFalsas } from "../domain/equivalenciaEnTexto.js";
 import { equivalentesDevueltos } from "../domain/equivalentesPorMostrar.js";
@@ -966,6 +968,28 @@ export const PASOS: readonly PasoDeSalida[] = [
     nombre: "el_pago_se_responde",
     corre: ["respuesta", "retomada"],
     async aplicar(texto, ctx) {
+      // EL PRECIO SEGÚN CÓMO PAGA (Manuel, 18-nov-2026, Competimotor): si las
+      // llantas de la conversación traen Precio B y C del Excel, la pregunta de
+      // pago o de descuento se contesta con los tres precios en UN mensaje, y
+      // las frases del modelo sobre pago o descuento salen. Sin esos datos (Depot,
+      // o un catálogo subido antes) no se toca nada: sigue lo de siempre.
+      if (catalogoConPreciosPorPago() && preguntaPorPrecioSegunPago(ctx.textoDelCliente)) {
+        const precios = await preciosPorPagoDeLaConversacion(ctx.conversation.id, ctx.conversation.current_cycle, ctx.textoDelCliente);
+        if (precios) {
+          const cuotas = /\bcuotas?\b|\bdiferi\w*|\bmeses\b/.test((ctx.textoDelCliente ?? "").toLowerCase()) && politica.cuotasSinIntereses
+            ? `\nCon tarjeta de crédito: ${politica.cuotasSinIntereses}.`
+            : "";
+          // Sale también cualquier otro monto del modelo: debajo de los tres
+          // precios, un «Total: $559.96» suelto se lee como un cuarto (sim, 18-nov).
+          const resto = sinFrasesDelTema(texto, (f) =>
+            preguntaPorPrecioSegunPago(f) || /\bdescuent\w*|\brebaj\w*/i.test(f) || /\$\s?\d/.test(f)).texto
+            // Lo que sobra de una frase quitada (un «🤝» suelto) no va solo.
+            .split(/\n\s*-{3,}\s*\n/).filter((bloque) => /\p{L}/u.test(bloque)).join("\n---\n")
+            .split("\n").filter((linea) => !linea.trim() || /\p{L}|\d/u.test(linea)).join("\n").replace(/\n{3,}/g, "\n\n");
+          console.log(`💳 Conv ${ctx.conversation.id}: precio según cómo paga, del catálogo.`);
+          return resto.trim() ? `${precios}${cuotas}\n---\n${resto}` : `${precios}${cuotas}`;
+        }
+      }
       // Sin formas de pago confirmadas en la política no hay respuesta que
       // poner: el texto pasa sin tocar y el bot no promete ninguna.
       if (!hayPoliticaDePagos() || !preguntaPorElPago(ctx.textoDelCliente)) return texto;

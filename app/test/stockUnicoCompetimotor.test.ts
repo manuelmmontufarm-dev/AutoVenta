@@ -6,10 +6,6 @@
  * el stock total», «debe ver solo el total». El bot cotiza con la columna
  * `Existencia` del reporte de Fénix —el total— y NO con la suma de las columnas
  * por local (`Principal, Compe, Matriz, Tsachila, La Feria`).
- *
- * Ojo, anotado y sin arreglar: en el Excel real del 6-nov `Existencia` suma
- * 4.092 y las columnas de local 2.413 (204 filas difieren en 5 exactas, con
- * `Principal` vacía). Manuel se lo pregunta a Jenny.
  */
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
