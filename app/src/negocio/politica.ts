@@ -59,6 +59,12 @@ export interface PoliticaComercial {
    * Para un cliente multimarca cuyas marcas la escalera no conoce.
    */
   escalonPorPrecio: boolean;
+  /**
+   * OPCIONAL: qué llantas van primero en la lámina, por MARCA y no por precio
+   * (Competimotor, reunión 18-nov-2026). Sin el campo (Depot) la lámina sale de
+   * la escalera de siempre. Las cuentas viven en `domain/recomendacionPorMarca.ts`.
+   */
+  recomendacionPorMarca?: ReglaDeRecomendacion;
   /** Productos que el bot NO cotiza y deriva al asesor («lubricantes», «baterías»…). */
   productosQueDerivaAlAsesor: string[];
   /** Cómo nombran las reglas internas al humano que recibe los avisos («Manuel»). */
@@ -77,6 +83,18 @@ export interface PoliticaComercial {
    * cuentas viven en `domain/promocionDeTemporada.ts`; acá solo los datos.
    */
   promocionDeTemporada?: PromocionDeTemporada;
+}
+
+/** Las marcas de la casa primero, más las de mayor inventario; «qué más tiene» con tope. */
+export interface ReglaDeRecomendacion {
+  /** Las marcas que van primero (en mayúsculas, como `CatalogItem.brand`), una opción por marca. */
+  marcasPrimero: string[];
+  /** Cuántas opciones extra, de las DEMÁS marcas, por mayor inventario en la medida. */
+  extrasPorInventario: number;
+  /** Tope de opciones que el cliente ve en una medida sumando las láminas («qué más tiene»). */
+  topeConMasOpciones: number;
+  /** Cuántas tarjetas caben en una lámina (la plantilla «día y noche» dibuja 6). */
+  porLamina: number;
 }
 
 /** Una promoción con fechas: llantas, servicios y productos con su rebaja. */

@@ -97,7 +97,8 @@ import { avisoDeMedidaEnOpciones, LINEA_SIN_STOCK_EXACTO, siguientePasoPorMedida
 import { CAMPO_EQUIVALENTES, equivalentesAMostrar, reglaDeMostrarEquivalentes } from "../domain/equivalentesPorMostrar.js";
 import { extractFlotationSizes, extractTireSizes, formatFlotationSize, formatTireSize, parseTireSize, type TireSize, type FlotationSize, flotacionIncompleta, medidaGuardable } from "../domain/tireSize.js";
 import { marcaPreguntada, pidioCotizacionExplicita, ultimaMarcaPedida } from "../domain/consultaConRespaldo.js";
-import { armarLista, ordenDeLaLista, confirmacionDeLaOpcion, opcionPorPosicion, posicionElegida } from "../domain/listaDeOpciones.js";
+import { armarLista, ordenDeLaLista, confirmacionDeLaOpcion, opcionPorPosicion, posicionElegida, preguntaDeLaLista, MAX_NUMERADA } from "../domain/listaDeOpciones.js";
+import { escalonesDelConjunto, recomendacionDeLaMedida, type ModoDeRecomendacion } from "../domain/recomendacionPorMarca.js";
 import { cotizarLaUnicaDeUnaVez, ultimoTurnoDelBot } from "../domain/cotizarLaUnica.js";
 import { consienteEsta, type OfertaDeCotizar } from "../domain/ofertaVigente.js";
 import { leerOfertaVigente } from "../services/ofertaVigente.js";
@@ -533,6 +534,23 @@ function recorteConEscalera<T extends { code: string; brand: string; design: str
   return productos.filter((p) => elegidos.includes(p));
 }
 
+/**
+ * Con la regla por marca (Competimotor) el conjunto lo elige la marca, no el
+ * precio: el escalón que ve el modelo es solo el nombre de «la más cara / del
+ * medio / la más barata» DENTRO de ese conjunto (`escalonesDelConjunto`), así
+ * nunca hay dos «premium» en la misma lámina.
+ */
+function fijarEscalonesDelConjunto<T extends { code: string; minimumPriceWithTax: number }>(productos: readonly T[]): void {
+  ESCALON_POR_PRECIO = new WeakMap();
+  ESCALON_POR_CODIGO.clear();
+  const indice = { premium: 0, equilibrio: 1, economica: 2 } as const;
+  for (const [codigo, escalon] of escalonesDelConjunto(productos)) {
+    ESCALON_POR_CODIGO.set(codigo, escalon);
+    const p = productos.find((x) => x.code === codigo);
+    if (p) ESCALON_POR_PRECIO.set(p, indice[escalon]);
+  }
+}
+
 /** Para las pruebas de la escalera (`test/escaleraPorPrecio.test.ts`): mismas funciones, sin cambiar firmas. */
 export const escaleraParaPruebas = {
   escalonesPorPrecio,
@@ -963,6 +981,66 @@ export function buildTools(ctx: AgentContext) {
     return usoDeLosTextos([ctx.currentUserText, ...mensajesDeLaVisitaActual(dichos).map((m) => m.content)])
       ?? (usoDelModelo ? usoDeclarado(usoDelModelo) : null);
   };
+  /**
+   * Las láminas de opciones de UNA medida en este ciclo: todo lo que el cliente
+   * ya vio de ella (para «qué más tiene» y su tope) y la última, que es la que
+   * tiene en pantalla.
+   */
+  const laminasDeLaMedida = async (medida: string) => {
+    const piezas = await sql<{ metadata: Record<string, unknown> | null }[]>`
+      select metadata from messages
+      where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
+        and metadata->>'piece'='options'
+      order by created_at asc
+    `;
+    const deLaMedida = piezas
+      .map((p) => p.metadata)
+      .filter((m): m is Record<string, unknown> => Boolean(m) && m!.sizeLabel === medida && Array.isArray(m!.codes));
+    const codigos = (m: Record<string, unknown>) => (m.codes as unknown[]).map(String);
+    const ultima = deLaMedida.at(-1);
+    return { vistos: new Set(deLaMedida.flatMap(codigos)), enPantalla: ultima ? codigos(ultima) : [] };
+  };
+  /**
+   * LA SELECCIÓN POR MARCA (Competimotor, `politica.recomendacionPorMarca`), o
+   * null si el cliente no la tiene (Depot). `vendibles` = las de UNA medida con
+   * stock para la cantidad pedida, ya filtradas por tipo o uso. La usan
+   * `buscar_llanta` (para entregarle al modelo las opciones elegidas) y
+   * `preparar_opciones` (que las recalcula: el modelo no cambia el conjunto).
+   *
+   * Si el cliente ya tiene en pantalla una lámina de esa medida y no pidió más
+   * ni otra marca, se conserva ESA (puede ser la de «qué más tiene»): contestar
+   * «la más barata» no le vuelve a mandar la primera.
+   */
+  const seleccionPorMarca = async (
+    vendibles: readonly CatalogItem[],
+    medida: string,
+  ): Promise<{ modo: ModoDeRecomendacion | "en_pantalla"; opciones: CatalogItem[]; vistos: Set<string>; marca?: string } | null> => {
+    const regla = politica.recomendacionPorMarca;
+    if (!regla || !vendibles.length) return null;
+    const { vistos, enPantalla } = await laminasDeLaMedida(medida);
+    const r = recomendacionDeLaMedida(vendibles, regla, { texto: ctx.currentUserText, yaMostrados: vistos });
+    if (r.modo === "primera" && enPantalla.length) {
+      const siguen = enPantalla.map((c) => vendibles.find((p) => p.code === c)).filter((p): p is CatalogItem => Boolean(p));
+      if (siguen.length === enPantalla.length) return { modo: "en_pantalla", opciones: siguen, vistos };
+    }
+    return { ...r, vistos };
+  };
+  /** Con uso declarado, solo los tipos que le sirven (si hay alguno); si no, todos. */
+  const delUsoSiHay = (productos: readonly CatalogItem[], uso: UsoDeclarado | null): CatalogItem[] => {
+    if (!uso) return [...productos];
+    const { compatibles } = separarPorUso(productos, uso, (p) => normalizarTipo(tipoDeProducto(p.code, p.design) ?? ""));
+    return compatibles.length ? compatibles : [...productos];
+  };
+  /** Lo que se le dice al modelo cuando la lámina ya la eligió el código. */
+  const reglaDeLaSeleccion = (sel: { modo: string; opciones: readonly CatalogItem[]; vistos: Set<string> }, medida: string): string => {
+    const regla = politica.recomendacionPorMarca!;
+    if (!sel.opciones.length) {
+      return `El cliente ya vio TODAS las opciones de ${medida} que alcanzan para su compra (${sel.vistos.size}). NO llames preparar_opciones: díselo en una línea y ofrécele cotizar alguna de las que ya vio o que el asesor le consiga otra marca. PROHIBIDO inventar otras.`;
+    }
+    return `LA LÁMINA YA ESTÁ ELEGIDA por el sistema: llama preparar_opciones con TODOS estos códigos (${sel.opciones.map((p) => p.code).join(", ")}), sin quitar ni agregar. `
+      + `Primero van ${regla.marcasPrimero.join(", ")} y la de mayor inventario entre las demás marcas; si el cliente pide más opciones, otra marca o algo más barato, vuelve a llamar buscar_llanta y preparar_opciones y salen las que todavía no vio (hasta ${regla.topeConMasOpciones} en total). `
+      + "Si pide una marca concreta, búscala: esa marca manda. PROHIBIDO escribir estas opciones como lista en el chat: la herramienta manda la imagen y la lista con precios.";
+  };
   const buscarLlanta = defineTool({
     name: "buscar_llanta",
     description:
@@ -1091,8 +1169,20 @@ export function buildTools(ctx: AgentContext) {
         { direccion: direccionDelCiclo, carga: requisitoDeCarga(textosDelCicloBuscar) },
       );
       const cantidadFicha = await cantidadDeLaFicha(ctx);
+      // COMPETIMOTOR: la lámina sale de la regla por marca (Falken, Winrun, Kenda
+      // + la de mayor inventario), no de la escalera por precio. Solo con una
+      // medida completa: sin perfil la búsqueda mezcla medidas.
+      const porMarca = !aMostrar.length && size.aspect !== null
+        ? await seleccionPorMarca(
+            delUsoSiHay(opcionesQueAlcanzan(conStock(exact), cantidadFicha), usoDelCliente),
+            formatTireSize(size),
+          )
+        : null;
+      if (porMarca?.opciones.length) fijarEscalonesDelConjunto(porMarca.opciones);
       return JSON.stringify({
         ...(aMostrar.length ? { [CAMPO_EQUIVALENTES]: aMostrar } : {}),
+        // Va arriba: la huella del Guardián corta a 500 caracteres.
+        ...(porMarca ? { seleccion_por_marca: porMarca.modo } : {}),
         medida: formatTireSize(size),
         ...(usoDelCliente
           ? {
@@ -1101,7 +1191,7 @@ export function buildTools(ctx: AgentContext) {
               regla_de_uso: "El cliente ya dijo para qué la quiere: el menú (preparar_opciones) se arma SOLO con los tipos de 'tipos_que_le_sirven' (le_sirve_a_su_uso: true). PROHIBIDO ofrecer como costo, equilibrio o premium una de otro tipo (una M/T para ciudad, una H/T para lodo); si de sus tipos no hay dos con stock, dilo en una línea en vez de rellenar en silencio.",
             }
           : {}),
-        resultados: recorteConEscalera(exact, 5).map((p) => ({
+        resultados: (porMarca ? porMarca.opciones : recorteConEscalera(exact, 5)).map((p) => ({
           ...toolItem(p, cantidadFicha),
           ...(sirvenAlUso ? { le_sirve_a_su_uso: sirvenAlUso.includes(normalizarTipo(tipoDeProducto(p.code, p.design) ?? "")) } : {}),
         })),
@@ -1116,6 +1206,8 @@ export function buildTools(ctx: AgentContext) {
           : {}),
         siguiente_paso: aMostrar.length
           ? reglaDeMostrarEquivalentes(formatTireSize(size))
+          : porMarca
+          ? reglaDeLaSeleccion(porMarca, formatTireSize(size))
           : "PROHIBIDO escribir estas opciones como lista en el chat. Para mostrárselas al cliente llama preparar_opciones con máximo 3 códigos (una premium, una de equilibrio y una económica) — esa herramienta manda la imagen. Si escribes precios y disponibilidad en texto, el cliente recibe un muro y no ve la pieza. Y si el cliente pide un TIPO (A/T, H/T, R/T, M/T…) en cualquier turno, esta lista NO responde eso: busca de nuevo con buscar_por_aro_y_tipo pasándole el aro y ese tipo antes de afirmar o negar disponibilidad.",
       });
     },
@@ -1899,7 +1991,10 @@ export function buildTools(ctx: AgentContext) {
   const prepararOpciones = defineTool({
     name: "preparar_opciones",
     description:
-      "Envía la imagen de opciones al cliente y devuelve el texto corto que la acompaña. Úsala después de confirmar la medida. Manda como máximo TRES: una premium, una de equilibrio y una económica — más opciones confunden y bajan el cierre. Elige UNA como recomendación con un motivo concreto: la herramienta decide sola si el texto la ofrece o ya se la entrega (se la entrega cuando el cliente pidió precio o pidió que le recomienden). Responde con el texto que devuelve, sin reescribir precios.",
+      (politica.recomendacionPorMarca
+        ? "Envía la imagen de opciones al cliente y devuelve el texto corto que la acompaña. Úsala después de confirmar la medida. Manda los códigos que te dio buscar_llanta (la lámina la elige el sistema por marca y la herramienta la recalcula). Elige UNA"
+        : "Envía la imagen de opciones al cliente y devuelve el texto corto que la acompaña. Úsala después de confirmar la medida. Manda como máximo TRES: una premium, una de equilibrio y una económica — más opciones confunden y bajan el cierre. Elige UNA")
+      + " como recomendación con un motivo concreto: la herramienta decide sola si el texto la ofrece o ya se la entrega (se la entrega cuando el cliente pidió precio o pidió que le recomienden). Responde con el texto que devuelve, sin reescribir precios.",
     schema: z.object({
       codes: z.array(z.string().min(1)).min(1).max(6),
       nombre_cliente: z.string().default("Cliente"),
@@ -1999,7 +2094,20 @@ export function buildTools(ctx: AgentContext) {
         ...inbound.map((m) => m.content),
       ]);
       let avisoTipo: string | null = null;
-      let candidatos = coherentes;
+      // COMPETIMOTOR (`politica.recomendacionPorMarca`): con UNA sola medida en
+      // juego, la lámina no sale de los códigos que eligió el modelo sino de TODA
+      // esa medida en el catálogo; los filtros de siempre (tipo, cantidad, uso)
+      // corren igual sobre ella y al final la regla por marca elige (más abajo).
+      const reglaPorMarca = politica.recomendacionPorMarca;
+      const medidaUnica = coherentes[0]?.sizeLabel && coherentes.every((p) => p.sizeLabel === coherentes[0].sizeLabel)
+        ? coherentes[0]
+        : null;
+      const poolDeLaMedida = reglaPorMarca && medidaUnica?.size
+        ? searchBySize(medidaUnica.size).filter(
+            (p) => p.sizeLabel === medidaUnica.sizeLabel && !violaRestriccionesDeLlanta(p.sizeLabel, restricciones),
+          )
+        : null;
+      let candidatos = poolDeLaMedida?.length ? poolDeLaMedida : coherentes;
       if (tipoPedido) {
         const coinciden = coherentes.filter(
           (p) => tipoDeProducto(p.code, p.design) === tipoPedido,
@@ -2089,7 +2197,23 @@ export function buildTools(ctx: AgentContext) {
       }
       if (porUso.avisoTipo) avisoTipo = [avisoTipo, porUso.avisoTipo].filter(Boolean).join(" ");
       const delUso = porUso.avisoTipo ? [...porUso.compatibles, ...porUso.otros] : porUso.compatibles;
-      const products = delUso.length > 3 ? tresOpciones(delUso) : delUso;
+      // La regla por marca reemplaza el tope de tres por escalón: Falken, Winrun,
+      // Kenda + la de mayor inventario; «qué más tiene» → las que no vio, hasta
+      // 10 en total; una marca nombrada → esa marca. Sin la regla, como siempre.
+      const porMarca = poolDeLaMedida?.length && medidaUnica?.sizeLabel
+        ? await seleccionPorMarca(delUso, medidaUnica.sizeLabel)
+        : null;
+      if (porMarca && !porMarca.opciones.length) {
+        // Ya vio todo lo que alcanza en esa medida: no hay lámina que mandar.
+        return JSON.stringify({
+          imagen_enviada: false,
+          recomendacion_entregada: false,
+          mensaje_para_enviar:
+            `En *${medidaUnica!.sizeLabel}* ya le mostré todas las opciones que tengo para su compra (${porMarca.vistos.size}).\n---\n¿Le cotizo alguna de las que vio, o quiere que el asesor le consiga otra marca?`,
+          regla: "Responde usando exactamente mensaje_para_enviar. NO llames generar_cotizacion ni vuelvas a llamar preparar_opciones: el cliente pidió más opciones y ya las vio todas.",
+        });
+      }
+      const products = porMarca ? porMarca.opciones : delUso.length > 3 ? tresOpciones(delUso) : delUso;
 
       // CANDADO 3 — la medida de lo que se enseña. El 13-ago (chat 5499) el
       // cliente pidió 265/70R16 y esta pieza salió con 215/60R16, 245/70R16 y
@@ -2388,7 +2512,11 @@ export function buildTools(ctx: AgentContext) {
       // UNA SOLA OPCIÓN + PRECIO YA PEDIDO SÍ AUTORIZA (conv +593 99 842 8277,
       // 25 y 27-sep): sin menú posible, «¿se la cotizo?» es pedir permiso por
       // lo que el cliente ya pidió. Una sola decisión: domain/cotizarLaUnica.ts.
-      const unicaConPrecioPedido = cotizarLaUnicaDeUnaVez({
+      // «QUÉ MÁS TIENE» CON UNA SOLA NUEVA NO ES «LA ÚNICA» (simulador, 18-nov,
+      // 215/65R16): el cliente ya vio otras y está mirando, no eligió. Cotizarla
+      // de una por el «cuánto cuestan» del primer mensaje le firmaba una llanta
+      // que nunca pidió. Se le muestra y se le pregunta.
+      const unicaConPrecioPedido = porMarca?.modo !== "mas" && cotizarLaUnicaDeUnaVez({
         opcionesDistintas: new Set(
           Object.values(escalones).map((e) => e?.codigo).filter(Boolean),
         ).size,
@@ -2503,6 +2631,20 @@ export function buildTools(ctx: AgentContext) {
             codes: products.map((p) => p.code),
             sizeLabel,
             escalones,
+            // Con más de 3 opciones (regla por marca) los tres escalones no
+            // alcanzan para nombrarlas: la lista entera queda guardada para los
+            // seguimientos y el Guardián (`listaDeLaPieza`). Depot no la escribe.
+            ...(products.length > MAX_NUMERADA
+              ? {
+                  lista: ordenDeLaLista(products).map((p) => ({
+                    codigo: p.code,
+                    nombre: `${p.brand} ${p.design}`,
+                    precio_con_iva: p.minimumPriceWithTax,
+                    ...(segundaDeOpcion(p) ? { segunda_llanta: segundaDeOpcion(p) } : {}),
+                  })),
+                }
+              : {}),
+            ...(porMarca ? { seleccion: porMarca.modo } : {}),
             // Con cuántas llantas se calcularon los totales de la lista escrita:
             // los seguimientos y el guardián la reconstruyen desde aquí.
             cantidad: cantidadResuelta.cantidad,
@@ -2620,8 +2762,15 @@ export function buildTools(ctx: AgentContext) {
           segundaLlanta: segundaDeOpcion(p),
         })),
         cantidadResuelta.cantidad,
+        // Con la regla por marca la lista lleva TODAS las de la lámina (hasta 6).
+        porMarca ? reglaPorMarca!.porLamina : undefined,
       );
-      const cierreDeOpciones = buildCierreOpciones({
+      const cierreDeOpciones = porMarca?.modo === "mas" && products.length === 1 && !entregarRecomendacion && !ctx.medidaSinConfirmar
+        // «Qué más tiene» y queda UNA: no es «la única que tengo» (ya vio otras).
+        ? `Además de las que ya le mostré, en *${products[0].sizeLabel ?? "su medida"}* me queda esta: *${products[0].brand} ${products[0].design}* — ${
+            precioDelProducto(politica.promocionDeTemporada, products[0], cantidadResuelta.cantidad, { negrita: true }).texto
+          }. ¿Se la cotizo? 😊`
+        : buildCierreOpciones({
         lista: listaEscrita ? { lista: listaEscrita, cantidad: cantidadResuelta.cantidad } : null,
         entregarRecomendacion,
         ofrecerCotizar: entregarRecomendacion && !autorizaCotizar,
@@ -2659,7 +2808,7 @@ export function buildTools(ctx: AgentContext) {
           ? { medida: entregada.sizeLabel ?? null }
           : undefined,
       });
-      const cierreTraePermisoDeCotizar = /Es la única que tengo/.test(cierreDeOpciones) && /¿Se la cotizo\?/.test(cierreDeOpciones);
+      const cierreTraePermisoDeCotizar = /Es la única que tengo|me queda esta:/.test(cierreDeOpciones) && /¿Se la cotizo\?/.test(cierreDeOpciones);
       // LA OFERTA QUE ESTE CIERRE HACE, DECLARADA (regla del 20-oct): se guarda
       // como hecho al enviar y el «sí» del turno siguiente la lee de ahí.
       const opcionesDistintasDeLaPieza = new Set(products.map((p) => p.code)).size;
@@ -2713,6 +2862,17 @@ export function buildTools(ctx: AgentContext) {
         // aparte para que nadie llame premium a una Kenda intermedia que salió
         // más cara que una Falken (KR608 sobre Falken, semana del 21-sep).
         ...(() => {
+          if (porMarca && products.length >= 2) {
+            // Regla por marca: el conjunto lo eligió la marca; el escalón solo
+            // nombra la más cara, las del medio y la más barata de la pantalla.
+            const delConjunto = escalonesDelConjunto(products);
+            return {
+              nota_de_niveles:
+                "Estas opciones las eligió el sistema por MARCA (las de la casa y la de mayor inventario), no por precio. Escalón dentro de lo que está en pantalla: "
+                + products.map((p) => `${p.code}=${delConjunto.get(p.code)}`).join(", ")
+                + ". Premium es solo la de mayor precio: PROHIBIDO decir que una marca es de más calidad que otra por su escalón.",
+            };
+          }
           if (politica.escalonPorPrecio) {
             // Sin escalera de marcas: el escalón ES el precio dentro de lo que
             // está en pantalla, y así se lo decimos al modelo (R-17).
@@ -2763,6 +2923,8 @@ export function buildTools(ctx: AgentContext) {
             ? "El cliente YA pidió la cotización o contestó su preferencia: el texto le entrega la recomendación y AHORA MISMO, EN ESTE MISMO TURNO, llamas generar_cotizacion por `recomendacion` con 4 llantas (o la cantidad que el cliente haya dicho). PROHIBIDO preguntarle si la quiere y PROHIBIDO terminar el turno sin la cotización: ya te dio la señal."
             : entregarRecomendacion
             ? "El cliente pidió recomendación o contó su uso: el texto ya le entrega la recomendación y le ofrece cotizarla. NO llames generar_cotizacion todavía: la cotización sale cuando el cliente diga que sí, la pida, dé cantidad o elija del menú."
+            : listaEscrita && listaEscrita.length > MAX_NUMERADA
+            ? `NO adelantes la recomendación en este turno: el texto ya trae cada opción con su precio escrito (con viñetas, sin número) y cierra con «${preguntaDeLaLista(listaEscrita.length)}». PROHIBIDO preguntarle qué prioriza y PROHIBIDO numerarlas. Si el cliente nombra una marca o un modelo de la lista, o dice «la más barata» / «la más cara», llama generar_cotizacion en ese mismo turno con el código de ESA opción y 4 llantas (o la cantidad que haya dicho). Si pide más opciones, otra marca o algo más barato, llama buscar_llanta y preparar_opciones otra vez: salen las que no vio. Si responde un sí genérico, dile en UNA frase que irías por \`recomendacion\` porque \`motivo_recomendacion\`.`
             : "NO adelantes la recomendación en este turno: el texto ya trae cada opción con su precio escrito y cierra con «¿Le cotizo la 1, la 2 o la 3?» (1 = la más barata / Costo, 2 = Equilibrio, 3 = Premium; con dos opciones, 1 = la más barata y 2 = la premium). PROHIBIDO preguntarle qué prioriza. Si el cliente responde «1», «2», «3», «costo», «equilibrio», «premium» (o «la más barata», «la del medio», «la mejor»), entrega la opción de ESE escalón de `escalones` — nombre y precio con IVA — y en ese mismo turno llama generar_cotizacion con su código y 4 llantas: contestar el menú ES pedir la cotización, no se ofrece ni se pide permiso. Si responde un sí genérico, dile en UNA frase que irías por `recomendacion` porque `motivo_recomendacion`.",
           // La única excepción a «no agregues texto»: avisar que la medida no
           // es la suya. Callarlo es lo que terminó en una cotización firmada

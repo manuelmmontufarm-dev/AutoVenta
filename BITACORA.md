@@ -1,3 +1,21 @@
+## 18-nov-2026 · Competimotor · la lámina sale por marca: Falken, Winrun, Kenda + la de mayor inventario (rama `feat/competimotor-recomendaciones`)
+
+- **Qué:** primera lámina de una medida = una Falken, una Winrun y una Kenda (la de más stock de cada marca) + la de
+  mayor inventario entre las demás marcas. «Qué más tiene» / «otra marca» / «algo más barato» → las que no vio,
+  hasta 10 en total (6 por lámina). Una marca nombrada («tiene Maxxis?») manda. Con más de 3 opciones la lista
+  escrita va con viñetas y cierra con «¿Cuál le cotizo?». La regla vive en `politica.recomendacionPorMarca`
+  (solo Mundillantas) y la selección en `domain/recomendacionPorMarca.ts`; `preparar_opciones` la recalcula sobre
+  toda la medida, así que el modelo no cambia el conjunto. «Qué más tiene» con la lámina por marca en pantalla va
+  por ruta directa (`services/masOpcionesPorMarca.ts`): en el simulador el modelo contestaba en texto sin herramientas.
+  Si en «qué más tiene» queda UNA sola, se muestra y se pregunta; ya no se cotiza sola por el «cuánto cuesta» del
+  primer mensaje.
+- **Por qué:** reunión de cierre con Competimotor, 18-nov (min. 00:00–01:46): son sus marcas de mayor margen y con
+  garantía; hoy el bot elegía por precio entre ~45 marcas.
+- **Depot:** sin el campo en su política: escalera, lista numerada y textos iguales (sus pruebas pasan sin tocarlas).
+- **Probado:** `recomendacionPorMarca`, `recomendacionPorMarca.herramientas` y `masOpcionesPorMarca` (catálogo real del
+  Excel de Fénix del 6-nov, 7 medidas; en rojo antes del cambio). Simulador con Mundillantas y ese Excel: 4 medidas ×
+  3 corridas, el mismo conjunto en las 3. Suite 4.031 de 4.033 (las 2 que fallan ya venían de `main`), `sim:humo`,
+  fidelidad, perfil ajeno. **No probado** en WhatsApp real ni con el Excel nuevo que mandará Jenny.
 ## 18-nov-2026 · Bot · Competimotor habla solo como Competimotor y no pregunta «a cuál local» (rama `fix/competimotor-marca-unica`)
 
 - **Qué:** (1) Una marca por servicio: `identidadPorDefecto` en el perfil + variable `IDENTIDAD`; `perfilDelServicio`
