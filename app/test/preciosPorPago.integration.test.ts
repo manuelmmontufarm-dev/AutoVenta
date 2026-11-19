@@ -32,7 +32,15 @@ const llanta = (code: string, conPrecios: boolean): CatalogItem => ({
   source: "archivo",
   ...(conPrecios ? { preciosPorPago: { tarjetaConIva: 125, efectivoConIva: 118 } } : {}),
 });
-const CATALOGO = [llanta("A0100", true), llanta("SINBC", false)];
+const CATALOGO = [
+  llanta("A0100", true), llanta("SINBC", false),
+  // Producción, 19-nov 03:32 (Manuel): la lámina de 215/65R16, con B y C del Excel del 18-nov.
+  { ...llanta("A0239", false), name: "KENDA 215/65R16 98H KR203", brand: "KENDA", design: "KR203", sizeLabel: "215/65R16",
+    customerPriceWithTax: 147.2, preciosPorPago: { tarjetaConIva: 131.1, efectivoConIva: 119.6 } },
+  { ...llanta("A0486", false), name: "TOWNHALL 215/65R16 TH-161 98H", brand: "TOWNHALL", design: "TH-161", sizeLabel: "215/65R16",
+    customerPriceWithTax: 85.1, preciosPorPago: { tarjetaConIva: 75.9, efectivoConIva: 69 } },
+  { ...llanta("A0999", false), name: "DURUN 215/65R16 B717", brand: "DURUN", design: "B717", sizeLabel: "215/65R16", customerPriceWithTax: 99 },
+];
 
 vi.mock("../src/services/catalog.js", async (orig) => ({
   ...(await orig<object>()),
@@ -73,6 +81,86 @@ async function cotizada(phone: string, code: string, cantidad = 4): Promise<numb
 }
 const ctx = (id: number, textoDelCliente: string) =>
   ({ conversation: { id, current_cycle: 1 }, tipo: "respuesta", textoDelCliente }) as never;
+
+/** Una conversación que solo vio la lámina: nadie eligió ni se cotizó nada. */
+async function conLamina(phone: string, escalones: Record<string, unknown>): Promise<number> {
+  const [fila] = await sql<{ id: number }[]>`
+    insert into conversations (phone, name, status, stage, current_cycle, tire_size, selected_quantity)
+    values (${phone}, 'Manuel', 'open', 'seleccionando', 10, '215/65R16', 4) returning id
+  `;
+  await sql`
+    insert into messages (conversation_id, cycle, role, direction, author_kind, type, content, metadata)
+    values (${fila.id}, 10, 'assistant', 'outbound', 'bot', 'image', 'Opciones enviadas', ${sql.json({
+      piece: "options", cantidad: 4, sizeLabel: "215/65R16", escalones,
+    })})
+  `;
+  return fila.id;
+}
+const ctx10 = (id: number, textoDelCliente: string) =>
+  ({ conversation: { id, current_cycle: 10 }, tipo: "respuesta", textoDelCliente }) as never;
+
+describe.sequential("precios por forma de pago con la lámina, sin elegir (producción, 19-nov)", () => {
+  it("«Cuánto en efectivo?» con 1·TOWNHALL y 2·KENDA: las dos opciones con sus tres precios, en el orden de la lista", async () => {
+    const id = await conLamina("593980008101", {
+      premium: { codigo: "A0239", nombre: "KENDA KR203", precio_con_iva: 147.2 },
+      economica: { codigo: "A0486", nombre: "TOWNHALL TH-161", precio_con_iva: 85.1 },
+      equilibrada: null,
+    });
+    const borrador = "Si hay algún descuento por pagar en efectivo, eso se lo confirma un asesor del local.\n\nPrecios con IVA para 4 llantas:\n1 · TOWNHALL TH-161: $340.40\n2 · KENDA KR203: $588.80";
+    const salida = await paso.aplicar(borrador, ctx10(id, "Cuánto en efectivo?"));
+    const bloque = salida.split("\n---\n")[0];
+    expect(bloque).toBe([
+      "Estos son los precios según cómo pague (c/u · las 4 llantas):",
+      "*1 · TOWNHALL TH-161*",
+      "🧾 Precio normal: *$85.10* · *$340.40*",
+      "💳 Con tarjeta de crédito: *$75.90* · *$303.60*",
+      "💵 En efectivo o transferencia: *$69.00* · *$276.00*",
+      "*2 · KENDA KR203*",
+      "🧾 Precio normal: *$147.20* · *$588.80*",
+      "💳 Con tarjeta de crédito: *$131.10* · *$524.40*",
+      "💵 En efectivo o transferencia: *$119.60* · *$478.40*",
+    ].join("\n"));
+    expect(salida).not.toContain(DESCUENTO_LO_CONFIRMA_EL_ASESOR);
+    // Y sobrevive entero al armado del turno. Simulador, 19-nov: el quitador de
+    // «frases repetidas» se comía la tarjeta de la 2.ª opción (se parecía a la de la 1.ª).
+    const { estructurarTurno } = await import("../src/domain/estructuraDelTurno.js");
+    expect(estructurarTurno(bloque).repetidosQuitados).toEqual([]);
+  });
+
+  it("con la lámina, la segunda pregunta va en una línea por opción", async () => {
+    const id = await conLamina("593980008103", {
+      premium: { codigo: "A0239", nombre: "KENDA KR203", precio_con_iva: 147.2 },
+      economica: { codigo: "A0486", nombre: "TOWNHALL TH-161", precio_con_iva: 85.1 },
+      equilibrada: null,
+    });
+    const primera = await paso.aplicar("Claro.", ctx10(id, "Cuánto en efectivo?"));
+    await sql`
+      insert into messages (conversation_id, cycle, role, direction, author_kind, type, content)
+      values (${id}, 10, 'assistant', 'outbound', 'bot', 'text', ${primera.split("\n---\n")[0]})
+    `;
+    const tarjeta = await paso.aplicar("Claro.", ctx10(id, "y con tarjeta?"));
+    expect(tarjeta.split("\n---\n")[0]).toBe([
+      "Con tarjeta de crédito le queda en:",
+      "• 1 · TOWNHALL TH-161: *$75.90* c/u · *$303.60* las 4 llantas",
+      "• 2 · KENDA KR203: *$131.10* c/u · *$524.40* las 4 llantas",
+    ].join("\n"));
+  });
+
+  it("una opción sin B y C: da las de la que sí, y esa la confirma el asesor (nunca «asesor» para todo)", async () => {
+    const id = await conLamina("593980008102", {
+      premium: { codigo: "A0239", nombre: "KENDA KR203", precio_con_iva: 147.2 },
+      economica: { codigo: "A0999", nombre: "DURUN B717", precio_con_iva: 99 },
+      equilibrada: null,
+    });
+    const salida = await paso.aplicar("Claro.", ctx10(id, "hay descuento en efectivo?"));
+    const [bloque] = salida.split("\n---\n");
+    expect(bloque).toContain("*1 · DURUN B717*");
+    expect(bloque).toContain("🧾 Precio normal: *$99.00* · *$396.00*");
+    expect(bloque).toContain("El precio con tarjeta y en efectivo de esta se lo confirma un asesor.");
+    expect(bloque).toContain("💵 En efectivo o transferencia: *$119.60* · *$478.40*");
+    expect(salida).not.toContain(DESCUENTO_LO_CONFIRMA_EL_ASESOR);
+  });
+});
 
 describe.sequential("precios por forma de pago tras una cotización", () => {
   it("«cuánto sale en efectivo»: un mensaje con los tres precios del Excel", async () => {
