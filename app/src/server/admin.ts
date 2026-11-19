@@ -74,7 +74,7 @@ import { getEchoHealth } from "../services/echoHealth.js";
 import { resumenVentasConfirmadas } from "../services/ventasConfirmadas.js";
 import { decidirParaCerrar, leerParaCerrar, type AccionParaCerrar } from "../services/paraCerrar.js";
 import { comprobablesVacios, resumenComprobables } from "../services/metricasComprobables.js";
-import { estadoCatalogoArchivo, estadoFacturasImportadas, guardarMapeoCatalogo, guardarMapeoFacturas, importarCatalogoYSincronizar, importarFacturasYSincronizar, leerMapeoCatalogo, leerMapeoFacturas } from "../services/fuentes/archivo.js";
+import { CargaRechazada, estadoCatalogoArchivo, estadoFacturasImportadas, hayCatalogoArchivo, guardarMapeoCatalogo, guardarMapeoFacturas, importarCatalogoYSincronizar, importarFacturasYSincronizar, leerMapeoCatalogo, leerMapeoFacturas } from "../services/fuentes/archivo.js";
 import { marcarPagado, resumenBilling } from "../services/billing.js";
 import { buildDailyReport } from "../services/dailyReport.js";
 import { enviarReporteDiario } from "../services/dailyReportDelivery.js";
@@ -1632,8 +1632,12 @@ export function createAdminRouter(): express.Router {
   const cuerpoDelArchivo = (req: express.Request): Buffer | null =>
     Buffer.isBuffer(req.body) && req.body.length > 0 ? req.body : null;
 
+  // La tarjeta «Inventario de hoy»: `porArchivo` dice si este negocio carga el
+  // inventario por archivo (sin Contífico). Depot (Contífico) recibe false y
+  // el panel no le muestra nada nuevo.
   router.get("/catalog/archivo", async (_req, res) => {
-    res.json({ ok: true, archivo: await estadoCatalogoArchivo(), catalog: catalogStatus() });
+    const porArchivo = !config.contifico && (!config.catalog || (await hayCatalogoArchivo()));
+    res.json({ ok: true, porArchivo, archivo: await estadoCatalogoArchivo(), catalog: catalogStatus() });
   });
 
   router.post("/catalog/import", archivoCrudo, async (req, res) => {
@@ -1641,9 +1645,18 @@ export function createAdminRouter(): express.Router {
     if (!cuerpo) return res.status(400).json({ ok: false, error: "Falta el archivo (cuerpo vacío)" });
     try {
       // El bot lo usa SIN reinicio: la fuente se decide en esta misma sincronización.
-      res.json({ ok: true, ...(await importarCatalogoYSincronizar(nombreDelArchivo(req), cuerpo)) });
+      // Un archivo dudoso (cae mucho, es más viejo) vuelve 409 y se sube otra
+      // vez con ?confirmar=1; uno malo vuelve 400. En los dos casos el
+      // catálogo anterior sigue vivo.
+      const confirmar = req.query.confirmar === "1" || req.query.confirmar === "true";
+      res.json({ ok: true, ...(await importarCatalogoYSincronizar(nombreDelArchivo(req), cuerpo, { confirmar })) });
     } catch (error) {
-      res.status(400).json({ ok: false, error: error instanceof Error ? error.message : "No se pudo importar el catálogo" });
+      const confirmable = error instanceof CargaRechazada && error.confirmable;
+      res.status(confirmable ? 409 : 400).json({
+        ok: false,
+        necesitaConfirmacion: confirmable,
+        error: error instanceof Error ? error.message : "No se pudo importar el catálogo",
+      });
     }
   });
 

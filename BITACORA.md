@@ -1,3 +1,25 @@
+## 18-nov-2026 · Competimotor · el Excel de cada día: un lugar a la vista y que se lea bien siempre (rama `feat/competimotor-carga-excel`)
+
+- **Qué:** (1) El lector de `archivo.ts` lee el inventario de Fénix venga como venga: .xls/.xlsx/.csv
+  decididos por el contenido, varias hojas, títulos encima del encabezado, columnas con otra mayúscula/tilde/espacios,
+  números con coma decimal y miles, CSV en Latin-1, filas vacías y de totales; lee la «Fecha Reporte» de Fénix.
+  (2) Regla de seguridad: un archivo malo NUNCA reemplaza al bueno (falta una columna obligatoria, 0 llantas o todo el
+  stock en 0 → se rechaza; cae más de 30 % de llantas, las unidades a menos de la mitad o el reporte es más viejo →
+  pide confirmación). El mismo archivo dos veces no cambia nada.
+- **Por qué:** Manuel, 18-nov (cierre con Competimotor): la gente de Competimotor sube el Excel cada día y desde hoy
+  la cuarta opción es «la de mayor inventario»; un Excel viejo o mal leído se le nota al cliente final.
+  (3) En el hub, pantalla nueva **Inventario** en el menú principal (segunda, debajo de Inbox) con la tarjeta
+  «Inventario de hoy»: botón grande y arrastrar-y-soltar, último archivo, cuándo, llantas cargadas, filas que no
+  entraron y por qué en palabras simples, y aviso rojo cuando tiene más de un día (también arriba de todas las
+  pantallas). El botón del Cotizador y el de Ajustes llevan ahí; el mapeo de columnas se queda en Ajustes.
+- **Depot:** con Contífico `porArchivo` es false: ni la entrada ni el aviso existen (probado en el simulador de Depot).
+- **Probado:** `catalogoArchivoLectura` (variantes armadas del reporte de Fénix + el Excel real con `FENIX_REAL`),
+  `catalogoArchivo` (HTTP + Postgres), `facturasArchivo`, `tsc` (app y hub), simulador `--perfil mundillantas
+  --catalogo-archivo` con el Excel real (cotizó la 265/70R16 con su stock), hub contra el simulador (Excel real,
+  archivo sin «Existencia», Excel cortado, Excel de hoy), `sim:humo`, fidelidad y `npm test`.
+  **No probado** en producción ni con un Excel de Fénix de otro día (solo hay el del 6-nov).
+- **Horas:** 3.
+
 ## 17-nov-2026 · Bot · lo que el negocio no confirmó lo confirma un asesor: descuento en efectivo (rama `fix/pago-sin-dato-al-asesor`)
 
 - **Qué:** si el cliente pregunta por descuento en efectivo («y si pago en efectivo hay descuento?», «en efectivo

@@ -1,7 +1,7 @@
+import { navigate } from "../router";
 import { AnimatePresence, motion } from "framer-motion";
 import { MedidaChip } from "../components/ui";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { subirArchivo } from "../components/catalogo-archivo";
 import {
   downloadComparisonImage,
   downloadComparisonPdf,
@@ -319,12 +319,6 @@ export function Cotizador() {
         loading={loading}
         runSearch={runSearch}
         catalogMeta={catalogMeta}
-        onExcelSubido={(llantas) => {
-          void runSearch().then(() =>
-            setNotice(`Excel cargado: ${llantas} llantas. El cotizador y el bot ya usan estos precios.`),
-          );
-        }}
-        onError={setError}
       />
 
       <div className="scrollbar-none flex gap-1.5 overflow-x-auto pb-3">
@@ -473,33 +467,14 @@ function SearchBar({
   loading,
   runSearch,
   catalogMeta,
-  onExcelSubido,
-  onError,
 }: {
   query: string;
   setQuery: (value: string) => void;
   loading: boolean;
   runSearch: (value?: string) => Promise<void>;
   catalogMeta: CatalogMeta | null;
-  onExcelSubido: (llantas: number) => void;
-  onError: (mensaje: string) => void;
 }) {
-  const input = useRef<HTMLInputElement>(null);
-  const [subiendo, setSubiendo] = useState(false);
   const porArchivo = catalogMeta?.source === "archivo";
-  const subir = async (archivo: File) => {
-    setSubiendo(true);
-    onError("");
-    try {
-      const r = await subirArchivo<{ importado: { llantas: number } }>("/api/catalog/import", archivo);
-      onExcelSubido(r.importado.llantas);
-    } catch (e) {
-      onError(e instanceof Error ? e.message : "No se pudo subir el Excel");
-    } finally {
-      setSubiendo(false);
-      if (input.current) input.current.value = "";
-    }
-  };
   return (
     <div className="flex flex-wrap items-center gap-2.5 pb-3">
       <form
@@ -540,28 +515,17 @@ function SearchBar({
             : catalogMeta.source ?? "catálogo"}
         </span>
       )}
+      {/* El Excel del día se sube en UN lugar, Inventario, que avisa si el
+          archivo viene mal y pide confirmar si cae mucho. */}
       {porArchivo && (
-        <>
-          <input
-            ref={input}
-            type="file"
-            accept=".xls,.xlsx,.csv"
-            className="hidden"
-            onChange={(e) => {
-              const archivo = e.target.files?.[0];
-              if (archivo) void subir(archivo);
-            }}
-          />
-          <button
-            onClick={() => input.current?.click()}
-            disabled={subiendo}
-            className="btn-quiet flex h-11 items-center gap-2 rounded-[6px] px-3 text-[13px]"
-            title="Sube el inventario que exporta Fénix (.xls) tal cual sale"
-          >
-            <IconDoc size={15} />
-            {subiendo ? "Subiendo…" : "Actualizar Excel"}
-          </button>
-        </>
+        <button
+          onClick={() => navigate("inventario")}
+          className="btn-quiet flex h-11 items-center gap-2 rounded-[6px] px-3 text-[13px]"
+          title="El inventario del día se sube en la pantalla Inventario"
+        >
+          <IconDoc size={15} />
+          Actualizar Excel
+        </button>
       )}
     </div>
   );
