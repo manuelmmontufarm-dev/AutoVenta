@@ -1,3 +1,18 @@
+## 18-nov-2026 · Plantillas de seguimiento enviadas a Meta por API (Depot y Competimotor)
+
+**Qué:** `docs/PLANTILLAS_META.md` — guía de 6 pasos para crear plantillas de WhatsApp sin
+entrar al Facebook del cliente: el token sale de `settings.channel_config` en la base (el
+`WHATSAPP_TOKEN` de Railway de Depot es de la app vieja y no sirve), `POST
+/<WABA>/message_templates`, y cómo revisar estado y categoría. Se enviaron 4 plantillas
+(`recordatorio_visita_v1` y `visita_no_llego_v1` en cada cuenta), todas en `PENDING` como
+`UTILITY`. La guía lista lo que falta en el código: disparar el recordatorio la víspera de
+`visit_date`, el disparador de «no llegó» y manejar los botones.
+
+**Por qué:** los seguimientos con plantillas nunca se terminaron; el recordatorio de visita
+(~1 ¢) es el más barato y el que más asistencia recupera según la evidencia revisada.
+
+**Horas:** 1,5
+
 ## 19-nov-2026 · Panel · Avisos uno por uno y enlace de invitación (rama `feat/avisos-y-usuarios`)
 
 - **Qué:** (1) Ajustes → Avisos muestra CADA tipo de mensaje que manda el bot en su fila, con nombre llano y una línea
