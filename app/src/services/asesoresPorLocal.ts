@@ -51,7 +51,8 @@ export function podarAsignaciones(
  * LA REGLA DE ENRUTAMIENTO, pura para probarla caso por caso:
  *
  *  · sin local elegido → todos (el primer aviso de cotización suele llegar
- *    antes de que el cliente elija local);
+ *    antes de que el cliente elija local), salvo que haya UN solo local: ahí
+ *    el aviso es de ese local;
  *  · local sin asignación → todos (Depot hoy);
  *  · local con asignación → solo los asesores asignados a ese local;
  *  · un asesor sin `id` (el respaldo del entorno) pasa siempre: no se le puede
@@ -65,9 +66,12 @@ export function asesoresDelLocal<T extends { id?: number }>(
   slugDeLocal: string | null,
   slugsValidos: string[] = negocio.locales.map((l) => l.slug),
 ): T[] {
-  if (!slugDeLocal) return asesores;
+  // UN SOLO LOCAL: el aviso es de ese local aunque el cliente no lo haya
+  // «elegido» (Competimotor, 18-nov: sus avisos van solo a su asesor).
+  const slug = slugDeLocal ?? (slugsValidos.length === 1 ? slugsValidos[0] : null);
+  if (!slug) return asesores;
   const { asignaciones: validas } = podarAsignaciones(asignaciones, slugsValidos);
-  const ids = validas[slugDeLocal] ?? [];
+  const ids = validas[slug] ?? [];
   if (!ids.length) return asesores;
   const filtrados = asesores.filter((a) => a.id === undefined || ids.includes(a.id));
   return filtrados.length ? filtrados : asesores;

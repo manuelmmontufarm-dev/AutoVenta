@@ -67,22 +67,21 @@ describe("GET /api/negocio · el gate", () => {
 });
 
 describe("GET /api/negocio · el contrato exacto de §3.2", () => {
-  it("con x-admin-key: 200 y el perfil de Mundillantas, clave por clave", async () => {
+  // Desde el 18-nov el servicio de `NEGOCIO=mundillantas` es SOLO Competimotor:
+  // el panel ve su marca y su local, no los tres del negocio.
+  it("con x-admin-key: 200 y el perfil del servicio (Competimotor), clave por clave", async () => {
     const res = await fetch(`${base}/api/negocio`, { headers: { "x-admin-key": ADMIN_KEY } });
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toMatch(/application\/json/);
     expect(await res.json()).toEqual({
       id: "mundillantas",
-      nombre: "Mundillantas",
+      nombre: "Competimotor",
       ciudad: "Santo Domingo",
       telefono: "+593 98 548 7924",
       identidades: [
-        { id: "mundillantas", nombre: "Mundillantas", locales: ["matriz", "local2"] },
         { id: "competimotor", nombre: "Competimotor", locales: ["competimotor"] },
       ],
       locales: [
-        { slug: "matriz", nombre: "Mundillantas Falken", nombreCorto: "Mundillantas Falken", claveHorario: "matriz" },
-        { slug: "local2", nombre: "Mundillantas Kenda", nombreCorto: "Mundillantas Kenda", claveHorario: "local2" },
         { slug: "competimotor", nombre: "Competimotor", nombreCorto: "Competimotor", claveHorario: "competimotor" },
       ],
       marcas: ["Kenda", "Falken", "Winrun", "Maxxis"],
@@ -100,10 +99,11 @@ describe("GET /api/negocio · el contrato exacto de §3.2", () => {
     });
   });
 
-  it("el playbook que viaja es el de Mundillantas, no el de Depot", async () => {
+  it("el playbook que viaja es el de Competimotor, no el de Depot", async () => {
     const res = await fetch(`${base}/api/negocio`, { headers: { "x-admin-key": ADMIN_KEY } });
     const { playbook } = await res.json();
-    expect(playbook).toContain("Contrato comercial Competimotor y Mundillantas");
+    expect(playbook).toContain("Contrato comercial Competimotor");
+    expect(playbook).not.toMatch(/mundillantas/i);
     expect(playbook).not.toContain("Contrato comercial Depot");
   });
 });

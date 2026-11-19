@@ -53,6 +53,17 @@ function nombresOfrecidos(texto: string): string[] {
   for (const patron of patrones) {
     for (const m of texto.matchAll(patron)) if (m[1]) nombres.push(m[1].trim());
   }
+  // LAS MARCAS HERMANAS SON LOCALES DE OTRO SERVICIO (18-nov-2026): en el bot
+  // de Competimotor, «Mundillantas Kenda» existe pero no es suyo, así que
+  // ofrecerlo es ofrecer un local que este bot no tiene. Se devuelve el nombre
+  // entero —con la marca—, que nunca calza con un local real del servicio.
+  for (const hermana of negocio.marcasHermanas ?? []) {
+    // Sin la bandera «i»: con ella, PALABRA (que exige mayúscula) se tragaría
+    // la palabra que siga («Mundillantas que…»). La marca va en sus dos formas.
+    const marca = hermana.split(/\s+/).map(escaparRegex).join("\\s+");
+    const patron = new RegExp(`\\b(?:${marca}|${marca.toLowerCase()})(?:\\s+\\*?${PALABRA})?`, "g");
+    for (const m of texto.matchAll(patron)) nombres.push(m[0].replace(/\*/g, "").trim());
+  }
   return nombres;
 }
 

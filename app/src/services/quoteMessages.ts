@@ -8,7 +8,7 @@ import { politica } from "../negocio/politica.js";
 import { piecesConfigEnMemoria } from "./settings.js";
 import { ETIQUETA_DEL_ESCALON } from "../domain/salesIntent.js";
 import { preguntaDeEquivalente } from "../domain/equivalentePendiente.js";
-import { PREGUNTA_DE_LOCAL } from "../domain/storeSelection.js";
+import { PREGUNTA_DE_LOCAL, hayQueElegirLocal } from "../domain/storeSelection.js";
 import type { CatalogItem } from "../domain/catalog.js";
 import { getTirePatternProfile } from "../domain/tireKnowledge.js";
 import { listaDeLaPieza, textoDeLaLista, type LineaDeLista } from "../domain/listaDeOpciones.js";
@@ -395,6 +395,14 @@ export function buildVisitPlanQuestion(input: {
       : input.ahorro
         ? ` Con ese dato le aviso al asesor y le dejan lista su cotización con ${fraseDeAhorro({ ...input.ahorro, modo: input.ahorro.modo ?? piecesConfigEnMemoria().promocion.modo })}.`
         : " Con ese dato le aviso al asesor y le aplican el descuento de su cotización apenas llegue.";
+  // UN SOLO LOCAL: no hay a cuál ir. Se muestra el local y se pregunta el día
+  // (Manuel, 18-nov, Competimotor). Regla del perfil, no del nombre del negocio.
+  if (!hayQueElegirLocal) {
+    return composeBlocks(
+      input.enlaces === false ? null : ubicacionDelLocalUnico(),
+      `${PREGUNTA_DEL_DIA_LOCAL_UNICO}${motivo} 📅`,
+    );
+  }
   // Con local elegido va SOLO su mapa: el otro link es ruido y reabre una
   // decisión ya tomada. Sin local elegido van los dos, que es la pregunta.
   const mapas = input.enlaces === false
@@ -410,6 +418,37 @@ export function buildVisitPlanQuestion(input: {
   return conMapas(
     `¿Qué día puede pasar y a cuál local?${opciones}${motivo.replace(" Con ese dato ", " Con esos dos datos ")} 📅`,
   );
+}
+
+/**
+ * La pregunta de la visita cuando el negocio tiene UN solo local: no hay «¿a
+ * cuál local?», solo el día. Con el tono de siempre del bot («¿Qué día cree
+ * que puede pasar…?»). `preguntaElDia` la reconoce, así que el «el viernes» que
+ * conteste queda registrado como su visita.
+ */
+export const PREGUNTA_DEL_DIA_LOCAL_UNICO = "¿Qué día cree que puede ir?";
+
+/**
+ * «Aquí queda nuestro local» y su mapa, en un mismo bloque: el bloque de la
+ * ubicación cuando no hay local que elegir (Manuel, 18-nov-2026). La línea del
+ * link sale a su propio mensaje (`estructurarTurno`); la frase queda justo
+ * antes, así se lee de quién es el mapa. `cola` sigue a la frase en la misma
+ * oración («…, puede pasar sin compromiso…»).
+ */
+export function ubicacionDelLocalUnico(cola?: string, mapa: string = buildStoreLinksBlock()): string {
+  if (!mapa) return cola ? `${cola[0].toUpperCase()}${cola.slice(1)}.` : "";
+  return `Aquí queda nuestro local${cola ? `, ${cola}` : ""}:\n${mapa}`;
+}
+
+/**
+ * La invitación a pasar con los mapas ya armados (la cotización directa y la
+ * recotización la pegan bajo el acuse). Con un solo local es «Aquí queda
+ * nuestro local, puede pasar…»; con varios, la de siempre, idéntica para Depot.
+ */
+export function invitacionConMapas(mapas: string): string {
+  const invitacion = "puede pasar sin compromiso a verlas y probarlas en su vehículo";
+  if (!hayQueElegirLocal) return ubicacionDelLocalUnico(invitacion, mapas);
+  return `Puede pasar sin compromiso a verlas y probarlas en su vehículo.\n${mapas}`;
 }
 
 /**
@@ -430,6 +469,13 @@ export function buildVisitPlanQuestion(input: {
  * un mismo mensaje era lo que hacía que contestaran uno solo.
  */
 export function buildStoreChoiceBlocks(): { ubicaciones: string; pregunta: string } {
+  // Con un solo local no hay elección: el local y, aparte, el día.
+  if (!hayQueElegirLocal) {
+    return {
+      ubicaciones: ubicacionDelLocalUnico("puede pasar sin compromiso a verlas y probarlas en su vehículo"),
+      pregunta: `${PREGUNTA_DEL_DIA_LOCAL_UNICO} 📅`,
+    };
+  }
   const mapas = buildStoreLinksBlock();
   return {
     ubicaciones: [

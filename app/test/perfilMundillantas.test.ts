@@ -2,8 +2,10 @@
  * EL PERFIL DE MUNDILLANTAS / COMPETIMOTOR (R-03, R-06, R-07).
  *
  * Corre el bot con `NEGOCIO=mundillantas`: fija que el perfil tenga SOLO lo
- * confirmado en el pitch del 4-nov y en las respuestas de Jenny del 6-nov, que se presente con las dos marcas, que
- * los detectores reconozcan las dos y que su cupón vaya y vuelva por caja.
+ * confirmado en el pitch del 4-nov y en las respuestas de Jenny del 6-nov, que
+ * su cupón vaya y vuelva por caja, y —desde el cierre del 18-nov— que el
+ * servicio sea SOLO Competimotor: los datos de los tres locales siguen en el
+ * perfil del negocio (`MUNDILLANTAS`), pero el perfil vivo es el de una marca.
  */
 import { describe, expect, it } from "vitest";
 
@@ -18,6 +20,7 @@ process.env.WHATSAPP_PHONE_ID ||= "test";
 process.env.DATABASE_URL ||= "postgresql://manue@localhost/postgres";
 
 const { negocio, firmaDePresentacion, inicialesDelNegocio } = await import("../src/negocio/index.js");
+const { MUNDILLANTAS } = await import("../src/negocio/negocios/mundillantas.js");
 const { identidades, identidadDeLaConversacion } = await import("../src/negocio/identidad.js");
 const { FIRMA_DE_PRESENTACION, ES_PRESENTACION_DEL_NEGOCIO, presentacionDeApertura } =
   await import("../src/domain/saludo.js");
@@ -52,16 +55,19 @@ describe("Mundillantas · solo lo confirmado", () => {
     expect(negocio.piezas.todasIncluyen.startsWith("[PENDIENTE]")).toBe(false);
   });
 
-  it("dos marcas: Mundillantas (2 locales) y Competimotor (1)", () => {
-    expect(identidades(negocio)).toEqual([
+  it("dos marcas en el negocio: Mundillantas (2 locales) y Competimotor (1); el servicio es Competimotor", () => {
+    expect(identidades(MUNDILLANTAS).map(({ id, nombre, locales }) => ({ id, nombre, locales }))).toEqual([
       { id: "mundillantas", nombre: "Mundillantas", locales: ["matriz", "local2"] },
       { id: "competimotor", nombre: "Competimotor", locales: ["competimotor"] },
     ]);
-    expect(negocio.presentacion).toEqual({ modo: "combinada", frase: "Competimotor y Mundillantas" });
+    expect(MUNDILLANTAS.identidadPorDefecto).toBe("competimotor");
+    expect(identidades(negocio)).toEqual([{ id: "competimotor", nombre: "Competimotor", locales: ["competimotor"] }]);
+    expect(negocio.presentacion).toEqual({ modo: "fija", identidad: "competimotor" });
+    expect(negocio.marcasHermanas).toEqual(["Mundillantas"]);
   });
 
   it("los tres locales con la dirección que dio Jenny (6-nov) y los pines del 9-nov", () => {
-    const por = (slug: string) => negocio.locales.find((l) => l.slug === slug)!;
+    const por = (slug: string) => MUNDILLANTAS.locales.find((l) => l.slug === slug)!;
     expect(por("matriz").nombre).toBe("Mundillantas Falken");
     expect(por("matriz").direccion).toContain("Vía Quevedo km 2 y Manuel Borrero");
     // Pines y links que mandó Jenny el 9-nov (Google Maps de cada local).
@@ -78,11 +84,13 @@ describe("Mundillantas · solo lo confirmado", () => {
     // lleva la búsqueda de Google Maps con su propio nombre y dirección.
     expect(por("local2").mapsUrl).toMatch(/^https:\/\/www\.google\.com\/maps\/search\/\?api=1&query=Mundillantas%20Kenda/);
     expect(por("local2").mapsUrl).not.toBe(por("matriz").mapsUrl);
-    for (const l of negocio.locales) expect(l.nombreCorto.length).toBeLessThanOrEqual(20);
+    for (const l of MUNDILLANTAS.locales) expect(l.nombreCorto.length).toBeLessThanOrEqual(20);
+    // El servicio de Competimotor solo conoce el suyo.
+    expect(negocio.locales.map((l) => l.slug)).toEqual(["competimotor"]);
   });
 
   it("nombrar una marca de llanta o la Vía Quevedo no elige local", () => {
-    const eligen = (texto: string) => negocio.locales.filter((l) => l.comoLoNombran.test(texto)).map((l) => l.slug);
+    const eligen = (texto: string) => MUNDILLANTAS.locales.filter((l) => l.comoLoNombran.test(texto)).map((l) => l.slug);
     for (const texto of ["quiero unas falken", "tiene kenda", "estoy por la via quevedo", "vivo en pichincha"]) {
       expect(eligen(texto)).toEqual([]);
     }
@@ -104,14 +112,14 @@ describe("Mundillantas · solo lo confirmado", () => {
   });
 });
 
-describe("Mundillantas · cómo se presenta", () => {
-  it("con las dos marcas, y sin el nombre pendiente del vendedor", () => {
-    expect(FIRMA_DE_PRESENTACION).toBe("Soy el asistente de Competimotor y Mundillantas");
+describe("Competimotor · cómo se presenta", () => {
+  it("solo con su marca (cierre del 18-nov), y sin el nombre pendiente del vendedor", () => {
+    expect(FIRMA_DE_PRESENTACION).toBe("Soy el asistente de Competimotor");
     expect(firmaDePresentacion(negocio)).toBe(FIRMA_DE_PRESENTACION);
-    expect(presentacionDeApertura("Jenny")).toContain("¡Hola, Jenny! 👋 Soy el asistente de Competimotor y Mundillantas.");
+    expect(presentacionDeApertura("Jenny")).toContain("¡Hola, Jenny! 👋 Soy el asistente de Competimotor.");
   });
 
-  it("reconoce su presentación por cualquiera de las dos marcas", () => {
+  it("reconoce su presentación, también la combinada de los chats de antes del 18-nov", () => {
     expect(ES_PRESENTACION_DEL_NEGOCIO.test("soy el asistente de competimotor y mundillantas")).toBe(true);
     expect(ES_PRESENTACION_DEL_NEGOCIO.test("soy el asistente de competimotor")).toBe(true);
     // La de Depot no es la suya.
@@ -119,37 +127,40 @@ describe("Mundillantas · cómo se presenta", () => {
   });
 });
 
-describe("Mundillantas · los detectores conocen las dos marcas", () => {
-  it("comprar en Competimotor o en Mundillantas no es una venta perdida", () => {
+describe("Competimotor · los detectores y la marca hermana", () => {
+  it("comprar en Competimotor no es una venta perdida; en Mundillantas sí lo es para este bot", () => {
+    // Dos marcas que miden sus ventas por separado (acta 18-nov, 04:40).
     expect(comproEnOtroLugar("ya compré en competimotor")).toBe(false);
-    expect(comproEnOtroLugar("ya compré aquí en mundillantas")).toBe(false);
+    expect(comproEnOtroLugar("ya compré aquí en mundillantas")).toBe(true);
     expect(comproEnOtroLugar("ya compré con ustedes")).toBe(false);
     expect(comproEnOtroLugar("ya conseguí aquí en Quevedo")).toBe(true);
     expect(comproEnOtroLugar("ya compre en otro lado")).toBe(true);
   });
 
-  it("un local inventado con el nombre de cualquiera de las marcas sale a la luz", () => {
+  it("un local inventado sale a la luz, y uno de Mundillantas también: este bot no lo tiene", () => {
     const reales = negocio.locales.map((l) => l.nombre);
     expect(localesInventados("Puede pasar por Competimotor Norte", reales)).toContain("Norte");
-    expect(localesInventados("Puede pasar por Mundillantas Chone", reales)).toContain("Chone");
-    expect(localesInventados("Puede pasar por Mundillantas Kenda", reales)).toEqual([]);
+    expect(localesInventados("Puede pasar por Mundillantas Kenda", reales)).toContain("Mundillantas Kenda");
+    expect(localesInventados("o en *Mundillantas Falken*", reales)).toContain("Mundillantas Falken");
+    expect(localesInventados("también somos mundillantas", reales)).toContain("mundillantas");
+    expect(localesInventados("Puede pasar por Competimotor", reales)).toEqual([]);
   });
 });
 
 describe("Mundillantas · un prefijo de cupón por negocio", () => {
-  it("las iniciales de la presentación, sin el «y»", () => {
-    // «Competimotor y Mundillantas» (6-nov) → CM. Con el bot apagado no salió
-    // ningún cupón MC-, así que el cambio de orden no deja cupones huérfanos.
-    expect(inicialesDelNegocio(negocio)).toBe("CM");
-    expect(PREFIJO_CUPON).toBe("CM-");
+  it("las iniciales de la marca del servicio", () => {
+    // «Competimotor» (18-nov) → CO. La base de producción tenía 0 cupones al
+    // cambiar (consultado el 18-nov), así que no queda ningún CM- huérfano.
+    expect(inicialesDelNegocio(negocio)).toBe("CO");
+    expect(PREFIJO_CUPON).toBe("CO-");
   });
 
   it("ida y vuelta por caja, como lo dicte el cliente", () => {
     const codigo = generarCodigoCupon(() => 0.5);
-    expect(codigo.startsWith("CM-")).toBe(true);
+    expect(codigo.startsWith("CO-")).toBe(true);
     expect(normalizarCodigoCupon(codigo)).toBe(codigo);
     const cuerpo = codigo.slice(3);
-    expect(normalizarCodigoCupon(`cm ${cuerpo.toLowerCase()}`)).toBe(codigo);
+    expect(normalizarCodigoCupon(`co ${cuerpo.toLowerCase()}`)).toBe(codigo);
     expect(normalizarCodigoCupon(cuerpo)).toBe(codigo);
   });
 });
@@ -165,9 +176,10 @@ describe("Mundillantas · garantías sin confirmar", () => {
   });
 });
 
-describe("Mundillantas · identidad de la conversación", () => {
-  it("el local de Competimotor habla como Competimotor", () => {
+describe("Competimotor · identidad de la conversación", () => {
+  it("siempre Competimotor: con su local, sin local, o con uno viejo de Mundillantas", () => {
     expect(identidadDeLaConversacion(negocio, "Competimotor").nombre).toBe("Competimotor");
-    expect(identidadDeLaConversacion(negocio, null).nombre).toBe("Mundillantas");
+    expect(identidadDeLaConversacion(negocio, null).nombre).toBe("Competimotor");
+    expect(identidadDeLaConversacion(negocio, "Mundillantas Falken").nombre).toBe("Competimotor");
   });
 });

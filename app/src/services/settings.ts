@@ -623,7 +623,10 @@ const DEFAULT_STAGE_PROMPTS: Record<Stage, StagePromptInput> = {
     settings: { autoAction: "comparison", requiresHumanApproval: false, fallback: "" },
   },
   cotizacion_enviada: {
-    objective: "Conseguir dos datos: qué día viene y a cuál local.",
+    // Con un solo local no hay local que conseguir: solo el día.
+    objective: negocio.locales.length >= 2
+      ? "Conseguir dos datos: qué día viene y a cuál local."
+      : "Conseguir un dato: qué día viene al local.",
     prompt: "",
     // Con la cotización enviada el objetivo es fecha+local, pero el cliente no
     // se entera de eso: si vuelve a pedir opciones o pregunta por otra medida,

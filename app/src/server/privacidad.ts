@@ -15,7 +15,10 @@ import type { PerfilDeNegocio } from "../negocio/perfil.js";
 
 /** El nombre con que el negocio se presenta: la frase combinada si tiene dos marcas. */
 export function nombreDelResponsable(perfil: PerfilDeNegocio): string {
-  return perfil.presentacion?.frase?.trim() || perfil.nombre;
+  // La frase combinada solo vale si el perfil se presenta combinado: un
+  // servicio de una sola marca (Competimotor) firma con la suya.
+  if (perfil.presentacion?.modo === "combinada") return perfil.presentacion.frase?.trim() || perfil.nombre;
+  return perfil.nombre;
 }
 
 function escaparHtml(texto: string): string {
