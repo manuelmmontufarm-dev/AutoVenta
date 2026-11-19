@@ -2,11 +2,11 @@
  * EL PRECIO SEGÚN CÓMO PAGA, de las llantas de ESTA conversación.
  *
  * Lo que se cotizó (la última cotización del ciclo; sin cotización, la llanta
- * elegida) con los precios por forma de pago que trae el catálogo
- * (`CatalogItem.preciosPorPago`, Precio B y C del Excel de Fénix). Devuelve
- * null —y el bot sigue como hoy: lo confirma un asesor— si no hay llanta, si
- * alguna no trae B y C, o si la cotización lleva una promoción por par: ahí la
- * cuenta por llanta ya no es «precio × cantidad» y no se inventa otra.
+ * elegida; y si lo último que vio fue la lámina, sus opciones numeradas) con
+ * los precios por forma de pago que trae el catálogo (`CatalogItem.
+ * preciosPorPago`, Precio B y C del Excel de Fénix). Una llanta sin B y C (o con
+ * promoción por par) sale con su precio normal y «la confirma un asesor»; si
+ * ninguna los trae, null y el bot sigue como hoy.
  */
 import { sql } from "../db/client.js";
 import {
@@ -17,6 +17,7 @@ import {
   type LineaPorPago,
 } from "../domain/preciosPorPago.js";
 import { findByCode } from "./catalog.js";
+import { listaDeLaPieza } from "../domain/listaDeOpciones.js";
 
 interface LineaGuardada {
   code?: string | null;
@@ -33,12 +34,33 @@ export async function preciosPorPagoDeLaConversacion(
   cycle: number,
   textoDelCliente?: string | null,
 ): Promise<string | null> {
-  const [cotizacion] = await sql<{ items: LineaGuardada[] | null }[]>`
-    select items from quotes
+  const [cotizacion] = await sql<{ items: LineaGuardada[] | null; created_at: Date }[]>`
+    select items, created_at from quotes
     where conversation_id=${conversationId} and cycle=${cycle}
     order by created_at desc limit 1
   `;
-  let lineas: LineaGuardada[] = cotizacion?.items ?? [];
+  // LA LÁMINA TAMBIÉN CUENTA (producción, 19-nov 03:32, Manuel): con «1 ·
+  // TOWNHALL TH-161 · 2 · KENDA KR203» y nadie eligió, «Cuánto en efectivo?»
+  // cayó en «eso se lo confirma un asesor»: solo se miraba la cotización y la
+  // llanta elegida. Lo último que vio el cliente manda: si la lámina es más
+  // nueva que la cotización (o no hay cotización), se contestan sus opciones.
+  const [lamina] = await sql<{ metadata: Record<string, unknown> | null; created_at: Date }[]>`
+    select metadata, created_at from messages
+    where conversation_id=${conversationId} and cycle=${cycle}
+      and direction='outbound' and metadata->>'piece' = 'options'
+    order by created_at desc limit 1
+  `;
+  const laminaManda = lamina && (!cotizacion || new Date(lamina.created_at) > new Date(cotizacion.created_at));
+  let lineas: Array<LineaGuardada & { numero?: number; nombreVisto?: string }> = [];
+  if (laminaManda) {
+    const vista = listaDeLaPieza(lamina.metadata);
+    lineas = (vista?.lista ?? []).map((l) => ({
+      code: l.codigo ?? null, quantity: vista!.cantidad, salePriceWithTax: l.precio,
+      segundaLlanta: l.segundaLlanta ?? null, numero: l.n, nombreVisto: l.nombre,
+    }));
+  } else {
+    lineas = cotizacion?.items ?? [];
+  }
   if (!lineas.length) {
     const [ficha] = await sql<{ selected_product_code: string | null; selected_quantity: number | null }[]>`
       select selected_product_code, selected_quantity from conversations where id=${conversationId}
@@ -50,19 +72,26 @@ export async function preciosPorPagoDeLaConversacion(
   if (!lineas.length) return null;
   const porPago: LineaPorPago[] = [];
   for (const linea of lineas) {
-    if (linea.segundaLlanta) return null;
     const item = linea.code ? findByCode(linea.code) : undefined;
-    if (!item?.preciosPorPago) return null;
-    // El «normal» es el de la cotización firmada; sin cotización, el del catálogo.
-    const normal = Number(linea.salePriceWithTax) || item.customerPriceWithTax;
-    const { tarjetaConIva, efectivoConIva } = item.preciosPorPago;
-    // Nunca un «con tarjeta» o «en efectivo» más caro que lo cotizado.
-    if (tarjetaConIva > normal || efectivoConIva > normal) return null;
+    // El «normal» es el que el cliente vio (cotización o lámina); sin eso, el del catálogo.
+    const normal = Number(linea.salePriceWithTax) || item?.customerPriceWithTax;
+    if (!normal) return null;
     const cantidad = Math.max(1, Math.round(Number(linea.quantity) || 1));
-    const nombre = [linea.brand ?? item.brand, linea.design ?? item.design, linea.sizeLabel ?? item.sizeLabel]
-      .filter(Boolean).join(" ");
-    porPago.push({ nombre, cantidad, normal, tarjeta: tarjetaConIva, efectivo: efectivoConIva });
+    const nombre = linea.nombreVisto
+      ?? [linea.brand ?? item?.brand, linea.design ?? item?.design, linea.sizeLabel ?? item?.sizeLabel].filter(Boolean).join(" ");
+    const precios = item?.preciosPorPago;
+    // Sin B/C, con promoción por par (la cuenta ya no es precio × cantidad) o
+    // con un B/C más caro que lo que vio: ESA llanta la confirma un asesor.
+    const usable = precios && !linea.segundaLlanta
+      && precios.tarjetaConIva <= normal && precios.efectivoConIva <= normal;
+    porPago.push({
+      nombre, numero: linea.numero, cantidad, normal,
+      tarjeta: usable ? precios.tarjetaConIva : null,
+      efectivo: usable ? precios.efectivoConIva : null,
+    });
   }
+  // Si NINGUNA trae precio por pago no hay nada que decir: sigue lo de siempre.
+  if (!porPago.some((l) => l.tarjeta !== null && l.efectivo !== null)) return null;
   // El bloque completo ya salió en este ciclo hace poco: se contesta SOLO el
   // pago que preguntó (simulador, 18-nov: el segundo bloque idéntico lo quitó
   // el candado de calcos y el turno quedó sin respuesta).
@@ -73,7 +102,7 @@ export async function preciosPorPagoDeLaConversacion(
       where conversation_id=${conversationId} and cycle=${cycle}
         and direction='outbound' and author_kind='bot'
         and created_at > now() - interval '30 minutes'
-        and content like ${`${TITULO_PRECIOS_POR_PAGO}%`}
+        and content like ${`${TITULO_PRECIOS_POR_PAGO.replace(/:$/, "")}%`}
       limit 1
     `;
     if (yaSalio) return mensajeDeUnPago(porPago, pago);

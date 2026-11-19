@@ -28,18 +28,29 @@ export function preguntaPorPrecioSegunPago(texto: string | null | undefined): bo
 export interface LineaPorPago {
   /** «HAIDA AT HD818 LN 235/75R15» */
   nombre: string;
+  /** El número de la opción en la lámina («1 · TOWNHALL TH-161»); sin él, la cotizada. */
+  numero?: number;
   cantidad: number;
   /** Con IVA, por llanta. */
   normal: number;
-  tarjeta: number;
-  efectivo: number;
+  /** Null: esta llanta no trae Precio B/C (o no pasó el control) y la confirma un asesor. */
+  tarjeta: number | null;
+  efectivo: number | null;
 }
+
+/** La frase para la opción que no trae precio por forma de pago: solo ella va al asesor. */
+export const SIN_PRECIO_POR_PAGO = "El precio con tarjeta y en efectivo de esta se lo confirma un asesor.";
 
 const dinero = (n: number) => `$${n.toFixed(2)}`;
 const llantas = (n: number) => `${n} ${n === 1 ? "llanta" : "llantas"}`;
 
 /** «Estos son los precios según cómo pague:» y, por llanta cotizada, sus tres precios. */
 export function mensajeDePreciosPorPago(lineas: readonly LineaPorPago[]): string {
+  // VARIAS OPCIONES DE LA LÁMINA: la cantidad va UNA vez, arriba, y cada línea
+  // queda corta. Con «… las 4 llantas» en cada una, el quitador de frases
+  // repetidas del turno (`estructurarTurno`) tomaba la tarjeta de la 2.ª opción
+  // por la misma idea que la de la 1.ª y la borraba (simulador, 19-nov).
+  if (lineas.some((l) => l.numero)) return mensajeDeLaLamina(lineas);
   const precio = (unitario: number, cantidad: number) =>
     cantidad > 1
       ? `*${dinero(unitario)}* c/u · *${dinero(Math.round(unitario * cantidad * 100) / 100)}* las ${llantas(cantidad)}`
@@ -47,10 +58,37 @@ export function mensajeDePreciosPorPago(lineas: readonly LineaPorPago[]): string
   return [
     TITULO_PRECIOS_POR_PAGO,
     ...lineas.flatMap((l) => [
-      `*${llantas(l.cantidad)} ${l.nombre}*`,
+      l.numero ? `*${l.numero} · ${l.nombre}*` : `*${llantas(l.cantidad)} ${l.nombre}*`,
       `🧾 Precio normal: ${precio(l.normal, l.cantidad)}`,
-      `💳 Con tarjeta de crédito: ${precio(l.tarjeta, l.cantidad)}`,
-      `💵 En efectivo o transferencia: ${precio(l.efectivo, l.cantidad)}`,
+      ...(l.tarjeta === null || l.efectivo === null
+        ? [SIN_PRECIO_POR_PAGO]
+        : [
+            `💳 Con tarjeta de crédito: ${precio(l.tarjeta, l.cantidad)}`,
+            `💵 En efectivo o transferencia: ${precio(l.efectivo, l.cantidad)}`,
+          ]),
+    ]),
+  ].join("\n");
+}
+
+function mensajeDeLaLamina(lineas: readonly LineaPorPago[]): string {
+  const cantidad = lineas[0]?.cantidad ?? 1;
+  const mismaCantidad = lineas.every((l) => l.cantidad === cantidad);
+  const precio = (unitario: number, n: number) =>
+    n > 1 ? `*${dinero(unitario)}* · *${dinero(Math.round(unitario * n * 100) / 100)}*` : `*${dinero(unitario)}*`;
+  const titulo = mismaCantidad && cantidad > 1
+    ? `${TITULO_PRECIOS_POR_PAGO.slice(0, -1)} (c/u · las ${llantas(cantidad)}):`
+    : TITULO_PRECIOS_POR_PAGO;
+  return [
+    titulo,
+    ...lineas.flatMap((l) => [
+      mismaCantidad ? `*${l.numero ? `${l.numero} · ` : ""}${l.nombre}*` : `*${l.numero ? `${l.numero} · ` : ""}${l.nombre}* (${llantas(l.cantidad)})`,
+      `🧾 Precio normal: ${precio(l.normal, l.cantidad)}`,
+      ...(l.tarjeta === null || l.efectivo === null
+        ? [SIN_PRECIO_POR_PAGO]
+        : [
+            `💳 Con tarjeta de crédito: ${precio(l.tarjeta, l.cantidad)}`,
+            `💵 En efectivo o transferencia: ${precio(l.efectivo, l.cantidad)}`,
+          ]),
     ]),
   ].join("\n");
 }
@@ -79,10 +117,11 @@ export function mensajeDeUnPago(lineas: readonly LineaPorPago[], pago: "tarjeta"
   const cabeza = pago === "tarjeta" ? "Con tarjeta de crédito le queda en" : "Pagando en efectivo o por transferencia le queda en";
   const una = (l: LineaPorPago) => {
     const unitario = pago === "tarjeta" ? l.tarjeta : l.efectivo;
+    if (unitario === null) return "se lo confirma un asesor";
     return l.cantidad > 1
       ? `*${dinero(unitario)}* c/u · *${dinero(Math.round(unitario * l.cantidad * 100) / 100)}* las ${llantas(l.cantidad)}`
       : `*${dinero(unitario)}*`;
   };
-  if (lineas.length === 1) return `${cabeza} ${una(lineas[0])}.`;
-  return [`${cabeza}:`, ...lineas.map((l) => `• ${l.nombre}: ${una(l)}`)].join("\n");
+  if (lineas.length === 1 && lineas[0].efectivo !== null && lineas[0].tarjeta !== null) return `${cabeza} ${una(lineas[0])}.`;
+  return [`${cabeza}:`, ...lineas.map((l) => `• ${l.numero ? `${l.numero} · ` : ""}${l.nombre}: ${una(l)}`)].join("\n");
 }

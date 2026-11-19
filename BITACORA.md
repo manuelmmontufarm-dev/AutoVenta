@@ -1,3 +1,16 @@
+## 18-nov-2026 · Bot · Competimotor: el precio por forma de pago también con la lámina (rama `fix/competimotor-precio-efectivo`)
+
+- **Qué:** «Cuánto en efectivo?» con la lámina a la vista (sin cotizar ni elegir) daba «eso se lo confirma un asesor»:
+  el servicio solo miraba la cotización y la llanta elegida. Ahora, si lo último que vio el cliente es la lámina,
+  contesta sus opciones en el orden de la lista (1 · TOWNHALL, 2 · KENDA) con normal, tarjeta y efectivo/transferencia.
+  Una opción sin B/C sale con su precio normal y «la confirma un asesor»; solo si ninguna trae, sigue lo de antes. Con
+  varias opciones las líneas van cortas (la cantidad una vez arriba): con «las 4 llantas» en cada una,
+  `estructurarTurno` borraba la tarjeta de la 2.ª opción por «repetida».
+- **Por qué:** producción, 19-nov 03:32 UTC, chat de Manuel (215/65R16).
+- **Probado:** `preciosPorPago.integration` con el caso real (en rojo antes), simulador 3 corridas. **No probado** en
+  WhatsApp real antes del deploy.
+- **Horas:** 0,5.
+
 ## 18-nov-2026 · Bot · Competimotor: segunda tanda de respuestas de Jenny (rama `feat/competimotor-respuestas-2`)
 
 - **Qué:** envío a otras ciudades lo paga el cliente (el envío gratis de Black Friday no está confirmado y no se
