@@ -93,6 +93,7 @@ import { tryRecotizarPorCantidad } from "./services/recotizar.js";
 import { tryReenviarOpciones } from "./services/reenviarOpciones.js";
 import { tryMedidaIncompleta } from "./services/medidaIncompleta.js";
 import { tryRecomendarConLaPieza } from "./services/recomendarConLaPieza.js";
+import { tryMasOpcionesPorMarca } from "./services/masOpcionesPorMarca.js";
 import { firstContactReply, isGenericFirstContact, pedidoDeMedidaDelPrimerContacto } from "./domain/firstContact.js";
 import { despedidaQueCorresponde } from "./domain/cierrePerdido.js";
 import { botonesParaBloque, recortarTitulo, textoDeBoton, type BloqueConBotones } from "./domain/botones.js";
@@ -472,6 +473,13 @@ async function atenderTurno(
           if (respuesta) agentContext.faseOperativa = "medida_confirmada";
           return respuesta;
         }))
+        // Competimotor: «qué más tiene» con la lámina por marca en pantalla →
+        // la lámina con las que no vio, sin modelo (18-nov). Ver services/masOpcionesPorMarca.ts.
+        ?? await tryMasOpcionesPorMarca({ conversation, customerPhone: from, customerName: name }, textoConLinks)
+          .then((lamina) => {
+            if (lamina) agentContext.faseOperativa = "medida_confirmada";
+            return lamina;
+          })
         ?? (await tryCotizarLoElegido(
           { conversation, customerPhone: from, customerName: name, previousOutbound, mensajeCitado, registro: agentContext },
           textoConLinks,

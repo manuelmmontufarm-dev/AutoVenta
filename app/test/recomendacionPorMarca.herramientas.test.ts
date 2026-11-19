@@ -43,6 +43,8 @@ const CATALOGO = FILAS.map(item);
 
 /** Lo que la base devuelve como piezas de opciones previas del ciclo (metadata.codes). */
 let piezasPrevias: { codes: string[]; sizeLabel: string }[] = [];
+/** Lo que el cliente escribió antes en la visita (más reciente primero, como la consulta). */
+let entrantes: string[] = [];
 
 vi.mock("../src/services/catalog.js", async () => ({
   ensureCatalogReady: async () => ({}),
@@ -65,6 +67,9 @@ vi.mock("../src/db/client.js", () => ({
       const consulta = strings.join(" ");
       if (/piece'='options'/.test(consulta) && /from messages/.test(consulta)) {
         return piezasPrevias.map((p) => ({ metadata: { piece: "options", codes: p.codes, sizeLabel: p.sizeLabel }, content: "", minutos: 30 }));
+      }
+      if (/from messages/.test(consulta) && /direction='inbound'/.test(consulta) && /select content/.test(consulta)) {
+        return entrantes.map((content) => ({ content, created_at: new Date() }));
       }
       if (/from messages/.test(consulta)) return [];
       if (/selected_quantity/.test(consulta)) return [{ selected_quantity: null }];
@@ -121,6 +126,7 @@ const codigosDeLaPieza = (_salida?: unknown, _medida?: string) => ultimaLamina?.
 
 beforeEach(() => {
   piezasPrevias = [];
+  entrantes = [];
   ultimaLamina = null;
 });
 
@@ -176,6 +182,18 @@ describe("preparar_opciones arma la lámina con la regla, mande lo que mande el 
     const salida = await prepararOpciones("qué más tiene", ["A0084"]);
     expect(salida.imagen_enviada).toBe(false);
     expect(salida.mensaje_para_enviar).toMatch(/265\/70R17/);
+  });
+
+  it("«qué más tiene» y queda UNA (215/65R16, simulador 18-nov): se muestra y se pregunta, NO se cotiza de una", async () => {
+    piezasPrevias = [{ codes: ["A0239", "A0486"], sizeLabel: "215/65R16" }];
+    entrantes = ["qué más tiene?", "Buenas, cuánto cuestan las llantas 215/65R16?"];
+    const salida = await prepararOpciones("qué más tiene?", ["1997"]);
+    expect(codigosDeLaPieza()).toEqual(["1997"]);
+    expect(salida.recomendacion_entregada).toBe(false);
+    expect(salida.unica_cotizada_directo).toBe(false);
+    expect(salida.mensaje_para_enviar).toContain("me queda esta: *DURUN B717*");
+    expect(salida.mensaje_para_enviar).toContain("¿Se la cotizo?");
+    expect(salida.mensaje_para_enviar).not.toContain("Es la única");
   });
 
   it("«tiene Maxxis?» en 205/55R16: la lámina es de Maxxis, la regla no la tapa", async () => {

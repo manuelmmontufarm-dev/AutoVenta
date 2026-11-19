@@ -2510,7 +2510,11 @@ export function buildTools(ctx: AgentContext) {
       // UNA SOLA OPCIÓN + PRECIO YA PEDIDO SÍ AUTORIZA (conv +593 99 842 8277,
       // 25 y 27-sep): sin menú posible, «¿se la cotizo?» es pedir permiso por
       // lo que el cliente ya pidió. Una sola decisión: domain/cotizarLaUnica.ts.
-      const unicaConPrecioPedido = cotizarLaUnicaDeUnaVez({
+      // «QUÉ MÁS TIENE» CON UNA SOLA NUEVA NO ES «LA ÚNICA» (simulador, 18-nov,
+      // 215/65R16): el cliente ya vio otras y está mirando, no eligió. Cotizarla
+      // de una por el «cuánto cuestan» del primer mensaje le firmaba una llanta
+      // que nunca pidió. Se le muestra y se le pregunta.
+      const unicaConPrecioPedido = porMarca?.modo !== "mas" && cotizarLaUnicaDeUnaVez({
         opcionesDistintas: new Set(
           Object.values(escalones).map((e) => e?.codigo).filter(Boolean),
         ).size,
@@ -2759,7 +2763,12 @@ export function buildTools(ctx: AgentContext) {
         // Con la regla por marca la lista lleva TODAS las de la lámina (hasta 6).
         porMarca ? reglaPorMarca!.porLamina : undefined,
       );
-      const cierreDeOpciones = buildCierreOpciones({
+      const cierreDeOpciones = porMarca?.modo === "mas" && products.length === 1 && !entregarRecomendacion && !ctx.medidaSinConfirmar
+        // «Qué más tiene» y queda UNA: no es «la única que tengo» (ya vio otras).
+        ? `Además de las que ya le mostré, en *${products[0].sizeLabel ?? "su medida"}* me queda esta: *${products[0].brand} ${products[0].design}* — ${
+            precioDelProducto(politica.promocionDeTemporada, products[0], cantidadResuelta.cantidad, { negrita: true }).texto
+          }. ¿Se la cotizo? 😊`
+        : buildCierreOpciones({
         lista: listaEscrita ? { lista: listaEscrita, cantidad: cantidadResuelta.cantidad } : null,
         entregarRecomendacion,
         ofrecerCotizar: entregarRecomendacion && !autorizaCotizar,
@@ -2797,7 +2806,7 @@ export function buildTools(ctx: AgentContext) {
           ? { medida: entregada.sizeLabel ?? null }
           : undefined,
       });
-      const cierreTraePermisoDeCotizar = /Es la única que tengo/.test(cierreDeOpciones) && /¿Se la cotizo\?/.test(cierreDeOpciones);
+      const cierreTraePermisoDeCotizar = /Es la única que tengo|me queda esta:/.test(cierreDeOpciones) && /¿Se la cotizo\?/.test(cierreDeOpciones);
       // LA OFERTA QUE ESTE CIERRE HACE, DECLARADA (regla del 20-oct): se guarda
       // como hecho al enviar y el «sí» del turno siguiente la lee de ahí.
       const opcionesDistintasDeLaPieza = new Set(products.map((p) => p.code)).size;
