@@ -12,7 +12,7 @@
 import { DEPOT } from "./negocios/depot.js";
 import { EJEMPLO } from "./negocios/ejemplo.js";
 import { MUNDILLANTAS } from "./negocios/mundillantas.js";
-import { validarIdentidades } from "./identidad.js";
+import { perfilDelServicio, validarIdentidades } from "./identidad.js";
 import type { PerfilDeNegocio } from "./perfil.js";
 
 export * from "./perfil.js";
@@ -44,7 +44,16 @@ function elegirPerfil(): PerfilDeNegocio {
  * dos marcas (o en ninguna), no se sabe con cuál cotizarle al cliente. Mejor
  * caído que con el logo equivocado — mismo criterio que el NEGOCIO mal escrito.
  */
-for (const perfil of Object.values(PERFILES)) validarIdentidades(perfil);
+for (const perfil of Object.values(PERFILES)) {
+  validarIdentidades(perfil);
+  // Con una marca por servicio, cada marca tiene que poder levantar el suyo:
+  // una identidad por defecto mal escrita no espera al deploy para fallar.
+  if (perfil.identidadPorDefecto) perfilDelServicio(perfil);
+}
 
-/** El perfil vivo. Se resuelve una vez, al cargar el módulo. */
-export const negocio: PerfilDeNegocio = elegirPerfil();
+/**
+ * El perfil vivo. Se resuelve una vez, al cargar el módulo. Un negocio con una
+ * marca por servicio (Competimotor / Mundillantas) queda reducido a la marca de
+ * `IDENTIDAD` —o a la de por defecto—: ver `perfilDelServicio`.
+ */
+export const negocio: PerfilDeNegocio = perfilDelServicio(elegirPerfil(), process.env.IDENTIDAD);

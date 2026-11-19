@@ -316,3 +316,90 @@ describe("buscar_aros le llega al modelo solo con aros en el catálogo", () => {
     expect(aroParaMostrar("tienen aros de 15?", null)).toBe(15);
   });
 });
+
+/**
+ * LA REGLA DE SEGURIDAD por HTTP (Competimotor, 18-nov-2026): un archivo malo
+ * nunca reemplaza al catálogo bueno. Parte del catálogo que dejó la subida de
+ * arriba (la muestra: 10 llantas y 3 aros con el MAPEO de este archivo).
+ */
+describe("subida diaria: un archivo malo nunca reemplaza al bueno (HTTP + Postgres)", () => {
+  const subir = async (nombre: string, cuerpo: Buffer, query = "") => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const r = await fetch(`${baseUrl}/api/catalog/import?nombre=${encodeURIComponent(nombre)}${query}`, {
+      method: "POST", headers: { ...headers, "Content-Type": "application/octet-stream" }, body: cuerpo,
+    });
+    log.mockRestore();
+    return { status: r.status, body: await r.json() };
+  };
+  const guardado = async () => (await archivo.leerCatalogoArchivo())!;
+  // El test de reinicio de arriba hizo `vi.resetModules()`: el catálogo que el
+  // router actualiza es la instancia del módulo de AHORA, no la del principio.
+  const vivo = async () => (await import("../src/services/catalog.js")).catalogStatus();
+  const lineas = CSV.toString("utf8").trim().split("\n");
+
+  beforeAll(async () => {
+    // Deja el punto de partida fijo: la muestra completa ya cargada.
+    await sql`delete from settings where key = 'catalogo_archivo'`;
+    await fetch(`${baseUrl}/api/catalog/mapeo`, {
+      method: "PUT", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify({ mapeo: MAPEO }),
+    });
+    const r = await subir("inventario-fenix-muestra.xlsx", XLSX);
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+  });
+
+  it("el mismo archivo dos veces: se reconoce, no se duplica nada y la fecha de subida no cambia", async () => {
+    const antes = await guardado();
+    const r = await subir("inventario-fenix-muestra (1).xlsx", XLSX);
+    expect(r.status).toBe(200);
+    expect(r.body.importado).toMatchObject({ mismoArchivo: true, llantas: 10, aros: 3 });
+    const despues = await guardado();
+    expect(despues.subidoEn).toBe(antes.subidoEn);
+    expect(despues.nombreArchivo).toBe("inventario-fenix-muestra.xlsx");
+    expect((await vivo()).items).toBe(10);
+  });
+
+  it("falta la columna de stock de un local → 400 con el motivo en palabras, y el catálogo anterior sigue vivo", async () => {
+    const sinMatriz = lineas.map((l) => l.split(",").filter((_, i) => i !== 8).join(",")).join("\n");
+    const r = await subir("inventario-malo.csv", Buffer.from(sinMatriz));
+    expect(r.status).toBe(400);
+    expect(r.body.necesitaConfirmacion).toBe(false);
+    expect(r.body.error).toMatch(/No encontré la columna del stock de matriz \(«stock matriz»\)/);
+    expect(r.body.error).toMatch(/El inventario anterior sigue cargado/);
+    expect((await guardado()).nombreArchivo).toBe("inventario-fenix-muestra.xlsx");
+    expect((await vivo())).toMatchObject({ items: 10, source: "archivo", error: null });
+  });
+
+  it("un archivo sin ninguna llanta cotizable → 400 y nada cambia", async () => {
+    const r = await subir("vacio.csv", Buffer.from(`${lineas[0]}\n`));
+    expect(r.status).toBe(400);
+    expect((await guardado()).nombreArchivo).toBe("inventario-fenix-muestra.xlsx");
+    expect((await vivo()).items).toBe(10);
+  });
+
+  it("cae de 10 a 5 llantas → 409 pide confirmación; con ?confirmar=1 entra", async () => {
+    // Las 5 primeras llantas y los aros: la mitad del inventario.
+    const llantas = lineas.slice(1).filter((l) => !/,ARO/.test(l));
+    const aros = lineas.slice(1).filter((l) => /,ARO/.test(l));
+    const mitad = [lineas[0], ...llantas.slice(0, 5), ...aros].join("\n");
+    const dudoso = await subir("inventario-cortado.csv", Buffer.from(mitad));
+    expect(dudoso.status).toBe(409);
+    expect(dudoso.body.necesitaConfirmacion).toBe(true);
+    expect(dudoso.body.error).toMatch(/llantas y el cargado tiene 10/);
+    expect((await vivo()).items).toBe(10);
+    expect((await guardado()).nombreArchivo).toBe("inventario-fenix-muestra.xlsx");
+
+    const confirmado = await subir("inventario-cortado.csv", Buffer.from(mitad), "&confirmar=1");
+    expect(confirmado.status, JSON.stringify(confirmado.body)).toBe(200);
+    expect((await vivo()).items).toBeLessThan(10);
+    expect((await guardado()).nombreArchivo).toBe("inventario-cortado.csv");
+  });
+
+  it("GET /catalog/archivo: porArchivo, el último archivo, llantas, unidades y descartadas en palabras", async () => {
+    await subir("inventario-fenix-muestra.xlsx", XLSX);
+    const r = await (await fetch(`${baseUrl}/api/catalog/archivo`, { headers })).json();
+    expect(r.porArchivo).toBe(true);
+    expect(r.archivo).toMatchObject({ nombreArchivo: "inventario-fenix-muestra.xlsx", llantas: 10, aros: 3, fechaReporte: null });
+    expect(r.archivo.unidades).toBeGreaterThan(0);
+    expect(r.archivo.descartadasEnPalabras).toEqual([{ motivo: "No se entiende la medida en la descripción", filas: [15] }]);
+  });
+});

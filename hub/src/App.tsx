@@ -3,7 +3,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { ConnectionChip, ConnectionGate, SalirButton, UserChip } from "./components/admin-key";
 import { hasAdminKey } from "./data/catalog";
 import { Confetti, Toasts } from "./components/overlays";
-import { IconAjustes, IconChart, IconDiana, IconInbox, IconKanban, IconPlay, IconSilencio, IconSonido, IconStop, IconTire } from "./components/icons";
+import { IconAjustes, IconAlert, IconChart, IconDiana, IconDoc, IconInbox, IconKanban, IconPlay, IconSilencio, IconSonido, IconStop, IconTire } from "./components/icons";
 import { PageHeader } from "./components/ui";
 import { VersionBadge } from "./components/version-badge";
 import { setSonidoActivo, sonidoActivo, sonidoBoton } from "./lib/sound";
@@ -13,6 +13,7 @@ import { Ajustes } from "./screens/Ajustes";
 import { Dashboard } from "./screens/Dashboard";
 import { Cotizador } from "./screens/Cotizador";
 import { Inbox } from "./screens/Inbox";
+import { Inventario } from "./screens/Inventario";
 import { ParaCerrar } from "./screens/ParaCerrar";
 import { Pipeline } from "./screens/Pipeline";
 import { TicketDetail } from "./screens/TicketDetail";
@@ -20,15 +21,18 @@ import { Settings } from "./screens/Settings";
 import { useHub } from "./store";
 import { recargarNegocio, useNegocio } from "./data/negocio";
 import { faltanHoy, useParaCerrar } from "./data/paraCerrar";
+import { fechaDelInventario, horasDelInventario, inventarioViejo, useInventario, type EstadoInventario } from "./data/inventario";
 
 import type { PhaseFlags } from "./data/types";
 import type { Permisos } from "./data/realSource";
 
 // Cuatro entradas. Ajustes no es una pestaña: es el engranaje al pie del
 // rail (y arriba a la derecha en el teléfono). `requiere`: fase que
-// desbloquea cada pantalla (null = núcleo, siempre).
+// desbloquea cada pantalla (null = núcleo, siempre). «Inventario» solo existe
+// en negocios con catálogo por archivo (Competimotor): ver `porArchivo`.
 const NAV = [
   { id: "inbox", label: "Inbox", icon: IconInbox, requiere: null },
+  { id: "inventario", label: "Inventario", icon: IconDoc, requiere: null },
   { id: "pipeline", label: "Pipeline", icon: IconKanban, requiere: null },
   { id: "para-cerrar", label: "Para cerrar", icon: IconDiana, requiere: null },
   { id: "cotizador", label: "Cotizador", icon: IconTire, requiere: "fase3" },
@@ -50,8 +54,13 @@ const PERMISO_DE_VISTA: Record<string, keyof Permisos> = {
   ajustes: "verAjustes",
 };
 
-/** ¿La pantalla está permitida con las fases activas y los permisos del usuario? */
-function pantallaPermitida(vista: string, phases: PhaseFlags, permisos: Permisos): boolean {
+/**
+ * ¿La pantalla está permitida con las fases activas y los permisos del usuario?
+ * Inventario no pide permiso (lo sube quien esté: Jenny, Carlos, un asesor),
+ * solo que el negocio cargue el inventario por archivo.
+ */
+function pantallaPermitida(vista: string, phases: PhaseFlags, permisos: Permisos, porArchivo = false): boolean {
+  if (vista === "inventario") return porArchivo;
   const llave = PERMISO_DE_VISTA[vista];
   if (llave && !permisos[llave]) return false;
   if (vista === "cotizador" || vista === "dashboard") return phases.fase3;
@@ -65,6 +74,7 @@ const TITULOS: Record<string, { titulo: string; sub: string }> = {
   dashboard: { titulo: "Métricas", sub: "El negocio de un vistazo" },
   ajustes: { titulo: "Ajustes", sub: "Negocio, seguimientos, avisos y usuarios" },
   cotizador: { titulo: "Cotizador", sub: "Inventario y precios reales" },
+  inventario: { titulo: "Inventario", sub: "El Excel de Fénix con el que el bot cotiza: súbalo cada día" },
   settings: { titulo: "Configuración técnica", sub: "WhatsApp, encendido y manual del bot" },
   ticket: { titulo: "Conversación", sub: "" },
 };
@@ -92,8 +102,21 @@ export default function App() {
     if (dataMode === "real" && conexion === "conectada") void recargarNegocio();
   }, [dataMode, conexion, usuario?.id]);
 
+  // El inventario por archivo (Competimotor): con Contífico `porArchivo` es
+  // false y ni la entrada ni el aviso existen. Se vuelve a pedir cada 10 min
+  // para que el aviso de «más de un día» aparezca solo.
+  const inventario = useInventario();
+  const cargarInventario = useInventario((s) => s.cargar);
+  useEffect(() => {
+    if (dataMode !== "real" || conexion !== "conectada") return;
+    void cargarInventario();
+    const t = setInterval(() => void cargarInventario(), 10 * 60_000);
+    return () => clearInterval(t);
+  }, [dataMode, conexion, usuario?.id, cargarInventario]);
+  const porArchivo = inventario.porArchivo === true;
+
   const navVisible = NAV.filter((item) =>
-    (!item.requiere || phases[item.requiere]) && pantallaPermitida(item.id, phases, permisos));
+    (!item.requiere || phases[item.requiere]) && pantallaPermitida(item.id, phases, permisos, porArchivo));
   const faseActiva = phases.fase4 ? 4 : phases.fase3 ? 3 : phases.fase2 ? 2 : 1;
   // El gate solo aplica al producto real; el demo usa fixtures y no tiene clave.
   const bloqueado =
@@ -101,13 +124,15 @@ export default function App() {
 
   // Si la fase que habilitaba esta pantalla se apaga, se vuelve al Inbox.
   useEffect(() => {
-    if (!pantallaPermitida(route.vista, phases, permisos)) {
+    // Mientras no se sabe si el negocio va por archivo, no se echa a nadie de Inventario.
+    if (route.vista === "inventario" && inventario.porArchivo === null) return;
+    if (!pantallaPermitida(route.vista, phases, permisos, porArchivo)) {
       // El refugio es la primera pantalla que este usuario SÍ puede ver.
       const refugio = NAV.find((n) =>
-        (!n.requiere || phases[n.requiere]) && pantallaPermitida(n.id, phases, permisos));
+        (!n.requiere || phases[n.requiere]) && pantallaPermitida(n.id, phases, permisos, porArchivo));
       navigate((refugio?.id ?? "inbox") as Parameters<typeof navigate>[0]);
     }
-  }, [route.vista, phases, permisos]);
+  }, [route.vista, phases, permisos, porArchivo, inventario.porArchivo]);
 
   useEffect(() => {
     void init();
@@ -244,6 +269,10 @@ export default function App() {
             </div>
           )}
 
+          {porArchivo && route.vista !== "inventario" && !enTicket && inventarioViejo(inventario.estado) && (
+            <AvisoInventarioViejo estado={inventario.estado} />
+          )}
+
           <main className={`min-h-0 flex-1 ${enTicket ? "" : "pb-[92px] md:pb-0"}`}>
             {/* Cambiar la `key` desmonta la pantalla anterior de inmediato. Sin
                 animación de entrada: el producto abre en una tarea, no en una
@@ -255,6 +284,7 @@ export default function App() {
               {route.vista === "dashboard" && phases.fase3 && <Dashboard />}
               {route.vista === "ajustes" && <Ajustes />}
               {route.vista === "cotizador" && phases.fase3 && <Cotizador />}
+              {route.vista === "inventario" && <Inventario />}
               {route.vista === "settings" && <Settings />}
               {route.vista === "ticket" && !cargando && <TicketDetail id={route.id} />}
             </div>
@@ -359,6 +389,34 @@ function EstadoBot({ activo, compacto = false }: { activo: boolean; compacto?: b
       className="flex h-9 items-center gap-3 rounded-[6px] px-3 text-[13px] font-semibold text-signal hover:bg-signal-tint"
     >
       {contenido}
+    </button>
+  );
+}
+
+/**
+ * Arriba de cualquier pantalla, cuando el inventario por archivo tiene más de
+ * un día (o no hay ninguno): imposible de no ver, y lleva a subirlo.
+ */
+function AvisoInventarioViejo({ estado }: { estado: EstadoInventario | null }) {
+  const cuando = estado
+    ? (() => {
+      const dias = Math.floor(horasDelInventario(estado) / 24);
+      const dia = new Date(fechaDelInventario(estado)).toLocaleDateString("es-EC", { weekday: "long", day: "numeric", month: "short" });
+      return `es del ${dia}${dias >= 1 ? ` (hace ${dias === 1 ? "1 día" : `${dias} días`})` : ""}`;
+    })()
+    : null;
+  return (
+    <button
+      type="button"
+      onClick={() => navigate("inventario")}
+      data-testid="aviso-inventario-viejo"
+      className="mx-5 mt-2 flex items-center gap-2 rounded-[6px] bg-signal-tint px-3 py-2.5 text-left text-[13px] text-signal md:mx-8 md:mt-4"
+    >
+      <IconAlert size={16} className="shrink-0" />
+      <span className="flex-1">
+        {cuando ? <><b>El inventario tiene más de un día</b>: {cuando}.</> : <b>No hay inventario cargado: el bot no tiene llantas para cotizar.</b>}
+      </span>
+      <span className="font-semibold whitespace-nowrap underline">Subir el de hoy</span>
     </button>
   );
 }

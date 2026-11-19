@@ -83,11 +83,12 @@ describe("el saludo", () => {
 });
 
 describe("la leyenda y el pie de las piezas", () => {
-  it("omiten lo pendiente y nombran los tres locales confirmados el 6-nov", () => {
+  // Desde el 18-nov el servicio es SOLO Competimotor: su único local al pie.
+  it("omiten lo pendiente y nombran el local confirmado del servicio", () => {
     expect(leyendaDelEncabezado(negocio)).toBe("SANTO DOMINGO");
-    expect(localesEnUnaLinea(negocio)).toBe("Mundillantas Falken · Mundillantas Kenda · Competimotor");
+    expect(localesEnUnaLinea(negocio)).toBe("Competimotor");
     expect(pieDeLocales(negocio)).not.toContain(MARCA);
-    expect(localesConfirmados(negocio).map((l) => l.slug)).toEqual(["matriz", "local2", "competimotor"]);
+    expect(localesConfirmados(negocio).map((l) => l.slug)).toEqual(["competimotor"]);
   });
 });
 
@@ -146,13 +147,13 @@ describe("la pregunta de local (Sprint Final)", () => {
   it("ofrece solo los locales confirmados, nunca un [PENDIENTE]", async () => {
     // El hallazgo del traspaso del S1: con Mundillantas salía «¿A cuál local le
     // queda mejor ir: *Matriz*, *[PENDIENTE] nombre corto del local 2* o
-    // *Competimotor*?». La pregunta nombra solo locales confirmados.
-    const { PREGUNTA_DE_LOCAL, LOCALES_COMO_ALTERNATIVA } = await import("../src/domain/storeSelection.js");
+    // *Competimotor*?». La pregunta nombra solo locales confirmados. Desde el
+    // 18-nov el servicio tiene un local y no hay pregunta que hacer.
+    const { PREGUNTA_DE_LOCAL, LOCALES_COMO_ALTERNATIVA, hayQueElegirLocal } = await import("../src/domain/storeSelection.js");
     expect(PREGUNTA_DE_LOCAL).not.toContain(MARCA);
     expect(LOCALES_COMO_ALTERNATIVA).not.toContain(MARCA);
-    expect(PREGUNTA_DE_LOCAL).toContain("*Mundillantas Falken*");
-    expect(PREGUNTA_DE_LOCAL).toContain("*Mundillantas Kenda*");
-    expect(PREGUNTA_DE_LOCAL).toContain("*Competimotor*");
+    expect(hayQueElegirLocal).toBe(false);
+    expect(LOCALES_COMO_ALTERNATIVA).toBe("*Competimotor*");
   });
 });
 
@@ -189,8 +190,9 @@ describe("lo que Depot promete no se cuela en las piezas de otro negocio", () =>
         expect(texto).not.toMatch(/12 cuotas|3 y 6 meses|\b3 meses/i);
         expect(texto).not.toMatch(/meses de seguro|años de garantía|\d+ años/i);
       }
-      // Marca sin respaldo propio (Sailun): solo los locales, sin seguro ni garantía.
-      expect(cotizacion).toContain("3 LOCALES");
+      // Marca sin respaldo propio (Sailun): solo el local, sin seguro ni garantía.
+      expect(cotizacion).toContain("NUESTRO LOCAL");
+      expect(cotizacion).not.toMatch(/mundi|3 LOCALES/i);
       expect(cotizacion).not.toMatch(/SEGURO CONTRA IMPACTO|Garantía de fábrica/);
       // Una de las cuatro que Jenny nombró el 6-nov: seguro y garantía, sin plazo.
       const kenda = textoDe(quotePosterDiaNoche({ number: "COT-1", dateLabel: FECHA, line: linea({ brand: "KENDA" }), total: 276 }, modo));

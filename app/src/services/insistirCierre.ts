@@ -19,7 +19,7 @@ import { hayCompromisoDeCierre } from "../domain/compromisoDeCierre.js";
 import { datoQueFalta } from "../domain/preguntaPendiente.js";
 import { despedidaQueCorresponde } from "../domain/cierrePerdido.js";
 import { esCierreComercialDelTurno } from "../domain/cierreTurno.js";
-import { PREGUNTA_DE_LOCAL, preguntaElLocal } from "../domain/storeSelection.js";
+import { PREGUNTA_DE_LOCAL, hayQueElegirLocal, preguntaElLocal } from "../domain/storeSelection.js";
 import { buildVisitPlanQuestion, composeBlocks, MAX_BLOCKS } from "./quoteMessages.js";
 import type { Stage } from "./conversations.js";
 import { soloLoDelTurno } from "../pipeline/corteDelTurno.js";
@@ -206,7 +206,9 @@ export async function insistirConLoQueFalta(
       productoElegido: Boolean(facts?.selected_product_code),
       cantidadElegida: cantidadValidaDeLaFicha(facts?.selected_quantity) !== null,
     }),
-    localElegido: Boolean(facts?.nearest_store),
+    // Con UN solo local no hay local que conseguir: lo que falta es el día
+    // (Competimotor, 18-nov: salía «¿A cuál local le queda mejor ir?» sin opciones).
+    localElegido: Boolean(facts?.nearest_store) || !hayQueElegirLocal,
     visitaRegistrada: Boolean(facts?.visit_date),
   });
   if (!falta) return { texto, agregado: null };

@@ -144,6 +144,16 @@ export interface Identidad {
   locales: string[];
   /** Archivo del logo en `assets/<id del negocio>/`, si difiere del estándar `logo-<id>.png`. */
   logo?: string;
+  /**
+   * Lo que cambia cuando un servicio atiende SOLO esta marca (`IDENTIDAD=<id>`,
+   * ver `perfilDeUnaIdentidad`): su propio WhatsApp y los textos de las piezas
+   * que nombran locales de las otras marcas («3 locales: Competimotor,
+   * Mundillantas Falken…»). Lo que no se declara queda como en el perfil.
+   */
+  delServicio?: {
+    telefono?: string;
+    piezas?: Partial<PerfilDeNegocio["piezas"]>;
+  };
 }
 
 /** Garantía de una marca, para las piezas de cotización. */
@@ -192,6 +202,22 @@ export interface PerfilDeNegocio {
    * de `identidad`. Sin el campo, el nombre del negocio, como hoy.
    */
   presentacion?: { modo: "combinada" | "fija"; identidad?: string; frase?: string };
+  /**
+   * UNA MARCA POR SERVICIO. Con este campo, cada servicio de este negocio
+   * atiende una sola identidad: la que diga la variable `IDENTIDAD`, o esta si
+   * no hay variable. El perfil vivo queda reducido a esa marca —su nombre, sus
+   * locales, su logo— y el cliente nunca ve las otras (Competimotor y
+   * Mundillantas, cierre del 18-nov-2026: «esto no puede pasar»).
+   * Sin el campo (Depot) no hay nada que reducir y `IDENTIDAD` no se lee.
+   */
+  identidadPorDefecto?: string;
+  /**
+   * Las OTRAS marcas del negocio, en un servicio que atiende una sola (lo pone
+   * `perfilDeUnaIdentidad`). Interno: no se le dice a nadie; sirve para que los
+   * detectores reconozcan «Mundillantas Kenda» como un local que ESTE servicio
+   * no tiene. Sin marcas separadas, no existe.
+   */
+  marcasHermanas?: string[];
   locales: Local[];
   /** Zonas de SU ciudad. Un cliente de otra ciudad trae las suyas; vacío = siempre se pide el pin. */
   sectores: Sector[];

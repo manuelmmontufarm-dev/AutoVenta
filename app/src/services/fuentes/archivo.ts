@@ -11,6 +11,7 @@
  * Las facturas suben igual (`facturas_mapeo`) pero viven en su tabla
  * (`facturas_importadas`, migración 031): son datos de clientes, no un ajuste.
  */
+import { createHash } from "node:crypto";
 import ExcelJS from "exceljs";
 import * as XLS from "xlsx";
 import { z } from "zod";
@@ -152,7 +153,15 @@ export async function guardarMapeoFacturas(input: unknown): Promise<FacturasMape
   return mapeo;
 }
 
-// ── Leer el archivo crudo (CSV o XLSX) a filas con encabezado ────────────────
+// ── Leer el archivo crudo (XLS, XLSX o CSV) a filas con encabezado ──────────
+
+/**
+ * El nombre de una columna como se compara: sin tildes, sin mayúsculas y con
+ * los espacios de más fuera. «  ARTÍCULO », «Articulo» y «articulo» son la
+ * misma columna; el mapeo y el encabezado pasan los dos por acá.
+ */
+export const claveDeColumna = (t: string): string =>
+  t.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
 
 /** Separa una línea CSV respetando comillas. */
 function camposCsv(linea: string, sep: string): string[] {
@@ -173,100 +182,210 @@ function camposCsv(linea: string, sep: string): string[] {
   return campos.map((c) => c.trim());
 }
 
-function filasDeCsv(texto: string): Record<string, string>[] {
-  const lineas = texto.replace(/^﻿/, "").split(/\r?\n/).filter((l) => l.trim() !== "");
-  if (!lineas.length) return [];
-  // El separador es el que más columnas produce en el encabezado.
-  const sep = [",", ";", "\t"]
-    .map((s) => ({ s, n: camposCsv(lineas[0], s).length }))
-    .sort((a, b) => b.n - a.n)[0].s;
-  const encabezado = camposCsv(lineas[0], sep).map((c) => c.toLowerCase());
-  return lineas.slice(1).map((linea) => {
-    const campos = camposCsv(linea, sep);
-    const fila: Record<string, string> = {};
-    encabezado.forEach((col, i) => { fila[col] = campos[i] ?? ""; });
-    return fila;
-  });
+/**
+ * Texto del archivo: UTF-8 si lo es; si no, Latin-1 (el CSV que guarda Excel en
+ * Windows), para que «Código» no llegue como «C�digo».
+ */
+function textoDelArchivo(cuerpo: Buffer): string {
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(cuerpo).replace(/^﻿/, "");
+  } catch {
+    return new TextDecoder("latin1").decode(cuerpo);
+  }
 }
 
 /**
- * Una hoja como matriz de texto → filas con encabezado. El encabezado es la
- * primera fila con una celda «código»/«codigo»; si no hay, la primera fila.
+ * CSV a matriz, con las líneas en blanco en su lugar (los números de fila de
+ * los motivos son los que se ven al abrirlo). El separador es el que más
+ * columnas da en las primeras líneas: arriba puede haber un título sin comas.
+ */
+function matrizDeCsv(texto: string): string[][] {
+  const lineas = texto.split(/\r?\n/);
+  while (lineas.length && lineas.at(-1)!.trim() === "") lineas.pop();
+  const muestra = lineas.slice(0, 40);
+  const sep = [",", ";", "\t"]
+    .map((s) => ({ s, n: Math.max(0, ...muestra.map((l) => camposCsv(l, s).length)) }))
+    .sort((a, b) => b.n - a.n)[0].s;
+  return lineas.map((l) => (l.trim() === "" ? [] : camposCsv(l, sep)));
+}
+
+/** Número de fila real en el Excel (con membrete y todo), para los motivos. */
+const FILA = "__fila";
+
+/**
+ * Dónde está el encabezado. Con las columnas que espera el mapeo, la fila (de
+ * las primeras 60) que más de ellas nombra; así entra un CSV o un Excel con
+ * títulos encima aunque no tenga una columna «Código». Sin mapeo (o si ninguna
+ * fila nombra al menos dos), la primera fila con una celda «código», y si
+ * tampoco hay, la primera fila con algo.
+ */
+function buscarEncabezado(matriz: string[][], esperadas: string[]): { inicio: number; puntaje: number } {
+  const buscadas = new Set(esperadas.map(claveDeColumna).filter(Boolean));
+  let mejor = { inicio: -1, puntaje: 0 };
+  if (buscadas.size) {
+    for (let i = 0; i < Math.min(matriz.length, 60); i += 1) {
+      const celdas = new Set((matriz[i] ?? []).map(claveDeColumna));
+      const puntaje = [...buscadas].filter((b) => celdas.has(b)).length;
+      if (puntaje > mejor.puntaje) mejor = { inicio: i, puntaje };
+    }
+    if (mejor.puntaje >= Math.min(2, buscadas.size)) return mejor;
+  }
+  let inicio = matriz.findIndex((fila) => (fila ?? []).some((c) => claveDeColumna(c) === "codigo"));
+  if (inicio < 0) inicio = matriz.findIndex((fila) => (fila ?? []).some((c) => c.trim() !== ""));
+  return { inicio, puntaje: inicio < 0 ? 0 : mejor.inicio === inicio ? mejor.puntaje : 0 };
+}
+
+/** «06/11/2026 02:14:11 PM» (hora de Ecuador, UTC−5) → ISO. */
+function fechaDeTexto(texto: string): string | null {
+  const m = /(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*([ap]\.?\s*m\.?)?)?/i.exec(texto);
+  if (!m) return null;
+  let hora = Number(m[4] ?? 0);
+  const ampm = (m[7] ?? "").toLowerCase().replace(/[.\s]/g, "");
+  if (ampm === "pm" && hora < 12) hora += 12;
+  if (ampm === "am" && hora === 12) hora = 0;
+  const [dia, mes, anio] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  if (mes < 1 || mes > 12 || dia < 1 || dia > 31) return null;
+  const utc = Date.UTC(anio, mes - 1, dia, hora + 5, Number(m[5] ?? 0), Number(m[6] ?? 0));
+  return Number.isFinite(utc) ? new Date(utc).toISOString() : null;
+}
+
+/** La «Fecha Reporte:» del membrete de Fénix, si el archivo la trae. */
+function fechaDelMembrete(filas: string[][]): string | null {
+  for (const fila of filas) {
+    for (const [i, celda] of (fila ?? []).entries()) {
+      if (!/^fecha( de)? (del )?reporte\b/.test(claveDeColumna(celda))) continue;
+      const enLaCelda = fechaDeTexto(celda);
+      if (enLaCelda) return enLaCelda;
+      const siguiente = fila.slice(i + 1).find((c) => c.trim() !== "");
+      if (siguiente) return fechaDeTexto(siguiente);
+    }
+  }
+  return null;
+}
+
+interface Tabla {
+  filas: Record<string, string>[];
+  /** El encabezado tal como se ve en el archivo (para decir qué columnas hay). */
+  encabezado: string[];
+  /** Cuántas columnas del mapeo nombra el encabezado (para elegir hoja). */
+  puntaje: number;
+  fechaReporte: string | null;
+}
+
+/**
+ * Una hoja como matriz de texto → filas con encabezado (ver `buscarEncabezado`).
  * Así entra tal cual el reporte «Inventario de Articulos» de Fénix: 14 filas
  * de membrete antes del encabezado, filas «Categoria: …» / «Subcategoria: …»
  * que valen para lo que sigue (se copian a las columnas `categoria` y
  * `subcategoria` de cada fila) y filas «Total …» que no son productos.
  */
-/** Número de fila real en el Excel (con membrete y todo), para los motivos. */
-const FILA = "__fila";
-
-export function filasDeMatriz(matriz: string[][]): Record<string, string>[] {
-  const sinTilde = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").trim().toLowerCase();
-  let inicio = matriz.findIndex((fila) => fila.some((c) => sinTilde(c) === "codigo"));
-  if (inicio < 0) inicio = matriz.findIndex((fila) => fila.some((c) => c.trim() !== ""));
-  if (inicio < 0) return [];
-  const encabezado = matriz[inicio].map((c) => c.trim().toLowerCase());
+function tablaDeMatriz(matriz: string[][], esperadas: string[] = []): Tabla {
+  const { inicio, puntaje } = buscarEncabezado(matriz, esperadas);
+  if (inicio < 0) return { filas: [], encabezado: [], puntaje: 0, fechaReporte: null };
+  const encabezadoVisto = (matriz[inicio] ?? []).map((c) => c.trim());
+  const encabezado = encabezadoVisto.map((c) => c.toLowerCase());
   const contexto: Record<string, string> = {};
   const filas: Record<string, string>[] = [];
   for (const [k, cruda] of matriz.slice(inicio + 1).entries()) {
-    const celdas = cruda.map((c) => c.trim());
+    const celdas = Array.from(cruda ?? [], (c) => (c ?? "").trim());
     const llenas = celdas.filter(Boolean);
     if (!llenas.length) continue;
-    const seccion = celdas[0].match(/^(sub)?categor[ií]a\s*:\s*(.+)$/i);
+    const seccion = (celdas[0] ?? "").match(/^(sub)?categor[ií]a\s*:\s*(.+)$/i);
     if (seccion && llenas.length === 1) {
       contexto[seccion[1] ? "subcategoria" : "categoria"] = seccion[2].trim();
       if (!seccion[1]) delete contexto.subcategoria;
       continue;
     }
-    if (/^total\b/i.test(celdas[0])) continue;
-    if (!celdas[0] && llenas.every((c) => /^-?[\d.,]+$/.test(c))) continue; // total general sin rótulo
+    // Filas de totales: «Total SubCategoria: …», «TOTAL GENERAL» (aunque el
+    // rótulo esté en otra columna) y el total general sin rótulo de Fénix.
+    if (/^total(es)?\b/i.test(llenas[0])) continue;
+    if (!celdas[0] && llenas.every((c) => /^-?[\d.,]+$/.test(c))) continue;
     const fila: Record<string, string> = { ...contexto, [FILA]: String(inicio + k + 2) };
     encabezado.forEach((col, i) => {
       if (col) fila[col] = celdas[i] ?? "";
     });
     filas.push(fila);
   }
-  return filas;
+  return { filas, encabezado: encabezadoVisto.filter(Boolean), puntaje, fechaReporte: fechaDelMembrete(matriz.slice(0, inicio)) };
 }
 
-async function filasDeXlsx(cuerpo: Buffer): Promise<Record<string, string>[]> {
+export function filasDeMatriz(matriz: string[][]): Record<string, string>[] {
+  return tablaDeMatriz(matriz).filas;
+}
+
+type HojaCruda = { nombre: string | null; matriz: string[][] };
+
+async function hojasDeXlsx(cuerpo: Buffer): Promise<HojaCruda[]> {
   const libro = new ExcelJS.Workbook();
   await libro.xlsx.load(cuerpo as unknown as ArrayBuffer);
-  const hoja = libro.worksheets[0];
-  if (!hoja) return [];
-  const matriz: string[][] = [];
-  hoja.eachRow({ includeEmpty: true }, (row, numero) => {
-    const fila: string[] = [];
-    row.eachCell({ includeEmpty: true }, (celda, n) => {
-      fila[n - 1] = String(celda.text ?? "");
+  return libro.worksheets.map((hoja) => {
+    const matriz: string[][] = [];
+    hoja.eachRow({ includeEmpty: true }, (row, numero) => {
+      const fila: string[] = [];
+      row.eachCell({ includeEmpty: true }, (celda, n) => {
+        fila[n - 1] = String(celda.text ?? "");
+      });
+      matriz[numero - 1] = Array.from(fila, (c) => c ?? "");
     });
-    matriz[numero - 1] = Array.from(fila, (c) => c ?? "");
+    return { nombre: hoja.name, matriz: Array.from(matriz, (f) => f ?? []) };
   });
-  return filasDeMatriz(Array.from(matriz, (f) => f ?? []));
 }
 
-/** Excel 97-2003 (.xls, BIFF): el formato en que Fénix exporta el inventario. */
-function filasDeXls(cuerpo: Buffer): Record<string, string>[] {
+/** Excel 97-2003 (.xls, BIFF) —el formato en que Fénix exporta— o una tabla HTML. */
+function hojasDeSheetJs(cuerpo: Buffer): HojaCruda[] {
   const libro = XLS.read(cuerpo, { type: "buffer", dense: true });
-  const hoja = libro.Sheets[libro.SheetNames[0]];
-  if (!hoja) return [];
-  const matriz = XLS.utils.sheet_to_json<unknown[]>(hoja, { header: 1, raw: false, defval: "", blankrows: true });
-  // La hoja puede empezar más abajo de la fila 1: se rellena para que los
-  // números de fila de los motivos sean los que Jenny ve en el Excel.
-  const desde = hoja["!ref"] ? XLS.utils.decode_range(hoja["!ref"]).s.r : 0;
-  return filasDeMatriz([...Array.from({ length: desde }, () => [] as string[]), ...matriz.map((fila) => fila.map((c) => String(c ?? "")))]);
+  return libro.SheetNames.map((nombre) => {
+    const hoja = libro.Sheets[nombre];
+    const matriz = XLS.utils.sheet_to_json<unknown[]>(hoja, { header: 1, raw: false, defval: "", blankrows: true });
+    // La hoja puede empezar más abajo de la fila 1: se rellena para que los
+    // números de fila de los motivos sean los que Jenny ve en el Excel.
+    const desde = hoja["!ref"] ? XLS.utils.decode_range(hoja["!ref"]).s.r : 0;
+    return {
+      nombre,
+      matriz: [...Array.from({ length: desde }, () => [] as string[]), ...matriz.map((fila) => fila.map((c) => String(c ?? "")))],
+    };
+  });
 }
 
 /** Firma OLE2 (D0 CF 11 E0): un .xls de verdad, aunque se llame .xlsx. */
 const esXlsViejo = (cuerpo: Buffer) =>
   cuerpo.length > 3 && cuerpo[0] === 0xd0 && cuerpo[1] === 0xcf && cuerpo[2] === 0x11 && cuerpo[3] === 0xe0;
 
-const esXlsx = (nombre: string, cuerpo: Buffer) =>
-  /\.xlsx?$/i.test(nombre) || (cuerpo.length > 1 && cuerpo[0] === 0x50 && cuerpo[1] === 0x4b);
+/** Firma ZIP (PK): un .xlsx, aunque se llame .xls. */
+const esZip = (cuerpo: Buffer) => cuerpo.length > 1 && cuerpo[0] === 0x50 && cuerpo[1] === 0x4b;
 
-export async function filasDelArchivo(nombre: string, cuerpo: Buffer): Promise<Record<string, string>[]> {
-  if (esXlsViejo(cuerpo)) return filasDeXls(cuerpo);
-  return esXlsx(nombre, cuerpo) ? filasDeXlsx(cuerpo) : filasDeCsv(cuerpo.toString("utf8"));
+/** Todas las hojas del archivo, decidido por el CONTENIDO y no por el nombre. */
+async function hojasDelArchivo(cuerpo: Buffer): Promise<HojaCruda[]> {
+  if (esXlsViejo(cuerpo)) return hojasDeSheetJs(cuerpo);
+  if (esZip(cuerpo)) return hojasDeXlsx(cuerpo);
+  const texto = textoDelArchivo(cuerpo);
+  // Algunos sistemas «exportan a Excel» una tabla HTML con extensión .xls.
+  if (/^\s*<(!doctype|html|table)/i.test(texto)) return hojasDeSheetJs(Buffer.from(texto));
+  return [{ nombre: null, matriz: matrizDeCsv(texto) }];
+}
+
+/**
+ * La tabla del archivo y la hoja de donde salió. Con varias hojas gana la que
+ * más columnas del mapeo nombra en su encabezado; a igualdad, la primera.
+ */
+async function tablaDelArchivo(cuerpo: Buffer, esperadas: string[]): Promise<Tabla & { hoja: string | null }> {
+  const hojas = await hojasDelArchivo(cuerpo);
+  let mejor: (Tabla & { hoja: string | null }) | null = null;
+  for (const hoja of hojas) {
+    const tabla = tablaDeMatriz(hoja.matriz, esperadas);
+    if (!mejor || tabla.puntaje > mejor.puntaje || (!mejor.filas.length && tabla.filas.length)) {
+      mejor = { ...tabla, hoja: hoja.nombre };
+    }
+  }
+  return mejor ?? { filas: [], encabezado: [], puntaje: 0, fechaReporte: null, hoja: null };
+}
+
+export async function filasDelArchivo(
+  _nombre: string,
+  cuerpo: Buffer,
+  esperadas: string[] = [],
+): Promise<Record<string, string>[]> {
+  return (await tablaDelArchivo(cuerpo, esperadas)).filas;
 }
 
 // ── Catálogo subido (clave `catalogo_archivo`) ───────────────────────────────
@@ -282,14 +401,49 @@ export interface CatalogoArchivo {
   filas: FilaGuardada[];
   aros: AroProducto[];
   descartadas: { fila: number; motivo: string }[];
+  /** La «Fecha Reporte» del membrete de Fénix; null si el archivo no la trae. */
+  fechaReporte?: string | null;
+  /** sha256 del archivo + el mapeo con que se leyó: el mismo archivo dos veces. */
+  huella?: string;
+  /** De qué hoja salió (null en un CSV). */
+  hoja?: string | null;
 }
 
-const numero = (s: string): number | null => {
-  const limpio = s.replace(/[$\s]/g, "").replace(/,(?=\d{3}\b)/g, "").replace(",", ".");
-  if (!limpio) return null;
-  const n = Number(limpio);
-  return Number.isFinite(n) ? n : null;
-};
+/**
+ * Un número del archivo, venga como venga escrito: «139.99», «139,99»,
+ * «1.177,99», «1,177.99», «1 177,99», «$ 139.99», « 11,00 ». Con los dos
+ * signos, el ÚLTIMO es el decimal. Con uno solo, es de miles si separa grupos
+ * de tres después de un entero que no es 0 («1.120», «1,120», «1.234.567»);
+ * si no, es el decimal («47,15», «0.125»). Lo que no es un número da null.
+ */
+export function numeroDelArchivo(s: string): number | null {
+  let t = String(s ?? "").replace(/[$\s\u00a0]/g, "");
+  if (!t) return null;
+  const negativo = t.startsWith("-");
+  if (negativo) t = t.slice(1);
+  if (!/^[\d.,]+$/.test(t) || !/\d/.test(t)) return null;
+  const ultimoPunto = t.lastIndexOf(".");
+  const ultimaComa = t.lastIndexOf(",");
+  if (ultimoPunto >= 0 && ultimaComa >= 0) {
+    const decimal = ultimoPunto > ultimaComa ? "." : ",";
+    const miles = decimal === "." ? "," : ".";
+    t = t.split(miles).join("");
+    if (t.split(decimal).length > 2) return null;
+    t = t.replace(decimal, ".");
+  } else if (ultimoPunto >= 0 || ultimaComa >= 0) {
+    const signo = ultimoPunto >= 0 ? "." : ",";
+    const partes = t.split(signo);
+    const deMiles = partes.length > 1 && /^[1-9]\d{0,2}$/.test(partes[0]) && partes.slice(1).every((p) => /^\d{3}$/.test(p));
+    if (deMiles) t = partes.join("");
+    else if (partes.length === 2) t = partes.join(".");
+    else return null;
+  }
+  const n = Number(t);
+  if (!Number.isFinite(n)) return null;
+  return negativo && n !== 0 ? -n : n;
+}
+
+const numero = numeroDelArchivo;
 
 /** Suma el IVA del perfil UNA sola vez, solo si el archivo venía sin él. */
 const conIvaDelPerfil = (valor: number, incluyeIva: boolean): number =>
@@ -396,12 +550,38 @@ export function disenoDelNombre(nombre: string, marca: string): string {
     .trim();
 }
 
+/** El mapeo con cada nombre de columna como se compara (`claveDeColumna`). */
+function mapeoComparable(mapeo: CatalogoMapeo): CatalogoMapeo {
+  const columnas = Object.fromEntries(
+    Object.entries(mapeo.columnas).map(([campo, valor]) => [
+      campo,
+      typeof valor === "string"
+        ? claveDeColumna(valor)
+        : valor && typeof valor === "object"
+          ? Object.fromEntries(Object.entries(valor).map(([local, c]) => [local, claveDeColumna(c)]))
+          : valor,
+    ]),
+  ) as CatalogoMapeo["columnas"];
+  return {
+    ...mapeo,
+    columnas,
+    filasDeAros: mapeo.filasDeAros ? { ...mapeo.filasDeAros, columna: claveDeColumna(mapeo.filasDeAros.columna) } : null,
+  };
+}
+
+/** La fila con cada encabezado como se compara (la marca de fila queda igual). */
+const filaComparable = (fila: Record<string, string>): Record<string, string> =>
+  Object.fromEntries(Object.entries(fila).map(([k, v]) => [k === FILA ? k : claveDeColumna(k), v]));
+
 export function normalizarCatalogoSubido(
   nombre: string,
-  filas: Record<string, string>[],
-  mapeo: CatalogoMapeo,
+  filasCrudas: Record<string, string>[],
+  mapeoCrudo: CatalogoMapeo,
   ahora = new Date(),
 ): CatalogoArchivo {
+  // Mayúsculas, tildes y espacios de más no cambian qué columna es cuál.
+  const mapeo = mapeoComparable(mapeoCrudo);
+  const filas = filasCrudas.map(filaComparable);
   const col = mapeo.columnas;
   const guardadas: FilaGuardada[] = [];
   const aros: AroProducto[] = [];
@@ -489,37 +669,257 @@ export async function leerCatalogoArchivo(): Promise<CatalogoArchivo | null> {
   return guardado;
 }
 
+// ── Leer, decidir y guardar: un archivo malo NUNCA reemplaza al bueno ───────
+
+/** Cómo se le dice a una persona cada campo del mapeo, en orden de importancia. */
+const CAMPOS_EN_PALABRAS: Array<[keyof CatalogoMapeo["columnas"], string]> = [
+  ["stock", "del stock"],
+  ["precio", "del precio de venta"],
+  ["codigo", "del código"],
+  ["nombre", "de la descripción del artículo"],
+  ["medida", "de la medida"],
+  ["marca", "de la marca"],
+  ["diseno", "del diseño"],
+];
+
+/** Las columnas del mapeo que el archivo TIENE que traer (sin ellas no se cotiza). */
+function columnasObligatorias(mapeo: CatalogoMapeo): Array<{ columna: string; dicho: string }> {
+  const vistas = new Map<string, string>();
+  const porLocal = mapeo.columnas.stockPorLocal;
+  const conLocales = Boolean(porLocal && Object.keys(porLocal).length);
+  for (const [campo, dicho] of CAMPOS_EN_PALABRAS) {
+    if (campo === "stock" && conLocales) continue;
+    const columna = mapeo.columnas[campo];
+    if (typeof columna === "string" && columna.trim() && !vistas.has(claveDeColumna(columna))) {
+      vistas.set(claveDeColumna(columna), `${dicho} («${columna.trim()}»)`);
+    }
+  }
+  if (conLocales) {
+    for (const [local, columna] of Object.entries(porLocal!)) {
+      if (!vistas.has(claveDeColumna(columna))) vistas.set(claveDeColumna(columna), `del stock de ${local} («${columna.trim()}»)`);
+    }
+  }
+  return [...vistas].map(([columna, dicho]) => ({ columna, dicho }));
+}
+
+/** Todas las columnas que nombra el mapeo: con ellas se reconoce el encabezado. */
+function columnasDelMapeo(mapeo: CatalogoMapeo): string[] {
+  const todas: string[] = [];
+  for (const valor of Object.values(mapeo.columnas)) {
+    if (typeof valor === "string") todas.push(valor);
+    else if (valor && typeof valor === "object") todas.push(...Object.values(valor));
+  }
+  return [...new Set(todas.map(claveDeColumna).filter(Boolean))];
+}
+
+export interface LecturaDeInventario {
+  catalogo: CatalogoArchivo & { fechaReporte: string | null; huella: string; hoja: string | null };
+  /** Una frase por columna obligatoria que no está («No encontré la columna del stock…»). */
+  faltantes: string[];
+  /** El encabezado tal como venía, para decir qué columnas SÍ hay. */
+  columnasVistas: string[];
+}
+
 /**
- * Importa el archivo subido: normaliza con el mapeo vigente, lo guarda en
- * `settings.catalogo_archivo` y devuelve el resumen. El que llama (la ruta del
- * panel) corre `syncCatalog()` después, para que el bot lo use sin reinicio.
+ * Lee el archivo con el mapeo y lo deja listo para decidir. Puro: no toca la
+ * base. Elige la hoja y la fila de encabezado, compara los nombres de columna
+ * sin tildes ni mayúsculas, lee la fecha del reporte y saca la huella.
+ */
+export async function leerInventario(
+  nombre: string,
+  cuerpo: Buffer,
+  mapeo: CatalogoMapeo,
+  ahora = new Date(),
+): Promise<LecturaDeInventario> {
+  const tabla = await tablaDelArchivo(cuerpo, columnasDelMapeo(mapeo));
+  const hay = new Set(tabla.encabezado.map(claveDeColumna));
+  const faltantes = tabla.filas.length
+    ? columnasObligatorias(mapeo)
+      .filter(({ columna }) => !hay.has(columna))
+      .map(({ dicho }) => `No encontré la columna ${dicho} en el archivo.`)
+    : [];
+  const huella = createHash("sha256").update(cuerpo).update(JSON.stringify(mapeoComparable(mapeo))).digest("hex");
+  return {
+    catalogo: {
+      ...normalizarCatalogoSubido(nombre, tabla.filas, mapeo, ahora),
+      fechaReporte: tabla.fechaReporte,
+      huella,
+      hoja: tabla.hoja,
+    },
+    faltantes,
+    columnasVistas: tabla.encabezado,
+  };
+}
+
+/**
+ * Cuánto puede caer la cantidad de llantas contra la carga anterior sin
+ * preguntar: 30 %. Fénix lista TODOS los artículos de la categoría, también
+ * los que están en 0, así que de un día a otro la lista casi no cambia (entran
+ * o salen unos pocos modelos). Perder un tercio de un día al otro es un reporte
+ * filtrado o cortado (una sola categoría, un solo local), no ventas.
+ */
+export const UMBRAL_CAIDA = 0.3;
+/** Las unidades en stock pueden bajar hasta la mitad sin preguntar. */
+const UMBRAL_CAIDA_UNIDADES = 0.5;
+
+export type DecisionDeCarga =
+  | { tipo: "ok" }
+  /** El mismo archivo (y el mismo mapeo) que ya está cargado: no se toca nada. */
+  | { tipo: "igual" }
+  | { tipo: "rechazar"; mensaje: string }
+  | { tipo: "confirmar"; mensaje: string };
+
+const unidadesEnStock = (c: Pick<CatalogoArchivo, "filas">) =>
+  c.filas.reduce((suma, f) => suma + Math.max(0, Number(f.cruda.stock) || 0), 0);
+
+const diaCorto = (iso: string) =>
+  new Date(iso).toLocaleDateString("es-EC", { day: "numeric", month: "short", timeZone: "America/Guayaquil" });
+
+/** Las filas descartadas, agrupadas por motivo y dichas como las diría una persona. */
+export function descartadasEnPalabras(descartadas: { fila: number; motivo: string }[]): Array<{ motivo: string; filas: number[] }> {
+  const enPalabras = (motivo: string): string => {
+    if (/menor que .* revisar en el sistema/.test(motivo)) {
+      return "Precio A más bajo que el Precio D: parece un error de tipeo en Fénix, revisar el precio";
+    }
+    if (/^precio inválido$/.test(motivo)) return "Sin precio (vacío o en 0)";
+    if (/^aro de camión/.test(motivo)) return "Llanta de camión aro 17.5 o 22.5: el bot todavía no las cotiza";
+    if (/^medida no reconocida/.test(motivo)) return "No se entiende la medida en la descripción";
+    if (/^aro sin diámetro/.test(motivo)) return "Aro sin diámetro reconocible";
+    return motivo;
+  };
+  const grupos = new Map<string, number[]>();
+  for (const d of descartadas) {
+    const clave = enPalabras(d.motivo);
+    grupos.set(clave, [...(grupos.get(clave) ?? []), d.fila]);
+  }
+  return [...grupos].map(([motivo, filas]) => ({ motivo, filas }));
+}
+
+/**
+ * LA REGLA DE SEGURIDAD. Se rechaza (y el catálogo anterior sigue vivo) si
+ * falta una columna obligatoria, si no queda ninguna llanta o si todas salen
+ * con stock 0. Se pide confirmación si la cantidad de llantas cae más de
+ * `UMBRAL_CAIDA` contra la carga anterior, si las unidades en stock caen a
+ * menos de la mitad, si el reporte es más viejo que el cargado o si se
+ * descartaron más filas de las que entraron. Pura, para probar cada caso.
+ */
+export function decidirCarga(lectura: LecturaDeInventario, anterior: CatalogoArchivo | null): DecisionDeCarga {
+  const nuevo = lectura.catalogo;
+  const sigue = anterior ? " El inventario anterior sigue cargado." : "";
+  if (lectura.faltantes.length) {
+    const vistas = lectura.columnasVistas.length
+      ? ` Columnas que sí encontré: ${lectura.columnasVistas.slice(0, 14).join(", ")}.`
+      : "";
+    return {
+      tipo: "rechazar",
+      mensaje: `${lectura.faltantes.join(" ")}${vistas} Revise que sea el reporte «Inventario de Articulos» de Fénix (o el mapeo en Ajustes → Catálogo).${sigue}`,
+    };
+  }
+  if (anterior?.huella && anterior.huella === nuevo.huella) return { tipo: "igual" };
+  const llantas = nuevo.filas.length;
+  if (!llantas && !nuevo.aros.length) {
+    const motivos = descartadasEnPalabras(nuevo.descartadas).slice(0, 3).map((g) => `${g.motivo} (${g.filas.length})`);
+    return {
+      tipo: "rechazar",
+      mensaje: `No quedó ninguna llanta para cotizar en este archivo${motivos.length ? `: ${motivos.join("; ")}` : ". ¿Es el inventario de Fénix?"}.${sigue}`,
+    };
+  }
+  const unidades = unidadesEnStock(nuevo);
+  if (llantas && !unidades) {
+    return {
+      tipo: "rechazar",
+      mensaje: `Las ${llantas} llantas salen con stock 0: parece que la columna del stock no es la correcta o el reporte salió sin existencias.${sigue}`,
+    };
+  }
+  const dudas: string[] = [];
+  if (anterior) {
+    const antes = anterior.filas.length;
+    if (antes && llantas < antes * (1 - UMBRAL_CAIDA)) {
+      dudas.push(`Este archivo trae ${llantas} llantas y el cargado tiene ${antes} (${Math.round((1 - llantas / antes) * 100)} % menos).`);
+    }
+    const unidadesAntes = unidadesEnStock(anterior);
+    if (unidadesAntes && unidades < unidadesAntes * (1 - UMBRAL_CAIDA_UNIDADES)) {
+      dudas.push(`Trae ${unidades} unidades en stock y el cargado tiene ${unidadesAntes}.`);
+    }
+    if (nuevo.fechaReporte && anterior.fechaReporte && nuevo.fechaReporte < anterior.fechaReporte) {
+      dudas.push(`Este reporte es del ${diaCorto(nuevo.fechaReporte)}: es más viejo que el cargado (del ${diaCorto(anterior.fechaReporte)}).`);
+    }
+  }
+  if (llantas && nuevo.descartadas.length > llantas) {
+    dudas.push(`Se descartaron ${nuevo.descartadas.length} filas y solo entraron ${llantas} llantas.`);
+  }
+  if (dudas.length) {
+    return { tipo: "confirmar", mensaje: `${dudas.join(" ")} ¿Lo carga igual?${sigue}` };
+  }
+  return { tipo: "ok" };
+}
+
+/** Un archivo que no se carga. `confirmable`: se puede cargar igual si la persona lo confirma. */
+export class CargaRechazada extends Error {
+  constructor(message: string, readonly confirmable: boolean) {
+    super(message);
+    this.name = "CargaRechazada";
+  }
+}
+
+export interface ResultadoDeImportacion {
+  llantas: number;
+  aros: number;
+  descartadas: { fila: number; motivo: string }[];
+  /** true si era el mismo archivo que ya estaba: no se cambió nada. */
+  mismoArchivo: boolean;
+  hoja: string | null;
+  fechaReporte: string | null;
+}
+
+/**
+ * Importa el archivo subido: lo lee con el mapeo vigente, decide con la regla
+ * de seguridad y SOLO si pasa lo guarda en `settings.catalogo_archivo`. El
+ * que llama (la ruta del panel) corre `syncCatalog()` después, para que el bot
+ * lo use sin reinicio.
  */
 export async function importarCatalogoDesdeArchivo(
   nombre: string,
   cuerpo: Buffer,
-): Promise<{ llantas: number; aros: number; descartadas: { fila: number; motivo: string }[] }> {
-  const filas = await filasDelArchivo(nombre, cuerpo);
-  if (!filas.length) throw new Error("El archivo no trae filas con datos (¿la primera fila es el encabezado?)");
-  const mapeo = await leerMapeoCatalogo();
-  const catalogo = normalizarCatalogoSubido(nombre, filas, mapeo);
-  if (!catalogo.filas.length && !catalogo.aros.length) {
-    const motivos = [...new Set(catalogo.descartadas.map((d) => d.motivo))].slice(0, 3).join(" · ");
-    throw new Error(`Ninguna fila se pudo leer con el mapeo actual (${motivos || "sin motivo"}). Revise el mapeo de columnas.`);
-  }
-  await guardarSetting("catalogo_archivo", catalogo);
-  return { llantas: catalogo.filas.length, aros: catalogo.aros.length, descartadas: catalogo.descartadas };
+  opciones: { confirmar?: boolean } = {},
+): Promise<ResultadoDeImportacion> {
+  const [mapeo, anterior] = await Promise.all([leerMapeoCatalogo(), leerCatalogoArchivo()]);
+  const lectura = await leerInventario(nombre, cuerpo, mapeo);
+  const decision = decidirCarga(lectura, anterior);
+  if (decision.tipo === "rechazar") throw new CargaRechazada(decision.mensaje, false);
+  if (decision.tipo === "confirmar" && !opciones.confirmar) throw new CargaRechazada(decision.mensaje, true);
+  const catalogo = decision.tipo === "igual" ? anterior! : lectura.catalogo;
+  if (decision.tipo !== "igual") await guardarSetting("catalogo_archivo", catalogo);
+  return {
+    llantas: catalogo.filas.length,
+    aros: catalogo.aros.length,
+    descartadas: catalogo.descartadas,
+    mismoArchivo: decision.tipo === "igual",
+    hoja: catalogo.hoja ?? null,
+    fechaReporte: catalogo.fechaReporte ?? null,
+  };
 }
 
 /**
- * Importa y, en el mismo paso, deja al bot usándolo (R-22: sin reinicio).
+ * Importa y, en el mismo paso, deja al bot usándolo (R-22: sin reinicio). Si
+ * el bot no lo pudo cargar, se vuelve a poner el archivo anterior: nunca queda
+ * guardado un catálogo que el bot no sabe leer.
  * `catalog.ts` se carga en el momento: él importa esta fuente, y un import
  * estático cerraría el ciclo.
  */
-export async function importarCatalogoYSincronizar(nombre: string, cuerpo: Buffer) {
-  const importado = await importarCatalogoDesdeArchivo(nombre, cuerpo);
+export async function importarCatalogoYSincronizar(nombre: string, cuerpo: Buffer, opciones: { confirmar?: boolean } = {}) {
+  const anterior = await leerCatalogoArchivo();
+  const importado = await importarCatalogoDesdeArchivo(nombre, cuerpo, opciones);
   const { syncCatalog, catalogStatus } = await import("../catalog.js");
-  const reporte = await syncCatalog().catch((error: unknown) => {
-    throw new Error(`Se guardó el archivo, pero el catálogo no se pudo cargar: ${error instanceof Error ? error.message : error}`);
+  if (importado.mismoArchivo) return { importado, reporte: null, catalog: catalogStatus() };
+  const reporte = await syncCatalog().catch(async (error: unknown) => {
+    if (anterior) await guardarSetting("catalogo_archivo", anterior);
+    else await sql`delete from settings where key = 'catalogo_archivo'`;
+    await syncCatalog().catch(() => undefined);
+    throw new CargaRechazada(
+      `El bot no pudo cargar este archivo (${error instanceof Error ? error.message : error}).${anterior ? " El inventario anterior sigue cargado." : ""}`,
+      false,
+    );
   });
   return { importado, reporte, catalog: catalogStatus() };
 }
@@ -572,18 +972,33 @@ export async function hayCatalogoArchivo(): Promise<boolean> {
   }
 }
 
-/** Lo que muestra la tarjeta del panel: nombre, fecha y filas del último subido. */
-export async function estadoCatalogoArchivo(): Promise<
-  { nombreArchivo: string; subidoEn: string; llantas: number; aros: number; descartadas: { fila: number; motivo: string }[] } | null
-> {
+/** Lo que muestra la tarjeta «Inventario de hoy»: el último archivo subido y cómo quedó. */
+export interface EstadoCatalogoArchivo {
+  nombreArchivo: string;
+  subidoEn: string;
+  /** La fecha del reporte de Fénix, si la trae: con ella se mide qué tan viejo es. */
+  fechaReporte: string | null;
+  hoja: string | null;
+  llantas: number;
+  aros: number;
+  unidades: number;
+  descartadas: { fila: number; motivo: string }[];
+  descartadasEnPalabras: Array<{ motivo: string; filas: number[] }>;
+}
+
+export async function estadoCatalogoArchivo(): Promise<EstadoCatalogoArchivo | null> {
   const guardado = await leerCatalogoArchivo();
   if (!guardado) return null;
   return {
     nombreArchivo: guardado.nombreArchivo,
     subidoEn: guardado.subidoEn,
+    fechaReporte: guardado.fechaReporte ?? null,
+    hoja: guardado.hoja ?? null,
     llantas: guardado.filas.length,
     aros: guardado.aros.length,
+    unidades: unidadesEnStock(guardado),
     descartadas: guardado.descartadas,
+    descartadasEnPalabras: descartadasEnPalabras(guardado.descartadas),
   };
 }
 
@@ -622,7 +1037,7 @@ export function agruparFacturasSubidas(
   const porDocumento = new Map<string, FacturaParaImportar>();
   const descartadas: { fila: number; motivo: string }[] = [];
   filas.forEach((data, i) => {
-    const filaNumero = i + 2;
+    const filaNumero = Number(data[FILA]) || i + 2;
     const documento = (data[col.documento] ?? "").trim();
     if (!documento) {
       descartadas.push({ fila: filaNumero, motivo: "sin número de documento" });

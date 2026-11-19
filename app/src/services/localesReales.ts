@@ -12,7 +12,8 @@
  */
 import { business } from "../config.js";
 import { localesInventados, ofreceElegirLocal } from "../domain/localesInventados.js";
-import { PREGUNTA_DE_LOCAL } from "../domain/storeSelection.js";
+import { PREGUNTA_DE_LOCAL, hayQueElegirLocal } from "../domain/storeSelection.js";
+import { PREGUNTA_DEL_DIA_LOCAL_UNICO } from "./quoteMessages.js";
 
 export interface TextoConLocalesReales {
   texto: string;
@@ -32,7 +33,9 @@ export function conLocalesReales(texto: string): TextoConLocalesReales {
   const nuevo = texto.replace(PREGUNTA, (oracion) => {
     if (!ofreceElegirLocal(oracion) || !localesInventados(oracion, nombres).length) return oracion;
     cambiado = true;
-    return PREGUNTA_DE_LOCAL;
+    // Con un solo local no hay a cuál elegir: la oferta inventada se vuelve la
+    // pregunta del día, no un «¿a cuál local?» sin opciones.
+    return hayQueElegirLocal ? PREGUNTA_DE_LOCAL : PREGUNTA_DEL_DIA_LOCAL_UNICO;
   });
   // El nombre inventado estaba fuera de una pregunta (por ejemplo negándolo):
   // eso es correcto y no se toca.

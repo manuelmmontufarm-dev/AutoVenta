@@ -2,20 +2,24 @@
 
 Esta carpeta es la de `NEGOCIO=mundillantas`. Las piezas y los PDF buscan acá los logos.
 
-## Lo que hay (6-nov-2026)
+## Lo que hay (18-nov-2026)
 
-Manuel pidió que **se lean las dos marcas en todo**, Competimotor primero. Por eso
-hay un solo logo combinado y NO hay `logo-mundillantas.png` ni
-`logo-competimotor.png`: sin ellos, las dos identidades caen a `logo-blanco.png`
-(ver `depotLogo` en `src/render/assets.ts`) y cada pieza y cada PDF lleva las dos.
+Desde el cierre del 18-nov **cada servicio es una sola marca** (`IDENTIDAD`, ver
+`perfilDelServicio` en `src/negocio/identidad.ts`). El servicio de Competimotor
+encabeza todo con su logo y nunca con el combinado.
 
 | Archivo | Qué es | Dónde se usa |
 |---|---|---|
-| `logo-blanco.png` | Competimotor (blanco, horizontal) │ Mundillantas (amarillo), fondo transparente, 2630×300 | Encabezado oscuro de las piezas y de los PDF |
-| `logo.png` | Lo mismo para fondo claro: Competimotor rojo │ Mundillantas azul | Plantilla día y noche en modo día |
+| `logo-competimotor-blanco.png` | Competimotor solo, blanco, horizontal, 1487×300 (recortado de `logo-blanco.png`) | Encabezado oscuro de las piezas y de los PDF del servicio de Competimotor |
+| `logo-competimotor.png` | Competimotor solo, rojo, 1531×300 (recortado de `logo.png`) | Plantilla día y noche en modo día |
+| `logo-blanco.png` | Competimotor (blanco) │ Mundillantas (amarillo), 2630×300 | Ya no lo usa ningún servicio: quedó como respaldo |
+| `logo.png` | Lo mismo para fondo claro | Ídem |
 
-Si algún día cada local tiene que salir solo con su marca, basta con agregar
-`logo-competimotor.png` y `logo-mundillantas.png` acá; no hay que tocar código.
+`depotLogo` busca `logo-<identidad>-blanco.png` (fondo oscuro), después
+`logo-<identidad>.png`, y recién después los combinados. **Falta el logo de
+Mundillantas solo** (`logo-mundillantas-blanco.png` y `logo-mundillantas.png`):
+hasta tenerlo, un servicio de Mundillantas caería al combinado. Pedirle a Jenny el
+archivo original antes de levantar ese servicio.
 
 ## De dónde salen (`fuentes/`)
 

@@ -53,6 +53,63 @@ export function validarIdentidades(perfil: PerfilDeNegocio): void {
   }
 }
 
+/**
+ * EL PERFIL DE UN SERVICIO QUE ATIENDE UNA SOLA MARCA.
+ *
+ * Competimotor y Mundillantas son un negocio (mismo catálogo, misma política,
+ * misma carpeta de assets) pero dos marcas que se venden por separado, con su
+ * número, sus asesores y sus ventas (cierre del 18-nov-2026). Cada servicio
+ * atiende UNA: este perfil es el mismo negocio visto desde esa marca.
+ *
+ *  · `nombre` y `presentacion` son los de la marca: el saludo, el prompt, el
+ *    cupón y la privacidad la nombran solo a ella;
+ *  · `locales` son solo los suyos: el bot no puede ofrecer ni mandar el mapa de
+ *    un local de la otra marca, y con uno solo no hay «¿a cuál local?»;
+ *  · `identidades` queda con ella sola: toda pieza lleva su logo;
+ *  · `delServicio` pisa lo que la marca declara distinto (teléfono, piezas).
+ *
+ * `id` NO cambia: es la carpeta de assets, la política y el catálogo, que son
+ * del negocio. Un id que no es de una identidad del perfil no arranca.
+ */
+export function perfilDeUnaIdentidad(perfil: PerfilDeNegocio, idDeIdentidad: string): PerfilDeNegocio {
+  const identidad = identidades(perfil).find((i) => i.id === idDeIdentidad);
+  if (!identidad) {
+    throw new Error(
+      `IDENTIDAD="${idDeIdentidad}" no es una marca de ${perfil.id}. Marcas: ${identidades(perfil).map((i) => i.id).join(", ")}.`,
+    );
+  }
+  const { delServicio, ...marca } = identidad;
+  return {
+    ...perfil,
+    nombre: identidad.nombre,
+    telefono: delServicio?.telefono ?? perfil.telefono,
+    identidades: [marca],
+    // El servicio ya ES esta marca: reducirlo otra vez devuelve lo mismo.
+    identidadPorDefecto: identidad.id,
+    marcasHermanas: identidades(perfil).filter((i) => i.id !== identidad.id).map((i) => i.nombre),
+    presentacion: { modo: "fija", identidad: identidad.id },
+    locales: perfil.locales.filter((l) => identidad.locales.includes(l.slug)),
+    piezas: { ...perfil.piezas, ...delServicio?.piezas },
+  };
+}
+
+/**
+ * Qué perfil atiende un servicio: el del negocio tal cual, o —si el negocio es
+ * de una marca por servicio (`identidadPorDefecto`)— el de la marca que pide
+ * `IDENTIDAD`, o la de por defecto. `IDENTIDAD` en un negocio sin marcas
+ * separadas es un error de configuración y no arranca.
+ */
+export function perfilDelServicio(perfil: PerfilDeNegocio, identidadPedida?: string | null): PerfilDeNegocio {
+  const pedida = identidadPedida?.trim() || null;
+  if (!perfil.identidadPorDefecto) {
+    if (pedida) {
+      throw new Error(`IDENTIDAD="${pedida}" pero ${perfil.id} no separa marcas por servicio: quitá la variable.`);
+    }
+    return perfil;
+  }
+  return perfilDeUnaIdentidad(perfil, pedida ?? perfil.identidadPorDefecto);
+}
+
 /** La identidad a la que pertenece un local (por slug o por cualquier nombre), o null. */
 export function identidadDelLocal(perfil: PerfilDeNegocio, slugONombre: string | null | undefined): Identidad | null {
   const local = localPorNombre(perfil, slugONombre);

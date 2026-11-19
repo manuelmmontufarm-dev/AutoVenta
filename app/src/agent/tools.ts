@@ -56,9 +56,11 @@ import {
   buildStoreChoiceBlocks,
   buildVisitPlanQuestion,
   composeBlocks,
+  ubicacionDelLocalUnico,
   warrantyForBrand,
 } from "../services/quoteMessages.js";
 import { porQueNoPasaPorElLocal } from "../services/dondeEstaElCliente.js";
+import { hayQueElegirLocal } from "../domain/storeSelection.js";
 import { cierreSinVisita } from "../domain/compraADistancia.js";
 import {
   appendMessage,
@@ -3902,6 +3904,9 @@ export function buildTools(ctx: AgentContext) {
         ? avisoDeCantidad(items[0].cantidad)
         : null;
       const cierre = buildStoreChoiceBlocks();
+      // Con UN solo local no hay nada que elegir: es como si ya lo hubiera
+      // elegido, y el cierre va directo al día con la cifra del descuento.
+      const localDeLaVisita = localElegido ?? (hayQueElegirLocal ? null : business.stores[0]?.name ?? null);
       // QUIEN NO VA A PASAR POR EL LOCAL NO RECIBE LA INVITACIÓN (familia 2-E,
       // verificación del 28-sep, 3 de 3): «Lo compro por este medio… me envía»
       // recibía «Puede pasar sin compromiso… ¿A cuál local?» + mapas y el
@@ -3959,11 +3964,11 @@ export function buildTools(ctx: AgentContext) {
           // descuento.
           ...(sinVisita
             ? cierreSinVisita(sinVisita)
-            : localElegido
+            : localDeLaVisita
             ? [buildVisitPlanQuestion({
                 conDescuentoAutorizado: Boolean(descuentoAplicado),
                 locales: business.stores.map((store) => store.name),
-                localElegido,
+                localElegido: localDeLaVisita,
                 ahorro: ahorroDeLaCotizacion(quote.lines),
               })]
             : [cierre.ubicaciones, cierre.pregunta]),
@@ -3971,8 +3976,8 @@ export function buildTools(ctx: AgentContext) {
         regla: [
           sinVisita
             ? `Responde exactamente con mensaje_para_enviar, con sus separadores '---' intactos. La cotización ya fue enviada y ${politica.asesorEnReglas} ya fue notificado. ${sinVisita === "compra_a_distancia" ? "El cliente compra a distancia (paga por este medio y quiere envío)" : `El cliente está fuera de ${negocio.ciudad}`}: NO le preguntes a qué local va ni qué día pasa, y NO mandes mapas. ${politica.vendeADistancia ? "Pago y envío los coordina el asesor." : "El envío NO está confirmado: no lo prometas; el asesor le dice si se puede."}`
-            : localElegido
-            ? `Responde exactamente con mensaje_para_enviar, con sus separadores '---' intactos. La cotización ya fue enviada y ${politica.asesorEnReglas} ya fue notificado. El cliente YA eligió local (${localElegido}): NO vuelvas a preguntarle cuál. Tu objetivo es UNO: que diga qué día viene. No cierres ningún turno sin esa pregunta hasta tener la respuesta.`
+            : localDeLaVisita
+            ? `Responde exactamente con mensaje_para_enviar, con sus separadores '---' intactos. La cotización ya fue enviada y ${politica.asesorEnReglas} ya fue notificado. ${localElegido ? `El cliente YA eligió local (${localElegido})` : `Hay un solo local (${localDeLaVisita})`}: NO le preguntes a cuál local va. Tu objetivo es UNO: que diga qué día viene. No cierres ningún turno sin esa pregunta hasta tener la respuesta.`
             : `Responde exactamente con mensaje_para_enviar, con sus separadores '---' intactos: son mensajes distintos a propósito y juntarlos arruina el cierre. La cotización ya fue enviada y ${politica.asesorEnReglas} ya fue notificado. En ESTE turno tu objetivo es UNO SOLO: que el cliente diga a cuál local le queda mejor ir. NO le preguntes todavía qué día viene — eso se le pregunta recién cuando haya elegido local, y ahí va con el monto del descuento.`,
           stockCorto
             ? `Hoy hay ${stockCorto.stock_hoy} de esa llanta y el cliente pidió ${stockCorto.solicitadas}: el aviso ya va en mensaje_para_enviar. NO prometas las que faltan ni des fecha de llegada — el resto lo confirma el asesor.`
@@ -4127,7 +4132,8 @@ export function buildTools(ctx: AgentContext) {
               locales: business.stores.map((store) => store.name),
               conCotizacion: Boolean(sale),
             }),
-            "Si prefiere, compárteme su ubicación de WhatsApp y le digo cuál le queda más cerca. 📲",
+            // Con un solo local no hay «cuál le queda más cerca».
+            hayQueElegirLocal ? "Si prefiere, compárteme su ubicación de WhatsApp y le digo cuál le queda más cerca. 📲" : "",
           ].filter(Boolean).join("\n"),
           regla:
             "Responde exactamente con mensaje_para_enviar. PROHIBIDO condicionar los links a que el cliente mande el pin o diga su sector: los mapas ya van en el mensaje. El pin es opcional y solo sirve si él pide que le digamos cuál le queda más cerca.",
@@ -4162,7 +4168,8 @@ export function buildTools(ctx: AgentContext) {
         // mensaje aparte, el último saliente dejaba de contener la pregunta y
         // `preguntamosElDia` ya no entendía el «el viernes» de la respuesta.
         mensaje_para_enviar: [
-          `📍 El local recomendado es *${store.name}*.`,
+          // Con un solo local no hay nada que «recomendar»: es el nuestro.
+          hayQueElegirLocal ? `📍 El local recomendado es *${store.name}*.` : "Aquí queda nuestro local:",
           mapas,
           `🕐 ${horario}`,
           sale ? `🔖 Al llegar, indica tu número de venta *${sale}* para ubicar tu cotización.` : "",
@@ -4229,8 +4236,13 @@ export function buildTools(ctx: AgentContext) {
         await updateConversationFacts(ctx.conversation.id, { nearestStore: porZona.name });
         console.log(`📍 Conv ${ctx.conversation.id}: el cliente dijo su zona; local ${porZona.name}.`);
       }
-      const elegido = saved?.nearest_store ?? porZona?.name ?? local ?? null;
-      const mapas = buildStoreLinksBlock(elegido, { soloDestacado: Boolean(elegido) });
+      // Con un solo local, ese es el elegido aunque nadie lo haya guardado: sin
+      // esto, una visita ya registrada volvía a preguntar el día.
+      const elegido = saved?.nearest_store ?? porZona?.name ?? local
+        ?? (hayQueElegirLocal ? null : business.stores[0]?.name ?? null);
+      const mapas = hayQueElegirLocal
+        ? buildStoreLinksBlock(elegido, { soloDestacado: Boolean(elegido) })
+        : ubicacionDelLocalUnico();
       if (!mapas) {
         return JSON.stringify({
           error: "No hay links de Maps configurados. Ofrece pasar la ubicación con un asesor.",
