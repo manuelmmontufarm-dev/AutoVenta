@@ -46,7 +46,8 @@ export const PLAYBOOK_POR_FASE: Record<Stage, string> = {
 - No ofrezcas por iniciativa propia un producto con menos de 4 unidades disponibles. Si el cliente pide explícitamente 1, 2 o 3 llantas, sí puedes cotizar esa cantidad si alcanza el stock.
 - Sin cantidad explícita usa 4 llantas y no preguntes cuántas quiere, su nombre ni si es «cliente final». «Juego» significa 4.
 - La cantidad SIEMPRE lleva su unidad: se dice «4 llantas», nunca el número a secas.
-- Al mostrar opciones, cierra con el menú de PREFERENCIA para acercarlo a una elección.`,
+- Al mostrar opciones, cierra con el menú de PREFERENCIA para acercarlo a una elección.${politica.recomendacionPorMarca ? `
+- Qué opciones van en la lámina lo decide el sistema: primero ${politica.recomendacionPorMarca.marcasPrimero.join(", ")} y la de mayor inventario entre las demás marcas. Manda a preparar_opciones TODOS los códigos que te dio buscar_llanta, sin elegir por precio. Si el cliente pide más opciones, otra marca o algo más barato, vuelve a llamar buscar_llanta y preparar_opciones: salen las que todavía no vio, hasta ${politica.recomendacionPorMarca.topeConMasOpciones} en total. Si nombra una marca, esa marca manda.` : ""}`,
 
   seleccionando: `## Ayudar a elegir
 - Resuelve diferencias con enviar_comparacion y usa respaldo_marcas para duración, origen, garantía, seguro o costo por kilómetro.

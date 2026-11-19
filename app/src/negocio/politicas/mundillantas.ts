@@ -36,6 +36,16 @@ export const POLITICA_MUNDILLANTAS: PoliticaComercial = {
   // ~10 marcas que la escalera no conoce: el escalón premium/equilibrio/
   // económica sale del precio dentro del conjunto (decidido en §3.3 punto 2).
   escalonPorPrecio: true,
+  // Reunión 18-nov-2026 (min. 00:00–01:46): primero Falken, Winrun y Kenda (sus
+  // marcas de mayor margen y con garantía) + 1 de mayor inventario entre las
+  // demás; «qué más tiene» trae el resto hasta ~10. La 4.ª cambia sola con el
+  // Excel diario de Fénix. Ver `domain/recomendacionPorMarca.ts`.
+  recomendacionPorMarca: {
+    marcasPrimero: ["FALKEN", "WINRUN", "KENDA"],
+    extrasPorInventario: 1,
+    topeConMasOpciones: 10,
+    porLamina: 6,
+  },
   // Lo que venden pero el bot NO cotiza: avisa al asesor del local (§3.3 punto 4).
   productosQueDerivaAlAsesor: ["lubricantes", "baterías", "aceites", "taller"],
   asesorEnReglas: "el asesor",

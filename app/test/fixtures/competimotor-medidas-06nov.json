@@ -1,0 +1,569 @@
+[
+ {
+  "code": "A0120",
+  "brand": "HAIDA",
+  "design": "HDEX CONFORT",
+  "sizeLabel": "195/50R15",
+  "stock": 7,
+  "precioConIva": 71.3,
+  "listaConIva": 71.3
+ },
+ {
+  "code": "A0219",
+  "brand": "KENDA",
+  "design": "KR20",
+  "sizeLabel": "195/50R15",
+  "stock": 4,
+  "precioConIva": 100.05,
+  "listaConIva": 100.05
+ },
+ {
+  "code": "A0391",
+  "brand": "NEXEN",
+  "design": "NF PRIMUS V",
+  "sizeLabel": "195/50R15",
+  "stock": 11,
+  "precioConIva": 87.99,
+  "listaConIva": 87.99
+ },
+ {
+  "code": "A0462",
+  "brand": "TOURADOR",
+  "design": "WONDER TH1",
+  "sizeLabel": "195/50R15",
+  "stock": 10,
+  "precioConIva": 66.7,
+  "listaConIva": 66.7
+ },
+ {
+  "code": "A0478",
+  "brand": "TOWNHALL",
+  "design": "TH-161",
+  "sizeLabel": "195/50R15",
+  "stock": 19,
+  "precioConIva": 66.7,
+  "listaConIva": 66.7
+ },
+ {
+  "code": "A0530",
+  "brand": "WINRUN",
+  "design": "R330",
+  "sizeLabel": "195/50R15",
+  "stock": 1,
+  "precioConIva": 65.55,
+  "listaConIva": 65.55
+ },
+ {
+  "code": "A0003",
+  "brand": "BFGOODRICH",
+  "design": "ALL TERRAIN USA",
+  "sizeLabel": "235/75R15",
+  "stock": 7,
+  "precioConIva": 307.05,
+  "listaConIva": 307.05
+ },
+ {
+  "code": "A0068",
+  "brand": "FALKEN",
+  "design": "WILDPEAK A/T 4W",
+  "sizeLabel": "235/75R15",
+  "stock": 4,
+  "precioConIva": 277.15,
+  "listaConIva": 277.15
+ },
+ {
+  "code": "1925",
+  "brand": "GOODYEAR",
+  "design": "WRANGLER WORKHORSE AT",
+  "sizeLabel": "235/75R15",
+  "stock": 11,
+  "precioConIva": 177.99,
+  "listaConIva": 177.99
+ },
+ {
+  "code": "A0149",
+  "brand": "HAIDA",
+  "design": "AT HD818 LN",
+  "sizeLabel": "235/75R15",
+  "stock": 6,
+  "precioConIva": 141.45,
+  "listaConIva": 141.45
+ },
+ {
+  "code": "A0151",
+  "brand": "HAIDA",
+  "design": "AT HD828 LN",
+  "sizeLabel": "235/75R15",
+  "stock": 9,
+  "precioConIva": 152.95,
+  "listaConIva": 152.95
+ },
+ {
+  "code": "A0185",
+  "brand": "ILINK",
+  "design": "TERRAMAX LB",
+  "sizeLabel": "235/75R15",
+  "stock": 6,
+  "precioConIva": 134.55,
+  "listaConIva": 134.55
+ },
+ {
+  "code": "A0272",
+  "brand": "KENDA",
+  "design": "KR29",
+  "sizeLabel": "235/75R15",
+  "stock": 8,
+  "precioConIva": 220.8,
+  "listaConIva": 220.8
+ },
+ {
+  "code": "A0273",
+  "brand": "KENDA",
+  "design": "KR601",
+  "sizeLabel": "235/75R15",
+  "stock": 2,
+  "precioConIva": 209.3,
+  "listaConIva": 209.3
+ },
+ {
+  "code": "1662",
+  "brand": "MASTERCRAFT",
+  "design": "WILDCAT AT2",
+  "sizeLabel": "235/75R15",
+  "stock": 9,
+  "precioConIva": 199,
+  "listaConIva": 199
+ },
+ {
+  "code": "TOU-015",
+  "brand": "TOURADOR",
+  "design": "X FORCE A/T II BZ",
+  "sizeLabel": "235/75R15",
+  "stock": 9,
+  "precioConIva": 139,
+  "listaConIva": 139
+ },
+ {
+  "code": "A0490",
+  "brand": "TOWNHALL",
+  "design": "TH-AT802",
+  "sizeLabel": "235/75R15",
+  "stock": 11,
+  "precioConIva": 116.15,
+  "listaConIva": 116.15
+ },
+ {
+  "code": "A0491",
+  "brand": "TOWNHALL",
+  "design": "TH-MT802",
+  "sizeLabel": "235/75R15",
+  "stock": 7,
+  "precioConIva": 134.55,
+  "listaConIva": 134.55
+ },
+ {
+  "code": "1922",
+  "brand": "GOODYEAR",
+  "design": "DIRECTION SPORT",
+  "sizeLabel": "205/55R16",
+  "stock": 9,
+  "precioConIva": 112,
+  "listaConIva": 112
+ },
+ {
+  "code": "A0127",
+  "brand": "HAIDA",
+  "design": "HD665",
+  "sizeLabel": "205/55R16",
+  "stock": 9,
+  "precioConIva": 82.8,
+  "listaConIva": 82.8
+ },
+ {
+  "code": "A0128",
+  "brand": "HAIDA",
+  "design": "HDEXCONFORT",
+  "sizeLabel": "205/55R16",
+  "stock": 11,
+  "precioConIva": 73.6,
+  "listaConIva": 73.6
+ },
+ {
+  "code": "A0129",
+  "brand": "HAIDA",
+  "design": "RUNSPIRIT",
+  "sizeLabel": "205/55R16",
+  "stock": 21,
+  "precioConIva": 73.6,
+  "listaConIva": 73.6
+ },
+ {
+  "code": "A0230",
+  "brand": "KENDA",
+  "design": "KR20",
+  "sizeLabel": "205/55R16",
+  "stock": 5,
+  "precioConIva": 110.4,
+  "listaConIva": 110.4
+ },
+ {
+  "code": "A0353",
+  "brand": "MAXXIS",
+  "design": "MAZ1",
+  "sizeLabel": "205/55R16",
+  "stock": 13,
+  "precioConIva": 123.05,
+  "listaConIva": 123.05
+ },
+ {
+  "code": "A0481",
+  "brand": "TOWNHALL",
+  "design": "TH161",
+  "sizeLabel": "205/55R16",
+  "stock": 31,
+  "precioConIva": 70.15,
+  "listaConIva": 70.15
+ },
+ {
+  "code": "A0534",
+  "brand": "WINRUN",
+  "design": "R330",
+  "sizeLabel": "205/55R16",
+  "stock": 8,
+  "precioConIva": 73.6,
+  "listaConIva": 73.6
+ },
+ {
+  "code": "A0572",
+  "brand": "XBRI",
+  "design": "ECOLOGY",
+  "sizeLabel": "205/55R16",
+  "stock": 9,
+  "precioConIva": 73.6,
+  "listaConIva": 73.6
+ },
+ {
+  "code": "351818",
+  "brand": "FALKEN",
+  "design": "WILDPEAK A/T TRAIL",
+  "sizeLabel": "205/60R16",
+  "stock": 4,
+  "precioConIva": 185.99,
+  "listaConIva": 185.99
+ },
+ {
+  "code": "A0130",
+  "brand": "HAIDA",
+  "design": "HD665",
+  "sizeLabel": "205/60R16",
+  "stock": 7,
+  "precioConIva": 85.1,
+  "listaConIva": 85.1
+ },
+ {
+  "code": "A0131",
+  "brand": "HAIDA",
+  "design": "HDEX-COMFORT",
+  "sizeLabel": "205/60R16",
+  "stock": 6,
+  "precioConIva": 79.35,
+  "listaConIva": 79.35
+ },
+ {
+  "code": "20560R16 HRU",
+  "brand": "HAIDA",
+  "design": "RUNSPIRIT",
+  "sizeLabel": "205/60R16",
+  "stock": 11,
+  "precioConIva": 75,
+  "listaConIva": 75
+ },
+ {
+  "code": "A0386",
+  "brand": "MINERVA",
+  "design": "ECOSPEED AT",
+  "sizeLabel": "205/60R16",
+  "stock": 9,
+  "precioConIva": 97.75,
+  "listaConIva": 97.75
+ },
+ {
+  "code": "A0482",
+  "brand": "TOWNHALL",
+  "design": "TH-161",
+  "sizeLabel": "205/60R16",
+  "stock": 13,
+  "precioConIva": 77.05,
+  "listaConIva": 77.05
+ },
+ {
+  "code": "1997",
+  "brand": "DURUN",
+  "design": "B717",
+  "sizeLabel": "215/65R16",
+  "stock": 9,
+  "precioConIva": 99,
+  "listaConIva": 99
+ },
+ {
+  "code": "A0044",
+  "brand": "FALKEN",
+  "design": "ZIEX CT60 A/S",
+  "sizeLabel": "215/65R16",
+  "stock": 2,
+  "precioConIva": 177.1,
+  "listaConIva": 177.1
+ },
+ {
+  "code": "A0239",
+  "brand": "KENDA",
+  "design": "KR203",
+  "sizeLabel": "215/65R16",
+  "stock": 4,
+  "precioConIva": 147.2,
+  "listaConIva": 147.2
+ },
+ {
+  "code": "A0486",
+  "brand": "TOWNHALL",
+  "design": "TH-161",
+  "sizeLabel": "215/65R16",
+  "stock": 11,
+  "precioConIva": 85.1,
+  "listaConIva": 85.1
+ },
+ {
+  "code": "A0541",
+  "brand": "WINRUN",
+  "design": "MAXCLAW R/T",
+  "sizeLabel": "215/65R16",
+  "stock": 2,
+  "precioConIva": 147.2,
+  "listaConIva": 147.2
+ },
+ {
+  "code": "A0033",
+  "brand": "DURUN",
+  "design": "K325 AT",
+  "sizeLabel": "265/70R16",
+  "stock": 7,
+  "precioConIva": 209.3,
+  "listaConIva": 209.3
+ },
+ {
+  "code": "A0082",
+  "brand": "FALKEN",
+  "design": "WILDPEAK A/T 4W",
+  "sizeLabel": "265/70R16",
+  "stock": 4,
+  "precioConIva": 282.9,
+  "listaConIva": 282.9
+ },
+ {
+  "code": "A0162",
+  "brand": "HAIDA",
+  "design": "HD828",
+  "sizeLabel": "265/70R16",
+  "stock": 7,
+  "precioConIva": 164.45,
+  "listaConIva": 164.45
+ },
+ {
+  "code": "A0190",
+  "brand": "ILINK",
+  "design": "TERRAMAX AT",
+  "sizeLabel": "265/70R16",
+  "stock": 13,
+  "precioConIva": 159.85,
+  "listaConIva": 159.85
+ },
+ {
+  "code": "A0298",
+  "brand": "KENDA",
+  "design": "KR628",
+  "sizeLabel": "265/70R16",
+  "stock": 2,
+  "precioConIva": 209.3,
+  "listaConIva": 209.3
+ },
+ {
+  "code": "A0300",
+  "brand": "KENDA",
+  "design": "KR608",
+  "sizeLabel": "265/70R16",
+  "stock": 8,
+  "precioConIva": 295.55,
+  "listaConIva": 295.55
+ },
+ {
+  "code": "A0376",
+  "brand": "MAXXIS",
+  "design": "AT980 LB",
+  "sizeLabel": "265/70R16",
+  "stock": 11,
+  "precioConIva": 225.4,
+  "listaConIva": 225.4
+ },
+ {
+  "code": "A0454",
+  "brand": "SUMAXX",
+  "design": "ALL TERRAIN AT",
+  "sizeLabel": "265/70R16",
+  "stock": 7,
+  "precioConIva": 159.85,
+  "listaConIva": 159.85
+ },
+ {
+  "code": "A0497",
+  "brand": "TOWNHALL",
+  "design": "TH-AT802",
+  "sizeLabel": "265/70R16",
+  "stock": 23,
+  "precioConIva": 147.2,
+  "listaConIva": 147.2
+ },
+ {
+  "code": "A0520",
+  "brand": "WANDA",
+  "design": "WR9006 MT",
+  "sizeLabel": "265/70R16",
+  "stock": 9,
+  "precioConIva": 209.3,
+  "listaConIva": 209.3
+ },
+ {
+  "code": "A0522",
+  "brand": "WIDEWAY",
+  "design": "SPEEDWAY",
+  "sizeLabel": "265/70R16",
+  "stock": 7,
+  "precioConIva": 128.8,
+  "listaConIva": 128.8
+ },
+ {
+  "code": "A0562",
+  "brand": "WINRUN",
+  "design": "MAXCLAW A/T",
+  "sizeLabel": "265/70R16",
+  "stock": 4,
+  "precioConIva": 178.25,
+  "listaConIva": 178.25
+ },
+ {
+  "code": "A0012",
+  "brand": "COOPER",
+  "design": "MT EVOLUTION",
+  "sizeLabel": "265/70R17",
+  "stock": 7,
+  "precioConIva": 262.2,
+  "listaConIva": 262.2
+ },
+ {
+  "code": "A0035",
+  "brand": "DURUN",
+  "design": "RT02",
+  "sizeLabel": "265/70R17",
+  "stock": 7,
+  "precioConIva": 209.3,
+  "listaConIva": 209.3
+ },
+ {
+  "code": "A0083",
+  "brand": "FALKEN",
+  "design": "WILDPEAK A/T 4W",
+  "sizeLabel": "265/70R17",
+  "stock": 4,
+  "precioConIva": 351.9,
+  "listaConIva": 351.9
+ },
+ {
+  "code": "A0084",
+  "brand": "FALKEN",
+  "design": "WILDPEAK M/T",
+  "sizeLabel": "265/70R17",
+  "stock": 8,
+  "precioConIva": 369.15,
+  "listaConIva": 369.15
+ },
+ {
+  "code": "A0085",
+  "brand": "FALKEN",
+  "design": "WILDPEAK R/T01",
+  "sizeLabel": "265/70R17",
+  "stock": 4,
+  "precioConIva": 432.4,
+  "listaConIva": 432.4
+ },
+ {
+  "code": "A0164",
+  "brand": "HAIDA",
+  "design": "RT HD878",
+  "sizeLabel": "265/70R17",
+  "stock": 7,
+  "precioConIva": 202.4,
+  "listaConIva": 202.4
+ },
+ {
+  "code": "A0301",
+  "brand": "KENDA",
+  "design": "KR608",
+  "sizeLabel": "265/70R17",
+  "stock": 4,
+  "precioConIva": 288.65,
+  "listaConIva": 288.65
+ },
+ {
+  "code": "A0302",
+  "brand": "KENDA",
+  "design": "KR29",
+  "sizeLabel": "265/70R17",
+  "stock": 4,
+  "precioConIva": 350.75,
+  "listaConIva": 350.75
+ },
+ {
+  "code": "A0304",
+  "brand": "KENDA",
+  "design": "KR629",
+  "sizeLabel": "265/70R17",
+  "stock": 4,
+  "precioConIva": 343.85,
+  "listaConIva": 343.85
+ },
+ {
+  "code": "A0470",
+  "brand": "TOURADOR",
+  "design": "FORCE AT II LB",
+  "sizeLabel": "265/70R17",
+  "stock": 21,
+  "precioConIva": 165.6,
+  "listaConIva": 165.6
+ },
+ {
+  "code": "A0471",
+  "brand": "TOURADOR",
+  "design": "FORCE AT II LB",
+  "sizeLabel": "265/70R17",
+  "stock": 9,
+  "precioConIva": 190.9,
+  "listaConIva": 190.9
+ },
+ {
+  "code": "TOW-023",
+  "brand": "TOWNHALL",
+  "design": "TH-AT802",
+  "sizeLabel": "265/70R17",
+  "stock": 17,
+  "precioConIva": 170,
+  "listaConIva": 170
+ },
+ {
+  "code": "A0563",
+  "brand": "WINRUN",
+  "design": "MAXCLAW A/T",
+  "sizeLabel": "265/70R17",
+  "stock": 4,
+  "precioConIva": 202.4,
+  "listaConIva": 202.4
+ }
+]

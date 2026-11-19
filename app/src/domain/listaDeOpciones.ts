@@ -45,6 +45,17 @@ export interface LineaDeLista {
 }
 
 const dinero = (v: number) => `$${v.toFixed(2)}`;
+
+/**
+ * Hasta 3 opciones la lista va NUMERADA y se elige con «la 1, la 2 o la 3»: el
+ * número es el escalón (Costo / Equilibrio / Premium) y toda la lectura de la
+ * respuesta (`posicionElegida`, `escalonContestado`, `opcionPorPosicion`) está
+ * hecha para eso. Con MÁS de 3 (Competimotor: Falken + Winrun + Kenda + la de
+ * mayor inventario, o «qué más tiene») la lista va con VIÑETAS y la pregunta es
+ * «¿Cuál le cotizo?»: un «4» pelado sería ambiguo con 4 llantas, y el cliente
+ * contesta con la marca, que `eleccionDeLaVitrina` ya entiende.
+ */
+export const MAX_NUMERADA = 3;
 const centavos = (v: number) => Math.round(v * 100) / 100;
 
 /**
@@ -55,6 +66,13 @@ const centavos = (v: number) => Math.round(v * 100) / 100;
 export function armarLista(
   opciones: readonly OpcionConPrecio[],
   cantidad: number,
+  /**
+   * Cuántas opciones caben en la lista. 3 es la escalera de siempre (Depot); un
+   * cliente con `politica.recomendacionPorMarca` (Competimotor) manda las de su
+   * lámina, hasta 6. Con más de 3 la lista va con viñetas y sin número (ver
+   * `MAX_NUMERADA`).
+   */
+  maximo = MAX_NUMERADA,
 ): LineaDeLista[] | null {
   const vistos = new Set<string>();
   const unicas = opciones.filter((o) => {
@@ -63,7 +81,7 @@ export function armarLista(
     vistos.add(llave);
     return true;
   });
-  if (unicas.length < 2 || unicas.length > 3) return null;
+  if (unicas.length < 2 || unicas.length > maximo) return null;
   if (unicas.some((o) => !Number.isFinite(o.precio) || o.precio <= 0)) return null;
   const c = Number.isInteger(cantidad) && cantidad >= 1 ? cantidad : 4;
   return [...unicas]
@@ -92,15 +110,17 @@ export function ordenDeLaLista<T extends { minimumPriceWithTax?: number | null }
  * `1 · KENDA KR20 — $80.50 c/u · 4 = $322.00`; con Black Friday, la cuenta de
  * la lámina: `1 · KENDA KR601 — 2 × $181.69 + 2 × $72.68 = $508.74 (−60 % en la 2.ª llanta)`.
  */
-export function lineaDeLista(l: LineaDeLista, cantidad: number): string {
+export function lineaDeLista(l: LineaDeLista, cantidad: number, numerada = true): string {
+  const cabeza = numerada ? `${l.n} ·` : "•";
   if (l.segundaLlanta) {
-    return `${l.n} · ${l.nombre} — ${cuentaConRotulo(cantidad, l.segundaLlanta)}`;
+    return `${cabeza} ${l.nombre} — ${cuentaConRotulo(cantidad, l.segundaLlanta)}`;
   }
-  return `${l.n} · ${l.nombre} — ${dinero(l.precio)} c/u · ${cantidad} = ${dinero(l.total)}`;
+  return `${cabeza} ${l.nombre} — ${dinero(l.precio)} c/u · ${cantidad} = ${dinero(l.total)}`;
 }
 
-/** «¿Le cotizo la 1, la 2 o la 3?» — o «la 1 o la 2» con dos. */
+/** «¿Le cotizo la 1, la 2 o la 3?» — o «la 1 o la 2» con dos; con más de 3, «¿Cuál le cotizo?». */
 export function preguntaDeLaLista(cuantas: number): string {
+  if (cuantas > MAX_NUMERADA) return "¿Cuál le cotizo?";
   const numeros = Array.from({ length: cuantas }, (_, i) => `la ${i + 1}`);
   const cola = numeros.pop();
   return `¿Le cotizo ${numeros.length ? `${numeros.join(", ")} o ` : ""}${cola}?`;
@@ -109,7 +129,7 @@ export function preguntaDeLaLista(cuantas: number): string {
 /** El bloque completo: una línea por opción y UNA pregunta al final. */
 export function textoDeLaLista(lista: readonly LineaDeLista[], cantidad: number): string {
   return [
-    ...lista.map((l) => lineaDeLista(l, cantidad)),
+    ...lista.map((l) => lineaDeLista(l, cantidad, lista.length <= MAX_NUMERADA)),
     "",
     preguntaDeLaLista(lista.length),
   ].join("\n");
@@ -117,14 +137,17 @@ export function textoDeLaLista(lista: readonly LineaDeLista[], cantidad: number)
 
 /** La lista tal como el cliente la vio, desde lo que la pieza dejó guardado. */
 export function listaDeLaPieza(
-  metadata: { escalones?: unknown; cantidad?: unknown } | null | undefined,
+  metadata: { escalones?: unknown; cantidad?: unknown; lista?: unknown } | null | undefined,
 ): { lista: LineaDeLista[]; cantidad: number } | null {
-  const esc = metadata?.escalones as
-    Record<string, { codigo?: string; nombre?: string; precio_con_iva?: number; segunda_llanta?: SegundaLlanta | null } | null> | null | undefined;
-  if (!esc) return null;
+  type Guardada = { codigo?: string; nombre?: string; precio_con_iva?: number; segunda_llanta?: SegundaLlanta | null };
+  const esc = metadata?.escalones as Record<string, Guardada | null> | null | undefined;
+  // Con más de 3 opciones (Competimotor) la lámina guarda TODA su lista en
+  // `metadata.lista`: los tres escalones solo nombran a tres de ellas.
+  const completa = Array.isArray(metadata?.lista) ? (metadata.lista as (Guardada | null)[]) : null;
+  if (!esc && !completa) return null;
   // La promo que el cliente VIO (guardada con la lámina), no la de hoy.
-  const opciones: OpcionConPrecio[] = ["economica", "equilibrada", "premium"]
-    .map((k) => esc[k])
+  const guardadas = completa ?? ["economica", "equilibrada", "premium"].map((k) => esc![k]);
+  const opciones: OpcionConPrecio[] = guardadas
     .filter((o): o is NonNullable<typeof o> => Boolean(o?.nombre) && Number.isFinite(Number(o?.precio_con_iva)))
     .map((o) => ({
       nombre: o.nombre!, precio: Number(o.precio_con_iva), codigo: o.codigo ?? null,
@@ -133,7 +156,7 @@ export function listaDeLaPieza(
   const cantidad = Number.isInteger(metadata?.cantidad) && Number(metadata?.cantidad) >= 1
     ? Number(metadata?.cantidad)
     : 4;
-  const lista = armarLista(opciones, cantidad);
+  const lista = armarLista(opciones, cantidad, completa ? Math.max(MAX_NUMERADA, opciones.length) : MAX_NUMERADA);
   return lista ? { lista, cantidad } : null;
 }
 
@@ -147,7 +170,7 @@ export function hechoDeLaLista(lista: readonly LineaDeLista[], cantidad: number,
   // (precio y promo de hoy sobre las opciones de la lámina): el revisor tiene que saber cuál es.
   const origen = vigente ? "recalculada HOY con el catálogo y la promo de hoy sobre las opciones de la lámina" : "salió con la lámina";
   return `LISTA DE OPCIONES CON PRECIOS EN PANTALLA (fuente determinística, ${origen}): ${
-    lista.map((l) => lineaDeLista(l, cantidad)).join(" | ")
+    lista.map((l) => lineaDeLista(l, cantidad, lista.length <= MAX_NUMERADA)).join(" | ")
   }. Cada total es unitario × ${cantidad} (o, con Black Friday, la cuenta de la 2.ª llanta escrita en la línea), ya calculado: son datos duros, el bot PUEDE decirlos y NO se corrigen. `
     + `Cerrar con «${preguntaDeLaLista(lista.length)}» es la pregunta correcta de ese turno (elegir entre las opciones, NO pedir permiso por la cantidad): `
     + "se conserva y NO es pregunta_de_mas. Lo que sí está prohibido es volver a preguntar qué prioriza el cliente.";
@@ -174,6 +197,8 @@ export function opcionPorPosicion(
   n: number,
 ): { codigo: string; nombre: string; precio_con_iva: number; escalon: EscalonElegido; segunda_llanta?: SegundaLlanta | null } | null {
   const pieza = listaDeLaPieza(metadata);
+  // Una lista con viñetas (más de 3) no tiene posiciones: se elige por marca.
+  if (pieza && pieza.lista.length > MAX_NUMERADA) return null;
   const linea = pieza?.lista.find((l) => l.n === n);
   if (!pieza || !linea?.codigo) return null;
   const escalon: EscalonElegido = n === 1 ? "precio" : n === pieza.lista.length ? "premium" : "equilibrada";
