@@ -29,7 +29,7 @@ import { el, img, stripEmoji, text, type SatoriNode } from "./depotDesign.js";
 import { ahorroDeLaCotizacion, rotulosDeSegundaLlanta, textoVitrinaSegundaLlanta, type PosterLine } from "./depotPosters.js";
 import { cuentaDeSegundaLlanta } from "../domain/promocionDeTemporada.js";
 import { etiquetaDePromocion } from "../domain/promocion.js";
-import { negocio, pieDeLocales, localesEnUnaLinea, sinPendiente } from "../negocio/index.js";
+import { negocio, pieDeLocales, localesEnUnaLinea, plazoDeFabrica, plazoDeFabricaEnTexto, sinPendiente, textosDelSeguro } from "../negocio/index.js";
 import { localesDeIdentidad } from "../negocio/identidad.js";
 
 // Textos del perfil con el candado R-10: lo pendiente sale con su respaldo
@@ -773,7 +773,7 @@ export function optionsPosterDiaNoche(data: OptionsDiaNocheData, modo: ModoPieza
           line.golpesMeses ? chip(icono("escudo", 10, t.icoRojo), `${line.golpesMeses} meses de seguro`, reco) : null,
           // Garantía en 0 = sin confirmar con el cliente nuevo: se omite el
           // chip, nunca se dibuja «0 años».
-          line.fabricaAnios > 0 ? chip(icono("medalla", 10, t.icoOro), `${line.fabricaAnios} años de fábrica`) : null,
+          line.fabricaAnios > 0 ? chip(icono("medalla", 10, t.icoOro), `${plazoDeFabricaEnTexto(line.fabricaAnios)} de fábrica`) : null,
           chipDisponibilidad(line, t, 8.5),
         ),
         line.posicionamiento
@@ -979,7 +979,7 @@ export function quotePosterDiaNoche(data: QuoteDiaNocheData, modo: ModoPieza): S
   // Sin seguro contra golpes la tarjeta grande ya es la garantía de fábrica:
   // no se repite en las chicas.
   const minis: Array<{ ic: Icono; cifra: string; texto: string }> = [
-    ...(line.golpesMeses && line.fabricaAnios > 0 ? [{ ic: "medalla" as const, cifra: `${line.fabricaAnios} años`, texto: `Garantía de fábrica ${marca}` }] : []),
+    ...(line.golpesMeses && line.fabricaAnios > 0 ? [{ ic: "medalla" as const, cifra: plazoDeFabricaEnTexto(line.fabricaAnios), texto: `Garantía de fábrica ${marca}` }] : []),
     ...(negocio.piezas.antiguedadClasica
       ? [{
           ic: "local" as const,
@@ -1181,14 +1181,14 @@ export function quotePosterDiaNoche(data: QuoteDiaNocheData, modo: ModoPieza): S
         }, icono(line.golpesMeses ? "escudoOk" : "medalla", 18, "#ffffff")),
         el({ flexDirection: "column", flex: 1 },
           el({ alignItems: "baseline", gap: 7 },
-            text({ ...ANCHO(800), fontSize: 32, lineHeight: 1, color: t.txt }, String(line.golpesMeses ?? line.fabricaAnios)),
-            text({ ...BARLOW(600), fontSize: 13, color: t.seguroOro }, line.golpesMeses ? "meses de seguro" : "años de garantía"),
+            text({ ...ANCHO(800), fontSize: 32, lineHeight: 1, color: t.txt }, line.golpesMeses ? String(line.golpesMeses) : plazoDeFabrica(line.fabricaAnios).cifra),
+            text({ ...BARLOW(600), fontSize: 13, color: t.seguroOro }, line.golpesMeses ? "meses de seguro" : `${plazoDeFabrica(line.fabricaAnios).unidad} de garantía`),
           ),
           text({ ...ANCHO(800), fontSize: 13.5, marginTop: 6, color: t.txt },
-            line.golpesMeses ? "GRATIS, INCLUIDO EN EL PRECIO" : "GARANTÍA DE FÁBRICA"),
+            line.golpesMeses ? textosDelSeguro(negocio).insignia : "GARANTÍA DE FÁBRICA"),
           text({ ...BARLOW(400), fontSize: 8.5, lineHeight: 1.47, color: t.sub, marginTop: 8, maxWidth: 250 },
             line.golpesMeses
-              ? "Cubre golpes, cortes o cualquier daño que sufra la llanta. Sin costo adicional para usted."
+              ? textosDelSeguro(negocio).detalle
               : `Garantía de fábrica ${marca} contra defectos de fabricación.`),
         ),
       ),

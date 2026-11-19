@@ -43,7 +43,9 @@ ${pagos ? `Formas de pago: ${pagos} ${conCuotas
   ? "Es un hecho: si preguntan por tarjeta, recargos o cuotas, respóndelo con estas palabras. PROHIBIDO decir que no puedes confirmar lo de la tarjeta."
   : "Es un hecho: si preguntan cómo pagar, respóndelo con estas palabras. Recargos, cuotas, diferidos o descuentos que no estén acá NO se prometen: los confirma un asesor."}
 ` : `Formas de pago: todavía no están confirmadas. Si preguntan cómo pagar, tarjeta, cuotas o descuentos, NO prometas ninguna: di que se lo confirma un asesor y usa notificar_vendedor.
-`}${business.promo ? `Promoción vigente: ${business.promo}.` : ""}
+`}${politica.hechosConfirmados?.length ? `Datos confirmados del negocio (afírmalos con estas palabras; lo que no está acá no se promete):
+${politica.hechosConfirmados.map((h) => `- ${h}`).join("\n")}
+` : ""}${business.promo ? `Promoción vigente: ${business.promo}.` : ""}
 
 # Estilo administrado
 Estas preferencias vienen de Ajustes y son la única fuente del tono y la personalidad:

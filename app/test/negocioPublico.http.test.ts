@@ -32,6 +32,7 @@ process.env.DATABASE_URL ||= "postgresql://manue@localhost/postgres";
 const { exigirCredencial } = await import("../src/server/admin.js");
 const { negocioPublico } = await import("../src/server/negocioPublico.js");
 const { COMPACT_PLAYBOOK } = await import("../src/agent/compactPlaybook.js");
+const { PENDIENTES_NUMERICOS } = await import("../src/negocio/negocios/mundillantas.js");
 
 let server: Server;
 let base = "";
@@ -93,8 +94,7 @@ describe("GET /api/negocio · el contrato exacto de §3.2", () => {
       faltantes: [
         "vendedor · nombre",
         "piezas · frase del precio sin descuento",
-        "Mundillantas Kenda · pin (Jenny reenvió el mismo de Falken el 6-nov; puesto el de Falken)",
-        "garantías por marca: meses del seguro contra impacto y años de fábrica (en 0 hasta que Jenny los dé)",
+        ...PENDIENTES_NUMERICOS,
       ],
     });
   });

@@ -26,8 +26,14 @@ import type { PerfilDeNegocio } from "../perfil.js";
  * marca `[PENDIENTE]`, así que se listan acá para que el panel los muestre.
  */
 export const PENDIENTES_NUMERICOS = [
-  "Mundillantas Kenda · pin (Jenny reenvió el mismo de Falken el 6-nov; puesto el de Falken)",
-  "garantías por marca: meses del seguro contra impacto y años de fábrica (en 0 hasta que Jenny los dé)",
+  "Mundillantas Kenda · pin (Jenny reenvió el mismo de Falken el 6-nov; puesto el de Falken; 18-nov: «ya le pido este»)",
+  // Respuestas del 18-nov (`docs/clientes/Preguntas-…-respondido-18nov.xlsx`):
+  // lo que Jenny dejó en blanco. Las garantías por marca ya llegaron.
+  "país de origen de Falken, Winrun y Maxxis (en blanco el 18-nov; Kenda: China)",
+  "mantenimiento cada 10.000 km: qué incluye (el 18-nov solo dijo que va comprando 2 o 4 llantas)",
+  "envíos a otras ciudades: quién paga y cuánto cuesta (el 18-nov solo dijo Laar Courier o Transportes Bemaut)",
+  "instalación de un juego de 4: cuánto demora (el 18-nov solo dijo orden de llegada o con cita)",
+  "promoción de diciembre: cuál es (el 18-nov solo dijo «desde el 10 hasta el 31»; no se anuncia)",
 ];
 
 /**
@@ -60,7 +66,8 @@ function respaldoCon(locales: Respaldo[number]): Respaldo {
     {
       icono: "escudoOk",
       titulo: "SEGURO CONTRA IMPACTO",
-      detalle: "Incluido con su llanta. Las condiciones se las explica su asesor.",
+      // Jenny, 18-nov: «solo con la factura y solo en marcas maxxis, falken, kenda y winrun».
+      detalle: "Incluido con su llanta. Se hace válido con la factura de su compra.",
       marcas: ["Kenda", "Falken", "Winrun", "Maxxis"],
     },
     {
@@ -189,10 +196,17 @@ export const MUNDILLANTAS: PerfilDeNegocio = {
   palabrasDeLugarPropias: ["mundillantas", "mundi", "competimotor"],
   iva: 0.15,
   moneda: "USD",
-  // Jenny (6-nov): «garantía normal de fábrica y seguro contra impacto» en
-  // Kenda, Falken, Winrun y Maxxis, SIN meses ni años. En 0 hasta tener las
-  // cifras: el texto dice «por confirmar con el asesor» y no promete plazos.
-  garantias: { default: { golpesMeses: 0, fabricaAnios: 0 } },
+  // Jenny, 18-nov (hoja «Garantías»): seguro contra impacto en meses y
+  // garantía de fábrica en años, por marca. Falken 1,5 años y Winrun 0,5 se
+  // dicen en meses (18 y 6: `plazoDeFabrica`). Las demás marcas, en 0: el texto
+  // dice «por confirmar con el asesor» y no promete plazos.
+  garantias: {
+    default: { golpesMeses: 0, fabricaAnios: 0 },
+    Kenda: { golpesMeses: 12, fabricaAnios: 1 },
+    Falken: { golpesMeses: 18, fabricaAnios: 1.5 },
+    Winrun: { golpesMeses: 6, fabricaAnios: 0.5 },
+    Maxxis: { golpesMeses: 12, fabricaAnios: 1 },
+  },
   vendedor: { nombre: "[PENDIENTE] nombre del vendedor" },
   piezas: {
     antiguedad: "",
@@ -222,19 +236,34 @@ export const MUNDILLANTAS: PerfilDeNegocio = {
     // el logo oficial de cada marca de llanta (17-nov).
     plantillaPorDefecto: "diaNoche",
     // Jenny, 6-nov: «garantía normal de fábrica y seguro contra impacto» en
-    // Kenda, Falken, Winrun y Maxxis, sin meses ni años. Se dice eso mismo,
-    // sin plazo; cuando lleguen las cifras a `garantias`, mandan ellas.
+    // Kenda, Falken, Winrun y Maxxis. Desde el 18-nov las cuatro tienen cifras
+    // en `garantias` y mandan ellas; esto queda para la tarjeta de locales.
     respaldo: respaldoCon(LOS_TRES_LOCALES),
+    // Cómo se llama SU seguro (no el de Depot, que «cubre golpes, cortes o
+    // cualquier daño»). Jenny, 18-nov: «solo con la factura y solo en marcas
+    // maxxis, falken, kenda y winrun». Nada más: ni qué cubre ni exclusiones.
+    seguro: {
+      enTexto: "de seguro contra impacto",
+      titulo: "SEGURO CONTRA IMPACTO",
+      etiqueta: "Impacto",
+      corto: "de seguro contra impacto",
+      insignia: "SEGURO CONTRA IMPACTO",
+      detalle: "Se hace válido con la factura de su compra. Aplica en Kenda, Falken, Winrun y Maxxis.",
+    },
     horarioBajoElPrecio: true,
     letraDelModelo: "deportiva",
   },
   // Sin `facturacion` no salen pre-facturas: correcto durante la prueba.
   // La alineación SOLO con 4 llantas (Jenny, 8-nov): «alineación no porque
-  // solo se da cuando lleva las 4 llantas». El mantenimiento cada 10.000 km
-  // del 6-nov no lo repitió: no se promete.
+  // solo se da cuando lleva las 4 llantas». El mantenimiento cada 10.000 km:
+  // Jenny, 18-nov, «si incluido sea 2 o 4 llantas» (qué incluye: pendiente).
+  // `min_quantity` no sabe de «2 o 4»: con 3 también sale, y el texto lo aclara.
+  // OJO: esto siembra solo una base NUEVA; en producción la fila se agrega en
+  // Ajustes → Promociones (ver el PR del 18-nov).
   beneficiosDeArranque: [
     { text: "Enllantaje, balanceo y nitrógeno" },
     { text: "Alineación (comprando las 4 llantas)", minQuantity: 4 },
+    { text: "Mantenimiento cada 10.000 km (comprando 2 o 4 llantas)", minQuantity: 2 },
   ],
   pendientesNumericos: PENDIENTES_NUMERICOS,
 };

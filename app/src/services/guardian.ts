@@ -34,7 +34,7 @@ import { cantidadValidaDeLaFicha } from "../domain/cantidadGrande.js";
 import { hechoDeEquivalentesDevueltos } from "../domain/equivalentesPorMostrar.js";
 import { NOMBRE_DEL_VENDEDOR } from "../domain/saludo.js";
 import { FIRMA_DE_PRESENTACION } from "../domain/saludo.js";
-import { negocio } from "../negocio/index.js";
+import { negocio, plazoDeFabricaEnTexto } from "../negocio/index.js";
 import { anuncioDeLaConversacion } from "./anuncio.js";
 import { getAnunciosVigentes } from "./anunciosActivos.js";
 import { hechoDeAnunciosActivos } from "../domain/anunciosActivos.js";
@@ -326,6 +326,29 @@ export function hechoDeOrigenDeMarcas(): string | null {
   return `Origen de las marcas (ficha del negocio, el bot PUEDE afirmarlo y no debe mandarlo al asesor): ${
     marcas.map((m) => `${m.marca}: ${m.origen.pais}`).join(" · ")
   }. Si el cliente pregunta de dónde es una marca y el borrador lo evade, es ignora-pregunta.`;
+}
+
+/**
+ * Lo que el negocio confirmó sobre envíos, parte de pago, instalación y demás
+ * (`politica.hechosConfirmados`), como HECHO: sin esto el revisor tachaba «por
+ * Laar Courier» por no verlo en sus datos. Vacío para un negocio sin el campo.
+ */
+export function hechoDelNegocio(): string | null {
+  const hechos = politica.hechosConfirmados ?? [];
+  if (!hechos.length) return null;
+  // Y el respaldo por marca que el mismo negocio confirmó (conocimiento-marcas):
+  // simulador, 18-nov, «qué garantía tiene la Falken» — el vendedor dijo bien
+  // «18 meses… hasta 100.000 km… reforzada» y el revisor lo tachó por no verlo.
+  const porMarca = respaldoCompleto().marcas.map((m) => [
+    `${m.marca}:`,
+    m.seguroMeses ? `hasta ${m.seguroMeses} meses de seguro;` : null,
+    m.garantiaFabricaAnios ? `${plazoDeFabricaEnTexto(m.garantiaFabricaAnios)} de garantía de fábrica;` : null,
+    m.kmPromedio ? `hasta ${m.kmPromedio.toLocaleString("es-EC")} km aproximados;` : null,
+    m.origen.pais && m.origen.pais !== "POR CONFIRMAR" ? `país de origen ${m.origen.pais};` : "país de origen sin confirmar;",
+    m.origen.fraseDeVenta ?? null,
+  ].filter(Boolean).join(" "));
+  return `Datos confirmados del negocio (el bot PUEDE afirmarlos tal cual; agregarles plazos, precios o condiciones es **hecho_comercial_inventado**): ${hechos.join(" ")}`
+    + (porMarca.length ? ` Respaldo por marca: ${porMarca.join(" · ")}` : "");
 }
 
 /**
@@ -861,6 +884,7 @@ export async function armarContexto(
     // revisor no puede verificar, lo borra; así que viaja como hecho.
     hechoDeOrigenDeMarcas(),
     hechoDePagos(),
+    hechoDelNegocio(),
     // EL CONOCIMIENTO DE PRODUCTO (17-nov-2026): la MISMA función que arma el
     // hecho del vendedor. Sin él, el revisor borra «10 lonas», «unos 68.500 km»
     // o «la alineación va incluida» porque no puede verificarlos.

@@ -348,10 +348,10 @@ describe("juego, envío y derivados al asesor con la política de Mundillantas (
     expect(alcance.esConsultaFueraDeCatalogo("busco 4 llantas 205/55R16")).toBe(false);
   });
 
-  it("el juego es el de la política y, sin envíos confirmados, el cierre a distancia no los promete", async () => {
+  // Jenny, 18-nov: sí envían (Laar Courier o Transportes Bemaut); el asesor coordina pago y envío.
+  it("el juego es el de la política y, con envíos confirmados, el cierre a distancia lo coordina el asesor", async () => {
     const { candados, distancia } = await conPerfilDeSantoDomingo();
     expect(candados.JUEGO_COMPLETO).toBe(POLITICA_MUNDILLANTAS.juegoCompleto);
-    expect(distancia.cierreSinVisita("compra_a_distancia")[0]).not.toMatch(/confirma pago y envío/);
-    expect(distancia.cierreSinVisita("compra_a_distancia")[0]).toMatch(/si se puede/);
+    expect(distancia.cierreSinVisita("compra_a_distancia")[0]).toMatch(/confirma pago y envío/);
   });
 });

@@ -163,7 +163,9 @@ describe("faltantesDelPerfil", () => {
     expect(faltantes).toContain("vendedor · nombre");
     expect(faltantes).not.toContain("piezas · qué incluye toda compra");
     // Los numéricos declarados también van.
-    expect(faltantes.some((f) => f.startsWith("garantías por marca"))).toBe(true);
+    // Las garantías llegaron el 18-nov; lo que Jenny dejó en blanco sí va.
+    expect(faltantes.some((f) => f.startsWith("garantías por marca"))).toBe(false);
+    expect(faltantes.some((f) => f.startsWith("país de origen"))).toBe(true);
     // Lo que Jenny confirmó el 6-nov NO aparece.
     expect(faltantes).not.toContain("piezas · condiciones de las piezas");
     expect(faltantes).not.toContain("local2 · dirección");

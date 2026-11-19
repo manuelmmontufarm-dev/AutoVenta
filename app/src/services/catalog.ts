@@ -202,6 +202,11 @@ export function searchAlternatives(size: TireSize, direccion: Direccion | null =
   return ordenarPorCercania(mismoAro, pedida, direccion);
 }
 
+/** ¿Alguna llanta del catálogo trae precio con tarjeta y en efectivo? (Depot: nunca.) */
+export function catalogoConPreciosPorPago(): boolean {
+  return items.some((item) => Boolean(item.preciosPorPago));
+}
+
 export function findByCode(code: string): CatalogItem | undefined {
   return items.find((item) => item.code.toLowerCase() === code.toLowerCase());
 }

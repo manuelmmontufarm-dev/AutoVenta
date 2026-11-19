@@ -1,3 +1,33 @@
+## 18-nov-2026 · Bot · Competimotor: el precio según cómo paga (rama `feat/competimotor-respuestas-18nov`)
+
+- **Qué:** el lector del Excel de Fénix guarda Precio B (tarjeta) y Precio C (efectivo y transferencia) como campos
+  opcionales (`CatalogItem.preciosPorPago`), solo si no superan A ni bajan de D. Cuando el cliente pregunta por
+  descuentos, efectivo, transferencia o tarjeta, `el_pago_se_responde` manda en UN mensaje los tres precios de las
+  llantas cotizadas; si el bloque ya salió, contesta solo la línea del pago que preguntó. La cotización, la lámina y
+  el PDF siguen con Precio A; D nunca se nombra; sin B/C sigue lo de siempre (lo confirma un asesor).
+- **Por qué:** Manuel, 18-nov: «dejar precio A, pero si preguntan… que dé el precio con cada uno de los métodos de pago
+  en un mensaje»; «transferencia con el precio de efectivo».
+- **Depot:** Contífico no trae B/C: el paso no se activa; hashes y prompts idénticos a `main`.
+- **Probado:** `preciosPorPago` y `preciosPorPago.integration` (en rojo antes), simulador 3 corridas × 2 preguntas con
+  los mismos números, catálogo sin B/C → asesor, suite completa (4.144; las 2 que fallan ya venían de `main`).
+  **No probado** en WhatsApp real. **En producción hay que volver a subir el Excel** para que aparezcan B y C.
+- **Horas:** 1,5.
+
+## 18-nov-2026 · Bot · respuestas de Jenny cargadas en Competimotor y un solo stock (rama `feat/competimotor-respuestas-18nov`)
+
+- **Qué:** (1) Garantías por marca (Kenda 12 m / 1 año, Falken 18 m / 1,5, Winrun 6 m / 0,5, Maxxis 12 m / 1) con
+  sus textos propios: «seguro contra impacto», válido con la factura (ya no la promesa de Depot «cubre golpes, cortes
+  o cualquier daño»); los años fraccionarios se dicen en meses y «1 año» en singular. (2) Conocimiento de marcas:
+  origen/tecnología y km «hasta» de las cuatro; mantenimiento cada 10.000 km con 2 o 4 llantas. (3) Política:
+  envíos sí (Laar Courier o Transportes Bemaut), parte de pago, instalación por orden de llegada o con cita, como
+  `hechosConfirmados` (prompt + guardián). (4) Stock: una prueba fija que el bot usa `Existencia` (el total).
+- **Por qué:** Jenny devolvió los Excel de preguntas el 18-nov; Manuel: «un solo stock grande».
+- **Depot:** hashes de piezas, playbook, guardián, prompt, hecho de pagos y garantías idénticos a `main`.
+- **Probado:** `competimotorRespuestas18nov` (en rojo antes), `stockUnicoCompetimotor`, simulador `--perfil
+  mundillantas` con el catálogo real copiado (garantía de la Falken, envíos a Quito), `sim:humo`, fidelidad.
+  **No probado** en WhatsApp real.
+- **Horas:** 1,5.
+
 ## 18-nov-2026 · Competimotor · la lámina sale por marca: Falken, Winrun, Kenda + la de mayor inventario (rama `feat/competimotor-recomendaciones`)
 
 - **Qué:** primera lámina de una medida = una Falken, una Winrun y una Kenda (la de más stock de cada marca) + la de

@@ -44,7 +44,10 @@ export interface FilaCruda {
 export function normalizarFilaDeCatalogo(
   fila: FilaCruda,
   source: IdFuente,
-  precios?: { conIva: number; listaConIva: number; minimoConIva: number; taxRate: number },
+  precios?: {
+    conIva: number; listaConIva: number; minimoConIva: number; taxRate: number;
+    tarjetaConIva?: number; efectivoConIva?: number;
+  },
 ): { item: CatalogItem | null; motivo: string | null } {
   // La Sheet acepta solo una medida métrica (lo de siempre). El archivo lee
   // la medida como Contífico (`extractCatalogSizeLabel`): también pulgadas
@@ -98,6 +101,9 @@ export function normalizarFilaDeCatalogo(
       loadSpeed: null,
       active: true,
       source,
+      ...(precios?.tarjetaConIva && precios.efectivoConIva
+        ? { preciosPorPago: { tarjetaConIva: round2(precios.tarjetaConIva), efectivoConIva: round2(precios.efectivoConIva) } }
+        : {}),
     },
   };
 }

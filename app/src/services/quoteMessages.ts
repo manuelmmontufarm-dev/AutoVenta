@@ -1,5 +1,5 @@
 import { business } from "../config.js";
-import { negocio, sinPendiente } from "../negocio/index.js";
+import { negocio, plazoDeFabricaEnTexto, sinPendiente, textosDelSeguro } from "../negocio/index.js";
 import { CIERRE_COTIZAR } from "../domain/preguntasProhibidas.js";
 import { fraseDeAhorro, type AhorroDeLaCotizacion } from "../domain/ahorro.js";
 import { etiquetaDePromocion, paresEnPalabras, type ModoPromocion } from "../domain/promocion.js";
@@ -797,10 +797,10 @@ export function warrantyForBrand(brand: string): {
   const roadHazardMonths = garantia.golpesMeses > 0 ? garantia.golpesMeses : null;
   return {
     factory: garantia.fabricaAnios > 0
-      ? `${garantia.fabricaAnios} años garantía de fábrica contra defectos de fabricación`
+      ? `${plazoDeFabricaEnTexto(garantia.fabricaAnios)} garantía de fábrica contra defectos de fabricación`
       : "Garantía de fábrica por confirmar con el asesor",
     roadHazard: roadHazardMonths
-      ? `${roadHazardMonths} meses contra golpes y estalladuras`
+      ? `${roadHazardMonths} meses ${textosDelSeguro(negocio).enTexto}`
       : null,
     roadHazardMonths,
   };

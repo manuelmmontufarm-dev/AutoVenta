@@ -48,6 +48,15 @@ export interface CatalogItem {
   loadSpeed: TireLoadSpeed | null;
   active: boolean;
   source: "contifico" | "sheets" | "archivo";
+  /**
+   * El precio de ESTA llanta según cómo paga el cliente, con IVA (Fénix: «Precio
+   * B» con tarjeta de crédito, «Precio C» en efectivo o transferencia; Manuel,
+   * 18-nov-2026). Solo existe si el archivo trae los dos y pasan el control
+   * (no mayores que el precio, no menores que el mayorista). La cotización y
+   * las piezas NO lo usan: siguen con `customerPriceWithTax`. Contífico no lo
+   * trae, así que Depot no lo tiene.
+   */
+  preciosPorPago?: { tarjetaConIva: number; efectivoConIva: number };
 }
 
 const PRICE_TIERS: PriceTier[] = ["pvp1", "pvp2", "pvp3", "pvp4"];

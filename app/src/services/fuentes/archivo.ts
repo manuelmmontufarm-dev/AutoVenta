@@ -48,6 +48,9 @@ export const CatalogoMapeoSchema = z.object({
      * D = 138) y la fila se descarta con su motivo en vez de cotizarse.
      */
     precioControl: z.string().optional(),
+    /** Precio con tarjeta de crédito y en efectivo (Fénix: B y C). Solo para la pregunta de pago. */
+    precioTarjeta: z.string().optional(),
+    precioEfectivo: z.string().optional(),
     stock: z.string().min(1),
     foto: z.string().optional(),
     tipo: z.string().optional(),
@@ -79,6 +82,9 @@ export const MAPEO_CATALOGO_DEFECTO: CatalogoMapeo = {
     nombre: "articulo",
     precio: "precio a",
     precioControl: "precio d",
+    // Jenny, 18-nov: B = con tarjeta de crédito, C = efectivo (y transferencia).
+    precioTarjeta: "precio b",
+    precioEfectivo: "precio c",
     stock: "existencia",
   },
   precioIncluyeIva: true,
@@ -392,7 +398,11 @@ export async function filasDelArchivo(
 
 interface FilaGuardada {
   cruda: FilaCruda;
-  precios: { conIva: number; listaConIva: number; minimoConIva: number; taxRate: number };
+  precios: {
+    conIva: number; listaConIva: number; minimoConIva: number; taxRate: number;
+    /** Opcionales: un catálogo subido antes del 18-nov-2026 no los tiene. */
+    tarjetaConIva?: number; efectivoConIva?: number;
+  };
 }
 
 export interface CatalogoArchivo {
@@ -444,6 +454,10 @@ export function numeroDelArchivo(s: string): number | null {
 }
 
 const numero = numeroDelArchivo;
+
+/** Un precio por forma de pago vale si existe, no supera el precio y no baja del mayorista. */
+const precioPorPagoValido = (valor: number | null, precio: number, control: number | null): boolean =>
+  valor !== null && valor > 0 && valor <= precio && (control === null || control <= 0 || valor >= control);
 
 /** Suma el IVA del perfil UNA sola vez, solo si el archivo venía sin él. */
 const conIvaDelPerfil = (valor: number, incluyeIva: boolean): number =>
@@ -611,6 +625,8 @@ export function normalizarCatalogoSubido(
     const lista = col.precioLista ? numero(data[col.precioLista] ?? "") : null;
     const minimo = col.precioMinimo ? numero(data[col.precioMinimo] ?? "") : null;
     const control = col.precioControl ? numero(data[col.precioControl] ?? "") : null;
+    const tarjeta = col.precioTarjeta ? numero(data[col.precioTarjeta] ?? "") : null;
+    const efectivo = col.precioEfectivo ? numero(data[col.precioEfectivo] ?? "") : null;
     const { marca, diseno } = marcaYDiseno(data, col);
     const cruda: FilaCruda = {
       medida: medidaDelArchivo((data[col.medida] ?? "").trim()),
@@ -648,6 +664,14 @@ export function normalizarCatalogoSubido(
       listaConIva: lista !== null ? conIvaDelPerfil(lista, mapeo.precioIncluyeIva) : conIva,
       minimoConIva: minimo !== null ? conIvaDelPerfil(minimo, mapeo.precioIncluyeIva) : conIva,
       taxRate: negocio.iva,
+      // Precio con tarjeta y en efectivo, SOLO si vienen los dos y pasan el
+      // control: mayor que el precio o menor que el mayorista es tipeo.
+      ...(precioPorPagoValido(tarjeta, precioCrudo, control) && precioPorPagoValido(efectivo, precioCrudo, control)
+        ? {
+            tarjetaConIva: conIvaDelPerfil(tarjeta!, mapeo.precioIncluyeIva),
+            efectivoConIva: conIvaDelPerfil(efectivo!, mapeo.precioIncluyeIva),
+          }
+        : {}),
     };
     const { item, motivo } = normalizarFilaDeCatalogo(cruda, "archivo", precios);
     if (item) guardadas.push({ cruda, precios });

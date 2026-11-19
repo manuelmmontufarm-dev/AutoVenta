@@ -47,10 +47,11 @@ describe("Mundillantas · solo lo confirmado", () => {
     expect(negocio.telefono).toBe("+593 98 548 7924");
   });
 
-  it("INCLUYE: enllantaje, balanceo y nitrógeno siempre; alineación solo con 4 (Jenny, 8-nov)", () => {
+  it("INCLUYE: enllantaje, balanceo y nitrógeno siempre; alineación solo con 4 (8-nov); mantenimiento con 2 o 4 (18-nov)", () => {
     expect(negocio.beneficiosDeArranque).toEqual([
       { text: "Enllantaje, balanceo y nitrógeno" },
       { text: "Alineación (comprando las 4 llantas)", minQuantity: 4 },
+      { text: "Mantenimiento cada 10.000 km (comprando 2 o 4 llantas)", minQuantity: 2 },
     ]);
     expect(negocio.piezas.todasIncluyen.startsWith("[PENDIENTE]")).toBe(false);
   });
@@ -102,11 +103,17 @@ describe("Mundillantas · solo lo confirmado", () => {
     expect(eligen("juan leon mera")).toEqual(["competimotor"]);
   });
 
-  it("nada inventado: sin sectores, sin facturación, garantías en 0", () => {
+  it("nada inventado: sin sectores, sin facturación, garantías solo de las cuatro marcas que dio Jenny (18-nov)", () => {
     expect(negocio.sectores).toEqual([]);
     expect(negocio.marcas).toEqual(["Kenda", "Falken", "Winrun", "Maxxis"]);
     expect(negocio.facturacion).toBeUndefined();
-    expect(negocio.garantias).toEqual({ default: { golpesMeses: 0, fabricaAnios: 0 } });
+    expect(negocio.garantias).toEqual({
+      default: { golpesMeses: 0, fabricaAnios: 0 },
+      Kenda: { golpesMeses: 12, fabricaAnios: 1 },
+      Falken: { golpesMeses: 18, fabricaAnios: 1.5 },
+      Winrun: { golpesMeses: 6, fabricaAnios: 0.5 },
+      Maxxis: { golpesMeses: 12, fabricaAnios: 1 },
+    });
     expect(negocio.vendedor.nombre.startsWith("[PENDIENTE]")).toBe(true);
     expect(negocio.palabrasDeLugarPropias).toEqual(["mundillantas", "mundi", "competimotor"]);
   });
@@ -165,9 +172,10 @@ describe("Mundillantas · un prefijo de cupón por negocio", () => {
   });
 });
 
-describe("Mundillantas · garantías sin confirmar", () => {
-  it("ninguna marca promete seguro ni años de fábrica", () => {
-    for (const marca of ["FALKEN", "KENDA", "WINRUN", "MAXXIS"]) {
+describe("Mundillantas · garantías", () => {
+  // Desde el 18-nov las cuatro marcas tienen cifras (ver competimotorRespuestas18nov).
+  it("una marca que Jenny no nombró no promete seguro ni años de fábrica", () => {
+    for (const marca of ["SAILUN", "TOYO", "HAIDA"]) {
       const g = warrantyForBrand(marca);
       expect(g.roadHazard).toBeNull();
       expect(g.roadHazardMonths).toBeNull();
