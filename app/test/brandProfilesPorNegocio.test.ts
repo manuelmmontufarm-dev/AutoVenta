@@ -64,7 +64,7 @@ describe("008_benefits y 009_brand_profiles siembran según el negocio", () => {
       "Enllantaje, balanceo y nitrógeno",
       "Alineación (comprando las 4 llantas)",
       // Jenny, 18-nov: SU mantenimiento (con 2 o 4), no el «gratuito» de Depot.
-      "Mantenimiento cada 10.000 km (comprando 2 o 4 llantas)",
+      "Mantenimiento cada 10.000 km: rotación, revisión mecánica y nitrógeno (comprando 2 o 4 llantas)",
     ]);
   });
 });

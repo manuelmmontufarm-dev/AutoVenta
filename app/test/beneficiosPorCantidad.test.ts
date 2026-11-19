@@ -33,7 +33,7 @@ describe("INCLUYE de Mundillantas según cuántas llantas lleva", () => {
     expect(DE_MUNDILLANTAS.map((b) => [b.text, b.minQuantity])).toEqual([
       ["Enllantaje, balanceo y nitrógeno", null],
       ["Alineación (comprando las 4 llantas)", 4],
-      ["Mantenimiento cada 10.000 km (comprando 2 o 4 llantas)", 2],
+      ["Mantenimiento cada 10.000 km: rotación, revisión mecánica y nitrógeno (comprando 2 o 4 llantas)", 2],
     ]);
   });
 
@@ -42,7 +42,7 @@ describe("INCLUYE de Mundillantas según cuántas llantas lleva", () => {
       expect(applicableBenefits(DE_MUNDILLANTAS, { quantity }).map((b) => b.text)).toEqual([
         "Enllantaje, balanceo y nitrógeno",
         "Alineación (comprando las 4 llantas)",
-        "Mantenimiento cada 10.000 km (comprando 2 o 4 llantas)",
+        "Mantenimiento cada 10.000 km: rotación, revisión mecánica y nitrógeno (comprando 2 o 4 llantas)",
       ]);
     }
   });
@@ -54,7 +54,7 @@ describe("INCLUYE de Mundillantas según cuántas llantas lleva", () => {
     for (const quantity of [2, 3]) {
       expect(applicableBenefits(DE_MUNDILLANTAS, { quantity }).map((b) => b.text)).toEqual([
         "Enllantaje, balanceo y nitrógeno",
-        "Mantenimiento cada 10.000 km (comprando 2 o 4 llantas)",
+        "Mantenimiento cada 10.000 km: rotación, revisión mecánica y nitrógeno (comprando 2 o 4 llantas)",
       ]);
     }
   });

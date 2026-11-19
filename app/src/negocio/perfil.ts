@@ -301,6 +301,17 @@ export interface PerfilDeNegocio {
      * Competimotor lo llama «seguro contra impacto» y se hace válido con la
      * factura (Jenny, 18-nov-2026).
      */
+    /**
+     * De dónde es cada marca en la fila de país de la plantilla día y noche
+     * (clave = marca en mayúsculas): las banderas, el país donde se hace y una
+     * nota corta («tecnología japonesa»). Sin el campo, la tabla de la
+     * plantilla (Depot). Una marca que no está, sin fila: no se inventa origen.
+     */
+    origenDeMarcas?: Record<string, {
+      banderas: Array<"china" | "alemania" | "taiwan" | "japon" | "tailandia">;
+      pais: string;
+      nota: string;
+    }>;
     seguro?: {
       /** Tras «12 meses»: «de seguro contra impacto». */
       enTexto: string;

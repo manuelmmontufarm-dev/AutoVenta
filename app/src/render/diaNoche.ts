@@ -29,6 +29,7 @@ import { el, img, stripEmoji, text, type SatoriNode } from "./depotDesign.js";
 import { ahorroDeLaCotizacion, rotulosDeSegundaLlanta, textoVitrinaSegundaLlanta, type PosterLine } from "./depotPosters.js";
 import { cuentaDeSegundaLlanta } from "../domain/promocionDeTemporada.js";
 import { etiquetaDePromocion } from "../domain/promocion.js";
+import type { PerfilDeNegocio } from "../negocio/perfil.js";
 import { negocio, pieDeLocales, localesEnUnaLinea, plazoDeFabrica, plazoDeFabricaEnTexto, sinPendiente, textosDelSeguro } from "../negocio/index.js";
 import { localesDeIdentidad } from "../negocio/identidad.js";
 
@@ -251,7 +252,7 @@ function icono(nombre: Icono, tam: number, color: string): SatoriNode {
   return { type: "svg", props: { width: tam, height: tam, viewBox: "0 0 24 24", children: figuras[nombre] } };
 }
 
-type Bandera = "china" | "alemania" | "taiwan" | "japon";
+type Bandera = NonNullable<PerfilDeNegocio["piezas"]["origenDeMarcas"]>[string]["banderas"][number];
 
 function bandera(cual: Bandera, ancho: number, alto: number, t: Tokens): SatoriNode {
   const figuras: Record<Bandera, SatoriNode[]> = {
@@ -274,6 +275,12 @@ function bandera(cual: Bandera, ancho: number, alto: number, t: Tokens): SatoriN
       forma("rect", { width: 30, height: 20, fill: "#ffffff" }),
       forma("circle", { cx: 15, cy: 10, r: 6, fill: "#bc002d" }),
     ],
+    // Rojo, blanco, azul doble, blanco, rojo (1:1:2:1:1).
+    tailandia: [
+      forma("rect", { width: 30, height: 20, fill: "#a51931" }),
+      forma("rect", { y: 3.33, width: 30, height: 13.34, fill: "#f4f5f8" }),
+      forma("rect", { y: 6.67, width: 30, height: 6.66, fill: "#2d2a4a" }),
+    ],
   };
   return el(
     { width: ancho, height: alto, borderRadius: 2, overflow: "hidden", ...(cual === "japon" ? { border: `1px solid ${t.line2}` } : {}) },
@@ -293,7 +300,9 @@ const ORIGEN: Record<string, { banderas: Bandera[]; pais: string; nota: string }
 };
 
 function filaPais(brand: string, t: Tokens, bandera_: [number, number], cuerpo: number, marginTop: number): SatoriNode | null {
-  const origen = ORIGEN[brand.trim().toUpperCase()];
+  // El negocio que declaró de dónde es cada marca (Competimotor, Jenny 18-nov)
+  // manda; los demás, la tabla de la plantilla, como siempre (Depot igual).
+  const origen = negocio.piezas.origenDeMarcas?.[brand.trim().toUpperCase()] ?? ORIGEN[brand.trim().toUpperCase()];
   if (!origen) return null;
   return el({ alignItems: "center", gap: 6, marginTop },
     ...origen.banderas.map((b) => bandera(b, bandera_[0], bandera_[1], t)),
