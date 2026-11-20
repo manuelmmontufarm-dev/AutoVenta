@@ -99,7 +99,7 @@ import { extractFlotationSizes, extractTireSizes, formatFlotationSize, formatTir
 import { marcaPreguntada, pidioCotizacionExplicita, ultimaMarcaPedida } from "../domain/consultaConRespaldo.js";
 import { armarLista, ordenDeLaLista, confirmacionDeLaOpcion, opcionPorPosicion, posicionElegida, preguntaDeLaLista, MAX_NUMERADA } from "../domain/listaDeOpciones.js";
 import { escalonesDelConjunto, marcaNombradaEnLaMedida, marcasRechazadas, recomendacionDeLaMedida, type ModoDeRecomendacion } from "../domain/recomendacionPorMarca.js";
-import { cotizarLaUnicaDeUnaVez, ultimoTurnoDelBot } from "../domain/cotizarLaUnica.js";
+import { cotizarLaUnicaDeUnaVez, laNombradaConCantidad, ultimoTurnoDelBot } from "../domain/cotizarLaUnica.js";
 import { consienteEsta, type OfertaDeCotizar } from "../domain/ofertaVigente.js";
 import { leerOfertaVigente } from "../services/ofertaVigente.js";
 import { traeMarcaDelMenu, autorizaCotizacionEnEsteTurno, canGenerateFinalQuote, cantidadParaPrepararOpciones, describeUso, escalonesDeOpciones, pideAlternativaMasBarata, pideRecomendacion, respuestaDePreferencia, pideOpcionesNoCotizacion } from "../domain/salesIntent.js";
@@ -2546,21 +2546,34 @@ export function buildTools(ctx: AgentContext) {
           ? { codigo: laUnica.code, marca: laUnica.brand, diseno: laUnica.design, medida: laUnica.sizeLabel }
           : null,
       });
+      // EL PEDIDO YA NOMBRA UNA DE LAS OPCIONES, CON CANTIDAD (CM18, simulador
+      // Competimotor): «4 llantas 265 65 17 winrun maxclaw at» con la A/T y la
+      // R/T en pantalla. Elegir es pedir: se cotiza la nombrada. Misma fuente
+      // que «la única»: domain/cotizarLaUnica.ts.
+      const codigoNombrado = porMarca?.modo !== "mas" && preferencia === null
+        ? laNombradaConCantidad({
+          opciones: products.map((p) => ({ codigo: p.code, marca: p.brand, diseno: p.design, medida: p.sizeLabel })),
+          textosDelCliente: [ctx.currentUserText, ...mensajesDeLaVisitaActual(inbound).map((m) => m.content)],
+          medidaSinConfirmar: Boolean(ctx.medidaSinConfirmar),
+        })
+        : null;
+      const porNombre = codigoNombrado ? products.find((p) => p.code === codigoNombrado) : undefined;
       const entregarRecomendacion =
         pidioCotizacionExplicita(ctx.currentUserText) ||
         pideRecomendacion(ctx.currentUserText) ||
         dijoSuUso ||
         preferencia !== null ||
-        unicaConPrecioPedido;
+        unicaConPrecioPedido ||
+        Boolean(porNombre);
       const autorizaCotizar =
         !ctx.medidaSinConfirmar &&
-        (pidioCotizacionExplicita(ctx.currentUserText) || preferencia !== null || unicaConPrecioPedido);
+        (pidioCotizacionExplicita(ctx.currentUserText) || preferencia !== null || unicaConPrecioPedido || Boolean(porNombre));
       // Si contestó la preferencia, la recomendada ES la de ese escalón — no
       // la que eligió el modelo: «la más barata» no admite otra respuesta.
       const porPreferencia = preferencia
         ? products.find((p) => p.code === escalones[preferencia === "precio" ? "economica" : preferencia]?.codigo)
         : undefined;
-      const entregada = porPreferencia ?? recommended;
+      const entregada = porPreferencia ?? porNombre ?? recommended;
       // Pieza visual del catálogo (agrupada por marca). Si falla, el texto
       // sigue siendo la respuesta — el cliente nunca se queda sin opciones.
       //

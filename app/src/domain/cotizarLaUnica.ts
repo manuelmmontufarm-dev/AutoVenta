@@ -49,6 +49,32 @@ export function cotizarLaUnicaDeUnaVez(input: {
 }
 
 /**
+ * EL PEDIDO NOMBRA UNA DE LAS OPCIONES, CON SU CANTIDAD → SE COTIZA ESA.
+ *
+ * Simulador Competimotor, CM18 (18/19-nov): «4 llantas 265 65 17 winrun maxclaw
+ * at» con la MAXCLAW A/T y la MAXCLAW R/T en 265/65R17. El cliente ya eligió
+ * (marca, modelo y tipo) y dijo cuántas; la lámina preguntaba «¿la 1 o la 2?».
+ * Es la regla de `cotizarLaUnicaDeUnaVez` para cualquier número de opciones:
+ * elegir ES pedir la cotización (Manuel, 1 y 7-sep). Devuelve el código de la
+ * nombrada, o null si nombra varias, ninguna o no dijo cuántas.
+ */
+export function laNombradaConCantidad(input: {
+  opciones: readonly OpcionDeVitrina[];
+  textosDelCliente: readonly string[];
+  medidaSinConfirmar: boolean;
+}): string | null {
+  if (input.medidaSinConfirmar || input.opciones.length < 2) return null;
+  const textos = input.textosDelCliente.map((t) => t ?? "");
+  const conCantidad = textos.some((t) => hasExplicitQuantity(t)) || hasExplicitQuantity(textos.join("\n"));
+  if (!conCantidad) return null;
+  for (const t of [...textos, textos.join("\n")]) {
+    const eleccion = eleccionDeLaVitrina(t, input.opciones);
+    if (eleccion?.tipo === "una") return eleccion.opcion.codigo;
+  }
+  return null;
+}
+
+/**
  * EL ÚLTIMO TURNO DEL BOT, no su última fila. Una respuesta sale en varias filas
  * del historial (la pieza, el texto, y el cierre «¿Se la cotizo? 😊» aparte):
  * mirar solo la última perdía «Es la única que tengo…» (simulador en vivo,

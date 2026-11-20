@@ -1,3 +1,21 @@
+## 20-nov-2026 · Bot · Competimotor CM18: el pedido que nombra una llanta de la lámina se cotiza (rama `fix/competimotor-pendientes`)
+
+- **Qué:** (1) `eleccionDeLaVitrina` usa el TIPO (A/T, R/T, M/T, H/T) para separar diseños del mismo nombre
+  («winrun maxclaw at» → la MAXCLAW A/T, no las dos); el tipo solo no elige. Las cifras (medida, cantidad) ya no cuentan
+  para el tope de 5 palabras. (2) `laNombradaConCantidad` (domain/cotizarLaUnica.ts, la misma fuente que «la única»): si
+  el pedido nombra UNA de las opciones de la lámina y dice cuántas, `preparar_opciones` entrega esa y autoriza cotizarla
+  en el turno. Sin cantidad, sin tipo o con la medida sin confirmar, sigue preguntando.
+- **Por qué:** CM18 no armó su prefijo 2 de 2 en la verificación del PR #64: «4 llantas 265 65 17 winrun maxclaw at»
+  → lámina con las dos Maxclaw y «¿la 1 o la 2?». **No lo causó el PR #64:** la misma prueba da el mismo resultado con el
+  código de `605947c` (antes del PR). El 18-nov el modelo se saltó `preparar_opciones` (que `buscar_catalogo` siempre le
+  pide) y cotizó directo; el 19-nov siguió ese paso. Variación del modelo sobre una brecha real del código.
+- **Depot:** código común. Un pedido que nombra una sola llanta de la lámina con su cantidad se cotiza en el turno (antes,
+  según lo que eligiera el modelo). Ningún texto aprobado cambia.
+- **Probado:** 3 casos en `recomendacionPorMarca.herramientas` (filas reales de 265/65R17 del Excel agregadas al fixture;
+  en rojo antes, y en rojo también con el código de antes del PR #64) y 3 en `cotizarLaUnica`; suite completa (solo los 2
+  que ya fallan en `main`). Simulador: ver la entrada de verificación.
+- **Horas:** 0,5.
+
 ## 20-nov-2026 · Recordatorio de visita y «no llegó» a los clientes
 
 **Qué:**

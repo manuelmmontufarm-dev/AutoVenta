@@ -47,14 +47,22 @@ function tokensDelNombre(valor: string): string[] {
 export function eleccionDeLaVitrina(texto: string, opciones: readonly OpcionDeVitrina[]): EleccionDeVitrina {
   if (!opciones.length) return null;
   const palabras = normalizar(texto).split(/\s+/).filter(Boolean).filter((p) => !RELLENO.has(p));
-  if (!palabras.length || palabras.length > 5) return null;
+  // Las cifras (medida, cantidad) no nombran nada y no cuentan para el tope de
+  // palabras: «4 llantas 265 65 17 winrun maxclaw at» son tres palabras.
+  if (!palabras.length || palabras.filter((p) => !/^\d/.test(p)).length > 5) return null;
   const medidaEscrita = normalizar(texto).match(/\b(\d{3})\s*[\/x-]?\s*(\d{2})\s*(?:r|-|\/)?\s*(\d{2})?\b/);
   const aroEscrito = normalizar(texto).match(/\b(?:rin|aro|ring)\s*(1[2-9]|2[0-4])\b/)?.[1] ?? null;
   const senaladas = new Map<string, OpcionDeVitrina>();
   const sinDueno: string[] = [];
+  // EL TIPO AFINA ENTRE DISEÑOS DEL MISMO NOMBRE (simulador Competimotor, CM18):
+  // «winrun maxclaw at» con la MAXCLAW A/T y la MAXCLAW R/T en pantalla. El
+  // tipo no es parte del nombre (no elige solo: «una at» no es una elección),
+  // pero tampoco es una palabra sin dueño: separa la A/T de la R/T.
+  let tipoPedido: string | null = null;
   for (const palabra of palabras) {
     // Una medida o un aro escritos no son un nombre: afinan, no eligen.
     if (/^\d/.test(palabra) || palabra === "rin" || palabra === "aro") continue;
+    if (TIPOS.has(palabra)) { tipoPedido = pelar(palabra); continue; }
     let asignada = false;
     for (const opcion of opciones) {
       const marca = normalizar(opcion.marca).trim();
@@ -78,6 +86,10 @@ export function eleccionDeLaVitrina(texto: string, opciones: readonly OpcionDeVi
       return true;
     });
     if (porMedida.length) candidatas = porMedida;
+  }
+  if (tipoPedido && candidatas.length > 1) {
+    const delTipo = candidatas.filter((o) => normalizar(o.diseno).split(/\s+/).some((tk) => pelar(tk) === tipoPedido));
+    if (delTipo.length) candidatas = delTipo;
   }
   // Nombró el modelo Y la marca de la misma llanta: sigue siendo una.
   if (candidatas.length === 1) return { tipo: "una", opcion: candidatas[0] };
