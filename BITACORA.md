@@ -23,6 +23,10 @@
   solo `hashesPiezasDepot` y `unidadEnLaCantidad`, igual que en main); `tsc`; las cuatro de CLAUDE.md. Simulador perfil
   mundillantas con INV_NOV.XLS: la conv 469 sale en un turno con la lámina KENDA KR29 + FALKEN WILDPEAK M/T 30X9.5R15 y el
   guardián aprueba; «Esa es la medida exacta» → KR29 M/T a $220.80. Lámina de la TOURADOR renderizada sin «seguro».
+- **Tras mergear #74 (P2/P3 + Black Friday):** conflicto solo en esta bitácora. Simulador de nuevo con la conv 469: lámina
+  KENDA KR29 a $197.80 (P2; P1 era $220.80) + FALKEN WILDPEAK M/T a $220 (Black Friday, P2 $278.30 tachado), sin P1.
+  Láminas renderizadas: Tourador 265/65R17 sin «seguro»; Kenda KR601 en Black Friday con «seguro» y P2 tachado. Visto de
+  paso (no se toca acá, es de la promo): la insignia dice «−N % en las 2 opciones» aunque solo una tenga descuento.
 - **Horas:** 1,5.
 ## 20-nov-2026 · Bot · Competimotor cotiza con P2 (tarjeta), ofrece P3 y Black Friday con precio tachado (rama `fix/competimotor-precio-p2-black-friday`)
 
