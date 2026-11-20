@@ -18,6 +18,7 @@ import type { SegundaLlanta } from "../domain/promocionDeTemporada.js";
 import { depotLogo } from "../render/assets.js";
 import { negocio, plazoDeFabricaEnTexto, sinPendiente, textosDelSeguro } from "../negocio/index.js";
 import { identidades } from "../negocio/identidad.js";
+import { politica } from "../negocio/politica.js";
 
 // La frase de impuestos sale del perfil (candado R-10: lo pendiente sale con
 // su respaldo neutro); sin el campo, la de siempre, que era la de Depot.
@@ -122,10 +123,20 @@ export function buildQuote(
   // él (como con el descuento del asesor): ir y volver por el precio sin IVA
   // era un centavo de diferencia en algunos precios.
   const conPromo = lines.some((line) => line.segundaLlanta);
+  // COTIZA CON TARJETA (Competimotor, 20-nov-2026): el total es el precio con
+  // IVA de la lista × la cantidad, al centavo. Por el camino sin IVA, 14 de 444
+  // llantas salían un centavo arriba ($85.99 × 4 = $343.96 firmaba $343.97).
+  // Solo para ese negocio: Depot sigue con la cuenta de siempre.
+  const conIvaDeLaLista = politica.precioDeCotizacion === "tarjeta"
+    && lines.every((line) => typeof line.salePriceWithTax === "number" && line.salePriceWithTax > 0);
   let originalSubtotal: number;
   let originalTax: number;
   let originalTotal: number;
-  if (conPromo) {
+  if (conIvaDeLaLista && !conPromo) {
+    originalTotal = round2(lines.reduce((sum, line) => sum + round2(line.quantity * line.salePriceWithTax!), 0));
+    originalSubtotal = round2(originalTotal / (1 + business.taxRate));
+    originalTax = round2(originalTotal - originalSubtotal);
+  } else if (conPromo) {
     originalTotal = round2(lines.reduce((sum, line) => sum + totalDeLineaConIva(line), 0));
     originalSubtotal = round2(originalTotal / (1 + business.taxRate));
     originalTax = round2(originalTotal - originalSubtotal);

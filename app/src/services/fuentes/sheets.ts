@@ -48,6 +48,13 @@ export function normalizarFilaDeCatalogo(
     conIva: number; listaConIva: number; minimoConIva: number; taxRate: number;
     tarjetaConIva?: number; efectivoConIva?: number;
   },
+  /**
+   * `"tarjeta"` (política `precioDeCotizacion`, Competimotor 20-nov-2026): se
+   * cotiza con el precio con tarjeta (Fénix: Precio B) y NUNCA con el precio
+   * normal (A). Sin B y C válidos la llanta no entra al catálogo. Sin el
+   * parámetro (Depot, la Sheet) todo queda como siempre.
+   */
+  cotizarCon?: "tarjeta",
 ): { item: CatalogItem | null; motivo: string | null } {
   // La Sheet acepta solo una medida métrica (lo de siempre). El archivo lee
   // la medida como Contífico (`extractCatalogSizeLabel`): también pulgadas
@@ -65,9 +72,25 @@ export function normalizarFilaDeCatalogo(
   const stock = Number(fila.stock || "0");
   const size = deCatalogo ? deCatalogo.size : sizes[0];
   const sizeLabel = deCatalogo ? deCatalogo.sizeLabel! : formatTireSize(sizes[0]);
-  const conIva = precios?.conIva ?? price;
-  const listaConIva = precios?.listaConIva ?? price;
-  const minimoConIva = precios?.minimoConIva ?? price;
+  // COTIZAR CON TARJETA (Carlos Romero, 20-nov): el precio de la llanta es el
+  // Precio B, sin lista tachada encima (el A no se muestra en ningún lado). Una
+  // llanta sin B y C que pasen el control (B > A, C > B o bajo el mayorista es
+  // tipeo en Fénix) no se cotiza: mejor que la confirme un asesor que firmarla
+  // a un precio que nadie revisó.
+  const conTarjeta = cotizarCon === "tarjeta" && precios !== undefined;
+  if (conTarjeta) {
+    const tarjeta = precios.tarjetaConIva;
+    const efectivo = precios.efectivoConIva;
+    if (!tarjeta || !efectivo || tarjeta <= 0 || efectivo <= 0) {
+      return { item: null, motivo: "sin precio con tarjeta (Precio B) o en efectivo (Precio C) válido" };
+    }
+    if (efectivo > tarjeta) {
+      return { item: null, motivo: "precio en efectivo (Precio C) mayor que con tarjeta (Precio B)" };
+    }
+  }
+  const conIva = conTarjeta ? precios.tarjetaConIva! : (precios?.conIva ?? price);
+  const listaConIva = conTarjeta ? conIva : (precios?.listaConIva ?? price);
+  const minimoConIva = conTarjeta ? conIva : (precios?.minimoConIva ?? price);
   const taxRate = precios?.taxRate ?? 0;
   const round2 = (n: number) => Math.round(n * 100) / 100;
   // Mismo criterio que el Interbot: el tachado solo vale si de verdad es mayor.

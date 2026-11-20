@@ -18,7 +18,11 @@ export function preciosDeHoy(codigo: string): PreciosDeHoy | null {
   const vivo = getInterbotPrice(codigo);
   return [
     producto.minimumPriceWithTax,
-    producto.customerPriceWithTax,
+    // Con precio de promoción por código (Black Friday de Competimotor), el de
+    // lista es el TACHADO, no un precio que el cliente pague hoy: una
+    // cotización firmada a P2 antes de la promo ya no vale y el seguimiento no
+    // la repite (sale la alerta al asesor). Sin promo (Depot), como siempre.
+    producto.promocionDePrecio ? null : producto.customerPriceWithTax,
     vivo?.precioPromoConIva,
     vivo?.pvpMinConIva,
     vivo?.pvpFullConIva,

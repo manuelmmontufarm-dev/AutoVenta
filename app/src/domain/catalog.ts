@@ -57,6 +57,14 @@ export interface CatalogItem {
    * trae, así que Depot no lo tiene.
    */
   preciosPorPago?: { tarjetaConIva: number; efectivoConIva: number };
+  /**
+   * La promoción de precio que esta llanta lleva HOY (Black Friday de
+   * Competimotor, 20-nov-2026): la pone `aplicarPreciosEspeciales` al armar el
+   * catálogo y la quita la siguiente sincronización pasada la fecha. Con ella,
+   * `minimumPriceWithTax` es el precio de la promo y `customerPriceWithTax` el
+   * de siempre (el tachado). Sin ella, nada cambia.
+   */
+  promocionDePrecio?: { nombre: string; hasta: string; vigenciaLarga: string; vigenciaCorta: string };
 }
 
 const PRICE_TIERS: PriceTier[] = ["pvp1", "pvp2", "pvp3", "pvp4"];

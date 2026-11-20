@@ -20,6 +20,8 @@ import { cargarArosDelCatalogo } from "../domain/aroProducto.js";
 import { ordenarPorCercania, type Direccion } from "../domain/equivalencia.js";
 import { mencionaProducto } from "../domain/guardianNoVendeSolo.js";
 import { formatTireSize, type TireSize } from "../domain/tireSize.js";
+import { aplicarPreciosEspeciales, msHastaElProximoCambio } from "../domain/preciosEspeciales.js";
+import { politica } from "../negocio/politica.js";
 import { fuenteDeCatalogo, type IdFuente } from "./fuentes/index.js";
 import {
   ensureInterbotPricesFresh,
@@ -88,6 +90,17 @@ export async function syncCatalog(): Promise<SyncReport> {
       }
       const resultado = await fuente.sincronizar();
       if (fuente.id === "contifico") applyInterbotPrices(resultado.items);
+      // Precios de promoción por código (Black Friday de Competimotor,
+      // 20-nov-2026). Sin lista (Depot) o fuera de fechas no toca nada; cada
+      // sincronización arma el catálogo de cero, así que vencida desaparece.
+      if (politica.preciosEspeciales) {
+        const promo = aplicarPreciosEspeciales(resultado.items, politica.preciosEspeciales);
+        if (promo.aplicadas || promo.omitidas.length) {
+          console.log(`🖤 ${politica.preciosEspeciales.nombre}: ${promo.aplicadas} llantas con precio especial`
+            + (promo.omitidas.length ? `, ${promo.omitidas.length} sin aplicar (${promo.omitidas.slice(0, 5).map((o) => `${o.codigo}: ${o.motivo}`).join("; ")})` : ""));
+        }
+        programarCambioDePrecios();
+      }
       items = resultado.items;
       cargarArosDelCatalogo(resultado.aros);
       lastReport = resultado.report;
@@ -101,6 +114,26 @@ export async function syncCatalog(): Promise<SyncReport> {
     }
   })();
   return syncInFlight;
+}
+
+/**
+ * EL PRECIO ESPECIAL SE APAGA EN EL INSTANTE JUSTO. La sincronización corre
+ * cada 5 minutos; sin esto, una cotización a las 00:03 del 1-dic todavía
+ * saldría con Black Friday. Un solo temporizador, para el próximo cambio.
+ */
+let cambioProgramado: ReturnType<typeof setTimeout> | null = null;
+function programarCambioDePrecios(): void {
+  if (cambioProgramado) return;
+  const ms = msHastaElProximoCambio(politica.preciosEspeciales);
+  // setTimeout no acepta más de ~24,8 días: si falta más, lo reprograma la
+  // sincronización de cada 5 minutos cuando ya quepa.
+  if (ms === null || ms > 2_000_000_000) return;
+  cambioProgramado = setTimeout(() => {
+    cambioProgramado = null;
+    console.log(`🖤 ${politica.preciosEspeciales?.nombre ?? "Precios especiales"}: cambio de vigencia, se vuelve a armar el catálogo.`);
+    void syncCatalog().catch(() => undefined);
+  }, ms);
+  cambioProgramado.unref?.();
 }
 
 export async function ensureCatalogReady(): Promise<SyncReport> {
