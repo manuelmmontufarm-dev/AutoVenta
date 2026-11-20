@@ -1,3 +1,126 @@
+## 19-nov-2026 · Simulador · Competimotor 40 × 3, familia F y verificación final (rama `fix/competimotor-conversaciones`)
+
+- **Qué:** escenarios dudosos resueltos y otros corregidos en `datos/competimotor-40.mjs` (fuera de git; la tabla está en
+  `COMPETIMOTOR-40.md`, sección «Escenarios corregidos el 19-nov»). CM29 y CM31: el bot pregunta cuál con un menú (correcto),
+  se agrega la elección. CM32: la visita la registra el lector del turno; se juzga `visit_date` (sábado, 10:00), no la
+  herramienta. Además la tabla de precios del archivo tenía las columnas corridas (guardaba B como «C» y C como «D»):
+  CM13 marcaba «dijo el precio D» cuando el bot dijo el C de efectivo, que es lo que pidió Manuel. Releída del Excel.
+- **Verificación (simulador, clave de pruebas):** las 12 con error del bot, × 3 tras su arreglo: CM04, CM05, CM08, CM09,
+  CM20, CM26, CM27, CM28, CM30, CM34, CM35, CM36, CM40 → 3/3 cada una (CM04 juzgada por el hecho: una sola alerta
+  `caso_sin_resolver`; CM20 tras un segundo arreglo: el modelo pasaba «5:30 pm» a secas). Pasada final 40 × 1: 38/40 con
+  los escenarios corregidos; CM39 falló 1 vez y pasó al repetirla; **CM18 no armó su prefijo 2 de 2** (con «4 llantas
+  265 65 17 winrun maxclaw at» el bot muestra las dos Maxclaw y pregunta cuál; antes cotizaba por `buscar_catalogo`): sin
+  resolver. Seguimientos: s08 1/1 con la semilla aplicada, s14 1/1 con Fase 4 encendida; s03 sin re-correr (presupuesto).
+- **Gasto de OpenAI de esta sesión:** $7,79 (B $1,39 · A + B otra vez $1,47 · C/D $1,41 · 40 × 1 $3,29 · re-corridas $0,14 ·
+  seguimientos $0,09).
+- **Horas:** 0,5.
+
+## 19-nov-2026 · Simulador · Competimotor, familia E: seguimientos tras una pregunta, sin código del bot (rama `fix/competimotor-conversaciones`)
+
+- **Qué:** `seguimientos-competimotor.mjs --con-semilla` corre `seed:negocio` sobre la copia de producción (como quedará
+  Competimotor tras el PR #62) y `--fase4` ya estaba. El bot no cambia en esta familia.
+- **Por qué (decisión, no arreglo):** con la Fase 4 apagada (así está Competimotor), si el cliente pregunta algo después
+  de la cotización y calla, no se agenda ningún seguimiento (s14 0/3, s03 2/3): el turno solo agenda con `fase4`
+  (`index.ts`) y la red del worker descarta la conversación si existe cualquier `advisor_review` del ciclo, aunque esté
+  cancelado (`followUps.ts`). La Fase 4 es el interruptor de las Oportunidades (seguimientos); en Depot está encendida.
+  Lo correcto es **encender la Fase 4 en Competimotor** (Ajustes); medido en el simulador: s03, s13, s14 3/3. No se tocó
+  la red del worker: ese mismo bloqueo es el que hoy protege el cierre de s05 («no gracias, ya compré») y corre para Depot.
+- **Falta en producción:** encender Fase 4 en Competimotor y correr `seed:negocio` (s08, horario del sábado; PR #62).
+- **Horas:** 0,3.
+
+## 19-nov-2026 · Bot · Competimotor 40 × 3, familia D: la visita respeta la hora del local (rama `fix/competimotor-conversaciones`)
+
+- **Qué:** **CM20** · «el sabado salgo del trabajo a las 5 y paso» + «a eso de las 5 y media» registraba la visita del
+  sábado «a las 5 pm» (17:00) con el local cerrando a las 16:00. (1) `franjaHoraria` toma la ÚLTIMA hora con pinta de hora
+  («a las», «a eso de», am/pm, minutos) y lee «y media», «y cuarto» y «:30»; devuelve `minutos` solo si no son 0, y la
+  fecha guardada los lleva (pipeline y `agendar_visita`). (2) `localAtiendeALaHora` (services/settings.ts): con una hora
+  EXACTA del cliente («a las…», «de 4 a 5») la visita fuera del horario de ese día no se registra, en las dos puertas
+  (`index.ts` y `agendar_visita`, error nuevo `hora_fuera_de_horario` que pide otra hora u otro día). El relleno (10:00) y
+  «en la tarde» no se juzgan.
+- **Por qué:** prueba del 18-nov: CM20 3/3.
+- **Depot:** código común: también Cumbayá (sábado hasta 14:30) deja de aceptar una visita del sábado a las 4 pm. Ningún
+  texto aprobado cambia; las etiquetas sin minutos salen igual que antes.
+- **Probado:** `horaDeVisita` (en rojo antes), `diasConFaltas`, `horarioPorDia`, `fechaDeVisita`, suite completa.
+  Simulador: ver la entrada de verificación final.
+- **Horas:** 0,5.
+
+## 19-nov-2026 · Bot · Competimotor 40 × 3, familia C: avisos al asesor sin repetir ni faltar (rama `fix/competimotor-conversaciones`)
+
+- **Qué:** (1) **CM04/CM05** · `avisoRegistradoEnElCiclo` (services/avisoAlAsesor.ts): el agente cuenta como «ya se le
+  pasó el caso a un asesor» también la alerta de escalamiento del ciclo (`caso_sin_resolver`, `human_requested`…), no solo
+  `advisor_notifications`. Los asesores de Competimotor no reciben ese tipo de aviso por WhatsApp, la fila no se creaba y el
+  agente ordenaba en cada turno «OFRECISTE ASESOR Y NO LO NOTIFICASTE… llama notificar_vendedor AHORA»: dos llamadas por
+  lo mismo. La consulta prometida («se lo consulto») usa ahora la misma llave que `notificar_vendedor` caso_sin_resolver
+  (CM29 tenía dos alertas iguales). (2) **CM35** · `pidePrecioPorVolumen` (domain/cantidadGrande.ts) +
+  `avisarPrecioPorVolumen`: con más de 8 llantas (dichas o en la ficha) y la pregunta por precio especial / por volumen /
+  mayorista, el código registra el caso para el asesor (alerta alta + aviso, misma llave); antes el bot decía «el valor
+  especial lo confirma un asesor» y nadie se enteraba (0 avisos, 3/3).
+- **Por qué:** prueba del 18-nov: CM04 3/3, CM05 2/3, CM35 3/3.
+- **Depot:** código común. En Depot la fila de `advisor_notifications` ya existía en estos casos, así que la orden de
+  notificar seguía igual; el aviso por volumen es nuevo para los dos. Ningún texto al cliente cambia.
+- **Escenario corregido** (`datos/`, fuera de git): CM35 juzga la alerta de escalamiento en la base, no que corra la herramienta.
+- **Para producción (no es código):** en la copia de Ajustes de Competimotor los asesores solo reciben avisos de ventas y
+  visitas; los escalamientos (caso sin resolver, pide humano, envío) quedan solo en el Hub. Revisar los niveles en Ajustes.
+- **Probado:** `avisoDelCiclo.integration` (en rojo antes), suite completa. Simulador: ver la entrada de verificación final.
+- **Horas:** 0,7.
+
+## 19-nov-2026 · Bot · Competimotor 40 × 3, familia A: el cambio de idea queda en la base (rama `fix/competimotor-conversaciones`)
+
+- **Qué:** (1) **CM08** · «si esa misma marca» tras corregir la medida elige, en la lámina nueva, la marca de la última
+  cotización del ciclo (hecho de `quotes`) si hay UNA de esa marca (`loQueEligio`); antes: «¿Cuál le cotizo, la 1, la 2 o
+  la 3?» y la única cotización seguía en 225/65R17. (2) **CM09** · «por ahora» / «x ahora» ya no es «hoy»
+  (`relativoEnTexto`): «mejor solo 2 x ahora» registraba una visita para hoy a las 15:00, de noche; con la lectura de «solo N»
+  por línea (familia B) se recotiza por 2. (3) **CM40** · «no gracias ya no» es despedida (cierre del turno sin IA, cancela
+  los seguimientos). (4) **CM30** · «ya compré» justo después de «no gracias» es `compra_ajena`: la etapa queda en
+  `perdido` con su motivo, no en `ganado`. Sin el rechazo antes, «ya compré» sigue siendo venta terminada.
+- **No cambiado (regla de Depot):** CM28/CM40 pedían `perdido` tras «no gracias». `index.ts` y `cierrePerdido.test.ts`
+  dicen a propósito que «no gracias» no cierra como perdida (cerrar borra el ciclo y el próximo mensaje saluda de cero);
+  lo que sí hace es cancelar los seguimientos. Los escenarios ahora juzgan ese hecho (`follow_up_jobs` sin «scheduled»).
+- **Escenarios corregidos** (`datos/`, fuera de git): CM28 y CM40 (ver arriba); CM30 ya no exige cotización («precio de
+  4» con un menú de tres no elige, regla del 1-sep, conv 13615) y exige `perdido`.
+- **Depot:** código común; cambia igual para Depot («por ahora» no agenda, «no gracias ya no» cierra, «no gracias» +
+  «ya compré» = perdida). Textos al cliente sin cambios (la compra ajena usa la despedida de siempre).
+- **Probado:** `prueba40.cambiosDeIdea` y 4 casos nuevos de `siYEleccion` (en rojo antes), suite completa (solo los 3 de
+  `main`). Simulador: CM08, CM09, CM28, CM30, CM40, 3/3 cada una (15/15). **No probado** en WhatsApp real.
+- **Horas:** 1.
+
+## 19-nov-2026 · Bot · Competimotor 40 × 3, familia B: se trababa antes de cotizar (rama `fix/competimotor-conversaciones`)
+
+- **Qué:** (1) **CM36** · con UNA sola llanta posible, la cantidad dicha y la llanta nombrada («205 55 16 / quiero 2 / la
+  kenda») autorizan cotizar igual que «me cotiza» (`cotizarLaUnica.ts`, la fuente única): antes salía «¿Se la cotizo?» y con
+  «me cotiza» (CM32) cotizaba directo. (2) **CM27** · «ok esa, 4» es el sí a la oferta de una llanta con su cantidad
+  (`respondeQueSi`, `extractExplicitQuantity`); el clasificador ya no pone `cotizacion_enviada` sin una cotización del ciclo
+  (r1 y r2 quedaban así con 0 cotizaciones); la marca rechazada en la visita («no quiero haida») no vuelve en la lámina de
+  «más modelos» que arma la regla por marca (`marcasRechazadas`), salvo que la pida por su nombre. (3) **CM34** · la medida de
+  un anuncio («215/65 R16 desde $69,99») cuenta como la medida del cliente en el hecho `medida_escrita` y va a la ficha
+  (antes: «necesito la medida del filo de la llanta»). (4) **CM26** · nuevo candado `sin_trastienda` después del Guardián
+  (la oración «la cotización se bloqueó porque el sistema pide…» se cae y queda la pregunta); el hecho «MEDIDA NO
+  CONFIRMADA» sigue al candado de `generar_cotizacion` en el agente y en el Guardián (antes solo con vehículo registrado,
+  y con fitment apagado el bot no sabía que no podía cotizar). Además, «solo N» en su propia línea («mejor solo 2 x ahora»)
+  se lee como cantidad (lo usa CM09, familia A).
+- **Por qué:** prueba del 18-nov: CM26, CM27, CM34 y CM36 fallaban 3/3.
+- **Depot:** todo es código común. Cambia para Depot lo mismo que para Competimotor: cotiza directo con una sola llanta,
+  cantidad y marca; «ok esa, 4» cotiza; la trastienda se cae; el Guardián recibe «MEDIDA NO CONFIRMADA» también sin
+  vehículo (texto del hecho actualizado). La regla por marca no corre en Depot. Ningún texto aprobado cambia.
+- **Escenarios corregidos** (`datos/`, fuera de git): CM26 ya no exige cotización (la regla del 1-sep no deja cotizar la
+  medida deducida del vehículo y nadie escribe una); CM34 suma «la 1» (con dos opciones, «de esas» no elige).
+- **Probado:** `cotizarLaUnica`, `recomendacionPorMarca.herramientas`, `prueba40.cotizar`, `familia3AnotarMedida`,
+  `sinTrastienda`, `clasificadorCotizacionSinCotizar.integration`, `medidaSinConfirmarGuardian.integration` (todas en rojo
+  antes del arreglo), suite completa (solo los 3 que ya fallan en `main`). Simulador: CM26 3/3, CM36 3/3, y tras el segundo
+  arreglo CM27 3/3 y CM34 3/3. **No probado** en WhatsApp real.
+- **Horas:** 1,5.
+
+## 19-nov-2026 · Simulador · la flota de Competimotor y los seguimientos, versionados (rama `fix/competimotor-conversaciones`)
+
+- **Qué:** `competimotor-flota.mjs` (40 conversaciones difíciles en N simuladores, modalidad rápida, etapa/completa/tiempo),
+  `lib/corredor-competimotor.mjs` (cierre del turno por hechos de la base, guardar/restaurar estado, costo; ahora también
+  trae los `follow_up_jobs` del ciclo para los jueces), `seguimientos-competimotor.mjs`, `escenarios-prueba-competimotor.mjs`,
+  `--catalogo-confirmar` en `sim.mjs`, y los informes `COMPETIMOTOR-40.md` y `SEGUIMIENTOS-COMPETIMOTOR.md`. Los escenarios
+  (`datos/competimotor-40.mjs`, `datos/competimotor-seguimientos.mjs`) y el Excel siguen fuera de git: traen los precios D.
+- **Por qué:** la prueba del 18-nov (40 × 3 + 14 seguimientos × 3) se corrió con este arnés sin commit en otra rama.
+- **Probado:** `--solo-cargar` (las 40 se leen), corridas reales del 19-nov de este PR. Solo scripts del simulador; el bot no cambia.
+- **Horas:** 0,2.
+
 ## 19-nov-2026 · Build del panel con el mensaje de la mañana
 
 **Qué:** `app/site` reconstruido sobre main después de integrar `feat/avisos-y-usuarios`; el commit anterior subió el index de main sin las tarjetas nuevas.

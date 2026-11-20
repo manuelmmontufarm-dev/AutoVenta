@@ -1185,7 +1185,10 @@ async function subirCatalogoPorArchivo(ruta) {
   const nombre = archivo.split("/").pop();
   console.log(`📤 Subiendo el catálogo «${nombre}» por POST /api/catalog/import…`);
   const r = await fetch(
-    `http://127.0.0.1:${PUERTO_APP}/api/catalog/import?nombre=${encodeURIComponent(nombre)}`,
+    // --catalogo-confirmar: carga el archivo aunque la regla de seguridad pida
+    // confirmación (p. ej. «es más viejo que el cargado»: los ajustes copiados de
+    // producción ya traen una carga más nueva). Igual que el «¿Lo carga igual?» del panel.
+    `http://127.0.0.1:${PUERTO_APP}/api/catalog/import?nombre=${encodeURIComponent(nombre)}${bandera("catalogo-confirmar") ? "&confirmar=1" : ""}`,
     {
       method: "POST",
       headers: { "x-admin-key": "sim", "Content-Type": "application/octet-stream" },

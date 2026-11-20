@@ -81,7 +81,7 @@ import {
   requestsBenefitsAgain,
 } from "../services/benefits.js";
 import { brandProfilesForRender } from "../services/brandProfiles.js";
-import { getAiConfig, getPiecesConfig, getStoreHours, horarioEnPalabras, localAbre, siguienteDiaAbierto } from "../services/settings.js";
+import { getAiConfig, getPiecesConfig, getStoreHours, horarioEnPalabras, esHoraExacta, localAbre, localAtiendeALaHora, siguienteDiaAbierto } from "../services/settings.js";
 import { researchVehicleFitment } from "../services/vehicleFitmentResearch.js";
 import { arosDeCandidatos, arosDeMedidas, invitacionPorAroAmbiguo } from "../domain/fitmentResearch.js";
 import { aroVigenteDeLaVisita, rangoDeAros } from "../domain/aros.js";
@@ -98,7 +98,7 @@ import { CAMPO_EQUIVALENTES, equivalentesAMostrar, reglaDeMostrarEquivalentes } 
 import { extractFlotationSizes, extractTireSizes, formatFlotationSize, formatTireSize, parseTireSize, type TireSize, type FlotationSize, flotacionIncompleta, medidaGuardable } from "../domain/tireSize.js";
 import { marcaPreguntada, pidioCotizacionExplicita, ultimaMarcaPedida } from "../domain/consultaConRespaldo.js";
 import { armarLista, ordenDeLaLista, confirmacionDeLaOpcion, opcionPorPosicion, posicionElegida, preguntaDeLaLista, MAX_NUMERADA } from "../domain/listaDeOpciones.js";
-import { escalonesDelConjunto, recomendacionDeLaMedida, type ModoDeRecomendacion } from "../domain/recomendacionPorMarca.js";
+import { escalonesDelConjunto, marcaNombradaEnLaMedida, marcasRechazadas, recomendacionDeLaMedida, type ModoDeRecomendacion } from "../domain/recomendacionPorMarca.js";
 import { cotizarLaUnicaDeUnaVez, ultimoTurnoDelBot } from "../domain/cotizarLaUnica.js";
 import { consienteEsta, type OfertaDeCotizar } from "../domain/ofertaVigente.js";
 import { leerOfertaVigente } from "../services/ofertaVigente.js";
@@ -1018,7 +1018,23 @@ export function buildTools(ctx: AgentContext) {
     const regla = politica.recomendacionPorMarca;
     if (!regla || !vendibles.length) return null;
     const { vistos, enPantalla } = await laminasDeLaMedida(medida);
-    const r = recomendacionDeLaMedida(vendibles, regla, { texto: ctx.currentUserText, yaMostrados: vistos });
+    // Lo que rechazó en esta visita no vuelve, salvo que lo pida por su nombre
+    // (simulador Competimotor 18-nov, CM27). Ver `marcasRechazadas`.
+    const entrantesDeLaVisita = await sql<{ content: string | null }[]>`
+      select content from messages
+      where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
+        and direction='inbound'
+      order by created_at desc limit 20
+    `;
+    const rechazadas = marcasRechazadas(
+      [ctx.currentUserText, ...entrantesDeLaVisita.map((m) => m.content)], vendibles,
+    );
+    const pidioPorNombre = marcaNombradaEnLaMedida(ctx.currentUserText, vendibles);
+    const sinRechazadas = rechazadas.size
+      ? vendibles.filter((p) => !rechazadas.has(p.brand.trim().toUpperCase()) || p.brand.trim().toUpperCase() === pidioPorNombre)
+      : vendibles;
+    const aMostrar = sinRechazadas.length ? sinRechazadas : vendibles;
+    const r = recomendacionDeLaMedida(aMostrar, regla, { texto: ctx.currentUserText, yaMostrados: vistos });
     if (r.modo === "primera" && enPantalla.length) {
       const siguen = enPantalla.map((c) => vendibles.find((p) => p.code === c)).filter((p): p is CatalogItem => Boolean(p));
       if (siguen.length === enPantalla.length) return { modo: "en_pantalla", opciones: siguen, vistos };
@@ -2516,12 +2532,19 @@ export function buildTools(ctx: AgentContext) {
       // 215/65R16): el cliente ya vio otras y está mirando, no eligió. Cotizarla
       // de una por el «cuánto cuestan» del primer mensaje le firmaba una llanta
       // que nunca pidió. Se le muestra y se le pregunta.
+      const codigosDistintos = [...new Set(
+        Object.values(escalones).map((e) => e?.codigo).filter(Boolean),
+      )] as string[];
+      const laUnica = codigosDistintos.length === 1
+        ? products.find((p) => p.code === codigosDistintos[0])
+        : undefined;
       const unicaConPrecioPedido = porMarca?.modo !== "mas" && cotizarLaUnicaDeUnaVez({
-        opcionesDistintas: new Set(
-          Object.values(escalones).map((e) => e?.codigo).filter(Boolean),
-        ).size,
+        opcionesDistintas: codigosDistintos.length,
         textosDelCliente: [ctx.currentUserText, ...mensajesDeLaVisitaActual(inbound).map((m) => m.content)],
         medidaSinConfirmar: Boolean(ctx.medidaSinConfirmar),
+        opcion: laUnica
+          ? { codigo: laUnica.code, marca: laUnica.brand, diseno: laUnica.design, medida: laUnica.sizeLabel }
+          : null,
       });
       const entregarRecomendacion =
         pidioCotizacionExplicita(ctx.currentUserText) ||
@@ -4353,9 +4376,10 @@ export function buildTools(ctx: AgentContext) {
       const franjaTexto = franja?.trim() || lectura.franja?.trim() || null;
       // La hora que resuelva el texto del cliente manda sobre el relleno del
       // día: «jueves de 4 a 5» es el jueves a las 16:00, no a las 10:00.
-      const hora = franjaTexto ? franjaHoraria(franjaTexto)?.hora ?? null : null;
+      const franjaLeida = franjaTexto ? franjaHoraria(franjaTexto) : null;
+      const hora = franjaLeida?.hora ?? null;
       const conHora = fecha && hora !== null
-        ? new Date(Date.UTC(fecha.getUTCFullYear(), fecha.getUTCMonth(), fecha.getUTCDate(), hora + 5, 0, 0))
+        ? new Date(Date.UTC(fecha.getUTCFullYear(), fecha.getUTCMonth(), fecha.getUTCDate(), hora + 5, franjaLeida?.minutos ?? 0, 0))
         : fecha;
       const etiquetaFranja = franjaTexto ? franjaHoraria(franjaTexto)?.etiqueta ?? franjaTexto : null;
 
@@ -4387,6 +4411,18 @@ export function buildTools(ctx: AgentContext) {
           return JSON.stringify({
             error: "dia_cerrado",
             regla: `Ese día (${diaCerrado}) ${nombreLocal ?? "el local"} está CERRADO: NO quedó registrada la visita ni se avisó al asesor. Dile que ese día no atienden, da el horario del local y pregúntale si puede pasar ${diaSugerido ? `el ${diaSugerido}` : "otro día que atiendan"}.`,
+          });
+        }
+        // LA HORA TAMBIÉN (simulador Competimotor 18-nov, CM20): sábado 5:30 pm
+        // con el local abierto hasta las 16:00 quedaba registrado.
+        // La hora exacta puede venir en la franja que pasó el modelo («5:30 pm»)
+        // o solo en el texto del cliente (y de ahí salió la hora de `fecha`).
+        const horaDicha = [franjaLeida?.etiqueta, franjaHoraria(ctx.currentUserText ?? "")?.etiqueta].find((e) => esHoraExacta(e));
+        if (horaDicha && !localAtiendeALaHora(hours, clave, conHora)) {
+          console.log(`📅 Conv ${ctx.conversation.id}: agendar_visita rechazada (${horaDicha}, fuera del horario).`);
+          return JSON.stringify({
+            error: "hora_fuera_de_horario",
+            regla: `A esa hora (${horaDicha}) ${nombreLocal ?? "el local"} NO atiende: NO quedó registrada la visita ni se avisó al asesor. Dile el horario de ese día y pregúntale si puede llegar antes del cierre u otro día.`,
           });
         }
       }

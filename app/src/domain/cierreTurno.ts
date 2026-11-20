@@ -37,7 +37,9 @@ const INFORMA_OFERTA_AJENA =
  */
 const CORTESIA = "(?:(?:disculpe|disculpa|perdon|perdone|lo siento|bueno|ok|listo|gracias)[\\s,.]+)*";
 const DESPEDIDA_ENVUELTA = new RegExp(
-  `^${CORTESIA}(?:no[\\s,]+(?:muchas\\s+)?gracias|ya\\s+no(?:[\\s,]+(?:muchas\\s+)?gracias)?|` +
+  // «no gracias ya no» (simulador Competimotor 18-nov, CM40): el «ya no» detrás
+  // del «no gracias», sin verbo, también es la despedida.
+  `^${CORTESIA}(?:no[\\s,]+(?:muchas\\s+)?gracias(?:[\\s,.]+ya\\s+no)?|ya\\s+no(?:[\\s,]+(?:muchas\\s+)?gracias)?|` +
   `ya\\s+(?:consegui|resolvi|solucione|compre)(?:\\s+(?:las\\s+)?llantas)?(?:\\s+(?:en\\s+otro\\s+lado|en\\s+otra\\s+parte|por\\s+otro\\s+lado))?)` +
   `(?:[\\s,.]+(?:muchas\\s+)?gracias)?[\\s.,!¡🙏🤝👍]*$`,
 );
@@ -76,6 +78,7 @@ function esRechazoSuave(textoNormalizado: string): boolean {
 
 export type CierreDelTurno =
   | "compra_terminada"
+  | "compra_ajena"
   | "oferta_ajena"
   | "rechazo_suave"
   | "acuse_del_cierre";
@@ -86,7 +89,15 @@ export function tipoDeCierreDelTurno(
 ): CierreDelTurno | null {
   const actual = normalizar(texto);
   if (!actual) return null;
-  if (isExplicitPurchaseConfirmation(actual)) return "compra_terminada";
+  if (isExplicitPurchaseConfirmation(actual)) {
+    // «YA COMPRÉ» JUSTO DESPUÉS DE «NO GRACIAS» ES COMPRA EN OTRO LADO
+    // (simulador Competimotor, 18-nov, CM30: quedaba como venta ganada, 3/3).
+    // Quien acaba de rechazar no le compró a este negocio; sin el rechazo
+    // antes, «ya compré» sigue siendo la venta terminada de siempre.
+    const anterior = normalizar(anteriorDelCliente ?? "");
+    if (anterior && esRechazoSuave(anterior)) return "compra_ajena";
+    return "compra_terminada";
+  }
   if (INFORMA_OFERTA_AJENA.test(actual)) return "oferta_ajena";
   if (esRechazoSuave(actual)) {
     return "rechazo_suave";
@@ -106,6 +117,9 @@ export function esCierreComercialDelTurno(texto: string): boolean {
 
 export function respuestaDeCierreDelTurno(tipo: CierreDelTurno): string {
   if (tipo === "compra_terminada") {
+    return "Gracias por avisarnos. Me alegra que ya haya resuelto su compra. Quedamos a las órdenes para otra ocasión. 🤝";
+  }
+  if (tipo === "compra_ajena") {
     return "Gracias por avisarnos. Me alegra que ya haya resuelto su compra. Quedamos a las órdenes para otra ocasión. 🤝";
   }
   if (tipo === "oferta_ajena") {

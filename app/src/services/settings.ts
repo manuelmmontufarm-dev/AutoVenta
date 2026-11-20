@@ -222,6 +222,30 @@ export function localAbre(hours: StoreHours, claveHorario: string | null, fecha:
   return locales.some((s) => !s.dias[dia]?.closed);
 }
 
+/**
+ * ¿Atiende ESE local a ESA hora? (simulador Competimotor, 18-nov, CM20: visita
+ * el sábado a las 5:30 pm con el local abierto de 08:00 a 16:00 ese día.)
+ * `localAbre` solo miraba si el día estaba cerrado. Se usa únicamente cuando el
+ * cliente dijo una hora exacta: el relleno (10:00) y «en la tarde» no cuentan.
+ * La hora se lee en Quito; vale si atiende cualquiera de los locales posibles.
+ */
+export function localAtiendeALaHora(hours: StoreHours, claveHorario: string | null, fecha: Date): boolean {
+  const dia = diaDeLaSemanaEnQuito(fecha);
+  const enQuito = new Date(fecha.getTime() - 5 * 3_600_000);
+  const minuto = enQuito.getUTCHours() * 60 + enQuito.getUTCMinutes();
+  const aMinutos = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
+  const locales = claveHorario && hours[claveHorario] ? [hours[claveHorario]] : Object.values(hours);
+  return locales.some((s) => {
+    const p = s.dias[dia];
+    return Boolean(p) && !p.closed && minuto >= aMinutos(p.open) && minuto < aMinutos(p.close);
+  });
+}
+
+/** ¿La etiqueta de la franja es una hora EXACTA que dijo el cliente («a las 5:30 pm», «de 4 a 5 pm»)? */
+export function esHoraExacta(etiqueta: string | null | undefined): boolean {
+  return /^(?:a las \d|de \d|\d{1,2}(?::\d{2})?\s*[ap]m)/.test((etiqueta ?? "").trim());
+}
+
 /** El primer día (desde mañana, hasta 7) en que ese local atiende; null si ninguno. */
 export function siguienteDiaAbierto(hours: StoreHours, claveHorario: string | null, desde: Date): Date | null {
   for (let i = 1; i <= 7; i += 1) {

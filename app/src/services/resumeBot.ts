@@ -106,6 +106,7 @@ export async function resumeBotIfUnanswered(conversationId: number): Promise<Res
     const contextoDeSalida: ContextoDeSalida = {
       conversation, tipo: "retomada", huella: ctx.toolTrace ?? [], faseOperativa: ctx.faseOperativa,
       textoDelCliente: claimed.last_text, inicioDelTurno, ofertaDelTurno: ctx.ofertaDelTurno ?? null,
+      medidaSinConfirmar: ctx.medidaSinConfirmar,
     };
     const salida = await prepararSalida(reply, contextoDeSalida);
     // Un candado bloqueó el envío (duplicado/atascado): ya alertó al asesor y

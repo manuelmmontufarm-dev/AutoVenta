@@ -126,3 +126,30 @@ describe("una sola regla para la ficha: la ÚLTIMA medida que el cliente escribi
     expect(medidaEscritaEnElMensaje("hola")).toBeNull();
   });
 });
+
+describe("el anuncio de una medida cuenta como la medida del cliente (simulador Competimotor 18-nov, CM34)", () => {
+  it("«hola info de este precio» desde «215/65 R16 desde $69,99»: medida_escrita 215/65R16", async () => {
+    sinHecho = [{
+      id: 1, content: "hola info de este precio", created_at: hace(1),
+      anuncio: { titulo: "215/65 R16 desde $69,99", texto: "Llantas con hasta 30% menos. Escríbenos por WhatsApp" },
+    } as never];
+    expect(await anotarMedidasEscritas(34, 1)).toEqual({ anotadas: ["215/65R16"], paraLaFicha: "215/65R16" });
+    expect(escrito.get(1)).toEqual({ medida_escrita: ["215/65R16"] });
+  });
+
+  it("CM34 r1: el saludo fijo ya salió (saliente después del mensaje del anuncio) y la medida igual va a la ficha", async () => {
+    sinHecho = [{ id: 1, content: "hola info de este precio", created_at: hace(1), anuncio: { titulo: "215/65 R16 desde $69,99", texto: null } } as never];
+    ultimoSaliente = hace(0.5);
+    expect((await anotarMedidasEscritas(34, 1)).paraLaFicha).toBe("215/65R16");
+  });
+
+  it("lo que el cliente escribe manda sobre el anuncio", async () => {
+    sinHecho = [{ id: 1, content: "tiene 205/55R16?", created_at: hace(1), anuncio: { titulo: "215/65 R16 desde $69,99", texto: null } } as never];
+    expect((await anotarMedidasEscritas(34, 1)).anotadas).toEqual(["205/55R16"]);
+  });
+
+  it("un anuncio sin medida (los de Depot: «Depot Tire») no inventa nada", async () => {
+    sinHecho = [{ id: 1, content: "¡Hola! Quiero más información", created_at: hace(1), anuncio: { titulo: "Depot Tire", texto: "Llantas en Quito" } } as never];
+    expect((await anotarMedidasEscritas(34, 1)).anotadas).toEqual([]);
+  });
+});

@@ -104,7 +104,7 @@ import { sql } from "./db/client.js";
 import { presentacionDeApertura } from "./domain/saludo.js";
 import { bloqueDelSaludoFijoVigente, clienteEscribioDespuesDe } from "./services/saludoFijo.js";
 import { contieneElPedidoDeMedida } from "./domain/firstContact.js";
-import { algunLocalAbre, getStoreHours, localAbre } from "./services/settings.js";
+import { algunLocalAbre, esHoraExacta, getStoreHours, localAbre, localAtiendeALaHora } from "./services/settings.js";
 import { negocio, localPorNombre } from "./negocio/index.js";
 import {
   esPlazoDeDecision, respuestaDeCierreDelTurno, respuestaDePlazoDeDecision, tipoDeCierreDelTurno,
@@ -116,6 +116,7 @@ import { decidirQuienContesta, vaAContestarElBot } from "./services/turnoDelHuma
 import { quiereComprarADistancia } from "./domain/compraADistancia.js";
 import { registrarDondeEstaElCliente } from "./services/dondeEstaElCliente.js";
 import { avisarCompraADistancia } from "./services/compraADistancia.js";
+import { avisarPrecioPorVolumen } from "./services/avisoAlAsesor.js";
 
 /** Pausa entre bloques: suficiente para que se lean como mensajes seguidos y no como spam. */
 const PAUSA_ENTRE_BLOQUES_MS = 900;
@@ -224,9 +225,17 @@ async function atenderTurno(
     `;
     const nombreLocal = explicitStore ?? ficha?.nearest_store ?? null;
     const clave = nombreLocal ? localPorNombre(negocio, nombreLocal)?.claveHorario ?? null : null;
-    if (localAbre(hours, clave, commitmentLeido.visitDate)) return commitmentLeido;
-    console.log(`📅 Conv ${conversation.id}: visita del ${commitmentLeido.visitDate.toISOString().slice(0, 10)} NO registrada: ${nombreLocal ?? "el local"} cierra ese día.`);
-    return null;
+    if (!localAbre(hours, clave, commitmentLeido.visitDate)) {
+      console.log(`📅 Conv ${conversation.id}: visita del ${commitmentLeido.visitDate.toISOString().slice(0, 10)} NO registrada: ${nombreLocal ?? "el local"} cierra ese día.`);
+      return null;
+    }
+    // Ni a una hora en que el local ya cerró (simulador Competimotor 18-nov,
+    // CM20: sábado 5:30 pm con cierre a las 16:00). Solo con hora exacta.
+    if (esHoraExacta(commitmentLeido.visitTimeLabel) && !localAtiendeALaHora(hours, clave, commitmentLeido.visitDate)) {
+      console.log(`📅 Conv ${conversation.id}: visita ${commitmentLeido.visitTimeLabel} NO registrada: ${nombreLocal ?? "el local"} no atiende a esa hora.`);
+      return null;
+    }
+    return commitmentLeido;
   })();
   await updateConversationFacts(conversation.id, {
     ...(medidaDelTexto ? { tireSize: medidaDelTexto } : {}),
@@ -273,6 +282,11 @@ async function atenderTurno(
     void avisarCompraADistancia(conversation, text)
       .catch((error) => console.error("⚠️ No se pudo avisar la compra a distancia:", error));
   }
+  // PRECIO POR VOLUMEN DE UNA COMPRA GRANDE: lo da un asesor, y el aviso lo
+  // registra el código (simulador Competimotor 18-nov, CM35: «lo confirma un
+  // asesor» sin aviso, 3/3). Esperado: así el Guardián ve el aviso REGISTRADO.
+  await avisarPrecioPorVolumen(conversation, text)
+    .catch((error) => { console.error("⚠️ No se pudo avisar el precio por volumen:", error); return false; });
   // Cupón de confirmación: se emite en el MISMO turno en que el cliente dice
   // cuándo viene, para que el código llegue pegado a esa confirmación y no en
   // un mensaje suelto que se lee sin contexto. Devuelve null mientras el cupón
@@ -545,6 +559,7 @@ async function atenderTurno(
     consultaFueraDeCatalogo: agentContext.consultaFueraDeCatalogo,
     // Lo que la puerta ya sabe que ofreció (la equivalente, el menú, «¿Cuál…?»).
     ofertaDelTurno: agentContext.ofertaDelTurno ?? null,
+    medidaSinConfirmar: agentContext.medidaSinConfirmar,
   };
   const salida = await prepararSalida(reply, contextoDeSalida);
   if (!salida.texto) return;
@@ -663,6 +678,14 @@ async function atenderTurno(
     // determinística (sin llamada de IA) antes de cortar los seguimientos.
     if (cierreDelTurno === "compra_terminada") {
       await classifyStage(conversation, text, reply);
+    }
+    // «No gracias» + «ya compré» compró en OTRO lado (simulador Competimotor
+    // 18-nov, CM30): es la venta perdida con su motivo, no una ganada.
+    if (cierreDelTurno === "compra_ajena") {
+      await setStage(conversation.id, "perdido", {
+        actor: "customer",
+        reason: "Cliente dijo que ya compró, justo después de rechazar la oferta (compra en otro lado)",
+      }).catch((error) => console.error("⚠️ No se pudo cerrar como perdida tras compra ajena:", error));
     }
     await cancelPendingFollowUps(
       conversation.id,

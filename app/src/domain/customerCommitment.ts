@@ -62,11 +62,11 @@ export interface CustomerCommitment {
 
 const normalizar = normalizarTexto;
 
-function localDateAt(hour: number, dayOffset: number, now: Date): Date {
+function localDateAt(hour: number, dayOffset: number, now: Date, minutes = 0): Date {
   const local = new Date(now.getTime() - 5 * 3_600_000);
   return new Date(Date.UTC(
     local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate() + dayOffset,
-    hour + 5, 0, 0,
+    hour + 5, minutes, 0,
   ));
 }
 
@@ -380,7 +380,7 @@ export function extractCustomerCommitment(
   }
   const conFranja = (porDefecto: number, offset: number): CustomerCommitment => ({
     text: compact,
-    visitDate: localDateAt(franja?.hora ?? porDefecto, offset, now),
+    visitDate: localDateAt(franja?.hora ?? porDefecto, offset, now, franja?.hora != null ? franja.minutos ?? 0 : 0),
     ...(etiqueta ? { visitTimeLabel: etiqueta } : {}),
     tipo: "fecha",
   });
@@ -388,7 +388,7 @@ export function extractCustomerCommitment(
   // Una fecha de calendario es lo más explícito que puede decir alguien: manda
   // sobre todo lo demás.
   if (calendario) {
-    const base = Date.UTC(calendario.anio, calendario.mes, calendario.dia, (franja?.hora ?? 10) + 5, 0, 0);
+    const base = Date.UTC(calendario.anio, calendario.mes, calendario.dia, (franja?.hora ?? 10) + 5, franja?.minutos ?? 0, 0);
     return {
       text: compact,
       visitDate: new Date(base),

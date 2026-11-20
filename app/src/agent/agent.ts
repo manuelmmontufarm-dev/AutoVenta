@@ -12,6 +12,7 @@ import { anuncioDeLaConversacion } from "../services/anuncio.js";
 import OpenAI from "openai";
 import { nuevoClienteOpenAI } from "./openaiCliente.js";
 import { aroDadoPorElCliente, aroRespondido, medidaConfirmadaPorCliente } from "../domain/medidaConfirmada.js";
+import { avisoRegistradoEnElCiclo } from "../services/avisoAlAsesor.js";
 import { medidasDelMensaje, medidaSinConfirmar } from "../domain/medidaDelCliente.js";
 import { esFalloDelProveedor } from "../domain/falloDelProveedor.js";
 import { createBotAlert } from "../services/followUps.js";
@@ -229,8 +230,12 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   // El mensaje de este turno ya está guardado con su hecho `medida_escrita`
   // (familia 3, 19-oct): no se vuelve a leer aquí con otro lector.
   ctx.medidaSinConfirmar = salesFacts.medidaConfirmadaPorCliente === false && !salesFacts.aroDelCliente;
-  const hechoDeMedidaInferida = ctx.medidaSinConfirmar && (salesFacts.vehicle || !salesFacts.tireSize)
-    ? "MEDIDA NO CONFIRMADA POR EL CLIENTE: el cliente no ha escrito ninguna medida completa ni mandado foto del costado; toda medida en juego la dedujo el bot por el vehículo o por el aro. Puedes mostrar opciones (son «las que más se usan en su vehículo»), pero PROHIBIDO llamar generar_cotizacion: el cierre pide la medida escrita del filo de la llanta (ej. 225/65R17) o una foto del costado. Con ella, buscar_llanta y ahí sí cotizas."
+  // EL HECHO SIGUE AL CANDADO (simulador Competimotor 18-nov, CM26): con la
+  // ficha llena y sin vehículo registrado (fitment apagado: el modelo adivinó
+  // la 185/60R14), el candado de generar_cotizacion estaba puesto pero el bot no
+  // lo sabía; intentaba cotizar y parafraseaba el error al cliente.
+  const hechoDeMedidaInferida = ctx.medidaSinConfirmar
+    ? "MEDIDA NO CONFIRMADA POR EL CLIENTE: el cliente no ha escrito ninguna medida completa ni mandado foto del costado; toda medida en juego la dedujo el bot por el vehículo o por el aro. Puedes mostrar opciones (son «las que más se usan en su vehículo»), pero PROHIBIDO llamar generar_cotizacion: el cierre pide la medida escrita del filo de la llanta (ej. 225/65R17) o una foto del costado. Con ella, buscar_llanta y ahí sí cotizas. Nunca le cuentes al cliente que algo «se bloqueó» ni lo que «pide el sistema»."
     : null;
   // MEDIA MEDIDA: SE PIDE LA MITAD QUE FALTA, NO LA MEDIDA ENTERA.
   //
@@ -451,11 +456,9 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   // LA ZANAHORIA DEL ASESOR SE EJECUTA O SE SUELTA (T115 conv 8288, corrida 4):
   // si algún turno ya ofreció asesor y el aviso nunca salió, el modelo recibe
   // la obligación por delante. La negativa del cliente la apaga.
-  const hayAvisoEnCiclo = (await sql<{ existe: number }[]>`
-    select 1 as existe from advisor_notifications
-    where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
-    limit 1
-  `).length > 0;
+  // Cuenta también la alerta de escalamiento del ciclo (CM04/CM05, simulador
+  // Competimotor 18-nov): ver `avisoRegistradoEnElCiclo`.
+  const hayAvisoEnCiclo = await avisoRegistradoEnElCiclo(ctx.conversation.id, ctx.conversation.current_cycle);
   const ofrecioAsesorSinAvisar = !hayAvisoEnCiclo
     && history.some((m) => m.role === "assistant" && typeof m.content === "string" && ofrecioAsesor(m.content));
   // Tema fuera del catálogo sin aviso todavía: derivar es la respuesta, no un

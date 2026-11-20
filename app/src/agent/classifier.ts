@@ -124,6 +124,24 @@ Bot: ${assistantText}`,
       );
       return;
     }
+    // «COTIZACIÓN ENVIADA» ES UN HECHO, NO UNA LECTURA (simulador Competimotor,
+    // 18-nov, CM27): tras «ok esa, 4» el modelo leyó «confirmó un único modelo y
+    // cantidad» y dejó la etapa en cotizacion_enviada con CERO cotizaciones en
+    // el ciclo. Esa etapa solo la pone `generar_cotizacion` después de crear la
+    // cotización; acá se acepta únicamente si la cotización existe.
+    if (stage === "cotizacion_enviada") {
+      const [cotizacion] = await sql<{ id: number }[]>`
+        select q.id from quotes q join conversations c on c.id = q.conversation_id
+        where q.conversation_id = ${conversation.id} and q.cycle = c.current_cycle
+        limit 1
+      `;
+      if (!cotizacion) {
+        console.log(
+          `🛟 Etapa cotizacion_enviada frenada en la conv ${conversation.id}: no hay cotización en el ciclo`,
+        );
+        return;
+      }
+    }
     if (STAGE_ORDER[stage] > STAGE_ORDER[etapaActual] || stage === "perdido") {
       await setStage(conversation.id, stage, {
         actor: "customer",
