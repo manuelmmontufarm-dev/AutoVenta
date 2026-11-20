@@ -100,4 +100,33 @@ describe("seed:negocio (R-35)", () => {
     // …y la semilla lo respeta.
     expect(fila.value.marcado).toBe("a-mano");
   });
+
+  it("el horario de seguimientos sale del horario del local, no del de Depot de la migración", async () => {
+    // Prueba Competimotor 18-nov: un seguimiento salió el sábado 16:30 con el
+    // local cerrado desde las 16:00, porque la política traía lun–sáb 08:30–17:30.
+    const [politica] = await sql<{ business_hours: Record<string, { open: string; close: string } | null> }[]>`
+      select business_hours from follow_up_policies where policy_key = 'default'
+    `;
+    const [horarios] = await sql<{ value: Record<string, { dias: Record<string, { open: string; close: string; closed: boolean }> }> }[]>`
+      select value from settings where key = 'store_hours'
+    `;
+    const dias = ["dom", "lun", "mar", "mie", "jue", "vie", "sab"];
+    for (let d = 0; d < 7; d += 1) {
+      const abiertos = Object.values(horarios.value).map((l) => l.dias[dias[d]]).filter((t) => t && !t.closed);
+      if (!abiertos.length) expect(politica.business_hours[String(d)]).toBeNull();
+      else expect(politica.business_hours[String(d)]).toEqual({
+        open: abiertos.map((t) => t.open).sort()[0],
+        close: abiertos.map((t) => t.close).sort().at(-1),
+      });
+    }
+  });
+
+  it("si alguien ya cambió el horario de seguimientos, la semilla no lo pisa", async () => {
+    const aMano = { "0": null, "1": { open: "09:00", close: "12:00" } };
+    await sql`update follow_up_policies set business_hours = ${sql.json(aMano)} where policy_key = 'default'`;
+    const otra = await sembrarNegocio();
+    expect(otra.horarioDeSeguimientos).toBe(false);
+    const [politica] = await sql<{ business_hours: unknown }[]>`select business_hours from follow_up_policies where policy_key = 'default'`;
+    expect(politica.business_hours).toEqual(aMano);
+  });
 });

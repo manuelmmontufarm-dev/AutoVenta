@@ -1,3 +1,17 @@
+## 19-nov-2026 · Bot · Competimotor: seguimientos en el horario del local y sin prometer descuento (rama `fix/competimotor-tras-prueba-40`)
+
+- **Qué:** (1) `seed:negocio` pone el horario de la política de seguimientos en el horario del local del perfil si
+  todavía trae el de Depot de la migración 001 (lun–sáb 08:30–17:30); lo cambiado desde Ajustes no se toca. No se
+  recorta en vivo porque el panel permite ampliar ese horario (Depot). (2) Nueva `politica.cotizacionConDescuento`:
+  con `false` la pregunta del día de visita dice «le tienen lista su cotización» en vez de «le aplican el descuento de
+  su cotización». Depot `true`, texto igual.
+- **Por qué:** prueba del 18-nov (40 conversaciones × 3 + 14 seguimientos × 3): seguimiento el sábado 16:30 con el local
+  cerrado desde las 16:00 (3/3) y la frase del descuento en 16 de 18 cotizaciones.
+- **Probado:** `pruebaCompetimotor40` y 2 casos nuevos de `seedNegocio` (en rojo antes), suite (los 3 en rojo ya fallan
+  en `main`). **No probado** en simulador ni WhatsApp real. **Falta en producción:** correr la semilla en Competimotor o
+  cambiar el horario en Ajustes → Seguimientos.
+- **Horas:** 0,5.
+
 ## 18-nov-2026 · Bot · Competimotor: el precio por forma de pago también con la lámina (rama `fix/competimotor-precio-efectivo`)
 
 - **Qué:** «Cuánto en efectivo?» con la lámina a la vista (sin cotizar ni elegir) daba «eso se lo confirma un asesor»:

@@ -12,6 +12,7 @@ import type { PoliticaComercial } from "../politica.js";
 export const POLITICA_EJEMPLO: PoliticaComercial = {
   formasDePago: ["efectivo", "tarjeta", "transferencia"],
   cuotasSinIntereses: null,
+  cotizacionConDescuento: false,
   descuentoEnEfectivo: null,
   beneficioDeRedes: null,
   vendeADistancia: true,

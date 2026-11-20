@@ -33,6 +33,7 @@ import {
   type StoreHours,
 } from "../services/settings.js";
 import { savePhaseFlags } from "../services/phases.js";
+import { recortarAlHorarioDelLocal } from "../domain/horarioDeSeguimientos.js";
 
 /** `lun…dom` → el índice de `horasPorDia` (0 = domingo … 6 = sábado). */
 const INDICE_DEL_DIA: Record<(typeof DIAS_SEMANA)[number], number> = {
@@ -77,7 +78,7 @@ const LLAVES_DE_ARRANQUE: Array<[string, unknown]> = [
  * Deja la base lista para el perfil activo. Devuelve qué llaves escribió (las
  * que ya existían no se tocan), para poder afirmarlo en la prueba y en el log.
  */
-export async function sembrarNegocio(): Promise<{ escritas: string[]; existentes: string[] }> {
+export async function sembrarNegocio(): Promise<{ escritas: string[]; existentes: string[]; horarioDeSeguimientos: boolean }> {
   await ensureSchema();
   await ensureDefaultStagePrompts();
 
@@ -97,15 +98,49 @@ export async function sembrarNegocio(): Promise<{ escritas: string[]; existentes
     `;
     (filas.length ? escritas : existentes).push(llave);
   }
-  return { escritas, existentes };
+  const horarioDeSeguimientos = await alinearHorarioDeSeguimientos(horariosDelPerfil(negocio));
+  return { escritas, existentes, horarioDeSeguimientos };
+}
+
+/**
+ * El horario de Depot (lun–sáb 08:30–17:30) que la migración 001 escribe en
+ * `follow_up_policies`. Un cliente nuevo lo heredaba tal cual: en la prueba del
+ * 18-nov Competimotor mandó un seguimiento el sábado 16:30 con el local cerrado
+ * desde las 16:00.
+ */
+const HORARIO_DE_LA_MIGRACION: Record<string, { open: string; close: string } | null> = Object.fromEntries(
+  [0, 1, 2, 3, 4, 5, 6].map((d) => [String(d), d === 0 ? null : { open: "08:30", close: "17:30" }]),
+);
+
+/**
+ * Si la política de seguimientos sigue con el horario de la migración, la
+ * pone en el horario del local del perfil. Si alguien ya la cambió desde
+ * Ajustes, no se toca (misma regla que las llaves de `settings`).
+ */
+export async function alinearHorarioDeSeguimientos(horarios: StoreHours): Promise<boolean> {
+  const [fila] = await sql<{ business_hours: Record<string, unknown> }[]>`
+    select business_hours from follow_up_policies where policy_key = 'default'
+  `;
+  if (!fila || JSON.stringify(normalizar(fila.business_hours)) !== JSON.stringify(normalizar(HORARIO_DE_LA_MIGRACION))) return false;
+  const todoElDia = Object.fromEntries([0, 1, 2, 3, 4, 5, 6].map((d) => [d, { open: "00:00", close: "23:59" }]));
+  const delLocal = recortarAlHorarioDelLocal(todoElDia, horarios);
+  const nuevo = Object.fromEntries(Object.entries(delLocal).map(([d, t]) => [String(d), t]));
+  if (JSON.stringify(normalizar(nuevo)) === JSON.stringify(normalizar(HORARIO_DE_LA_MIGRACION))) return false;
+  await sql`update follow_up_policies set business_hours = ${sql.json(nuevo as never)}, updated_at = now() where policy_key = 'default'`;
+  return true;
+}
+
+function normalizar(h: Record<string, unknown>): Array<[string, unknown]> {
+  return Object.keys(h).sort().map((k) => [k, h[k] ?? null]);
 }
 
 async function main(): Promise<void> {
   console.log(`🌱 Semilla para NEGOCIO=${negocio.id} (${negocio.nombre})`);
-  const { escritas, existentes } = await sembrarNegocio();
+  const { escritas, existentes, horarioDeSeguimientos } = await sembrarNegocio();
   console.log("✅ Esquema y prompts por etapa listos");
   for (const llave of escritas) console.log(`✅ ${llave}: sembrada desde el perfil`);
   for (const llave of existentes) console.log(`· ${llave}: ya existía, no se toca`);
+  if (horarioDeSeguimientos) console.log("✅ horario de seguimientos: puesto en el horario del local (traía el de la migración)");
   console.log("🏁 Semilla completada.");
   await sql.end();
 }
