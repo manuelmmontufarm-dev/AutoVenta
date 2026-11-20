@@ -22,6 +22,7 @@ import {
 } from "../render/quoteImage.js";
 import { createAdminRouter, exigirCredencial } from "./admin.js";
 import { paginaPrivacidad } from "./privacidad.js";
+import { createRegistroVentaRouter } from "./registroVenta.js";
 import { negocio } from "../negocio/index.js";
 import { getBotPower } from "../services/botPower.js";
 import { shouldRunEmbeddedWorker } from "../workers/embeddedFollowUpWorker.js";
@@ -288,6 +289,9 @@ export function createServer(): express.Express {
 
   // API del panel en línea (mensajes, configuración de IA, tester).
   app.use("/api", createAdminRouter());
+
+  // La página donde el vendedor registra una venta (enlace con clave, sin login).
+  app.use("/venta", createRegistroVentaRouter());
 
   // La política de privacidad lleva el nombre del negocio de ESTA instancia
   // (Meta la pide para publicar la app). Va antes del estático: si no, se
