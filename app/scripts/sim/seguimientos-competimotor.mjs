@@ -23,6 +23,8 @@
  *   node scripts/sim/seguimientos-competimotor.mjs --corridas 1     # una sola
  *   node scripts/sim/seguimientos-competimotor.mjs --casos s02-recibio-opciones,s08-sabado-tarde
  *   node scripts/sim/seguimientos-competimotor.mjs --conservar-db   # deja autoventa_sim_seg_rN
+ *   node scripts/sim/seguimientos-competimotor.mjs --con-semilla    # producción tras correr seed:negocio (PR #62)
+ *   node scripts/sim/seguimientos-competimotor.mjs --fase4          # con la Fase 4 encendida (solo en la base)
  *
  * Resultados: scripts/sim/resultados-seguimientos/<caso>-r<N>.json y resumen.json.
  */
@@ -244,7 +246,7 @@ async function main() {
       "scripts/sim/sim.mjs", "--perfil", "mundillantas", "--db", DB,
       "--puerto", String(P.ui), "--puerto-bot", String(P.bot), "--puerto-graph", String(P.graph),
       "--puerto-contifico", String(P.contifico), "--puerto-stub", String(P.stub),
-      "--debounce", "1500", "--catalogo-archivo", excelOriginal, "--sin-build", "--verboso",
+      "--debounce", "1500", "--catalogo-archivo", excelOriginal, "--catalogo-confirmar", "--sin-build", "--verboso",
       ...(bandera("conservar-db") ? ["--conservar-db"] : []),
     ], {
       cwd: raízApp,
@@ -302,6 +304,25 @@ async function main() {
       if (bandera("fase4")) {
         await sql`update settings set value = jsonb_set(value, '{fase4}', 'true'::jsonb) where key = 'phase_config'`;
         configuracion.variante = "fase4 encendida (solo en esta base; producción la tiene apagada)";
+      }
+      if (bandera("con-semilla")) {
+        // Producción DESPUÉS de correr `seed:negocio` en Competimotor (PR #62):
+        // la semilla solo escribe lo que falta y pone el horario de seguimientos
+        // en el del local si seguía con el de la migración 001. Así se prueba
+        // s08 como va a quedar, sin tocar producción.
+        const { execFileSync } = await import("node:child_process");
+        execFileSync("npx", ["tsx", "src/db/seed-negocio.ts"], {
+          cwd: fileURLToPath(new URL("../..", import.meta.url)),
+          env: {
+            ...process.env, DATABASE_URL: URL_DB, NEGOCIO: "mundillantas",
+            OPENAI_API_KEY: process.env.OPENAI_API_KEY ?? "semilla", WHATSAPP_TOKEN: "x", WHATSAPP_APP_SECRET: "x",
+            WHATSAPP_VERIFY_TOKEN: "x", WHATSAPP_PHONE_ID: "x",
+          },
+          stdio: "ignore",
+        });
+        configuracion.semilla = "seed:negocio corrida sobre la copia de producción (como quedará tras el PR #62)";
+        configuracion.politicaResumen = (await leerConfiguracion(sql, textoSim)).politicaResumen;
+        log("semilla de Competimotor aplicada a la base");
       }
       log(`política: ${JSON.stringify(configuracion.politicaResumen)}`);
 

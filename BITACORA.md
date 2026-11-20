@@ -1,3 +1,16 @@
+## 19-nov-2026 · Simulador · Competimotor, familia E: seguimientos tras una pregunta, sin código del bot (rama `fix/competimotor-conversaciones`)
+
+- **Qué:** `seguimientos-competimotor.mjs --con-semilla` corre `seed:negocio` sobre la copia de producción (como quedará
+  Competimotor tras el PR #62) y `--fase4` ya estaba. El bot no cambia en esta familia.
+- **Por qué (decisión, no arreglo):** con la Fase 4 apagada (así está Competimotor), si el cliente pregunta algo después
+  de la cotización y calla, no se agenda ningún seguimiento (s14 0/3, s03 2/3): el turno solo agenda con `fase4`
+  (`index.ts`) y la red del worker descarta la conversación si existe cualquier `advisor_review` del ciclo, aunque esté
+  cancelado (`followUps.ts`). La Fase 4 es el interruptor de las Oportunidades (seguimientos); en Depot está encendida.
+  Lo correcto es **encender la Fase 4 en Competimotor** (Ajustes); medido en el simulador: s03, s13, s14 3/3. No se tocó
+  la red del worker: ese mismo bloqueo es el que hoy protege el cierre de s05 («no gracias, ya compré») y corre para Depot.
+- **Falta en producción:** encender Fase 4 en Competimotor y correr `seed:negocio` (s08, horario del sábado; PR #62).
+- **Horas:** 0,3.
+
 ## 19-nov-2026 · Bot · Competimotor 40 × 3, familia D: la visita respeta la hora del local (rama `fix/competimotor-conversaciones`)
 
 - **Qué:** **CM20** · «el sabado salgo del trabajo a las 5 y paso» + «a eso de las 5 y media» registraba la visita del
