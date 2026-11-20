@@ -53,6 +53,7 @@ export const TABLAS_DATOS = [
   "recordatorios_visita",          // recordatorio de visita y «no llegó» enviados (19-nov-2026)
   "sales_history",
   "facturas_importadas",
+  "ventas_registradas",            // ventas que el vendedor registra a mano en /venta (20-nov-2026)
   "billing_months",
   "schema_migrations",
   "hub_sessions",

@@ -1,3 +1,18 @@
+## 20-nov-2026 · Vendedores · Página `/venta` para registrar ventas y validar si vinieron de WhatsApp (rama `feat/registro-venta-vendedor`)
+
+- **Qué:** página pública con clave en el enlace (`/venta?k=…`, derivada de `ADMIN_KEY`, sin variable nueva). Paso 1: el
+  vendedor escribe su nombre y el número del cliente; se busca en `conversations` por `tel9` y SIEMPRE se guarda una fila
+  en `ventas_registradas` (migración 035), haya chat o no y aunque el número ya esté registrado ese día (en ese caso avisa
+  quién lo registró primero). «Vino de WhatsApp» = hay chat y el cliente escribió al menos una vez. Paso 2: factura o
+  referencia sobre la misma fila (`POST /venta/factura`). Para el dueño: `GET /api/ventas-registradas` (lista, enlace y
+  `?formato=csv`). Archivos: `server/registroVenta.ts`, `services/registroDeVentas.ts`.
+- **Por qué:** Manuel, 20-nov: puente hasta que podamos leer las facturas, para comprobar rápido si una venta vino de
+  WhatsApp y dejar registro (puede haber un obsequio por la compra).
+- **Probado:** `registroDeVentas.integration.test.ts` (16), `tsc`, `simuladorFidelidad`, `perfilAjeno.*`, los dos pasos en
+  el navegador a tamaño de celular. Suite completa: fallan solo `buscarPorAroCompleto`, `hashesPiezasDepot` y
+  `unidadEnLaCantidad`, igual que en main. `sim:humo` no corrió en el worktree (sin `.env`).
+- **Falta:** pantalla en el hub para ver los registros (hoy solo API/CSV).
+- **Horas:** 1.
 ## 20-nov-2026 · Hub · Para cerrar vacía en negocios de un solo local (rama `fix/para-cerrar-un-solo-local`)
 
 - **Qué:** `services/paraCerrar.ts` — con un solo local (`hayQueElegirLocal` = false, la regla de `tools.ts`) entra todo
