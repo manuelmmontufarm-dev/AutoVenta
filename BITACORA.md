@@ -1,3 +1,19 @@
+## 20-nov-2026 · Bot · La insignia de la lámina no promete descuento en las opciones que no lo tienen, y dice BLACK FRIDAY (rama `fix/lamina-bf-insignia`)
+
+- **Qué:** `render/diaNoche.ts` (`optionsPosterDiaNoche`). Si alguna opción de la lámina no tiene descuento, la
+  insignia nombra las que sí lo tienen: por marca, o marca y modelo si la marca se repite. Ya no dice «en las N
+  opciones». Si todas las rebajadas son de precio especial por código (Black Friday de Competimotor), los renglones
+  dicen «BLACK FRIDAY» + «DESCUENTO HOY» (o «DESCUENTO MÁX.» si los porcentajes difieren).
+- **Por qué:** conv 469 (Competimotor): KENDA KR29 235/75R15 sin rebaja + FALKEN WILDPEAK M/T 30X9.5R15 con Black
+  Friday salía «−21% DESCUENTO HOY en las 2 opciones». `iguales` se contaba solo entre las que tienen descuento y el
+  texto nombraba todas.
+- **Depot:** los 16 hashes del arnés de piezas salen idénticos a `origin/main` (sus opciones siempre traen lista).
+- **Probado:** `laminaInsigniaBlackFriday.test.ts` (3 de 4 en rojo sin el arreglo). Láminas renderizadas con el
+  inventario del 20-nov: KR29 + Falken M/T («−21% BLACK FRIDAY · DESCUENTO HOY · en Falken») y Winrun R/T + A/T, las
+  dos con Black Friday («−21% BLACK FRIDAY · DESCUENTO MÁX. · según la opción»; «HASTA ESTE DESCUENTO» se salía de la
+  pieza). Suite: fallan solo `hashesPiezasDepot` y `unidadEnLaCantidad`, igual que en main. `tsc` ✅.
+  `verificar-precios` 444/444.
+- **Horas:** 0,5.
 ## 20-nov-2026 · Bot · Competimotor: seguro solo Kenda y Falken; «pantanera» = M/T con stock (rama `fix/competimotor-seguro-pantaneras`)
 
 - **Qué (seguro):** la bajada de la lámina de opciones (`render/diaNoche.ts`, `loIncluidoEnElJuego`) dice «seguro» solo si

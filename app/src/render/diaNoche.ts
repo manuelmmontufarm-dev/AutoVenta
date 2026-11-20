@@ -665,6 +665,22 @@ export function optionsPosterDiaNoche(data: OptionsDiaNocheData, modo: ModoPieza
   // 4» y la insignia volvía a «−25% DESCUENTO HOY» (producción, 26-oct 16:26).
   // La lámina de opciones es siempre el juego de 4.
   const todas3x4 = lines.length > 0 && lines.every((line) => es3x4(line));
+  // CONV 469 (Competimotor, 20-nov): KR29 sin rebaja + Falken M/T con Black
+  // Friday salía «−21% DESCUENTO HOY en las 2 opciones». «Iguales» se contaba
+  // solo entre las que TIENEN descuento y el texto nombraba todas: ahora, si
+  // alguna no lo tiene, la insignia nombra las que sí (por marca, o marca y
+  // modelo si la marca se repite en la lámina).
+  const conDescuento = lines.filter((l) => porcentaje(l) !== null);
+  const todasConDescuento = conDescuento.length === opciones;
+  const nombreCorto = (l: PosterLine) => {
+    const cap = (s: string) => s.trim().split(/\s+/).map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ");
+    const marcaRepetida = lines.filter((o) => o.brand.trim().toUpperCase() === l.brand.trim().toUpperCase()).length > 1;
+    return marcaRepetida ? `${cap(l.brand)} ${l.design.trim()}` : cap(l.brand);
+  };
+  // Precio especial por código (Black Friday de Competimotor): la insignia lo dice.
+  const temporadaDeLaInsignia = conDescuento.length && conDescuento.every((l) => l.temporada?.precioEspecial)
+    ? conDescuento[0].temporada!.nombre.toUpperCase()
+    : null;
   const insignia = pcts.length
     ? (() => {
         const iguales = todas3x4 || pcts.every((p) => p === pcts[0]);
@@ -681,15 +697,17 @@ export function optionsPosterDiaNoche(data: OptionsDiaNocheData, modo: ModoPieza
           }),
           text({ ...ANCHO(900), fontSize: 38, lineHeight: 1, letterSpacing: -1, color: TINTA_ORO }, todas3x4 ? "4x3" : `−${pct}%`),
           el({ flexDirection: "column" },
-            renglon(todas3x4 ? "4 LLANTAS POR" : iguales ? "DESCUENTO" : "HASTA"),
-            renglon(todas3x4 ? "EL PRECIO DE 3" : iguales ? "HOY" : "DE DESCUENTO"),
+            renglon(todas3x4 ? "4 LLANTAS POR" : temporadaDeLaInsignia ?? (iguales ? "DESCUENTO" : "HASTA")),
+            renglon(todas3x4 ? "EL PRECIO DE 3" : temporadaDeLaInsignia ? (iguales ? "DESCUENTO HOY" : "DESCUENTO MÁX.") : iguales ? "HOY" : "DE DESCUENTO"),
             text({ ...BARLOW(700), fontSize: 10, color: "#5c430e", marginTop: 2 },
               // Con Black Friday, Falken/Kenda ya no llevan el −25 % (lo reemplaza
               // el 60 %): la insignia nombra las marcas que sí lo llevan.
               lines.some((l) => l.vitrinaSegundaLlanta) && pcts.length < opciones
                 ? `en ${[...new Set(lines.filter((l) => porcentaje(l) !== null).map((l) => l.brand.trim()))]
                     .map((m) => m.charAt(0).toUpperCase() + m.slice(1).toLowerCase()).join(" y ")}`
-                : iguales ? (opciones === 1 ? "en esta opción" : `en las ${opciones} opciones`) : "según la opción"),
+                : !todasConDescuento
+                  ? `en ${[...new Set(conDescuento.map(nombreCorto))].join(" y ")}`
+                  : iguales ? (opciones === 1 ? "en esta opción" : `en las ${opciones} opciones`) : "según la opción"),
           ),
         );
       })()
