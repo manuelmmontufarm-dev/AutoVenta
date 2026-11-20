@@ -1,7 +1,15 @@
 import { WHATSAPP_WINDOW_MS } from "./followUps.js";
 
 export type OutboundContentType = "text" | "image" | "pdf" | "template";
-export type OutboundActor = "bot" | "owner" | "worker" | "authorized_campaign";
+/**
+ * `visit_reminder` (19-nov-2026): el recordatorio de la víspera y el «no llegó»
+ * de una visita que el CLIENTE agendó. Agendar es pedirle al negocio que lo
+ * espere; el recordatorio es parte de ese acuerdo, no una campaña, así que no
+ * pide el consentimiento de plantillas ni se frena porque un asesor tomó el
+ * chat (de las visitas de octubre, 113 de 132 estaban en manos humanas). El
+ * opt-out y la molestia sí lo frenan, como a todo.
+ */
+export type OutboundActor = "bot" | "owner" | "worker" | "authorized_campaign" | "visit_reminder";
 
 export interface OutboundPolicyInput {
   contentType: OutboundContentType;
@@ -51,11 +59,11 @@ export function evaluateOutboundPolicy(input: OutboundPolicyInput): OutboundDeci
   if (input.negativeSentimentAt && !volvioAEscribir(input.negativeSentimentAt)) {
     return { allowed: false, code: "negative_sentiment", windowClosesAt };
   }
-  if (input.actor !== "owner" && input.actor !== "authorized_campaign" && input.pauseOnHumanControl && input.assignedTo === "human") {
+  if (input.actor !== "owner" && input.actor !== "authorized_campaign" && input.actor !== "visit_reminder" && input.pauseOnHumanControl && input.assignedTo === "human") {
     return { allowed: false, code: "human_control", windowClosesAt };
   }
   if (input.contentType === "template") {
-    if (input.requireConsent && !input.customerOptIn) {
+    if (input.requireConsent && !input.customerOptIn && input.actor !== "visit_reminder") {
       return { allowed: false, code: "consent_required", windowClosesAt };
     }
     return { allowed: true, code: "allowed_template", windowClosesAt };

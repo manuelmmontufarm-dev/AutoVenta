@@ -117,6 +117,12 @@ const ESTADO_META: Record<string, { label: string; tono: "ok" | "warn" | "danger
   DISABLED: { label: "Desactivada", tono: "danger" },
 };
 
+/** Qué hace cada plantilla cuando se prende «Envío automático». */
+const CUANDO_SALE: Record<string, string> = {
+  recordatorio_visita_v1: "Sale sola la víspera de la visita, entre 17:00 y 20:00, salvo que el cliente haya escrito en las últimas 6 h.",
+  visita_no_llego_v1: "Sale sola el día después de la visita, entre 10:00 y 13:00, si no vino, no compró y no escribió. Necesita las facturas al día.",
+};
+
 function Pastilla({ tono, children }: { tono: "ok" | "warn" | "danger" | "neutro"; children: React.ReactNode }) {
   const color = { ok: "var(--color-ok)", warn: "var(--color-warn,#e8b33a)", danger: "var(--color-danger,#e2564d)", neutro: "var(--color-text2)" }[tono];
   return <span className="rounded-full px-2 py-0.5 text-[12px] font-semibold" style={{ color, background: `color-mix(in srgb, ${color} 15%, transparent)` }}>{children}</span>;
@@ -194,6 +200,7 @@ export function FollowUpSettingsPanel() {
           </div>
           {categoriaCambio && <p className="mt-1 text-[12px] text-[var(--color-warn,#e8b33a)]">Meta la pasó de {template.expected_category === "UTILITY" ? "Utilidad" : template.expected_category} a {template.meta_category === "MARKETING" ? "Marketing" : template.meta_category}: cada envío cuesta más. Se puede apelar en Business Support.</p>}
           {template.preview && <p className="mt-1.5 text-[12px] text-text2">{template.preview}</p>}
+          {CUANDO_SALE[template.template_key] && <p className="mt-1 text-[12px] font-semibold">{CUANDO_SALE[template.template_key]}</p>}
           <div className="mt-2 flex flex-wrap items-end gap-2">
             <Field label="Nombre en Meta"><input className="settings-input" placeholder="Nombre aprobado en Meta" value={template.template_name ?? ""} onChange={(e) => setTemplates(templates.map((item, i) => i === index ? { ...item, template_name: e.target.value || null } : item))} /></Field>
             <label className="mb-2 flex items-center gap-2 text-[12px] font-semibold"><input type="checkbox" checked={template.automatic_send} disabled={template.meta_status !== "APPROVED"} onChange={(e) => setTemplates(templates.map((item, i) => i === index ? { ...item, automatic_send: e.target.checked, configured: e.target.checked || item.configured } : item))} />Envío automático</label>

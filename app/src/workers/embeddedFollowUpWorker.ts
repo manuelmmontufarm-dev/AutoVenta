@@ -278,6 +278,29 @@ async function supervisarAvisoDeLaManana(signal: AbortSignal): Promise<void> {
 }
 
 /**
+ * Los mensajes al cliente alrededor de su visita (19-nov-2026): el recordatorio
+ * de la víspera y el «no llegó» del día siguiente. Cada barrido mira su propia
+ * ventana horaria y la tabla `recordatorios_visita` evita duplicados aunque el
+ * bucle pase cada cuarto de hora o el proceso se reinicie.
+ */
+async function supervisarRecordatoriosDeVisita(signal: AbortSignal): Promise<void> {
+  while (!signal.aborted) {
+    for (const tipo of ["recordatorio", "no_llego"] as const) {
+      try {
+        const { barrerRecordatorios } = await import("../services/recordatoriosDeVisita.js");
+        const r = await barrerRecordatorios(tipo);
+        if (r && (r.enviados || r.fallos)) {
+          console.log(`📨 ${tipo === "recordatorio" ? "Recordatorio de visita" : "No llegó"}: ${r.enviados} enviado(s), ${r.omitidos} omitido(s), ${r.fallos} fallo(s)`);
+        }
+      } catch (error) {
+        console.warn(`⚠️ Recordatorios de visita (${tipo}) fallaron:`, error instanceof Error ? error.message : error);
+      }
+    }
+    await esperar(VISITAS_MS, signal);
+  }
+}
+
+/**
  * Bucle del reporte del día.
  *
  * Comparte el ritmo de las visitas por la misma razón: la condición «ya son las
@@ -372,6 +395,7 @@ export function startEmbeddedFollowUpWorker(): void {
   void supervisarVisitas(controller.signal);
   void supervisarVentanas(controller.signal);
   void supervisarAvisoDeLaManana(controller.signal);
+  void supervisarRecordatoriosDeVisita(controller.signal);
   void supervisarReporteDiario(controller.signal);
   void supervisarPrefacturas(controller.signal);
 }

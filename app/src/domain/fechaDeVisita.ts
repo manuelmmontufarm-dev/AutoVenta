@@ -34,7 +34,15 @@
 import { extractCustomerCommitment, fechaDelDia, tieneVerboDeVisita, type CustomerCommitment } from "./customerCommitment.js";
 import { normalizarTexto } from "./diasEnEspanol.js";
 
-export type NoEsVisita = "texto_de_una_foto" | "envia_informacion";
+export type NoEsVisita = "texto_de_una_foto" | "envia_informacion" | "pide_otro_dia";
+
+/**
+ * «Quiero cambiar el día», «agendar otro día», «no voy a poder ir»: pedir un
+ * cambio sin nombrar el día nuevo (19-nov-2026, botones del recordatorio de
+ * visita). Solo cuenta si NO trae un día: «no puedo el sábado, mejor el lunes»
+ * sí es una visita, al lunes.
+ */
+const PIDE_OTRO_DIA = /\b(?:cambiar|cambio|mover|reagendar|reprogramar|agendar\s+otro|otro)\s+(?:de\s+)?(?:el\s+|la\s+)?(?:dia|fecha)\b|\bno\s+(?:voy\s+a\s+poder|puedo|pude|alcanzo|alcance)\s+(?:ir|pasar|llegar)\b/;
 
 const FOTO = /\[El cliente mandó una foto[^\]]*\]/g;
 const AUDIO = /\[El cliente mandó un audio\. Dice: ([^\]]*)\]/g;
@@ -91,6 +99,9 @@ export function fechaParaAgendar(input: {
   const delCliente = leerVisita(input.textoDelCliente, ahora, { respondiendoAlDia: input.respondiendoAlDia ?? false });
   if (delCliente?.visitDate) {
     return { fecha: delCliente.visitDate, texto: delCliente.text, franja: delCliente.visitTimeLabel };
+  }
+  if (PIDE_OTRO_DIA.test(normalizarTexto(loQueDijoElCliente(input.textoDelCliente)))) {
+    return { fecha: null, texto: frase, noEsVisita: "pide_otro_dia" };
   }
   return { fecha: fechaDelDia(input.dia, ahora), texto: frase || input.dia.trim() };
 }

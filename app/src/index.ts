@@ -784,6 +784,22 @@ async function botonesDelUltimoBloque(
   }
 }
 
+/**
+ * Los botones de las plantillas de visita, como los habría escrito el cliente
+ * (19-nov-2026). «Cambiar día» a secas, en el simulador, el bot lo leyó como
+ * «sí, el día de siempre» y confirmó la misma fecha: la frase completa dice lo
+ * que el cliente quiso decir. Un botón que no está acá entra tal cual.
+ */
+const FRASE_DE_BOTON: Record<string, string> = {
+  "Cambiar día": "No voy a poder ir ese día, quiero cambiar el día de la visita",
+  "Agendar otro día": "No pude ir, quiero agendar otro día para ir",
+  "Ya no las necesito": "Ya no necesito las llantas",
+};
+
+export function textoDeBotonDePlantilla(texto: string): string {
+  return FRASE_DE_BOTON[texto] ?? texto;
+}
+
 async function recibirMensaje(
   from: string,
   name: string | undefined,
@@ -956,7 +972,7 @@ setWaHandlers({
             .catch((error) => console.warn("⚠️ No se pudo confirmar el «Listo» del asesor:", error));
           break;
         }
-        await recibirMensaje(from, name, texto, message.id, receivedAt, citado);
+        await recibirMensaje(from, name, textoDeBotonDePlantilla(texto), message.id, receivedAt, citado);
         break;
       }
       case "location":

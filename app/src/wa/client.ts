@@ -494,7 +494,10 @@ export async function sendApprovedTemplate(input: {
   templateName: string;
   language: string;
   variables: string[];
-  attemptId: number;
+  /** Intento de seguimiento al que pertenece (para correlacionar el status). */
+  attemptId?: number;
+  /** Correlación propia cuando no es un seguimiento (p. ej. `recordatorio_visita:12`). */
+  callbackData?: string;
   /**
    * Quién manda. El default sigue siendo `worker`, pero la campaña autorizada
    * por un asesor tiene que llegar como `authorized_campaign` (16-ago).
@@ -520,7 +523,7 @@ export async function sendApprovedTemplate(input: {
       messaging_product: "whatsapp",
       to: input.to,
       type: "template",
-      biz_opaque_callback_data: `followup_attempt:${input.attemptId}`,
+      biz_opaque_callback_data: input.callbackData ?? `followup_attempt:${input.attemptId}`,
       template: {
         name: input.templateName,
         language: { code: input.language },

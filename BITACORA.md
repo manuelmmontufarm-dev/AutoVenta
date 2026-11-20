@@ -1,3 +1,27 @@
+## 20-nov-2026 · Recordatorio de visita y «no llegó» a los clientes
+
+**Qué:**
+- `services/recordatoriosDeVisita.ts`: la víspera de la visita (17:00–20:00) sale
+  `recordatorio_visita_v1`; el día después (10:00–13:00) sale `visita_no_llego_v1` a quien no
+  vino, no compró y no escribió. Uno por visita (tabla `recordatorios_visita`, migración 034, la
+  clave única es el candado). El mensaje queda en el chat con el texto que vio el cliente.
+- Interruptor: «Envío automático» de cada plantilla en Ajustes → Seguimientos (apagado al
+  desplegar). Solo sale si Meta la aprobó y el bot está encendido.
+- Actor nuevo `visit_reminder` en la política: no pide consentimiento de plantillas ni se frena
+  con el chat en manos de un asesor (113 de 132 visitas de octubre lo estaban); opt-out y molestia
+  sí lo frenan.
+- El «no llegó» calla si no hay facturas de las últimas 36 h: sin ellas no se sabe quién compró.
+- Los botones de las plantillas entran como frase completa («Cambiar día» → «No voy a poder ir
+  ese día, quiero cambiar el día de la visita»).
+- Candado `pide_otro_dia` en `agendar_visita`: en el simulador «Cambiar día» terminaba en «Listo,
+  le esperamos el sábado» (la misma fecha). Sin un día nombrado, pedir un cambio no agenda nada y
+  el bot pregunta qué día.
+
+**Por qué:** cerrar los seguimientos con plantillas aprobadas (investigación del 18-nov: un
+recordatorio sube la asistencia; uno solo por visita, sin cadenas).
+
+**Horas:** 3
+
 ## 19-nov-2026 · Simulador · Competimotor 40 × 3, familia F y verificación final (rama `fix/competimotor-conversaciones`)
 
 - **Qué:** escenarios dudosos resueltos y otros corregidos en `datos/competimotor-40.mjs` (fuera de git; la tabla está en

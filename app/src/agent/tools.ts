@@ -4367,7 +4367,9 @@ export function buildTools(ctx: AgentContext) {
         return JSON.stringify({
           error: "no_es_visita",
           motivo: lectura.noEsVisita,
-          regla: lectura.noEsVisita === "envia_informacion"
+          regla: lectura.noEsVisita === "pide_otro_dia"
+            ? "El cliente quiere CAMBIAR el día de su visita pero no dijo a cuál: NO registres visita ni le digas que le esperas. Dile que no hay problema y pregúntale qué día le queda mejor."
+            : lectura.noEsVisita === "envia_informacion"
             ? "El cliente dijo que te MANDA un dato (la medida, una foto), no que viene al local: NO registres visita ni digas que le esperas o que avisaste al asesor. Agradécele y dile que quedas pendiente de ese dato."
             : "Esa fecha salió del texto de una FOTO, no de lo que dijo el cliente: NO registres visita. Sigue la venta donde estaba.",
         });

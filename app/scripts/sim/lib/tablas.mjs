@@ -50,6 +50,7 @@ export const TABLAS_DATOS = [
   "follow_up_attempts",
   "follow_up_campaigns",
   "advisor_notifications",
+  "recordatorios_visita",          // recordatorio de visita y «no llegó» enviados (19-nov-2026)
   "sales_history",
   "facturas_importadas",
   "billing_months",

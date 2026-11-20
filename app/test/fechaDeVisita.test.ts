@@ -257,3 +257,28 @@ describe("¿ya pasó la visita? Se compara el DÍA en Quito, no el instante", ()
     expect(yaPasoElDiaDeLaVisita(visita, enQuito("2026-10-16T13:31:00"))).toBe(false);
   });
 });
+
+/**
+ * «Cambiar día» del recordatorio de visita (19-nov-2026, simulador): el
+ * cliente pide OTRO día sin decir cuál, y el modelo llamó agendar_visita con
+ * la fecha de siempre — «Listo, le esperamos el sábado». Sin un día nombrado,
+ * pedir un cambio no es una visita: hay que preguntar cuál.
+ */
+describe("pedir otro día sin decir cuál no agenda nada", () => {
+  const ahora = new Date("2026-11-20T15:00:00Z");
+  it.each([
+    "No voy a poder ir ese día, quiero cambiar el día de la visita",
+    "No pude ir, quiero agendar otro día para ir",
+    "cambiar día",
+  ])("«%s»", (texto) => {
+    const r = fechaParaAgendar({ dia: "sábado", textoDelCliente: texto, ahora });
+    expect(r.fecha).toBeNull();
+    expect(r.noEsVisita).toBe("pide_otro_dia");
+  });
+
+  it("si nombra el día nuevo, sí agenda ese día", () => {
+    const r = fechaParaAgendar({ dia: "lunes", textoDelCliente: "No puedo el sábado, mejor el lunes", ahora });
+    expect(r.noEsVisita).toBeUndefined();
+    expect(r.fecha).not.toBeNull();
+  });
+});
