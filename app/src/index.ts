@@ -54,6 +54,7 @@ import {
 import { emitLiveEvent } from "./services/liveEvents.js";
 import { registrarMensajeDeAsesor } from "./services/advisorWindow.js";
 import { BOTON_LISTO } from "./services/avisoDeLaManana.js";
+import { BOTON_VER_AVISO, entregarAvisosCompletos } from "./services/avisoPorPlantilla.js";
 import { contestaAunApagado, isBotActive } from "./services/botPower.js";
 import { textoParaMensajeQueNoSeLee } from "./domain/mensajeQueNoSeLee.js";
 import { medidaQueConfirmoAlAsesor } from "./domain/medidaQueConfirmoAlAsesor.js";
@@ -982,6 +983,17 @@ setWaHandlers({
         if (texto === BOTON_LISTO && (await registrarMensajeDeAsesor(from, receivedAt))) {
           await sendAdvisorText("✅ Listo. Hoy te llegan los avisos de clientes del bot.", from)
             .catch((error) => console.warn("⚠️ No se pudo confirmar el «Listo» del asesor:", error));
+          break;
+        }
+        // «Ver aviso» (20-nov): el aviso le llegó como plantilla porque su
+        // ventana estaba cerrada. El toque la reabre: se le mandan completos.
+        if (texto === BOTON_VER_AVISO && (await registrarMensajeDeAsesor(from, receivedAt))) {
+          const n = await entregarAvisosCompletos(from)
+            .catch((error) => { console.warn("⚠️ No se pudieron entregar los avisos completos:", error); return 0; });
+          if (!n) {
+            await sendAdvisorText("✅ Listo. Desde ahora te llegan los avisos del bot.", from)
+              .catch((error) => console.warn("⚠️ No se pudo confirmar el «Ver aviso» del asesor:", error));
+          }
           break;
         }
         await recibirMensaje(from, name, textoDeBotonDePlantilla(texto), message.id, receivedAt, citado);
