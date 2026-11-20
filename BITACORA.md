@@ -1,3 +1,15 @@
+## 20-nov-2026 · Hub · Para cerrar vacía en negocios de un solo local (rama `fix/para-cerrar-un-solo-local`)
+
+- **Qué:** `services/paraCerrar.ts` — con un solo local (`hayQueElegirLocal` = false, la regla de `tools.ts`) entra todo
+  el que tenga cotización del ciclo, con el único local como `local` (`LOCAL_UNICO`). La curva de «silencio» usa la misma
+  regla. Con varios locales (Depot) se sigue exigiendo local elegido.
+- **Por qué:** en la reunión de Competimotor dijeron que alguien ya dio fecha y no salía. Era Erick Acosta (conv 302,
+  $809.60, «voy el sábado» → 21-nov). La consulta pedía `nearest_store` + «Local elegido…», y con un solo local el bot
+  nunca pregunta cuál: la pestaña de Competimotor quedaba vacía para siempre.
+- **Probado:** `paraCerrarUnSoloLocal.integration.test.ts` (rojo sin el arreglo), `paraCerrar.test.ts`, `tsc`, suite
+  completa (fallan solo `buscarPorAroCompleto`, `hashesPiezasDepot` y `unidadEnLaCantidad`, igual que en main). Contra la
+  base de Competimotor (solo lectura): salen 7, Erick con su visita del 21-nov en caliente.
+- **Horas:** 0,5.
 ## 20-nov-2026 · Bot · «No gracias» a secas es «esa no»: se ofrece otra, no es venta perdida (rama `fix/no-gracias-otra-opcion`)
 
 - **Qué:** se quita `politica.rechazoCierraComoPerdida` (PR #65): ningún «no gracias» deja la venta perdida, en ningún

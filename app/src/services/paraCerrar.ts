@@ -11,11 +11,22 @@ import {
 import { diaDeGuayaquil } from "../domain/estadisticaVentas.js";
 import { medirCurva, type Observacion } from "../domain/llegada.js";
 import { LOCAL_ELEGIDO } from "./conversations.js";
+import { business } from "../config.js";
+import { hayQueElegirLocal } from "../domain/storeSelection.js";
 import { cruceVigente, ultimaSyncFacturas } from "./ventasConfirmadas.js";
 
 /** Más atrás que esto el archivo ya no sirve para nada y la consulta crece sin límite. */
 const ARCHIVO_DIAS = 90;
 const ARCHIVO_MAX = 200;
+
+/**
+ * Con un solo local no hay nada que elegir (Competimotor, 20-nov): el bot manda
+ * el mapa y pregunta el día, sin guardar nunca `nearest_store` ni «Local
+ * elegido». Exigir eso dejaba la pestaña vacía para siempre —Erick Acosta dijo
+ * «voy el sábado» con cotización y no salía—. En ese caso basta la cotización,
+ * y el local es el único que hay; es la misma regla que usa `tools.ts`.
+ */
+export const LOCAL_UNICO: string | null = hayQueElegirLocal ? null : business.stores[0]?.name ?? null;
 
 interface FilaSql {
   id: string; name: string | null; phone: string; tire_size: string | null;
@@ -35,7 +46,9 @@ interface FilaSql {
 const REHACER_MS = 30 * 60_000;
 let estadisticaGuardada: { at: number; sync: number | null; est: Estadistica } | null = null;
 
-export async function estadisticaDeLlegada(ahora = new Date()): Promise<Estadistica> {
+export async function estadisticaDeLlegada(
+  ahora = new Date(), localUnico: string | null = LOCAL_UNICO,
+): Promise<Estadistica> {
   const sync = ultimaSyncFacturas()?.getTime() ?? null;
   // Sin facturas bajadas todavía (recién arrancó) no hay nada que medir.
   if (sync === null) return ESTADISTICA_POR_DEFECTO;
@@ -60,7 +73,7 @@ export async function estadisticaDeLlegada(ahora = new Date()): Promise<Estadist
       where m.conversation_id = c.id and m.role = 'user'
     ) as mensajes
     from conversations c
-    where c.location_label like ${LOCAL_ELEGIDO + "%"}
+    where (${localUnico}::text is not null or c.location_label like ${LOCAL_ELEGIDO + "%"})
       and exists (select 1 from quotes q where q.conversation_id = c.id)
   `;
   const silencio: Observacion[] = [];
@@ -82,10 +95,12 @@ export async function estadisticaDeLlegada(ahora = new Date()): Promise<Estadist
   return est;
 }
 
-export async function leerParaCerrar(ahora = new Date()): Promise<ParaCerrar> {
+export async function leerParaCerrar(
+  ahora = new Date(), localUnico: string | null = LOCAL_UNICO,
+): Promise<ParaCerrar> {
   const filas = await sql<FilaSql[]>`
     select c.id, c.name, c.phone, c.tire_size, q.items, q.total, q.created_at as cotizado_at,
-      c.nearest_store, c.visit_date, c.visit_time_label, c.customer_commitment,
+      coalesce(c.nearest_store, ${localUnico}::text) as nearest_store, c.visit_date, c.visit_time_label, c.customer_commitment,
       c.last_customer_message_at, a.ultimo_asesor,
       exists (
         select 1 from messages m
@@ -106,8 +121,10 @@ export async function leerParaCerrar(ahora = new Date()): Promise<ParaCerrar> {
         and m.role = 'assistant' and m.author_kind is distinct from 'bot'
     ) a on true
     where c.status = 'open'
-      and c.nearest_store is not null
-      and c.location_label like ${LOCAL_ELEGIDO + "%"}
+      and (
+        ${localUnico}::text is not null
+        or (c.nearest_store is not null and c.location_label like ${LOCAL_ELEGIDO + "%"})
+      )
       and greatest(c.last_customer_message_at, a.ultimo_asesor, c.cerrar_revivido_at)
           > now() - make_interval(days => ${ARCHIVO_DIAS})
   `;
@@ -116,7 +133,7 @@ export async function leerParaCerrar(ahora = new Date()): Promise<ParaCerrar> {
   const { ventas } = await cruceVigente();
   const diaDeCompra = new Map(ventas.map((v) => [v.ticketId, v.dia]));
 
-  const est = await estadisticaDeLlegada(ahora);
+  const est = await estadisticaDeLlegada(ahora, localUnico);
   const resultado = clasificar(filas.map((f): FilaParaCerrar => {
     const compra = diaDeCompra.get(Number(f.id));
     return {
