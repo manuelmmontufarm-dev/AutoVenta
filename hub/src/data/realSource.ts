@@ -181,12 +181,12 @@ export async function iniciarSesion(userId: string, pin: string): Promise<Result
  * avisos del bot y recuperación — nada promocional). Si sale bien, la sesión
  * queda abierta igual que con el login.
  */
-export async function activarCuenta(userId: string, email: string, pin: string): Promise<ResultadoLogin> {
+export async function activarCuenta(userId: string, email: string, pin: string, invitacion?: string): Promise<ResultadoLogin> {
   try {
     const r = await fetch("/api/auth/activate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, email, pin }),
+      body: JSON.stringify(invitacion ? { userId, email, pin, invitacion } : { userId, email, pin }),
     });
     const data = (await r.json().catch(() => ({}))) as Partial<Sesion> & { error?: string };
     if (!r.ok || !data.token || !data.user) {

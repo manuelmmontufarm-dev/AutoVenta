@@ -185,7 +185,20 @@ type Intento = { fase: "reposo" } | { fase: "entrando" } | { fase: "error"; mens
  * cae al formulario de la clave administrativa, que es lo que ese servidor
  * entiende.
  */
+/**
+ * El enlace de invitación (19-nov): `?usuario=<id>&invitacion=<código>`. Elige
+ * a esa persona en el desplegable y manda el código al crear la clave; sin él,
+ * una cuenta nueva no se puede activar.
+ */
+function invitacionDelEnlace(): { usuario: string; codigo: string } | null {
+  const q = new URLSearchParams(window.location.search);
+  const usuario = q.get("usuario") ?? "";
+  const codigo = q.get("invitacion") ?? "";
+  return usuario && codigo ? { usuario, codigo } : null;
+}
+
 export function LoginForm({ autoFocus = false }: { autoFocus?: boolean }) {
+  const [invitacion] = useState(invitacionDelEnlace);
   const [entrada, setEntrada] = useState<Entrada>({ fase: "cargando" });
   const [userId, setUserId] = useState("");
   const [pin, setPin] = useState("");
@@ -205,7 +218,7 @@ export function LoginForm({ autoFocus = false }: { autoFocus?: boolean }) {
           return;
         }
         setEntrada({ fase: "listo", usuarios });
-        setUserId(usuarios[0].id);
+        setUserId(usuarios.find((u) => u.id === invitacion?.usuario)?.id ?? usuarios[0].id);
       })
       .catch((error: unknown) => {
         if (!vivo) return;
@@ -254,8 +267,13 @@ export function LoginForm({ autoFocus = false }: { autoFocus?: boolean }) {
         return;
       }
       setIntento({ fase: "entrando" });
-      const resultado = await activarCuenta(userId, email.trim(), pin);
+      const resultado = await activarCuenta(
+        userId, email.trim(), pin, invitacion?.usuario === userId ? invitacion.codigo : undefined,
+      );
       if (resultado.estado === "dentro") {
+        // Sin el código en la barra: el enlace ya se usó y no tiene por qué
+        // quedar en el historial ni en una captura.
+        window.history.replaceState(null, "", `${window.location.pathname}${window.location.hash}`);
         window.location.reload();
         return;
       }

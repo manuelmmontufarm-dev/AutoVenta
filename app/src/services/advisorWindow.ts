@@ -126,7 +126,8 @@ export async function registrarMensajeDeAsesor(
 /**
  * Revisa a todos los asesores activos y pide reabrir las ventanas que se cierran.
  *
- * El aviso sale por `avisarAsesoresGlobal`, que escribe a todos los activos: al
+ * El aviso sale por `avisarAsesoresGlobal` a los niveles que tienen marcado
+ * «Un asesor va a dejar de recibir avisos» (`ventana_del_asesor`): al
  * que se está quedando sin ventana probablemente no le llegue —es justo el
  * problema— pero a los demás sí, y son ellos los que pueden ir a pedírselo.
  */
@@ -139,7 +140,9 @@ export async function revisarVentanasDeAsesores(ahora = new Date()): Promise<num
   for (const asesor of asesores) {
     const motivo = debeAvisarVentana(asesor, ahora);
     if (!motivo) continue;
-    const { enviados } = await avisarAsesoresGlobal(mensajeVentana(asesor, motivo, ahora));
+    // Su propia casilla en Ajustes → Avisos (19-nov): antes salía por la de
+    // «prendieron/apagaron el bot».
+    const { enviados } = await avisarAsesoresGlobal(mensajeVentana(asesor, motivo, ahora), "ventana_del_asesor");
     // Se marca aunque no salga ninguno: si WhatsApp está caído, insistir cada
     // quince minutos no lo arregla y sí llena el log.
     await sql`

@@ -1,3 +1,18 @@
+## 19-nov-2026 · Panel · Avisos uno por uno y enlace de invitación (rama `feat/avisos-y-usuarios`)
+
+- **Qué:** (1) Ajustes → Avisos muestra CADA tipo de mensaje que manda el bot en su fila, con nombre llano y una línea
+  de qué es, y una casilla por nivel (antes: grupos plegados). El aviso «un asesor va a dejar de recibir avisos»
+  (ventana de 24 h del asesor) salía por el canal de «prendieron/apagaron el bot»: ahora es su propia casilla
+  (`ventana_del_asesor`), y en los niveles guardados antes hereda lo de «bot prendido/apagado». (2) Una cuenta nueva
+  del panel solo se activa con su enlace de invitación de un solo uso (solo su hash se guarda); el panel lo muestra al
+  crear la cuenta, al restablecer la clave o con «Nuevo enlace». Antes `/auth/users` (pública) decía qué cuentas
+  estaban pendientes y cualquiera podía crearles la clave.
+- **Depot:** con su configuración guardada (foto del 19-nov) cada aviso llega a los mismos (prueba aviso por aviso);
+  sus usuarios entran con la clave compartida como siempre; una cuenta pendiente vieja se activa como antes.
+- **No cubre:** las pre-facturas mensuales (`BILLING_OWNER_PHONE`): es nuestro cobro al dueño, no un aviso del bot.
+- **Probado:** `avisosUnoPorUno` y `invitacionHub.integration` (en rojo antes), login de punta a punta en el hub
+  local (crear usuario → enlace → crear clave → entrar), suite completa, humo, fidelidad, perfil ajeno.
+- **Horas:** 2.
 ## 19-nov-2026 · Bot · Competimotor: seguimientos en el horario del local y sin prometer descuento (rama `fix/competimotor-tras-prueba-40`)
 
 - **Qué:** (1) `seed:negocio` pone el horario de la política de seguimientos en el horario del local del perfil si
