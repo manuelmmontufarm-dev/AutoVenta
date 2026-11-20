@@ -189,7 +189,11 @@ function firmar(payload: string): string {
   return createHmac("sha256", SECRETO).update(payload).digest("base64url");
 }
 
-/** `userId.expiración.firma`. El userId no lleva puntos, así que parte limpio. */
+/**
+ * `userId.expiración.firma`. El userId SÍ puede llevar puntos («carlos.romero»:
+ * el username admite `.`), así que se parte desde la DERECHA: los dos últimos
+ * trozos son la expiración y la firma, y todo lo anterior es el userId.
+ */
 export function crearToken(userId: string, ahora = Date.now()): string {
   const payload = `${userId}.${ahora + VIGENCIA_MS}`;
   return `${payload}.${firmar(payload)}`;
@@ -202,9 +206,16 @@ export function crearToken(userId: string, ahora = Date.now()): string {
  */
 export function verificarToken(token: string): Usuario | null {
   if (!SESIONES_HABILITADAS) return null;
-  const partes = token.split(".");
-  if (partes.length !== 3) return null;
-  const [userId, expiracion, firma] = partes;
+  // Antes era `split(".")` con exactamente 3 trozos: un username con punto
+  // (20-nov, Competimotor) daba 4, el token se rechazaba en cada petición y el
+  // hub volvía a pedir la clave justo después de entrar bien.
+  const finFirma = token.lastIndexOf(".");
+  const finUsuario = finFirma > 0 ? token.lastIndexOf(".", finFirma - 1) : -1;
+  if (finUsuario <= 0) return null;
+  const userId = token.slice(0, finUsuario);
+  const expiracion = token.slice(finUsuario + 1, finFirma);
+  const firma = token.slice(finFirma + 1);
+  if (!expiracion || !firma) return null;
   const esperada = Buffer.from(firmar(`${userId}.${expiracion}`));
   const recibida = Buffer.from(firma);
   if (esperada.length !== recibida.length || !timingSafeEqual(esperada, recibida)) {

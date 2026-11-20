@@ -1,3 +1,14 @@
+## 20-nov-2026 · Hub · el login rebotaba a los usernames con punto (rama `fix/token-usuario-con-punto`)
+
+- **Qué:** `verificarToken` (server/auth.ts) parte el token `userId.expiración.firma` desde la derecha.
+- **Por qué:** Carlos Romero (Competimotor, `carlos.romero`) creó su clave y el hub le volvía a pedir la clave. El
+  username admite `.`, el token salía con 4 trozos y `split(".")` exigía 3: 401 en cada petición, el hub lo leía como
+  «Falta la clave». Mismo problema para `carlos.andres`.
+- **Depot:** código común; sus usernames no llevan punto, nada cambia. Los tokens ya emitidos siguen valiendo.
+- **Probado:** prueba nueva en `auth.test.ts` (en rojo antes), auth + loginHub 32/32, `tsc` limpio. Suite completa: 3
+  archivos fallan igual en `main` (buscarPorAroCompleto, hashesPiezasDepot, unidadEnLaCantidad).
+- **Horas:** 0,2.
+
 ## 20-nov-2026 · Avisos · el aviso al asesor sale por plantilla si su ventana está cerrada (rama `feat/aviso-asesor-plantilla`)
 
 - **Qué:** al llegar el 131047 por el webhook, el aviso se reenvía una vez como `aviso_asesor_v1` (texto en una línea);

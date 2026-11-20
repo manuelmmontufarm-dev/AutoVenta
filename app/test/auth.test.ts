@@ -130,6 +130,28 @@ describe("token de sesión", () => {
     }
   });
 
+  it("un username con punto («carlos.romero») también entra y se queda dentro", async () => {
+    // 20-nov, Competimotor: el username admite `.` y el token se partía en
+    // cuatro trozos, así que Carlos entraba, el hub recargaba y volvía a pedir
+    // la clave en cada petición.
+    const { PERMISOS_COMPLETOS, inyectarUsuariosHub, reiniciarUsuariosHub } =
+      await import("../src/services/hubUsers.js");
+    inyectarUsuariosHub([
+      { id: "manuel", nombre: "Manuel Montufar", rol: "admin", permisos: { ...PERMISOS_COMPLETOS }, email: null, claveCompartida: true, pinHash: null },
+      { id: "carlos.romero", nombre: "Carlos Romero", rol: "asesor", permisos: { ...PERMISOS_COMPLETOS }, email: null, claveCompartida: false, pinHash: "x:y" },
+    ]);
+    try {
+      const token = crearToken("carlos.romero");
+      expect(verificarToken(token)).toMatchObject({ id: "carlos.romero", rol: "asesor" });
+      // Y la firma sigue mandando: no se puede pasar el token de Carlos por otro.
+      const [, , expiracion, firma] = token.split(".");
+      expect(verificarToken(`manuel.${expiracion}.${firma}`)).toBeNull();
+      expect(verificarToken(`carlos.romero.${Number(expiracion) + DIA}.${firma}`)).toBeNull();
+    } finally {
+      reiniciarUsuariosHub();
+    }
+  });
+
   it("un usuario que ya no está en la lista pierde su sesión", () => {
     // Firmado por nosotros y vigente, pero el id no existe: si algún día se
     // saca a alguien de USERS, su token deja de abrir en el acto.
