@@ -16,6 +16,8 @@ import { getChannelConfig, type ChannelConfig } from "../services/channel.js";
 import { assertConversationOutbound } from "../services/whatsappPolicy.js";
 import type { OutboundActor } from "../domain/whatsappPolicy.js";
 import { conPresentacion } from "../domain/saludo.js";
+import { esClienteQueVuelve } from "../domain/clienteQueVuelve.js";
+import { ultimoSalienteDeOtroCiclo } from "../services/conversations.js";
 import { sql } from "../db/client.js";
 import { registrarEnviado } from "./outboundRegistry.js";
 
@@ -74,6 +76,11 @@ async function conSaludoSiEsElPrimerTexto(conversationId: number, body: string):
       limit 1
     `;
     if (previo) return body;
+    // EL CLIENTE QUE VUELVE (CM31, simulador Competimotor 18-nov): un ciclo
+    // nuevo dentro de la MISMA visita —«ya compré» y minutos después un pedido
+    // nuevo— no es una conversación nueva: no se le presenta el negocio otra
+    // vez. Tras el /restart o el silencio largo, sí (regla de arriba).
+    if (esClienteQueVuelve(await ultimoSalienteDeOtroCiclo(conversationId))) return body;
     const [conv] = await sql<{ name: string | null }[]>`
       select name from conversations where id = ${conversationId}
     `;

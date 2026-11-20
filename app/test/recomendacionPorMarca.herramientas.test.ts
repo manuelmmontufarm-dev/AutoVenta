@@ -242,3 +242,30 @@ describe("la marca rechazada no vuelve en «más modelos» (simulador Competimot
     expect(marcasDe(codigosDeLaPieza())).toContain("HAIDA");
   });
 });
+
+describe("CM18 (simulador Competimotor 18/19-nov): el pedido nombra UNA llanta de la lámina con su cantidad → se cotiza esa", () => {
+  // «4 llantas 265 65 17 winrun maxclaw at»: en 265/65R17 hay DOS Winrun Maxclaw
+  // (A/T y R/T). El «at» elige la A/T. El 18-nov el modelo saltó la lámina y
+  // cotizó; el 19-nov siguió el paso de `buscar_catalogo` (preparar_opciones)
+  // y la lámina preguntó «¿la 1 o la 2?».
+  const TEXTO = "4 llantas 265 65 17 winrun maxclaw at";
+
+  it("cotiza la MAXCLAW A/T directo (recomendación entregada = la A/T)", async () => {
+    entrantes = [TEXTO];
+    const salida = await prepararOpciones(TEXTO, ["A0561", "A0560"]);
+    expect(salida.recomendacion_entregada).toBe(true);
+    expect(salida.recomendacion).toContain("A/T");
+  });
+
+  it("«4 llantas 265 65 17 winrun maxclaw» (sin el tipo): son dos, se pregunta", async () => {
+    entrantes = ["4 llantas 265 65 17 winrun maxclaw"];
+    const salida = await prepararOpciones("4 llantas 265 65 17 winrun maxclaw", ["A0560", "A0561"]);
+    expect(salida.recomendacion_entregada).toBe(false);
+  });
+
+  it("«winrun maxclaw at» sin cantidad: muestra y pregunta (elegir sin cuántas no firma)", async () => {
+    entrantes = ["265 65 17 winrun maxclaw at"];
+    const salida = await prepararOpciones("265 65 17 winrun maxclaw at", ["A0560", "A0561"]);
+    expect(salida.recomendacion_entregada).toBe(false);
+  });
+});

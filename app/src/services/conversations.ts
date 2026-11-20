@@ -429,7 +429,23 @@ export async function previousInboundText(conversationId: number): Promise<strin
     order by created_at desc, id desc
     offset 1 limit 1
   `;
-  return row?.content ?? null;
+  if (row) return row.content ?? null;
+  // EL MENSAJE ANTERIOR PUEDE ESTAR EN EL CICLO QUE SE ACABA DE CERRAR (20-nov):
+  // con `rechazoCierraComoPerdida` el «no gracias» cierra el ciclo, y el «ya
+  // compré» que llega después abre otro. Dentro de la misma visita (12 h) ese
+  // «no gracias» sigue siendo lo que dijo justo antes: sin esto, «ya compré»
+  // se leía solo y quedaba como venta GANADA (CM30).
+  const [delCicloAnterior] = await sql<{ content: string | null; created_at: Date }[]>`
+    select content, created_at from messages
+    where conversation_id=${conversationId}
+      and cycle < (select current_cycle from conversations where id=${conversationId})
+      and direction='inbound'
+    order by created_at desc, id desc
+    limit 1
+  `;
+  return delCicloAnterior && esMismaVisitaPorSilencio(delCicloAnterior.created_at)
+    ? delCicloAnterior.content ?? null
+    : null;
 }
 
 export async function setStage(
@@ -544,6 +560,22 @@ export async function setStage(
  * `preguntamosElDia`/`preguntamosElLocal` leían preguntas de hace días como si
  * las acabáramos de hacer.
  */
+/**
+ * El último mensaje que le salió al cliente en un ciclo ANTERIOR al actual (null
+ * si nunca hubo otro ciclo con salientes). Lo usa `domain/clienteQueVuelve.ts`.
+ */
+export async function ultimoSalienteDeOtroCiclo(
+  conversationId: number,
+): Promise<{ content: string | null; created_at: Date } | null> {
+  const [fila] = await sql<{ content: string | null; created_at: Date }[]>`
+    select content, created_at from messages
+    where conversation_id = ${conversationId} and direction = 'outbound' and type <> 'note'
+      and cycle < (select current_cycle from conversations where id = ${conversationId})
+    order by created_at desc, id desc limit 1
+  `;
+  return fila ?? null;
+}
+
 export async function lastOutboundText(conversationId: number): Promise<string | null> {
   const filas = await sql<{ content: string }[]>`
     select content from messages

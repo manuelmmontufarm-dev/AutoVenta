@@ -237,3 +237,49 @@ describe("cantidad + la única llanta nombrada también autoriza (simulador Comp
     expect(cotizarLaUnicaDeUnaVez({ ...base, medidaSinConfirmar: true, textosDelCliente: ["quiero 2 la kenda"] })).toBe(false);
   });
 });
+
+describe("CM18 · el pedido nombra una de las opciones con su cantidad (simulador Competimotor 18/19-nov)", async () => {
+  const { laNombradaConCantidad } = await import("../src/domain/cotizarLaUnica.js");
+  const { eleccionDeLaVitrina } = await import("../src/domain/eleccionDeVitrina.js");
+  const MAXCLAW = [
+    { codigo: "A0560", marca: "WINRUN", diseno: "MAXCLAW A/T 112T", medida: "265/65R17" },
+    { codigo: "A0561", marca: "WINRUN", diseno: "MAXCLAW R/T 112T", medida: "265/65R17" },
+  ];
+  const base = { opciones: MAXCLAW, medidaSinConfirmar: false };
+
+  it("el tipo separa la A/T de la R/T", () => {
+    expect(eleccionDeLaVitrina("winrun maxclaw at", MAXCLAW)).toMatchObject({ tipo: "una", opcion: { codigo: "A0560" } });
+    expect(eleccionDeLaVitrina("la maxclaw r/t", MAXCLAW)).toMatchObject({ tipo: "una", opcion: { codigo: "A0561" } });
+    expect(eleccionDeLaVitrina("la maxclaw", MAXCLAW)).toMatchObject({ tipo: "varias" });
+    // el tipo solo no elige
+    expect(eleccionDeLaVitrina("una at", MAXCLAW)).toBeNull();
+  });
+
+  it("«4 llantas 265 65 17 winrun maxclaw at»: la A/T", () => {
+    expect(laNombradaConCantidad({ ...base, textosDelCliente: ["4 llantas 265 65 17 winrun maxclaw at"] })).toBe("A0560");
+  });
+
+  it("sin cantidad, sin tipo, o con la medida sin confirmar: null", () => {
+    expect(laNombradaConCantidad({ ...base, textosDelCliente: ["265 65 17 winrun maxclaw at"] })).toBeNull();
+    expect(laNombradaConCantidad({ ...base, textosDelCliente: ["4 llantas winrun maxclaw"] })).toBeNull();
+    expect(laNombradaConCantidad({ ...base, medidaSinConfirmar: true, textosDelCliente: ["4 llantas maxclaw at"] })).toBeNull();
+  });
+});
+
+describe("CM39 · el saludo no le quita la elección al primer mensaje (simulador Competimotor 19/20-nov)", () => {
+  const kr20 = { codigo: "A0217", marca: "KENDA", diseno: "KR20", medida: "185/60R14" };
+  it("«hola, 4 llantas 185 60 14 kenda» con una sola Kenda: cotiza", () => {
+    expect(cotizarLaUnicaDeUnaVez({
+      opcionesDistintas: 1, medidaSinConfirmar: false, opcion: kr20,
+      textosDelCliente: ["hola, 4 llantas 185 60 14 kenda"],
+    })).toBe(true);
+  });
+  it("«buenas tardes, 2 llantas kenda» también; «hola» solo no elige nada", () => {
+    expect(cotizarLaUnicaDeUnaVez({
+      opcionesDistintas: 1, medidaSinConfirmar: false, opcion: kr20, textosDelCliente: ["buenas tardes, 2 llantas kenda"],
+    })).toBe(true);
+    expect(cotizarLaUnicaDeUnaVez({
+      opcionesDistintas: 1, medidaSinConfirmar: false, opcion: kr20, textosDelCliente: ["hola 4"],
+    })).toBe(false);
+  });
+});

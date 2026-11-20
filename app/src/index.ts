@@ -38,6 +38,7 @@ import {
   appendMessage,
   getOrCreateConversation,
   lastOutboundText,
+  ultimoSalienteDeOtroCiclo,
   outboundTextByWaMessageId,
   logFunnelEvent,
   recordMessageStatus,
@@ -99,6 +100,8 @@ import { firstContactReply, isGenericFirstContact, pedidoDeMedidaDelPrimerContac
 import { despedidaQueCorresponde } from "./domain/cierrePerdido.js";
 import { botonesParaBloque, recortarTitulo, textoDeBoton, type BloqueConBotones } from "./domain/botones.js";
 import { esComandoDeReinicio, MENSAJE_DE_REINICIO } from "./domain/reinicio.js";
+import { esClienteQueVuelve } from "./domain/clienteQueVuelve.js";
+import { politica } from "./negocio/politica.js";
 import { esSoloPregunta } from "./domain/preguntaSola.js";
 import { sql } from "./db/client.js";
 import { presentacionDeApertura } from "./domain/saludo.js";
@@ -107,7 +110,7 @@ import { contieneElPedidoDeMedida } from "./domain/firstContact.js";
 import { algunLocalAbre, esHoraExacta, getStoreHours, localAbre, localAtiendeALaHora } from "./services/settings.js";
 import { negocio, localPorNombre } from "./negocio/index.js";
 import {
-  esPlazoDeDecision, respuestaDeCierreDelTurno, respuestaDePlazoDeDecision, tipoDeCierreDelTurno,
+  esPlazoDeDecision, etapaDelCierreDelTurno, respuestaDeCierreDelTurno, respuestaDePlazoDeDecision, tipoDeCierreDelTurno,
 } from "./domain/cierreTurno.js";
 import { esAcuseSimple, esPreguntaCualLeCotizo } from "./domain/ofertaAceptada.js";
 import { respuestaDirectaDeUbicacionFueraDeCobertura } from "./domain/visitaImposible.js";
@@ -401,7 +404,12 @@ async function atenderTurno(
   // Y NUNCA DESPUÉS DE UNA PERSONA (conv 15426, 22-sep): para el cliente la
   // conversación con el asesor sigue, aunque el ciclo sea nuevo.
   const saludoPermitido = puedeSaludarComoPrimerContacto(ultimoSaliente?.author_kind);
+  // EL CLIENTE QUE VUELVE NO RECIBE LA PRESENTACIÓN OTRA VEZ (CM31, simulador
+  // Competimotor 18-nov): un ciclo nuevo tras una compra cerrada no es «abrirse
+  // la conversación». Su «hola» lo contesta el agente, que tiene el contexto.
+  const clienteQueVuelve = esClienteQueVuelve(await ultimoSalienteDeOtroCiclo(conversation.id));
   const isFirstGenericMessage = conversation.stage === "nuevo"
+    && !clienteQueVuelve
     && (previousOutbound === null || previousOutbound === MENSAJE_DE_REINICIO)
     && saludoPermitido
     && isGenericFirstContact(textoConLinks);
@@ -423,7 +431,7 @@ async function atenderTurno(
   const promoDelSaludo = saludoPermitido && (previousOutbound === null || previousOutbound === MENSAJE_DE_REINICIO)
     ? mensajeDeTemporadaParaElSaludo()
     : null;
-  const presentadoAntes = saludoPermitido
+  const presentadoAntes = saludoPermitido && !clienteQueVuelve
     && ((!isFirstGenericMessage && previousOutbound === null) || (isFirstGenericMessage && Boolean(promoDelSaludo)));
   if (presentadoAntes) {
     const presentacion = presentacionDeApertura(name);
@@ -676,16 +684,20 @@ async function atenderTurno(
     // Una compra explícitamente terminada sí es evidencia de funnel y debe
     // quedar en ventas. El clasificador resuelve este caso de forma
     // determinística (sin llamada de IA) antes de cortar los seguimientos.
-    if (cierreDelTurno === "compra_terminada") {
+    // La etapa que deja cada cierre tiene una sola fuente:
+    // `etapaDelCierreDelTurno` (domain/cierreTurno.ts). «No gracias» + «ya
+    // compré» compró en OTRO lado (CM30) y es perdida; el «no gracias» solo es
+    // perdida si la política del negocio lo pide (Competimotor sí, Depot no).
+    const etapaDelCierre = etapaDelCierreDelTurno(cierreDelTurno, politica);
+    if (etapaDelCierre === "clasificar") {
       await classifyStage(conversation, text, reply);
-    }
-    // «No gracias» + «ya compré» compró en OTRO lado (simulador Competimotor
-    // 18-nov, CM30): es la venta perdida con su motivo, no una ganada.
-    if (cierreDelTurno === "compra_ajena") {
+    } else if (etapaDelCierre === "perdido") {
       await setStage(conversation.id, "perdido", {
         actor: "customer",
-        reason: "Cliente dijo que ya compró, justo después de rechazar la oferta (compra en otro lado)",
-      }).catch((error) => console.error("⚠️ No se pudo cerrar como perdida tras compra ajena:", error));
+        reason: cierreDelTurno === "compra_ajena"
+          ? "Cliente dijo que ya compró, justo después de rechazar la oferta (compra en otro lado)"
+          : `Cliente rechazó la oferta: «${text.slice(0, 80)}»`,
+      }).catch((error) => console.error("⚠️ No se pudo cerrar como perdida tras el cierre del turno:", error));
     }
     await cancelPendingFollowUps(
       conversation.id,

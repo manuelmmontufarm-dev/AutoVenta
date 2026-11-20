@@ -1,3 +1,79 @@
+## 20-nov-2026 · Simulador · verificación de los pendientes de la prueba 40 × 3 (rama `fix/competimotor-pendientes`)
+
+- **Qué:** escenarios CM28 y CM40 de vuelta a exigir `perdido` (con la política de Competimotor); notas en `COMPETIMOTOR-40.md`.
+- **Simulador (clave de pruebas):** CM18 3/3 (el prefijo cotiza la MAXCLAW A/T × 4), CM28 3/3 y CM40 3/3 (`perdido`, sin
+  seguimientos), CM31 3/3 (0 presentaciones en el ciclo 2, revisado en la transcripción). Pasada × 1 de los que el código
+  toca de rebote: CM08, CM09, CM13, CM20, CM23, CM24, CM29, CM30, CM32, CM34, CM36, CM37 verdes; CM39 falló y se arregló
+  (entrada de CM39), luego 3/3.
+- **Comprobaciones de CLAUDE.md:** `sim:humo`, fidelidad, perfil ajeno (38/38) y `--perfil ejemplo --humo` en verde (este
+  último falla la primera vez cuando corre pegado a `sim:humo` y pasa solo; pasó igual el 19-nov).
+- **Gasto de OpenAI:** $2,28 (× 3 $0,96 · × 1 $1,11 · CM39 × 3 $0,22).
+- **Horas:** 0,3.
+
+## 20-nov-2026 · Bot · CM39: el saludo no le quita la elección al primer mensaje (rama `fix/competimotor-pendientes`)
+
+- **Qué:** «hola», «buenas», «buenos días/tardes/noches», «saludos» son relleno para `eleccionDeLaVitrina`.
+- **Por qué:** «hola, 4 llantas 185 60 14 kenda» con una sola Kenda: el «hola» era una palabra sin dueño, la elección daba
+  null y la regla de «la única con cantidad y marca» (PR #64, CM36) no corría: salía «¿Se la cotizo?», y el turno
+  siguiente («listo paso el viernes» + «son 2 nomas no 4») solo agendaba la visita, sin cotización y con la ficha en 4.
+  Falló en la pasada × 1 de hoy y en la final del 19-nov (2 de las últimas 3).
+- **Depot:** código común: un primer mensaje con saludo, cantidad y la única llanta nombrada se cotiza directo.
+- **Probado:** 2 casos nuevos en `cotizarLaUnica` (en rojo antes), suite completa. Simulador: CM39 3/3.
+- **Horas:** 0,2.
+
+## 20-nov-2026 · Bot · «No gracias» como venta perdida, por perfil (rama `fix/competimotor-pendientes`)
+
+- **Qué:** nuevo interruptor `politica.rechazoCierraComoPerdida`. Competimotor `true`, Depot y el perfil de ejemplo
+  `false`. La etapa que deja cada cierre del turno tiene una sola fuente, `etapaDelCierreDelTurno` (domain/cierreTurno.ts):
+  compra terminada → clasificador (ganado), compra ajena → perdido, rechazo suave → perdido solo con el interruptor, y lo
+  demás no mueve la etapa. `index.ts` la aplica; los seguimientos se cancelan igual que antes. Como ahora el «no gracias»
+  cierra el ciclo, `previousInboundText` mira el ciclo anterior si el actual no tiene otro mensaje y cae en la misma visita
+  (12 h): sin eso, «ya compré» después de «no gracias» (CM30) se leía solo y quedaba como venta ganada.
+- **Por qué:** pedido de Manuel tras la prueba del 18-nov (CM28 y CM40 quedaban en `seleccionando` /
+  `cotizacion_enviada` después de «no gracias»).
+- **Depot: sin cambios, y cambiarlo es decisión de Manuel.** Su regla (index.ts, `cierrePerdido.test.ts`) dice que
+  «no gracias» cancela los seguimientos pero no cierra como perdida, porque cerrar archiva el ciclo; con el arreglo de CM31
+  y la ficha que se conserva 12 h, ese costo es menor que cuando se decidió.
+- **Escenarios** (`datos/`, fuera de git): CM28 y CM40 vuelven a exigir `perdido` (más «ningún seguimiento programado»).
+- **Probado:** `rechazoCierraComoPerdida` y `cierreEntreCiclos.integration` (en rojo antes), `cierreTurno`, `cierrePerdido`, perfil ajeno, fidelidad, suite
+  completa. Simulador: ver la entrada de verificación.
+- **Horas:** 0,4.
+
+## 20-nov-2026 · Bot · CM31: al cliente que vuelve en la misma visita no se le presenta el negocio otra vez (rama `fix/competimotor-pendientes`)
+
+- **Qué:** `esClienteQueVuelve` (domain/clienteQueVuelve.ts) + `ultimoSalienteDeOtroCiclo` (services/conversations.ts):
+  si el bot ya le escribió en un ciclo ANTERIOR dentro de la misma visita (el mismo corte de 12 h con el que el ciclo nuevo
+  conserva la ficha, `esMismaVisitaPorSilencio`), no sale la presentación. Se aplica en las dos puertas que la ponían:
+  `index.ts` (la presentación de apertura y la bienvenida fija del «hola») y `wa/client.ts` (`conSaludoSiEsElPrimerTexto`).
+  Su «hola» lo contesta el agente, que tiene el contexto.
+- **Por qué:** CM31: «ya compré, gracias» cerró el ciclo y minutos después «buenas, ahora necesito 4 de 265 70 16 pa la
+  camioneta» recibió «¡Hola! 👋 Soy el asistente de Competimotor…» completo. Las dos puertas miraban solo el ciclo actual.
+- **Lo que NO cambia:** el texto del primer contacto para un cliente nuevo; tras un `/restart` (su aviso es la despedida
+  del ciclo archivado) y tras más de 12 h de silencio la presentación sigue saliendo, como pide la regla del 31-ago
+  (producción, conv 3, ciclos 36 y 37).
+- **Depot:** igual para todos los clientes: un ciclo reabierto dentro de las 12 h ya no repite la presentación.
+- **Probado:** `clienteQueVuelve.integration` (nuevo, en rojo antes), `saludoTrasReinicio`, `saludoFijo`, `firstContact`,
+  suite completa. Simulador: ver la entrada de verificación.
+- **Horas:** 0,5.
+
+## 20-nov-2026 · Bot · Competimotor CM18: el pedido que nombra una llanta de la lámina se cotiza (rama `fix/competimotor-pendientes`)
+
+- **Qué:** (1) `eleccionDeLaVitrina` usa el TIPO (A/T, R/T, M/T, H/T) para separar diseños del mismo nombre
+  («winrun maxclaw at» → la MAXCLAW A/T, no las dos); el tipo solo no elige. Las cifras (medida, cantidad) ya no cuentan
+  para el tope de 5 palabras. (2) `laNombradaConCantidad` (domain/cotizarLaUnica.ts, la misma fuente que «la única»): si
+  el pedido nombra UNA de las opciones de la lámina y dice cuántas, `preparar_opciones` entrega esa y autoriza cotizarla
+  en el turno. Sin cantidad, sin tipo o con la medida sin confirmar, sigue preguntando.
+- **Por qué:** CM18 no armó su prefijo 2 de 2 en la verificación del PR #64: «4 llantas 265 65 17 winrun maxclaw at»
+  → lámina con las dos Maxclaw y «¿la 1 o la 2?». **No lo causó el PR #64:** la misma prueba da el mismo resultado con el
+  código de `605947c` (antes del PR). El 18-nov el modelo se saltó `preparar_opciones` (que `buscar_catalogo` siempre le
+  pide) y cotizó directo; el 19-nov siguió ese paso. Variación del modelo sobre una brecha real del código.
+- **Depot:** código común. Un pedido que nombra una sola llanta de la lámina con su cantidad se cotiza en el turno (antes,
+  según lo que eligiera el modelo). Ningún texto aprobado cambia.
+- **Probado:** 3 casos en `recomendacionPorMarca.herramientas` (filas reales de 265/65R17 del Excel agregadas al fixture;
+  en rojo antes, y en rojo también con el código de antes del PR #64) y 3 en `cotizarLaUnica`; suite completa (solo los 2
+  que ya fallan en `main`). Simulador: ver la entrada de verificación.
+- **Horas:** 0,5.
+
 ## 20-nov-2026 · Recordatorio de visita y «no llegó» a los clientes
 
 **Qué:**

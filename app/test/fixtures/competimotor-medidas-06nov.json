@@ -565,5 +565,122 @@
   "stock": 4,
   "precioConIva": 202.4,
   "listaConIva": 202.4
+ },
+ {
+  "code": "A0032",
+  "brand": "DURUN",
+  "design": "RT02 LB",
+  "sizeLabel": "265/65R17",
+  "stock": 11,
+  "precioConIva": 208.15,
+  "listaConIva": 208.15
+ },
+ {
+  "code": "A0080",
+  "brand": "FALKEN",
+  "design": "WILDPEAK AT4W",
+  "sizeLabel": "265/65R17",
+  "stock": -4,
+  "precioConIva": 277.15,
+  "listaConIva": 277.15
+ },
+ {
+  "code": "A0189",
+  "brand": "ILINK",
+  "design": "TERRAMAX AT",
+  "sizeLabel": "265/65R17",
+  "stock": 9,
+  "precioConIva": 166.75,
+  "listaConIva": 166.75
+ },
+ {
+  "code": "A0294",
+  "brand": "KENDA",
+  "design": "116T KR628 AT",
+  "sizeLabel": "265/65R17",
+  "stock": 4,
+  "precioConIva": 215.05,
+  "listaConIva": 215.05
+ },
+ {
+  "code": "K292B779",
+  "brand": "KENDA",
+  "design": "KR28 TL 112S",
+  "sizeLabel": "265/65R17",
+  "stock": 4,
+  "precioConIva": 199.99,
+  "listaConIva": 199.99
+ },
+ {
+  "code": "K560B709",
+  "brand": "KENDA",
+  "design": "KR50 TL 112H",
+  "sizeLabel": "265/65R17",
+  "stock": 4,
+  "precioConIva": 190.0,
+  "listaConIva": 190.0
+ },
+ {
+  "code": "A0295",
+  "brand": "KENDA",
+  "design": "KR29 MT 10PR LB",
+  "sizeLabel": "265/65R17",
+  "stock": 4,
+  "precioConIva": 277.15,
+  "listaConIva": 277.15
+ },
+ {
+  "code": "A0296",
+  "brand": "KENDA",
+  "design": "KR601 10PR RT",
+  "sizeLabel": "265/65R17",
+  "stock": 4,
+  "precioConIva": 288.65,
+  "listaConIva": 288.65
+ },
+ {
+  "code": "A0297",
+  "brand": "KENDA",
+  "design": "KR608 10PR AT",
+  "sizeLabel": "265/65R17",
+  "stock": 2,
+  "precioConIva": 257.6,
+  "listaConIva": 257.6
+ },
+ {
+  "code": "A0469",
+  "brand": "TOURADOR",
+  "design": "FORCE AT II LB",
+  "sizeLabel": "265/65R17",
+  "stock": 25,
+  "precioConIva": 171.35,
+  "listaConIva": 171.35
+ },
+ {
+  "code": "A0496",
+  "brand": "TOWNHALL",
+  "design": "TH-AT802",
+  "sizeLabel": "265/65R17",
+  "stock": 15,
+  "precioConIva": 175.95,
+  "listaConIva": 175.95
+ },
+ {
+  "code": "A0560",
+  "brand": "WINRUN",
+  "design": "MAXCLAW A/T 112T",
+  "sizeLabel": "265/65R17",
+  "stock": 6,
+  "precioConIva": 184.0,
+  "listaConIva": 184.0
+ },
+ {
+  "code": "A0561",
+  "brand": "WINRUN",
+  "design": "MAXCLAW R/T 112T",
+  "sizeLabel": "265/65R17",
+  "stock": 8,
+  "precioConIva": 196.65,
+  "listaConIva": 196.65
  }
 ]
