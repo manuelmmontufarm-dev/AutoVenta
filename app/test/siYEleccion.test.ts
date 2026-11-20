@@ -312,3 +312,39 @@ describe("familia 2 — «otra marca de mejor calidad» es una pregunta, no un e
     expect(respuestaDePreferencia(texto)).toBe(esperado);
   });
 });
+
+describe("«esa misma marca» elige la marca ya cotizada (simulador Competimotor 18-nov, CM08)", () => {
+  // Cotizó FALKEN ZE310R 225/65R17; el cliente corrigió a 235/65R17 y la lámina nueva es esta.
+  const vitrina235 = [
+    { codigo: "A0063", marca: "FALKEN", diseno: "WILDPEAK AT3W", medida: "235/65R17" },
+    { codigo: "A0233", marca: "KENDA", diseno: "KR28", medida: "235/65R17" },
+    { codigo: "A0490", marca: "TOWNHALL", diseno: "TH-HT802", medida: "235/65R17" },
+  ];
+  const escalones235 = {
+    economica: { codigo: "A0490", nombre: "TOWNHALL TH-HT802", precio_con_iva: 110 },
+    equilibrada: { codigo: "A0233", nombre: "KENDA KR28", precio_con_iva: 165.6 },
+    premium: { codigo: "A0063", nombre: "FALKEN WILDPEAK AT3W", precio_con_iva: 227.7 },
+  };
+
+  it("«si esa misma marca» con una sola Falken en la lámina: la Falken", () => {
+    expect(loQueEligio("si esa misma marca", "¿Le cotizo la 1, la 2 o la 3?", null, vitrina235, escalones235, 3, "FALKEN"))
+      .toEqual({ codigo: "A0063", etiqueta: null });
+  });
+
+  it("«la misma marca porfa» / «igual marca» también", () => {
+    expect(loQueEligio("la misma marca porfa", "¿Le cotizo la 1, la 2 o la 3?", null, vitrina235, escalones235, 3, "FALKEN"))
+      .toEqual({ codigo: "A0063", etiqueta: null });
+    expect(loQueEligio("igual marca", "¿Le cotizo la 1, la 2 o la 3?", null, vitrina235, escalones235, 3, "FALKEN"))
+      .toEqual({ codigo: "A0063", etiqueta: null });
+  });
+
+  it("sin cotización anterior, o con la marca fuera de la lámina, no elige", () => {
+    expect(loQueEligio("si esa misma marca", "¿Le cotizo la 1, la 2 o la 3?", null, vitrina235, escalones235, 3, null)).toBeNull();
+    expect(loQueEligio("si esa misma marca", "¿Le cotizo la 1, la 2 o la 3?", null, vitrina235, escalones235, 3, "MAXXIS")).toBeNull();
+  });
+
+  it("con dos de esa marca en la lámina, no elige sola", () => {
+    const dos = [...vitrina235, { codigo: "A0064", marca: "FALKEN", diseno: "ZIEX", medida: "235/65R17" }];
+    expect(loQueEligio("si esa misma marca", "¿Le cotizo la 1, la 2 o la 3?", null, dos, escalones235, 3, "FALKEN")).toBeNull();
+  });
+});

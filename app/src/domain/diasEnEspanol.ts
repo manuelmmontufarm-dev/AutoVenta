@@ -194,7 +194,13 @@ export function relativoEnTexto(texto: string): DiaRelativo | null {
     if (previa === "pasado") return "pasado_manana";
     return "manana";
   }
-  if (palabras.some((p) => HOY.has(p))) return "hoy";
+  // «POR AHORA» / «X AHORA» NO ES HOY (simulador Competimotor, 18-nov, CM09):
+  // «mejor solo 2 x ahora» a «¿Qué día cree que puede ir?» registró una visita
+  // para hoy a las 15:00, de noche. «Por ahora» es «de momento», no un día.
+  const DE_MOMENTO = new Set(["por", "x", "hasta", "de", "para"]);
+  if (palabras.some((p, i) => HOY.has(p) && !((p === "ahora" || p === "ahorita") && DE_MOMENTO.has(palabras[i - 1] ?? "")))) {
+    return "hoy";
+  }
   return null;
 }
 

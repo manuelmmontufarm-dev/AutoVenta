@@ -1,3 +1,23 @@
+## 19-nov-2026 · Bot · Competimotor 40 × 3, familia A: el cambio de idea queda en la base (rama `fix/competimotor-conversaciones`)
+
+- **Qué:** (1) **CM08** · «si esa misma marca» tras corregir la medida elige, en la lámina nueva, la marca de la última
+  cotización del ciclo (hecho de `quotes`) si hay UNA de esa marca (`loQueEligio`); antes: «¿Cuál le cotizo, la 1, la 2 o
+  la 3?» y la única cotización seguía en 225/65R17. (2) **CM09** · «por ahora» / «x ahora» ya no es «hoy»
+  (`relativoEnTexto`): «mejor solo 2 x ahora» registraba una visita para hoy a las 15:00, de noche; con la lectura de «solo N»
+  por línea (familia B) se recotiza por 2. (3) **CM40** · «no gracias ya no» es despedida (cierre del turno sin IA, cancela
+  los seguimientos). (4) **CM30** · «ya compré» justo después de «no gracias» es `compra_ajena`: la etapa queda en
+  `perdido` con su motivo, no en `ganado`. Sin el rechazo antes, «ya compré» sigue siendo venta terminada.
+- **No cambiado (regla de Depot):** CM28/CM40 pedían `perdido` tras «no gracias». `index.ts` y `cierrePerdido.test.ts`
+  dicen a propósito que «no gracias» no cierra como perdida (cerrar borra el ciclo y el próximo mensaje saluda de cero);
+  lo que sí hace es cancelar los seguimientos. Los escenarios ahora juzgan ese hecho (`follow_up_jobs` sin «scheduled»).
+- **Escenarios corregidos** (`datos/`, fuera de git): CM28 y CM40 (ver arriba); CM30 ya no exige cotización («precio de
+  4» con un menú de tres no elige, regla del 1-sep, conv 13615) y exige `perdido`.
+- **Depot:** código común; cambia igual para Depot («por ahora» no agenda, «no gracias ya no» cierra, «no gracias» +
+  «ya compré» = perdida). Textos al cliente sin cambios (la compra ajena usa la despedida de siempre).
+- **Probado:** `prueba40.cambiosDeIdea` y 4 casos nuevos de `siYEleccion` (en rojo antes), suite completa (solo los 3 de
+  `main`). Simulador: CM08, CM09, CM28, CM30, CM40, 3/3 cada una (15/15). **No probado** en WhatsApp real.
+- **Horas:** 1.
+
 ## 19-nov-2026 · Bot · Competimotor 40 × 3, familia B: se trababa antes de cotizar (rama `fix/competimotor-conversaciones`)
 
 - **Qué:** (1) **CM36** · con UNA sola llanta posible, la cantidad dicha y la llanta nombrada («205 55 16 / quiero 2 / la

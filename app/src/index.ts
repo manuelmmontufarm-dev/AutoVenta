@@ -665,6 +665,14 @@ async function atenderTurno(
     if (cierreDelTurno === "compra_terminada") {
       await classifyStage(conversation, text, reply);
     }
+    // «No gracias» + «ya compré» compró en OTRO lado (simulador Competimotor
+    // 18-nov, CM30): es la venta perdida con su motivo, no una ganada.
+    if (cierreDelTurno === "compra_ajena") {
+      await setStage(conversation.id, "perdido", {
+        actor: "customer",
+        reason: "Cliente dijo que ya compró, justo después de rechazar la oferta (compra en otro lado)",
+      }).catch((error) => console.error("⚠️ No se pudo cerrar como perdida tras compra ajena:", error));
+    }
     await cancelPendingFollowUps(
       conversation.id,
       `cierre_comercial_del_turno:${cierreDelTurno}`,

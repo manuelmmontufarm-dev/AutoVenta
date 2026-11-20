@@ -80,6 +80,8 @@ export function loQueEligio(
   escalones: Escalones | null,
   /** Opciones del menú de cotizar que sigue sin contestar (`menuDeCotizarAbierto`); 0 si no hay. */
   menuAbierto = 0,
+  /** La marca de la última cotización del ciclo, para «esa misma marca» (CM08). */
+  marcaCotizada: string | null = null,
 ): { codigo: string; etiqueta: string | null; posicion?: number } | { pregunta: string; menuSinElegir?: true; cantidad?: number } | { respuesta: string } | null {
   // «LAS DOS / LOS DOS VALORES» HABLA DE LA LÁMINA. Con el menú arriba basta
   // «las 2»; si nombra valores, precios u opciones vale aunque el menú haya
@@ -148,6 +150,19 @@ export function loQueEligio(
       if (porPosicion && n !== null) return { codigo, etiqueta, posicion: n };
       return { codigo, etiqueta };
     }
+  }
+  // «SI ESA MISMA MARCA» (simulador Competimotor, 18-nov, CM08): cotizó la
+  // FALKEN ZE310R en 225/65R17, el cliente corrigió a 235/65R17 y, con la
+  // lámina nueva en pantalla (una sola Falken), dijo «si esa misma marca». La
+  // marca es la de la cotización —un hecho de la base—, no una palabra de la
+  // lámina: sin esto se le preguntaba «¿Cuál le cotizo, la 1, la 2 o la 3?».
+  // Solo con UNA de esa marca en pantalla; con dos o ninguna, sigue lo de siempre.
+  if (marcaCotizada && /\b(?:mism[ao]s?|igual)\s+marca\b|\bmarca\s+(?:mism[ao]|igual)\b/.test(
+    texto.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, ""),
+  )) {
+    const deEsaMarca = vitrina.filter((o) => o.marca.trim().toUpperCase() === marcaCotizada.trim().toUpperCase());
+    if (deEsaMarca.length === 1) return { codigo: deEsaMarca[0].codigo, etiqueta: null };
+    return null;
   }
   const eleccion = eleccionDeLaVitrina(texto, vitrina);
   // UN ACUSE O UNA CANTIDAD A UN MENÚ NO ELIGEN (auditoría 19-oct, familia 2):
@@ -268,7 +283,14 @@ export async function tryCotizarLoElegido(ctx: CotizarLoElegidoContext, texto: s
       ? codigoDeLoOfrecido(turnoDelBot, vitrina)
       : null;
   }
-  const elegido = loQueEligio(texto, ctx.previousOutbound, ctx.mensajeCitado, vitrina, escalones, menuAbierto)
+  const [ultimaCotizada] = await sql<{ marca: string | null }[]>`
+    select items->0->>'brand' as marca from quotes
+    where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
+    order by created_at desc, id desc limit 1
+  `;
+  const elegido = loQueEligio(
+    texto, ctx.previousOutbound, ctx.mensajeCitado, vitrina, escalones, menuAbierto, ultimaCotizada?.marca ?? null,
+  )
     ?? (ofrecido ? { codigo: ofrecido, etiqueta: null } : null);
   if (ofrecido && elegido && "codigo" in elegido && elegido.codigo === ofrecido) {
     console.log(`✅ Sí a la oferta de una llanta en la conv ${ctx.conversation.id}: se cotiza ${ofrecido}.`);
