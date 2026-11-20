@@ -49,6 +49,8 @@ export interface RenderLine {
   fotoReferencial?: boolean;
   /** Black Friday: las pares con el 60 % (solo la cotización; la vitrina no la lleva). */
   segundaLlanta?: SegundaLlanta | null;
+  /** Precio de promoción por código (Black Friday de Competimotor): rótulo y vigencia. */
+  promocionDePrecio?: CatalogItem["promocionDePrecio"] | null;
 }
 
 export interface QuoteRenderData extends PieceTheme {
@@ -153,6 +155,18 @@ function toPosterLine(
     ...(modo === "porcentaje" ? {} : { promocion: modo }),
     // Igual con la promo de temporada: sin ella la línea no lleva ni la clave.
     ...(line.segundaLlanta ? { segundaLlanta: line.segundaLlanta, temporada: temporadaDe(line.segundaLlanta) } : {}),
+    // Precio de promoción por código (Black Friday de Competimotor, 20-nov):
+    // la franja con el nombre y la vigencia. El precio ya viene rebajado.
+    ...(!line.segundaLlanta && line.promocionDePrecio && line.pvpConIva && line.pvpConIva > line.unitConIva
+      ? {
+          temporada: {
+            nombre: line.promocionDePrecio.nombre,
+            bajada: null,
+            hasta: line.promocionDePrecio.vigenciaLarga.replace(/^hasta (?:el )?/, ""),
+            precioEspecial: true,
+          },
+        }
+      : {}),
     ...(conVitrina
       ? {
           // El rótulo de la franja de la lámina («PROMOCIÓN BLACK FRIDAY · TODO NOVIEMBRE»).
@@ -422,6 +436,8 @@ export async function toRenderLine(
     fabricaAnios: garantiaDelPerfil(product.brand).fabricaAnios,
     photo: await productPhoto(product.brand, product.design, product.imageUrl),
     fotoReferencial: product.imageSource === ETIQUETA_FOTO_REFERENCIAL,
+    // Solo viaja si la llanta la lleva hoy: sin promo la línea queda igual que antes.
+    ...(product.promocionDePrecio ? { promocionDePrecio: product.promocionDePrecio } : {}),
   };
 }
 

@@ -10,6 +10,7 @@
  * `docs/clientes/mundillantas-arranque.md` (preguntas 6, 7 y 8).
  */
 import type { PoliticaComercial } from "../politica.js";
+import { LLANTAS_BLACK_FRIDAY } from "../politicas/mundillantasBlackFriday.js";
 
 /** El envío a otras ciudades, en una frase: es la única que hay que cambiar para un envío gratis. */
 const ENVIO_A_OTRAS_CIUDADES =
@@ -21,8 +22,30 @@ export const POLITICA_MUNDILLANTAS: PoliticaComercial = {
   // efectivo: null hasta que lo confirme (el bot no lo ofrece).
   formasDePago: ["efectivo", "transferencia", "tarjeta de crédito"],
   cuotasSinIntereses: "hasta 6 meses sin intereses con todas las tarjetas de crédito (hasta 12 meses con intereses)",
-  // Precio A normal, B tarjeta, C efectivo: no hay descuento sobre la cotización.
+  // Precio B (tarjeta) es el precio de la cotización y C (efectivo) se ofrece
+  // aparte: no hay descuento sobre la cotización (salvo Black Friday, que la
+  // pieza ya muestra tachado).
   cotizacionConDescuento: false,
+  // Carlos Romero, 20-nov-2026 (WhatsApp): «Corregir PRECIO en cotizaciones:
+  // dar precio 2 y cotizar en P2 y P3». Jenny, 18-nov: A = normal, B = con
+  // tarjeta de crédito, C = efectivo y transferencia, D = nunca. Se cotiza
+  // con B (las 6 cuotas también) y el C se ofrece si paga en efectivo o por
+  // transferencia, o si pide descuento. El A no se usa en ningún lado.
+  precioDeCotizacion: "tarjeta",
+  // Black Friday (lista de Carlos, 20-nov). Manuel: rige desde ya hasta el
+  // lunes 30-nov-2026 a las 23:59 de Ecuador, las dos secciones de la lista
+  // («jueves a lunes» y «todo el mes»), y después se apaga solo. El precio de
+  // la lista es el final por llanta, con IVA y servicios
+  // (docs/clientes/competimotor-black-friday-2026.md). Para cambiarlo: volver
+  // a correr scripts/competimotor/black-friday.ts con la lista nueva.
+  preciosEspeciales: {
+    nombre: "Black Friday",
+    desde: "2026-11-20T00:00:00-05:00",
+    hasta: "2026-11-30T23:59:59-05:00",
+    vigenciaLarga: "hasta el lunes 30 de noviembre",
+    vigenciaCorta: "hasta el lunes 30-nov",
+    llantas: LLANTAS_BLACK_FRIDAY,
+  },
   // Manuel, 20-nov: «no gracias» a secas es «esa no»: se le ofrece otra (CM28).
   noGraciasPideOtraOpcion: true,
   descuentoEnEfectivo: null,

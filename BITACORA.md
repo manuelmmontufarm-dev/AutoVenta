@@ -1,3 +1,37 @@
+## 20-nov-2026 · Bot · Competimotor cotiza con P2 (tarjeta), ofrece P3 y Black Friday con precio tachado (rama `fix/competimotor-precio-p2-black-friday`)
+
+- **Qué (1, P2):** nueva perilla `politica.precioDeCotizacion = "tarjeta"` (solo Competimotor). Al cargar el Excel de
+  Fénix (`normalizarFilaDeCatalogo`, 4.º parámetro) el precio de la llanta es el **Precio B**: precio de hoy, «lista» y
+  mayorista = B, así que la pieza, el PDF, el texto, las 6 cuotas, el guardián y la cotización firmada salen de P2 sin
+  que nadie lo recalcule. Una llanta sin B y C válidos (B > A, bajo el D, C > B) no se cotiza y queda en «descartadas»
+  con su porqué. El bloque «según cómo paga» ya no dice el Precio A: tarjeta = el de hoy, efectivo/transferencia = C
+  (nunca más caro que el de hoy). `buildQuote` arma el total con IVA × cantidad solo en ese modo (por el camino sin
+  IVA 14 de 444 llantas salían un centavo arriba: 4 × $85.99 firmaba $343.97). El vendedor recibe
+  `precio_efectivo_o_transferencia_con_iva` y el Guardián ve tarjeta y efectivo en la fila del catálogo.
+- **Qué (2, Black Friday):** `politica.preciosEspeciales` + `domain/preciosEspeciales.ts`: lista por código con
+  `desde`/`hasta` exactos (hasta el 30-nov-2026 23:59:59 de Ecuador). `syncCatalog` la aplica sobre el catálogo: el
+  de hoy pasa a ser el de la promo y el P2 queda tachado; un temporizador rearma el catálogo en el segundo del cierre.
+  La pieza «día y noche» lleva la franja BLACK FRIDAY · «PRECIO ESPECIAL · −N%» · «Válido hasta el lunes 30 de
+  noviembre» y el total del juego tachado. La lista sale de `scripts/competimotor/black-friday.ts`, que cruza la hoja
+  de Carlos con el inventario (`domain/cruceDePromocion.ts`: medida + marca + cada palabra del modelo, UN artículo o
+  nada). 138 filas → 119 cruzan → 116 se prenden (1 con precio ≥ P2, 2 con más de 40 % de descuento que parecen
+  tipeo); 19 sin cruzar. Informe: `docs/clientes/competimotor-black-friday-2026.md`. IVA: el precio de la lista ya lo
+  trae (si se le sumara, 80 de 119 saldrían más caras que el precio normal en efectivo).
+- **Por qué:** Carlos Romero (Competimotor), 20-nov por WhatsApp: «Corregir PRECIO en cotizaciones: dar precio 2 y
+  cotizar en P2 y P3», y la lista de Black Friday. Manuel: «no hay cómo cagarla con los precios»; rige hasta el lunes
+  30-nov 23:59 y se apaga solo.
+- **Depot: sin cambios.** Todo cuelga de dos campos que su política no tiene (`test/depotPreciosSinCambios.test.ts`).
+  Los 16 hashes del arnés de piezas de Depot salen idénticos en `origin/main` y en esta rama.
+- **Encontrado en el simulador:** con dos opciones de Black Friday en la lámina, el quitador de frases repetidas
+  (`estructurarTurno`) borraba el título de la 2.ª («… · Black Friday hasta el lunes 30-nov» las hacía «la misma
+  idea») y quedaba un precio sin su llanta. Ahora cada llanta con promo lleva 🖤 y la vigencia va una vez al pie.
+- **Probado:** `verificar-precios.ts` + `.py` (lee el Excel por su cuenta): 444/444 llantas al centavo (precio, total
+  de 4, 6 cuotas, P3), antes y después del 30-nov. Simulador (perfil mundillantas, INV_NOV.XLS): Townhall 185/65R14
+  Black Friday ($42 × 4 = $168, P2 $49.45 tachado), Kenda KR203 195/65R15 con «¿descuento?» (P2 $93.15 / P3 $83.95) y
+  lámina 265/65R17 con transferencia. Pruebas nuevas: `competimotorPrecioP2`, `competimotorBlackFriday`,
+  `depotPreciosSinCambios`; actualizadas las de precios por pago (el A ya no sale). Suite: fallan solo
+  `hashesPiezasDepot` y `unidadEnLaCantidad`, igual que en main. `sim:humo` y `--perfil ejemplo --humo` ✅.
+- **Horas:** 3.
 ## 20-nov-2026 · Hub · Para cerrar vacía en negocios de un solo local (rama `fix/para-cerrar-un-solo-local`)
 
 - **Qué:** `services/paraCerrar.ts` — con un solo local (`hayQueElegirLocal` = false, la regla de `tools.ts`) entra todo
@@ -5611,6 +5645,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-11-20 | _(este mismo)_ | Competimotor cotiza con P2 y ofrece P3; Black Friday por código con P2 tachado y fin exacto el 30-nov | 3 |
 | 2026-10-21 | _(este mismo)_ | La guía de medida no sale a quien ya escribió la suya aunque el modelo diga que la pidió | 0,5 |
 | 2026-10-21 | _(este mismo)_ | Una sola regla para la ficha: la última medida que el cliente escribe en el mensaje | 1 |
 | 2026-10-21 | _(este mismo)_ | Casos sueltos: fuera de Quito como hecho, equivalencias con carga XL y dirección del ciclo, precio no es medida, «ya compré X, ahora Y» no cierra, el turno ve solo lo suyo | 5 |

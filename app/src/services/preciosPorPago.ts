@@ -18,6 +18,7 @@ import {
 } from "../domain/preciosPorPago.js";
 import { findByCode } from "./catalog.js";
 import { listaDeLaPieza } from "../domain/listaDeOpciones.js";
+import { politica } from "../negocio/politica.js";
 
 interface LineaGuardada {
   code?: string | null;
@@ -71,8 +72,28 @@ export async function preciosPorPagoDeLaConversacion(
   }
   if (!lineas.length) return null;
   const porPago: LineaPorPago[] = [];
+  // COTIZA CON TARJETA (Competimotor, Carlos Romero, 20-nov-2026): el precio
+  // con tarjeta ES el de la cotización (Precio B, o el de Black Friday si es
+  // menor) y en efectivo o transferencia el C, nunca más caro que con tarjeta.
+  // El Precio A no se dice. Se leen del catálogo DE HOY: una cotización vieja
+  // firmada con el A, o una de Black Friday ya vencido, no arrastra su precio.
+  const conTarjeta = politica.precioDeCotizacion === "tarjeta";
   for (const linea of lineas) {
     const item = linea.code ? findByCode(linea.code) : undefined;
+    if (conTarjeta) {
+      const precios = item?.preciosPorPago;
+      const cantidad = Math.max(1, Math.round(Number(linea.quantity) || 1));
+      const nombre = linea.nombreVisto
+        ?? [linea.brand ?? item?.brand, linea.design ?? item?.design, linea.sizeLabel ?? item?.sizeLabel].filter(Boolean).join(" ");
+      const tarjeta = precios && item && !linea.segundaLlanta ? Math.min(precios.tarjetaConIva, item.minimumPriceWithTax) : null;
+      porPago.push({
+        nombre, numero: linea.numero, cantidad, normal: null,
+        tarjeta,
+        efectivo: tarjeta !== null && precios ? Math.min(precios.efectivoConIva, tarjeta) : null,
+        promocion: item?.promocionDePrecio ? `${item.promocionDePrecio.nombre} ${item.promocionDePrecio.vigenciaCorta}` : null,
+      });
+      continue;
+    }
     // El «normal» es el que el cliente vio (cotización o lámina); sin eso, el del catálogo.
     const normal = Number(linea.salePriceWithTax) || item?.customerPriceWithTax;
     if (!normal) return null;

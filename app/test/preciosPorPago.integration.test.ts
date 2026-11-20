@@ -112,11 +112,9 @@ describe.sequential("precios por forma de pago con la lámina, sin elegir (produ
     expect(bloque).toBe([
       "Estos son los precios según cómo pague (c/u · las 4 llantas):",
       "*1 · TOWNHALL TH-161*",
-      "🧾 Precio normal: *$85.10* · *$340.40*",
       "💳 Con tarjeta de crédito: *$75.90* · *$303.60*",
       "💵 En efectivo o transferencia: *$69.00* · *$276.00*",
       "*2 · KENDA KR203*",
-      "🧾 Precio normal: *$147.20* · *$588.80*",
       "💳 Con tarjeta de crédito: *$131.10* · *$524.40*",
       "💵 En efectivo o transferencia: *$119.60* · *$478.40*",
     ].join("\n"));
@@ -155,7 +153,8 @@ describe.sequential("precios por forma de pago con la lámina, sin elegir (produ
     const salida = await paso.aplicar("Claro.", ctx10(id, "hay descuento en efectivo?"));
     const [bloque] = salida.split("\n---\n");
     expect(bloque).toContain("*1 · DURUN B717*");
-    expect(bloque).toContain("🧾 Precio normal: *$99.00* · *$396.00*");
+    // Desde el 20-nov (Carlos: «cotizar en P2 y P3») el Precio A no se dice nunca.
+    expect(bloque).not.toContain("Precio normal");
     expect(bloque).toContain("El precio con tarjeta y en efectivo de esta se lo confirma un asesor.");
     expect(bloque).toContain("💵 En efectivo o transferencia: *$119.60* · *$478.40*");
     expect(salida).not.toContain(DESCUENTO_LO_CONFIRMA_EL_ASESOR);
@@ -163,7 +162,7 @@ describe.sequential("precios por forma de pago con la lámina, sin elegir (produ
 });
 
 describe.sequential("precios por forma de pago tras una cotización", () => {
-  it("«cuánto sale en efectivo»: un mensaje con los tres precios del Excel", async () => {
+  it("«cuánto sale en efectivo»: un mensaje con el P2 (tarjeta) y el P3 (efectivo) del Excel, sin el A", async () => {
     const id = await cotizada("593980008001", "A0100");
     const borrador = "En efectivo serían $559.96 por las 4. Si hay descuento por efectivo, se lo confirma un asesor.";
     const salida = await paso.aplicar(borrador, ctx(id, "cuánto sale en efectivo?"));
@@ -171,7 +170,6 @@ describe.sequential("precios por forma de pago tras una cotización", () => {
     expect(primero).toBe([
       "Estos son los precios según cómo pague:",
       "*4 llantas HAIDA AT HD818 LN 235/75R15*",
-      "🧾 Precio normal: *$139.99* c/u · *$559.96* las 4 llantas",
       "💳 Con tarjeta de crédito: *$125.00* c/u · *$500.00* las 4 llantas",
       "💵 En efectivo o transferencia: *$118.00* c/u · *$472.00* las 4 llantas",
     ].join("\n"));
@@ -206,7 +204,8 @@ describe.sequential("precios por forma de pago tras una cotización", () => {
     const id = await cotizada("593980008005", "A0100");
     const borrador = "Total: *$559.96*.\n\nIncluye enllantaje, balanceo y nitrógeno.";
     const salida = await paso.aplicar(borrador, ctx(id, "hay descuento en efectivo?"));
-    expect(salida.match(/\$559\.96/g)).toHaveLength(1);
+    // $559.96 es el Precio A × 4: desde el 20-nov no sale en ningún lado.
+    expect(salida).not.toContain("$559.96");
     expect(salida).toContain("Incluye enllantaje, balanceo y nitrógeno.");
   });
 

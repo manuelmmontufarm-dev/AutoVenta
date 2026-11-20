@@ -4711,6 +4711,8 @@ export function toolItem(item: {
   minimumPriceWithTax?: number;
   stock: number;
   availability?: string;
+  promocionDePrecio?: { nombre: string; vigenciaCorta: string } | null;
+  preciosPorPago?: { tarjetaConIva: number; efectivoConIva: number };
 }, cantidad: number = politica.juegoCompleto) {
   // El tipo (H/T, A/T, R/T…) no viene de Contífico: sale de la base que entregó
   // el cliente. Es lo que permite responder "quiero una R17 A/T".
@@ -4747,6 +4749,17 @@ export function toolItem(item: {
           precio_lista_con_iva: item.customerPriceWithTax,
           precio_hoy_con_iva: item.minimumPriceWithTax,
         }),
+    // Precio especial por código (Black Friday de Competimotor, 20-nov): el de
+    // hoy ya es el de la promo y el de lista el de siempre. Solo viaja si la
+    // llanta lo lleva: el ítem de Depot queda idéntico.
+    ...(item.promocionDePrecio
+      ? { promocion: `${item.promocionDePrecio.nombre} ${item.promocionDePrecio.vigenciaCorta}: precio_hoy_con_iva ya es el de la promoción` }
+      : {}),
+    // Cotiza con tarjeta (Competimotor): el precio de hoy ES el de tarjeta; en
+    // efectivo o transferencia, este (nunca más caro que el de hoy).
+    ...(politica.precioDeCotizacion === "tarjeta" && item.preciosPorPago && item.minimumPriceWithTax
+      ? { precio_efectivo_o_transferencia_con_iva: Math.min(item.preciosPorPago.efectivoConIva, item.minimumPriceWithTax) }
+      : {}),
     stock: item.stock,
     disponibilidad: item.availability,
     // Las lonas viven en el nombre del fabricante («KR29 10PR TL») y se

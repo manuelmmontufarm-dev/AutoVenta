@@ -30,9 +30,12 @@ const { normalizarFilaDeCatalogo } = await import("../src/services/fuentes/sheet
 const { mensajeDePreciosPorPago, preguntaPorPrecioSegunPago } = await import("../src/domain/preciosPorPago.js");
 const REPORTE = readFileSync(fileURLToPath(new URL("./fixtures/inventario-fenix-reporte.xls", import.meta.url)));
 
+const { politica } = await import("../src/negocio/politica.js");
+
+// Con la política de Competimotor: desde el 20-nov cotiza con el Precio B.
 async function itemsDe(filas: Record<string, string>[], mapeo = archivo.MAPEO_CATALOGO_DEFECTO) {
   const c = archivo.normalizarCatalogoSubido("x.csv", filas, mapeo);
-  return c.filas.map((f) => normalizarFilaDeCatalogo(f.cruda, "archivo", f.precios).item!);
+  return c.filas.map((f) => normalizarFilaDeCatalogo(f.cruda, "archivo", f.precios, politica.precioDeCotizacion).item!);
 }
 
 const fila = (b: string, c: string, d = "112") => ({
@@ -50,20 +53,22 @@ describe("el lector guarda Precio B (tarjeta) y Precio C (efectivo)", () => {
     expect(items.find((i) => i.code === "A0103")!.preciosPorPago).toEqual({ tarjetaConIva: 200, efectivoConIva: 190 });
   });
 
-  it("B o C mayor que A, o menor que D, es error de tipeo: no se guarda", async () => {
-    expect((await itemsDe([fila("145", "118")]))[0].preciosPorPago).toBeUndefined();
-    expect((await itemsDe([fila("125", "100")]))[0].preciosPorPago).toBeUndefined();
+  // Desde el 20-nov (Carlos: «cotizar en P2 y P3») una llanta sin B y C que
+  // pasen el control NO se cotiza: el A ya no es un respaldo.
+  it("B o C mayor que A, o menor que D, es error de tipeo: no se guarda y la llanta no se cotiza", async () => {
+    expect(await itemsDe([fila("145", "118")])).toEqual([]);
+    expect(await itemsDe([fila("125", "100")])).toEqual([]);
   });
 
-  it("sin B o sin C en la fila: no hay precios por pago (no se inventa)", async () => {
-    expect((await itemsDe([fila("", "118")]))[0].preciosPorPago).toBeUndefined();
-    expect((await itemsDe([fila("125", "")]))[0].preciosPorPago).toBeUndefined();
+  it("sin B o sin C en la fila: no hay precios por pago (no se inventa) y la llanta no se cotiza", async () => {
+    expect(await itemsDe([fila("", "118")])).toEqual([]);
+    expect(await itemsDe([fila("125", "")])).toEqual([]);
   });
 
-  it("la cotización sigue con Precio A: nada más cambia en la llanta", async () => {
+  it("la cotización va con el Precio B (Carlos Romero, 20-nov), nunca con el A", async () => {
     const [item] = await itemsDe([fila("125", "118")]);
-    expect(item.customerPriceWithTax).toBe(139.99);
-    expect(item.minimumPriceWithTax).toBe(139.99);
+    expect(item.customerPriceWithTax).toBe(125);
+    expect(item.minimumPriceWithTax).toBe(125);
   });
 });
 
