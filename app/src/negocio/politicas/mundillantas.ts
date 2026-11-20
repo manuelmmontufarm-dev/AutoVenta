@@ -23,8 +23,8 @@ export const POLITICA_MUNDILLANTAS: PoliticaComercial = {
   cuotasSinIntereses: "hasta 6 meses sin intereses con todas las tarjetas de crédito (hasta 12 meses con intereses)",
   // Precio A normal, B tarjeta, C efectivo: no hay descuento sobre la cotización.
   cotizacionConDescuento: false,
-  // Manuel, 20-nov: «no gracias» deja la venta como perdida (CM28, CM40).
-  rechazoCierraComoPerdida: true,
+  // Manuel, 20-nov: «no gracias» a secas es «esa no»: se le ofrece otra (CM28).
+  noGraciasPideOtraOpcion: true,
   descuentoEnEfectivo: null,
   // No ofrecieron beneficio por redes; si lo piden, va acá palabra por palabra.
   beneficioDeRedes: null,

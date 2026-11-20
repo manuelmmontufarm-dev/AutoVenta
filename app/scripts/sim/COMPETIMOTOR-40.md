@@ -75,7 +75,7 @@ Depot, llevado a lo que en Competimotor es distinto. Los datos y los jueces est�
 | CM25 | etapa | inventos | ERRORES §7 · inventaba ficha y garantía (10 casos) · histórica H08 | Garantía de Winrun vs Townhall y «si se revienta en un hueco». Garantía y seguro contra impacto distintos por marca (Winrun 6 meses / 0,5 años) y SOLO en Kenda, Falken, Winrun y Maxxis; Townhall no tiene seguro. |
 | CM26 | completa | trayectoria | T115 X01 (Corolla → económica → 4 → sábado → local) | Del «busco llantas» a la visita con un Aveo Family. Fitment del Aveo Family (185/60R14 o 175/70R13), opciones por marca de Competimotor, cotización de 4 y visita en su único local sin preguntar «a cuál local». |
 | CM27 | completa | objeciones-y-memoria | T115 O05 («No quiero Winrun») / O10 · histórica H09 (conv 11620, no reofrecer lo rechazado) | Rechaza Haida y sigue pidiendo modelos. La 195/65R15 tiene Haida como la más barata; con la recomendación por marca de Competimotor la Haida puede volver por precio. |
-| CM28 | completa | cambio-a-mitad | T115 X09 · ERRORES §6 (al despedido se le seguía insistiendo) | 225/65R17 caro, cambia a 215/65R16 y termina en «no gracias». La segunda medida cambia todo el contexto; el «no gracias» final cierra sin pregunta de local ni seguimiento. |
+| CM28 | completa | cambio-a-mitad | T115 X09 · ERRORES §6 (al despedido se le seguía insistiendo) | 225/65R17 caro, cambia a 215/65R16 y termina en «no gracias». La segunda medida cambia todo el contexto; el «no gracias» a la lámina de 215/65R16 rechaza ESAS opciones, no la compra (Manuel, 20-nov). |
 | CM29 | completa | fuera-de-alcance | Histórica H10 (conv 12682) · T115 X07 / R06 / R07 / E02 | Cambio de aceite, horario del sábado, «ok» y recién después 4 llantas. Competimotor ofrece lubricantes y mecánica pero el bot no los cotiza (van al asesor); el «ok» tras el horario no es una elección de llanta. |
 | CM30 | completa | cierres | T115 X06 · histórica H05 (conv 9887) | 31x10.50R15LT: cotiza, «voy a comparar», «no gracias», «ya compré». Flotación escrita con «.50» y «LT»; en el Excel la etiqueta es 31X10.5R15. Después de «ya compré» no hay CTA. |
 | CM31 | completa | guardian | ERRORES §8 · el guardián leía mensajes de ciclos cerrados («mañana por Quito Sur» rancio) · T115 C09 · conv 4732 (medida de otra visita) | Compra cerrada y enseguida un pedido nuevo de otra medida. El ciclo viejo tiene Kenda 185/60R14 y visita el lunes; el nuevo pide 265/70R16 dentro de las 12 h, así que la ficha vieja se conserva al reabrir (la trampa de la conv 4732). Nada del ciclo viejo puede firmarse. |
@@ -167,14 +167,14 @@ hizo lo correcto según una regla ya decidida; entonces se juzga el HECHO de la 
 | ID | Qué pedía | Por qué estaba mal | Ahora |
 |---|---|---|---|
 | CM26 | cotización de 185/60R14 o 175/70R13 | regla del 1-sep (conv 13862): la medida deducida del vehículo no se cotiza; nadie escribe una medida | `sinCotizacion` + visita el sábado; la rúbrica prohíbe contar «se bloqueó» |
-| CM28 | etapa `perdido` o `seguimiento_venta` tras «no gracias» | (19-nov) en Depot «no gracias» no cierra como perdida a propósito | (20-nov) `perdido` + ningún seguimiento programado: `politica.rechazoCierraComoPerdida` encendida en Competimotor |
+| CM28 | etapa `perdido` o `seguimiento_venta` tras «no gracias» | (19-nov) en Depot «no gracias» no cierra como perdida a propósito | (20-nov, Manuel corrige el PR #65) «no gracias» no es venta perdida: etapa ≠ `perdido` y sale la lámina con los modelos que no vio o «¿qué busca?» (`politica.noGraciasPideOtraOpcion`, Competimotor) |
 | CM29 | cotización sin que el cliente elija | menú de dos sin marca: se pregunta cuál (playbook) | se agrega «la 1» |
 | CM30 | cotización tras «precio de 4» con menú de tres | «el precio a secas no autoriza con menú» (1-sep, conv 13615) | etapa `perdido` tras «no gracias» + «ya compré» (arreglo de la familia A) |
 | CM31 | cotización de 265/70R16 sin elegir | cuatro opciones: se pregunta cuál | se agrega «la townhall» |
 | CM32 | que corra `agendar_visita` | la visita la registra el lector del turno (mismo lector) | `visitaEl(6)` + `visitaALas(10)` + una sola cotización |
 | CM34 | cotización tras «si 4 de esas» con dos opciones | «de esas» no elige entre dos (regla del 19-oct) | se agrega «la 1»; se juzga además que la ficha tenga la 215/65R16 |
 | CM35 | que corra `notificar_vendedor` | desde este PR el aviso de precio por volumen lo registra el código | alerta de escalamiento en `bot_alerts` |
-| CM40 | etapa distinta de `cotizacion_enviada` | igual que CM28 | (20-nov) `perdido` + ningún seguimiento programado |
+| CM40 | etapa distinta de `cotizacion_enviada` | igual que CM28 | (20-nov) «no gracias ya no» es desistimiento explícito: despedida de siempre al final, etapa ≠ `perdido`, ningún seguimiento programado |
 | CM04 | `notificar_vendedor` a lo sumo 1 vez | el daño es el aviso doble; la misma llave ya no lo duplica | a lo sumo una alerta `caso_sin_resolver` |
 | todas | `preciosD(…)` | la tabla tenía las columnas corridas (B guardado como «C», C como «D») | releída del Excel: A · C efectivo · D mayorista |
 

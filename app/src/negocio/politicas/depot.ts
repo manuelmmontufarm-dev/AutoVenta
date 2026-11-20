@@ -17,8 +17,9 @@ export const POLITICA_DEPOT: PoliticaComercial = {
   // en el local». El monto del descuento no se dice: lo confirma el asesor.
   cuotasSinIntereses: "3 y 6 meses sin intereses",
   cotizacionConDescuento: true,
-  // «No gracias» no cierra como perdida (regla de siempre). Ver politica.ts.
-  rechazoCierraComoPerdida: false,
+  // «No gracias» se despide con el texto aprobado de siempre; ofrecer otra
+  // opción como en Competimotor es decisión de Manuel. Ver politica.ts.
+  noGraciasPideOtraOpcion: false,
   descuentoEnEfectivo: "Si paga en efectivo sí hay un descuento, que se lo confirman en el local.",
   // Pedido de Joaquín, 10-sep-2026, con su redacción palabra por palabra. Las
   // dos cosas que pidió con énfasis: que se entienda ADICIONAL, y que el

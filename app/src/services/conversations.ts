@@ -429,23 +429,7 @@ export async function previousInboundText(conversationId: number): Promise<strin
     order by created_at desc, id desc
     offset 1 limit 1
   `;
-  if (row) return row.content ?? null;
-  // EL MENSAJE ANTERIOR PUEDE ESTAR EN EL CICLO QUE SE ACABA DE CERRAR (20-nov):
-  // con `rechazoCierraComoPerdida` el «no gracias» cierra el ciclo, y el «ya
-  // compré» que llega después abre otro. Dentro de la misma visita (12 h) ese
-  // «no gracias» sigue siendo lo que dijo justo antes: sin esto, «ya compré»
-  // se leía solo y quedaba como venta GANADA (CM30).
-  const [delCicloAnterior] = await sql<{ content: string | null; created_at: Date }[]>`
-    select content, created_at from messages
-    where conversation_id=${conversationId}
-      and cycle < (select current_cycle from conversations where id=${conversationId})
-      and direction='inbound'
-    order by created_at desc, id desc
-    limit 1
-  `;
-  return delCicloAnterior && esMismaVisitaPorSilencio(delCicloAnterior.created_at)
-    ? delCicloAnterior.content ?? null
-    : null;
+  return row?.content ?? null;
 }
 
 export async function setStage(
