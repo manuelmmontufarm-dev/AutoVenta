@@ -366,6 +366,14 @@ export interface PerfilDeNegocio {
    * los suma a la lista para que el panel los muestre junto a los textos.
    */
   pendientesNumericos?: string[];
+  /**
+   * Medidas en pulgadas que el negocio vende COMO la métrica aunque el
+   * diámetro se pase del 3 % de `domain/equivalencia.ts`. Competimotor
+   * (20-nov-2026): la 30X9.5R15 es «la 235/75R15 en pulgadas» —un 3,9 % más
+   * alta— y es justo la M/T que tienen cuando la métrica no la trae. Sin esto,
+   * el bot nunca la ofrecía como equivalente. Depot no lo declara.
+   */
+  equivalenciasEnPulgadas?: Array<{ metrica: string; pulgadas: string }>;
 }
 
 /**

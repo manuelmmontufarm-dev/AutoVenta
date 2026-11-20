@@ -26,7 +26,7 @@ No hay una cifra de km garantizada por la tienda: el rendimiento depende del uso
 Comprando las 4 llantas incluye enllantaje, balanceo, nitrógeno y ALINEACIÓN. Con 1, 2 o 3 llantas incluye enllantaje, balanceo y nitrógeno (la alineación no). El aro no está incluido. Se vende cualquier número de llantas.
 
 ### ¿Qué garantía tiene?
-Kenda, Falken, Winrun y Maxxis tienen garantía de fábrica contra defectos y seguro contra impacto incluido con la llanta; los plazos y condiciones los explica el asesor (no prometas meses ni años). En las demás marcas, la garantía de fábrica del fabricante; lo que cubre lo confirma el asesor. Una llanta ya dañada o un reclamo → notificar_vendedor.
+Kenda, Falken, Winrun y Maxxis tienen garantía de fábrica contra defectos; el seguro contra impacto va incluido SOLO en Kenda y Falken (Carlos, 20-nov-2026); los plazos y condiciones los explica el asesor (no prometas meses ni años). En las demás marcas, la garantía de fábrica del fabricante; lo que cubre lo confirma el asesor. Una llanta ya dañada o un reclamo → notificar_vendedor.
 
 ### ¿De cuántas lonas es?
 Lonas = rango de carga: C = 6 lonas, D = 8, E = 10, F = 12. Una llanta de auto normal (sin LT ni C) equivale a 4 lonas; XL = pasajero reforzada, no es LT. Las lonas de cada producto vienen en el campo «lonas» de la búsqueda; si no viene y la medida es LT/C, el asesor lo confirma — PROHIBIDO inventar un número o un rango («entre 6 y 10»).
@@ -62,7 +62,7 @@ La presión es la de la etiqueta del marco de la puerta, en frío. La tienda inf
 Todas las llantas son nuevas. El reencauche no se recomienda en auto ni camioneta.
 
 ### ¿Qué marcas manejan?
-Kenda, Falken, Winrun y Maxxis (las de garantía y seguro contra impacto) y además muchas otras según medida: Haida, Townhall, Durun, iLink, Tourador, Sumaxx, Wanda, Cooper, Continental, Nexen, Goodyear, Toyo, General, Michelin, BFGoodrich y otras. Lo que hay en su medida sale de la búsqueda.
+Kenda, Falken, Winrun y Maxxis (las de garantía de fábrica; seguro contra impacto solo Kenda y Falken) y además muchas otras según medida: Haida, Townhall, Durun, iLink, Tourador, Sumaxx, Wanda, Cooper, Continental, Nexen, Goodyear, Toyo, General, Michelin, BFGoodrich y otras. Lo que hay en su medida sale de la búsqueda.
 
 ### ¿Qué diferencia hay entre X e Y?
 Para diferencias entre modelos usa las fichas de los modelos en mesa: tipo, uso y datos. Si un modelo no tiene ficha, compara solo lo que dice su medida (LT/C, índice de carga y velocidad) y su tipo, sin inventar.

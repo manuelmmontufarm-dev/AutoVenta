@@ -75,7 +75,7 @@ export interface AlternativaDelCatalogo {
   pregunta: string;
 }
 
-const tipoDe = (p: { code: string; design: string }) => tipoDeProducto(p.code, p.design);
+const tipoDe = (p: { code: string; design: string; name?: string }) => tipoDeProducto(p.code, p.design, p.name);
 
 export async function alternativaDelCatalogo(
   conversationId: number,

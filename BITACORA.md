@@ -1,3 +1,29 @@
+## 20-nov-2026 · Bot · Competimotor: seguro solo Kenda y Falken; «pantanera» = M/T con stock (rama `fix/competimotor-seguro-pantaneras`)
+
+- **Qué (seguro):** la bajada de la lámina de opciones (`render/diaNoche.ts`, `loIncluidoEnElJuego`) dice «seguro» solo si
+  TODAS las opciones lo llevan (`golpesMeses` del perfil); antes era una frase fija. Perfil de Competimotor: Winrun y
+  Maxxis quedan con `golpesMeses: 0` (garantía de fábrica intacta) y el seguro de las piezas/política/conocimiento dice
+  «solo Kenda y Falken». El guardián recibe «SIN seguro contra impacto» para las marcas con `seguro.meses: 0`.
+- **Por qué (seguro):** Carlos (Competimotor), 20-nov: «Las únicas marcas que manejamos con seguro son KENDA y FALKEN;
+  aquí le envían con seguro una marca que no tiene» (TOURADOR FORCE AT II LB 265/65R17). Corrige la hoja de Jenny del 18-nov.
+- **Qué (pantaneras):** (1) `tireSize.ts` lee «23575r15» (ancho y perfil pegados, con la R obligatoria). (2) La base de tipos
+  de Competimotor estaba vacía: se copian 29 líneas de la base de Depot cuyo modelo está en el Excel de Fénix (KR29 M/T,
+  KR601 R/T, KR628 A/T…) y, solo en negocios sin base por código, `tipoEnElNombre` lee el tipo del nombre («TH-MT802»,
+  «WILDPEAK M/T», «AT771»). Depot no cambia. (3) `normalizarTipo("pantanera")` = M/T; en el texto del cliente sigue siendo el
+  uso lodo (M/T primero, R/T de respaldo). (4) `rafaga.ts`: «pantanera» completa la medida (un solo turno). (5) Perfil
+  `equivalenciasEnPulgadas` (Competimotor: 30X9.5R15 = 235/75R15, 3,9 % de diámetro): cuenta como equivalente en
+  `equivalencia.ts`, entra en `buscar_por_aro_y_tipo` y en el relleno por uso de `preparar_opciones`, y el guardián lo
+  recibe como hecho del negocio.
+- **Por qué (pantaneras):** conv 469 (Abg Jumbo, 11:34): «Llantas 23575r15 / Tipo pantaneras / Que precio tiene ?» →
+  «no me aparece stock». Había KENDA KR29 y TOWNHALL TH-MT802 en 235/75R15 y FALKEN WILDPEAK M/T (8) en 30X9.5R15. Para el bot
+  ninguna llanta de Competimotor tenía tipo, la medida no se leía y la 30X9.5R15 quedaba fuera del 3 %.
+- **Inventario:** prod tiene el `INV_NOV.XLS` de hoy (misma huella): reporte del 20-nov 10:01, subido 13:32, 445 llantas,
+  2.236 unidades, 25 filas descartadas.
+- **Probado:** `competimotorSeguroYPantaneras` (11) y `competimotorPantaneras` (4), en rojo en main; suite completa (fallan
+  solo `hashesPiezasDepot` y `unidadEnLaCantidad`, igual que en main); `tsc`; las cuatro de CLAUDE.md. Simulador perfil
+  mundillantas con INV_NOV.XLS: la conv 469 sale en un turno con la lámina KENDA KR29 + FALKEN WILDPEAK M/T 30X9.5R15 y el
+  guardián aprueba; «Esa es la medida exacta» → KR29 M/T a $220.80. Lámina de la TOURADOR renderizada sin «seguro».
+- **Horas:** 1,5.
 ## 20-nov-2026 · Hub · Para cerrar vacía en negocios de un solo local (rama `fix/para-cerrar-un-solo-local`)
 
 - **Qué:** `services/paraCerrar.ts` — con un solo local (`hayQueElegirLocal` = false, la regla de `tools.ts`) entra todo
@@ -5611,6 +5637,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-11-20 | _(este mismo)_ | Competimotor: seguro solo Kenda y Falken; «pantanera» = M/T, tipos por nombre, «23575r15», 30X9.5R15 = 235/75R15 | 1,5 |
 | 2026-10-21 | _(este mismo)_ | La guía de medida no sale a quien ya escribió la suya aunque el modelo diga que la pidió | 0,5 |
 | 2026-10-21 | _(este mismo)_ | Una sola regla para la ficha: la última medida que el cliente escribe en el mensaje | 1 |
 | 2026-10-21 | _(este mismo)_ | Casos sueltos: fuera de Quito como hecho, equivalencias con carga XL y dirección del ciclo, precio no es medida, «ya compré X, ahora Y» no cierra, el turno ve solo lo suyo | 5 |

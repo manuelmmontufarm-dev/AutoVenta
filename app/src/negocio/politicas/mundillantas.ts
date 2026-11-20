@@ -42,7 +42,9 @@ export const POLITICA_MUNDILLANTAS: PoliticaComercial = {
     "Reciben aros y llantas usadas como parte de pago. Cuánto se le reconoce lo evalúa un asesor.",
     // Jenny, 18-nov (noche): «hora y media, porque se hace un chequeo general del carro».
     "Instalación: se atiende por orden de llegada y también con cita, y demora hora y media porque se hace un chequeo general del carro.",
-    "El seguro contra impacto se hace válido solo con la factura de la compra y solo en Kenda, Falken, Winrun y Maxxis.",
+    // Carlos, 20-nov-2026: «Las únicas marcas que manejamos con seguro son
+    // KENDA y FALKEN». Corrige a Jenny (18-nov), que había sumado Winrun y Maxxis.
+    "El seguro contra impacto se hace válido solo con la factura de la compra y solo en Kenda y Falken. Winrun, Maxxis y las demás marcas NO llevan seguro contra impacto: solo garantía de fábrica.",
     // Jenny, 18-nov (noche): incluye «rotación de llantas, revisión mecánica y nitrógeno gratis».
     "El mantenimiento cada 10.000 km va incluido comprando 2 o 4 llantas: rotación de llantas, revisión mecánica y nitrógeno, sin costo.",
   ],
