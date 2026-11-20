@@ -30,6 +30,7 @@ vi.mock("../src/wa/client.js", async (importOriginal) => {
   return {
     ...real,
     sendAdvisorText: vi.fn(async () => `wamid.TEST_${++wamidSeq}`),
+    sendAdvisorTemplate: vi.fn(async () => `wamid.PLANTILLA_${++wamidSeq}`),
   };
 });
 
@@ -37,6 +38,9 @@ const { sql } = await import("../src/db/client.js");
 const { ensureSchema } = await import("../src/db/schema.js");
 const { notifyAdvisor } = await import("../src/services/advisorNotifications.js");
 const { recordMessageStatus } = await import("../src/services/conversations.js");
+const wa = await import("../src/wa/client.js");
+// Cargado antes que conversations.ts lo pida con import(): así vitest le aplica el mock de arriba.
+await import("../src/services/avisoPorPlantilla.js");
 
 const NUMERO_MALO = "32611771772";
 
@@ -131,5 +135,49 @@ describe("avisos al asesor que Meta no entrega", () => {
     `;
     expect(fila.status).toBe("sent");
     expect(fila.delivered_at).not.toBeNull();
+  });
+
+  it("ventana cerrada (131047): el aviso se reenvía como plantilla con el texto en una línea y NO levanta alerta", async () => {
+    await sql`delete from bot_alerts`;
+    const conv = await conversacion("593980004001");
+    const wamid = await avisar(conv.id, `${conv.id}:1:quote_created`);
+
+    await recordMessageStatus(wamid, "failed", { error: { code: 131047, title: "Re-engagement message" } });
+
+    const plantilla = vi.mocked(wa.sendAdvisorTemplate);
+    expect(plantilla).toHaveBeenCalledTimes(1);
+    const llamada = plantilla.mock.calls[0][0];
+    expect(llamada.templateName).toBe("aviso_asesor_v1");
+    expect(llamada.to).toBe(NUMERO_MALO);
+    expect(llamada.variables[0]).toBe("Joaquín");
+    expect(llamada.variables[1]).not.toMatch(/[\n\t]| {2,}/);
+    expect(llamada.variables[1]).toMatch(/Kenda KR203/);
+
+    const [fila] = await sql<{ status: string; provider_message_id: string; error: string }[]>`
+      select status, provider_message_id, error from advisor_notifications where dedupe_key = ${`${conv.id}:1:quote_created`}
+    `;
+    expect(fila.status).toBe("sent");
+    expect(fila.provider_message_id).toMatch(/^wamid\.PLANTILLA_/);
+    expect(fila.error).toMatch(/131047.*reenviado con plantilla/);
+    const [{ n }] = await sql<{ n: number }[]>`select count(*)::int as n from bot_alerts`;
+    expect(n).toBe(0);
+
+    // Si la plantilla también rebota, no hay bucle: queda 'failed' y sale la alerta de siempre.
+    await recordMessageStatus(fila.provider_message_id, "failed", { error: { code: 131047, title: "Re-engagement message" } });
+    expect(plantilla).toHaveBeenCalledTimes(1);
+    const [final] = await sql<{ status: string }[]>`
+      select status from advisor_notifications where dedupe_key = ${`${conv.id}:1:quote_created`}
+    `;
+    expect(final.status).toBe("failed");
+    const [{ m }] = await sql<{ m: number }[]>`select count(*)::int as m from bot_alerts where type = 'advisor_notification_undelivered'`;
+    expect(m).toBe(1);
+  });
+
+  it("otros rechazos (131026, número malo) no intentan la plantilla", async () => {
+    vi.mocked(wa.sendAdvisorTemplate).mockClear();
+    const conv = await conversacion("593980005001");
+    const wamid = await avisar(conv.id, `${conv.id}:1:quote_created`);
+    await recordMessageStatus(wamid, "failed", { error: { code: 131026, title: "Message undeliverable" } });
+    expect(wa.sendAdvisorTemplate).not.toHaveBeenCalled();
   });
 });

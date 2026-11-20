@@ -1011,18 +1011,39 @@ async function reconciliarAvisoAsesor(
         : "Revisar el número en Ajustes › Quién recibe los avisos y el estado del canal.";
 
   const [aviso] = await sql<{
+    id: number;
     conversation_id: number;
     cycle: number;
     recipient_name: string;
     recipient_phone: string;
     event_type: string;
+    message: string;
+    error_previo: string | null;
   }[]>`
-    update advisor_notifications
+    with previo as (
+      select id, error from advisor_notifications
+      where provider_message_id = ${providerId} and status <> 'failed'
+    )
+    update advisor_notifications a
     set status = 'failed', error = ${detalle}, updated_at = now()
-    where provider_message_id = ${providerId} and status <> 'failed'
-    returning conversation_id, cycle, recipient_name, recipient_phone, event_type
+    from previo
+    where a.id = previo.id
+    returning a.id, a.conversation_id, a.cycle, a.recipient_name, a.recipient_phone,
+      a.event_type, a.message, previo.error as error_previo
   `;
   if (!aviso) return;
+
+  // Ventana cerrada (20-nov): el aviso se reenvía UNA vez como plantilla, que
+  // sí llega. Solo si la plantilla tampoco sale queda la alerta de abajo. Se
+  // importa aquí adentro porque wa/client.ts ya importa este módulo.
+  if (error?.code === 131047) {
+    const { MARCA_PLANTILLA, reenviarAvisoConPlantilla } = await import("./avisoPorPlantilla.js");
+    const yaFuePlantilla = aviso.error_previo?.includes(MARCA_PLANTILLA) ?? false;
+    if (!yaFuePlantilla && (await reenviarAvisoConPlantilla({ ...aviso, detalle }))) {
+      console.warn(`↪️ Aviso a ${aviso.recipient_name} reenviado como plantilla (ventana cerrada).`);
+      return;
+    }
+  }
 
   // La clave lleva el teléfono y NO el evento: lo que hay que arreglar es el
   // número, una sola vez, no una alerta por cada aviso que rebote.

@@ -9,6 +9,20 @@
   archivos fallan igual en `main` (buscarPorAroCompleto, hashesPiezasDepot, unidadEnLaCantidad).
 - **Horas:** 0,2.
 
+## 20-nov-2026 · Avisos · el aviso al asesor sale por plantilla si su ventana está cerrada (rama `feat/aviso-asesor-plantilla`)
+
+- **Qué:** al llegar el 131047 por el webhook, el aviso se reenvía una vez como `aviso_asesor_v1` (texto en una línea);
+  la alerta «no está recibiendo» queda solo si la plantilla también falla. «Ver aviso» reabre la ventana y entrega
+  completos los avisos que llegaron por plantilla. Config en `settings.aviso_asesor_plantilla`.
+- **Por qué:** en Competimotor, del 18 al 20-nov TODOS los avisos rebotaron (nadie tocó «Listo»). Ese mismo día, solo en
+  la base de Competimotor: Manuel, Carlos André y Moroni pasaron al nivel `admin` («TODO»), que ahora tiene los 22 avisos,
+  y `asesores_por_local.competimotor` = los 7 (con un solo local, quien no está en esa lista no recibe nada).
+- **Meta:** plantilla `aviso_asesor_v1` (UTILITY, id 4699589573610589) enviada a la WABA de Competimotor. Depot no la tiene:
+  allí el intento falla y todo sigue como antes.
+- **Probado:** `avisoNoEntregado` (131047 → plantilla; sin bucle; 131026 no la toca) y `avisoPorPlantilla`; suite completa
+  (3 archivos fallan igual en `main`); fidelidad + perfil ajeno 38/38. `sim:humo` no corrió: puertos ocupados por otra sesión.
+- **Horas:** 0,6.
+
 ## 20-nov-2026 · Simulador · verificación de los pendientes de la prueba 40 × 3 (rama `fix/competimotor-pendientes`)
 
 - **Qué:** escenarios CM28 y CM40 de vuelta a exigir `perdido` (con la política de Competimotor); notas en `COMPETIMOTOR-40.md`.
