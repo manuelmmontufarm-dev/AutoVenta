@@ -34,7 +34,7 @@ await admin.end();
 const { sql } = await import("../src/db/client.js");
 const { ensureSchema } = await import("../src/db/schema.js");
 const { createRegistroVentaRouter, pasaElFreno, reiniciarFrenoDeRegistro } = await import("../src/server/registroVenta.js");
-const { claveDelEnlace, listarVentasRegistradas, validarEntrada, ventasACsv } = await import("../src/services/registroDeVentas.js");
+const { claveDeRegistros, claveDelEnlace, listarVentasRegistradas, validarEntrada, ventasACsv } = await import("../src/services/registroDeVentas.js");
 
 let url = "";
 let servidor: ReturnType<express.Express["listen"]>;
@@ -192,6 +192,41 @@ describe("lo que ve el dueño", () => {
     expect(csv).toContain("Vendedor;Telefono;Vino de WhatsApp");
     expect(csv).toMatch(/"Luis Mora";"0991234567";"SI";"Carlos Pérez"/);
     expect(csv).toContain("001-001-000123");
+  });
+});
+
+describe("la página del dueño", () => {
+  it("con el enlace de los vendedores NO se ve la lista", async () => {
+    expect((await fetch(`${url}/venta/registros?k=${k}`)).status).toBe(404);
+    expect((await fetch(`${url}/venta/registros.csv?k=${k}`)).status).toBe(404);
+    expect((await fetch(`${url}/venta/registros`)).status).toBe(404);
+  });
+
+  it("con su clave muestra todos los registros: vendedor, número, sí/no y factura", async () => {
+    const r = await fetch(`${url}/venta/registros?k=${claveDeRegistros()}`);
+    expect(r.status).toBe(200);
+    const html = await r.text();
+    const total = (await listarVentasRegistradas()).length;
+    expect(html.match(/<tr>/g)?.length).toBe(total + 1);
+    expect(html).toContain("Luis Mora");
+    expect(html).toContain("0991234567");
+    expect(html).toContain("Carlos Pérez");
+    expect(html).toContain("001-001-000123");
+    expect(html).toContain("sin factura");
+  });
+
+  it("un nombre con HTML no rompe la página", async () => {
+    await registrar({ vendedor: "<script>x</script>", telefono: "0990000999" });
+    const html = await (await fetch(`${url}/venta/registros?k=${claveDeRegistros()}`)).text();
+    expect(html).not.toContain("<script>x</script>");
+    expect(html).toContain("&lt;script&gt;x&lt;/script&gt;");
+  });
+
+  it("descarga el Excel (CSV) con la misma clave", async () => {
+    const r = await fetch(`${url}/venta/registros.csv?k=${claveDeRegistros()}`);
+    expect(r.status).toBe(200);
+    expect(r.headers.get("content-type")).toContain("text/csv");
+    expect(await r.text()).toContain("001-001-000123");
   });
 });
 
