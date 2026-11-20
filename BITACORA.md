@@ -1,3 +1,20 @@
+## 20-nov-2026 · Bot · CM31: al cliente que vuelve en la misma visita no se le presenta el negocio otra vez (rama `fix/competimotor-pendientes`)
+
+- **Qué:** `esClienteQueVuelve` (domain/clienteQueVuelve.ts) + `ultimoSalienteDeOtroCiclo` (services/conversations.ts):
+  si el bot ya le escribió en un ciclo ANTERIOR dentro de la misma visita (el mismo corte de 12 h con el que el ciclo nuevo
+  conserva la ficha, `esMismaVisitaPorSilencio`), no sale la presentación. Se aplica en las dos puertas que la ponían:
+  `index.ts` (la presentación de apertura y la bienvenida fija del «hola») y `wa/client.ts` (`conSaludoSiEsElPrimerTexto`).
+  Su «hola» lo contesta el agente, que tiene el contexto.
+- **Por qué:** CM31: «ya compré, gracias» cerró el ciclo y minutos después «buenas, ahora necesito 4 de 265 70 16 pa la
+  camioneta» recibió «¡Hola! 👋 Soy el asistente de Competimotor…» completo. Las dos puertas miraban solo el ciclo actual.
+- **Lo que NO cambia:** el texto del primer contacto para un cliente nuevo; tras un `/restart` (su aviso es la despedida
+  del ciclo archivado) y tras más de 12 h de silencio la presentación sigue saliendo, como pide la regla del 31-ago
+  (producción, conv 3, ciclos 36 y 37).
+- **Depot:** igual para todos los clientes: un ciclo reabierto dentro de las 12 h ya no repite la presentación.
+- **Probado:** `clienteQueVuelve.integration` (nuevo, en rojo antes), `saludoTrasReinicio`, `saludoFijo`, `firstContact`,
+  suite completa. Simulador: ver la entrada de verificación.
+- **Horas:** 0,5.
+
 ## 20-nov-2026 · Bot · Competimotor CM18: el pedido que nombra una llanta de la lámina se cotiza (rama `fix/competimotor-pendientes`)
 
 - **Qué:** (1) `eleccionDeLaVitrina` usa el TIPO (A/T, R/T, M/T, H/T) para separar diseños del mismo nombre

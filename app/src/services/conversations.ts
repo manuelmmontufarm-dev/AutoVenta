@@ -544,6 +544,22 @@ export async function setStage(
  * `preguntamosElDia`/`preguntamosElLocal` leían preguntas de hace días como si
  * las acabáramos de hacer.
  */
+/**
+ * El último mensaje que le salió al cliente en un ciclo ANTERIOR al actual (null
+ * si nunca hubo otro ciclo con salientes). Lo usa `domain/clienteQueVuelve.ts`.
+ */
+export async function ultimoSalienteDeOtroCiclo(
+  conversationId: number,
+): Promise<{ content: string | null; created_at: Date } | null> {
+  const [fila] = await sql<{ content: string | null; created_at: Date }[]>`
+    select content, created_at from messages
+    where conversation_id = ${conversationId} and direction = 'outbound' and type <> 'note'
+      and cycle < (select current_cycle from conversations where id = ${conversationId})
+    order by created_at desc, id desc limit 1
+  `;
+  return fila ?? null;
+}
+
 export async function lastOutboundText(conversationId: number): Promise<string | null> {
   const filas = await sql<{ content: string }[]>`
     select content from messages

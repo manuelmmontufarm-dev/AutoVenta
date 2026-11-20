@@ -38,6 +38,7 @@ import {
   appendMessage,
   getOrCreateConversation,
   lastOutboundText,
+  ultimoSalienteDeOtroCiclo,
   outboundTextByWaMessageId,
   logFunnelEvent,
   recordMessageStatus,
@@ -99,6 +100,7 @@ import { firstContactReply, isGenericFirstContact, pedidoDeMedidaDelPrimerContac
 import { despedidaQueCorresponde } from "./domain/cierrePerdido.js";
 import { botonesParaBloque, recortarTitulo, textoDeBoton, type BloqueConBotones } from "./domain/botones.js";
 import { esComandoDeReinicio, MENSAJE_DE_REINICIO } from "./domain/reinicio.js";
+import { esClienteQueVuelve } from "./domain/clienteQueVuelve.js";
 import { esSoloPregunta } from "./domain/preguntaSola.js";
 import { sql } from "./db/client.js";
 import { presentacionDeApertura } from "./domain/saludo.js";
@@ -401,7 +403,12 @@ async function atenderTurno(
   // Y NUNCA DESPUÉS DE UNA PERSONA (conv 15426, 22-sep): para el cliente la
   // conversación con el asesor sigue, aunque el ciclo sea nuevo.
   const saludoPermitido = puedeSaludarComoPrimerContacto(ultimoSaliente?.author_kind);
+  // EL CLIENTE QUE VUELVE NO RECIBE LA PRESENTACIÓN OTRA VEZ (CM31, simulador
+  // Competimotor 18-nov): un ciclo nuevo tras una compra cerrada no es «abrirse
+  // la conversación». Su «hola» lo contesta el agente, que tiene el contexto.
+  const clienteQueVuelve = esClienteQueVuelve(await ultimoSalienteDeOtroCiclo(conversation.id));
   const isFirstGenericMessage = conversation.stage === "nuevo"
+    && !clienteQueVuelve
     && (previousOutbound === null || previousOutbound === MENSAJE_DE_REINICIO)
     && saludoPermitido
     && isGenericFirstContact(textoConLinks);
@@ -423,7 +430,7 @@ async function atenderTurno(
   const promoDelSaludo = saludoPermitido && (previousOutbound === null || previousOutbound === MENSAJE_DE_REINICIO)
     ? mensajeDeTemporadaParaElSaludo()
     : null;
-  const presentadoAntes = saludoPermitido
+  const presentadoAntes = saludoPermitido && !clienteQueVuelve
     && ((!isFirstGenericMessage && previousOutbound === null) || (isFirstGenericMessage && Boolean(promoDelSaludo)));
   if (presentadoAntes) {
     const presentacion = presentacionDeApertura(name);
