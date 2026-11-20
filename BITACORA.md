@@ -1,3 +1,14 @@
+## 19-nov-2026 · Simulador · la flota de Competimotor y los seguimientos, versionados (rama `fix/competimotor-conversaciones`)
+
+- **Qué:** `competimotor-flota.mjs` (40 conversaciones difíciles en N simuladores, modalidad rápida, etapa/completa/tiempo),
+  `lib/corredor-competimotor.mjs` (cierre del turno por hechos de la base, guardar/restaurar estado, costo; ahora también
+  trae los `follow_up_jobs` del ciclo para los jueces), `seguimientos-competimotor.mjs`, `escenarios-prueba-competimotor.mjs`,
+  `--catalogo-confirmar` en `sim.mjs`, y los informes `COMPETIMOTOR-40.md` y `SEGUIMIENTOS-COMPETIMOTOR.md`. Los escenarios
+  (`datos/competimotor-40.mjs`, `datos/competimotor-seguimientos.mjs`) y el Excel siguen fuera de git: traen los precios D.
+- **Por qué:** la prueba del 18-nov (40 × 3 + 14 seguimientos × 3) se corrió con este arnés sin commit en otra rama.
+- **Probado:** `--solo-cargar` (las 40 se leen), corridas reales del 19-nov de este PR. Solo scripts del simulador; el bot no cambia.
+- **Horas:** 0,2.
+
 ## 19-nov-2026 · Build del panel con el mensaje de la mañana
 
 **Qué:** `app/site` reconstruido sobre main después de integrar `feat/avisos-y-usuarios`; el commit anterior subió el index de main sin las tarjetas nuevas.

@@ -126,6 +126,7 @@ bot sigue desde ahí, como si el cliente acabara de escribir.
 |---|---|
 | `--perfil ID` | Corre el simulador como OTRO cliente (`depot`, `ejemplo`, `mundillantas`; tabla `PERFILES_SIM` en `lib/entorno-prod.mjs`). Fija `--env-file app/.env.sim.<id>`, `--db autoventa_sim_<id>` y, con catálogo de Contífico, `--catalogo-snapshot datos/catalogo.<id>.json`. Un perfil sin servicio en Railway siembra la base con `seed-negocio.ts` y toma solo los modelos `OPENAI_*` del servicio de Depot; uno con servicio copia su producción como siempre. `NEGOCIO` del perfil manda: si lo copiado dice otro negocio, aborta. Un id desconocido no arranca. |
 | `--catalogo-archivo RUTA` | Con un perfil de catálogo por archivo: sube ese Excel/CSV por `POST /api/catalog/import` al arrancar. Sin esta bandera el bot arranca con el catálogo vacío y lo dice. Con catálogo por archivo NO se levanta el Contífico de mentira ni se exporta ninguna `CONTIFICO_*` (tampoco en `--humo`). |
+| `--catalogo-confirmar` | Con `--catalogo-archivo`: lo carga aunque la regla de seguridad pida confirmar (p. ej. el archivo es más viejo que la carga que trae la configuración copiada de producción). |
 | `--copiar-conv N` | Arranca con una conversación real de producción. |
 | `--hasta ISO` | Con `--copiar-conv`, copia solo lo anterior a ese instante (para repetir el turno que falló). |
 | `--catalogo-fresco` | Vuelve a bajar la foto del catálogo de Contífico. |
@@ -163,6 +164,61 @@ el bot cotizó desde ahí. El 📍 comparte una ubicación, para el camino de
 - **La deriva del catálogo**: la foto es de cuando se tomó. `--catalogo-fresco`
   la renueva.
 
+## La flota de Competimotor (perfil `mundillantas`)
+
+Corre las 40 conversaciones difíciles de `datos/competimotor-40.mjs` en N
+simuladores a la vez, 3 veces cada una, con el catálogo del Excel real de
+Fénix. Desde `app/`:
+
+```bash
+node scripts/sim/competimotor-flota.mjs --solo-cargar            # ¿se leen las 40? (no levanta nada)
+node scripts/sim/competimotor-flota.mjs --plomeria --reps 1      # cañería completa, 0 tokens
+node scripts/sim/competimotor-flota.mjs                          # LAS 40 × 3, 4 carriles
+node scripts/sim/competimotor-flota.mjs --comparar               # muestra de 6: rápida contra clásica (× 3)
+```
+
+Lo que hace distinto a la flota de Depot (`t115-flota.mjs`, que no se tocó):
+
+- **Modalidad rápida.** Carriles «rápidos» con `--debounce 1500` donde la
+  ráfaga del cliente sale de una (80 ms entre partes), y carriles «reales» con
+  los 12 000 ms de producción. El turno se da por cerrado **leyendo hechos de
+  la base** (entrante guardado → corrida de IA y saliente posteriores → nada
+  nuevo durante 2,5 s si el guardián revisó, 8 s si no), nunca con pausas fijas.
+- **Grupo `etapa`.** El `prefijo` se corre UNA vez con el bot real, se verifica
+  `estadoEsperadoPrefijo` contra la base y, si no se cumple, **falla en voz
+  alta sin guardar**. Si se cumple, se guardan las tablas de estado y cada
+  repetición arranca de esa base restaurada (en cualquier carril, con los
+  relojes corridos al presente). El costo del prefijo va aparte.
+- **Grupo `completa`**: desde el hola, carril rápido. **Grupo `tiempo`**:
+  carril real, con las pausas que declare el escenario (`pausaAntesMs` manda
+  sin esperar al bot).
+- **`--clasico`** corre cualquier escenario desde el hola con 12 s;
+  **`--comparar`** corre la muestra (3 `etapa` + 3 `completa` repartidas por
+  el archivo, o las de `--ids`) de las dos formas y compara veredicto, reloj y
+  costo (a la etapa rápida se le suma su parte del prefijo). Las `tiempo` no
+  entran: corren igual en las dos formas.
+- **Encender el bot**: producción de Competimotor tiene el bot apagado y el
+  perfil con «faltantes de arranque»; la flota lo enciende en su base
+  desechable con `confirmarFaltantes: true`, como haría el panel.
+- **Puertos**: cada carril busca solo un bloque libre desde 4300 (otras
+  sesiones corren sus propios simuladores en la misma máquina).
+
+Banderas: `--carriles N` (4; subir a 6–8 solo si el resumen dice `429: 0`),
+`--reps N` (3), `--ids CM01,CM26`, `--grupo etapa`, `--escenarios RUTA`,
+`--catalogo-archivo RUTA` (por defecto `datos/competimotor-inventario.xls`,
+copia de `INVENTARIO_06NOV_fenix.xls`; no se versiona), `--servicio-prod`
+(por defecto `Competimotors`: el servicio se renombró en Railway y
+`PERFILES_SIM` todavía dice `Mundillantas`), `--debounce-rapido`,
+`--gap-rapido`, `--gap-real`, `--carriles-reales`, `--sin-build`,
+`--verificar-prefijo-en-plomeria`.
+
+Salida en `mediciones/competimotor-<fecha>/` (no se versiona): `resumen.json`,
+una corrida por archivo en `corridas/<id>-<modo>-r<rep>.json` (veredicto de
+cada chequeo, estado final de la base, reloj, tokens y costo desde `ai_runs`,
+modelos, acciones del guardián, alertas, avisos al asesor y la transcripción
+completa) y cada prefijo armado en `prefijos/`. La carpeta del worktree tiene
+que estar enlazada a Railway (`railway link`) para leer las variables reales.
+
 ## Archivos
 
 | Archivo | Qué es |
@@ -175,3 +231,6 @@ el bot cotizó desde ahí. El 📍 comparte una ubicación, para el camino de
 | `lib/contifico-sim.mjs` | La foto del catálogo, con el stock editable. |
 | `ui/index.html` | La pantalla: chat + rayos X. |
 | `datos/catalogo.json` | La foto. No se versiona. |
+| `competimotor-flota.mjs` | La flota de Competimotor (modalidad rápida, etapa/completa/tiempo, clásico y comparativa). |
+| `lib/corredor-competimotor.mjs` | Su motor: un carril por simulador, cierre del turno por hechos, guardar/restaurar estado, costo. |
+| `escenarios-prueba-competimotor.mjs` | Tres conversaciones para probar la flota (una por grupo). |
