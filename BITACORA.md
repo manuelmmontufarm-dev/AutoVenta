@@ -1,3 +1,23 @@
+## 20-nov-2026 · Bot · El seguimiento no repite el precio viejo ni muestra el «---» (rama `fix/seguimiento-precio-y-guiones`)
+
+- **Qué:** dos pasos nuevos al final de la cadena de salida (`services/prepararSalida.ts`), solo para `seguimiento`:
+  `sin_precio_viejo_de_la_cotizacion` (`domain/precioViejo.ts` + `services/precioViejo.ts`) quita del texto el unitario,
+  la línea y el total de la última cotización del ciclo cuando el precio firmado ya no es ninguno de los de hoy (mínimo
+  y lista del catálogo, y el vivo del Interbot donde lo hay), y deja una alerta `precio_de_cotizacion_cambio` al asesor.
+  Las líneas con promo de la 2.ª llanta y los productos que ya no están en el catálogo no se juzgan.
+  `seguimiento_en_un_solo_mensaje` convierte cada bloque separado por «---» en un párrafo.
+- **Por qué:** prueba de seguimientos ×3 del 20-nov (código de main tras PR #68), caso s12: cotización del jueves
+  4 × KENDA KR203 a $104,65 ($418,60); el Excel del viernes 8 am la pone a $112,99 con 2 en stock. A la 1 pm el
+  Guardián reescribió el seguimiento con «— *$418.60 total*» (1 de 3) y `cerrarConLaAlternativa` le pegó
+  «\n\n---\n\n¿Le muestro las opciones…?» (2 de 3). El turno normal parte el texto por «---» (`index.ts`); el worker
+  de seguimientos lo manda entero, así que el cliente leía la raya. En producción de Competimotor: 0 casos en 7 días.
+- **Probado:** `seguimientoPrecioViejo.test.ts` (12, con el texto exacto que salió), `stockCortoViaja` y
+  `trasPruebasForma` con el orden nuevo, `tsc`, suite completa (fallan solo `hashesPiezasDepot` y
+  `unidadEnLaCantidad`, igual que en main), las cuatro de `CLAUDE.md`. Simulador: s12, s03 y s14 ×3 → 9/9 ($3,88); en
+  esas corridas el Guardián no volvió a escribir el precio, así que el paso del precio no llegó a actuar ahí: lo cubre la
+  prueba unitaria. Antes, en la misma noche: 16 conversaciones de los arreglos ×3 → 48/48 ($4,70) y seguimientos ×3 →
+  41/42.
+- **Horas:** 0,5.
 ## 20-nov-2026 · Vendedores · Página aparte para ver las ventas registradas (rama `feat/registros-de-venta-pagina`)
 
 - **Qué:** `GET /venta/registros?k=…` (tabla con todos los registros y resumen) y `/venta/registros.csv` (Excel), con una
