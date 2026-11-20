@@ -1,3 +1,19 @@
+## 19-nov-2026 · Bot · Competimotor 40 × 3, familia D: la visita respeta la hora del local (rama `fix/competimotor-conversaciones`)
+
+- **Qué:** **CM20** · «el sabado salgo del trabajo a las 5 y paso» + «a eso de las 5 y media» registraba la visita del
+  sábado «a las 5 pm» (17:00) con el local cerrando a las 16:00. (1) `franjaHoraria` toma la ÚLTIMA hora con pinta de hora
+  («a las», «a eso de», am/pm, minutos) y lee «y media», «y cuarto» y «:30»; devuelve `minutos` solo si no son 0, y la
+  fecha guardada los lleva (pipeline y `agendar_visita`). (2) `localAtiendeALaHora` (services/settings.ts): con una hora
+  EXACTA del cliente («a las…», «de 4 a 5») la visita fuera del horario de ese día no se registra, en las dos puertas
+  (`index.ts` y `agendar_visita`, error nuevo `hora_fuera_de_horario` que pide otra hora u otro día). El relleno (10:00) y
+  «en la tarde» no se juzgan.
+- **Por qué:** prueba del 18-nov: CM20 3/3.
+- **Depot:** código común: también Cumbayá (sábado hasta 14:30) deja de aceptar una visita del sábado a las 4 pm. Ningún
+  texto aprobado cambia; las etiquetas sin minutos salen igual que antes.
+- **Probado:** `horaDeVisita` (en rojo antes), `diasConFaltas`, `horarioPorDia`, `fechaDeVisita`, suite completa.
+  Simulador: ver la entrada de verificación final.
+- **Horas:** 0,5.
+
 ## 19-nov-2026 · Bot · Competimotor 40 × 3, familia C: avisos al asesor sin repetir ni faltar (rama `fix/competimotor-conversaciones`)
 
 - **Qué:** (1) **CM04/CM05** · `avisoRegistradoEnElCiclo` (services/avisoAlAsesor.ts): el agente cuenta como «ya se le

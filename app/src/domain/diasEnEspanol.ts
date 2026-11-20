@@ -243,7 +243,7 @@ const enDoce = (h: number) => (h % 12 === 0 ? 12 : h % 12);
  * Devuelve la etiqueta lista para escribir y la hora en 24 h para fijar la
  * fecha; `null` cuando el cliente no dio hora, que es lo más común.
  */
-export function franjaHoraria(texto: string): { etiqueta: string; hora: number } | null {
+export function franjaHoraria(texto: string): { etiqueta: string; hora: number; minutos?: number } | null {
   const n = normalizarTexto(texto);
   const marca = marcaDe(n);
 
@@ -260,12 +260,25 @@ export function franjaHoraria(texto: string): { etiqueta: string; hora: number }
     }
   }
 
-  const puntual = n.match(/\ba\s*(?:las?\s*)?(\d{1,2})(?:[:h](\d{2}))?\s*(?:am|pm|a\.m\.?|p\.m\.?)?/)
-    ?? n.match(/\b(\d{1,2})\s*(?:am|pm|a\.m\.?|p\.m\.?)\b/);
+  // LA ÚLTIMA HORA QUE DIJO, CON SUS MINUTOS (simulador Competimotor, 18-nov,
+  // CM20): «el sabado salgo del trabajo a las 5 y paso» + «a eso de las 5 y
+  // media» se guardaba «a las 5 pm» —la primera hora, sin la media—, y la
+  // visita quedaba a las 17:00. La que vale es la última (la que corrige o
+  // precisa), y «y media», «y cuarto» o «:30» son minutos.
+  const puntuales = [...n.matchAll(/\b(?:a|como\s+a)\s*(?:eso\s+de\s*)?(?:las?\s*)?(\d{1,2})(?:[:h](\d{2})|\s+y\s+(media|cuarto))?\s*(?:am|pm|a\.m\.?|p\.m\.?)?/g)];
+  // Solo cuentan como «la última» las que se ven como hora («a las», «a eso
+  // de», con am/pm o minutos); «a 2 cuadras» al final no pisa «a las 5».
+  const conPintaDeHora = puntuales.filter((m) => /\blas?\b|eso\s+de|[ap]\.?m|[:h]\d{2}|\s+y\s+(?:media|cuarto)/.test(m[0]));
+  // «5:30 pm» a secas (así lo pasa a veces el modelo a `agendar_visita`).
+  const conMinutosSueltos = n.match(/\b(\d{1,2})[:h](\d{2})\s*(?:am|pm|a\.m\.?|p\.m\.?)?(?!\d)/);
+  const puntual = conPintaDeHora.at(-1) ?? puntuales[0] ?? conMinutosSueltos ?? n.match(/\b(\d{1,2})\s*(?:am|pm|a\.m\.?|p\.m\.?)\b/);
   if (puntual) {
     const hora = aVeinticuatro(Number(puntual[1]), marca);
-    const minutos = puntual[2] ? `:${puntual[2]}` : "";
-    if (hora !== null) return { etiqueta: `a las ${enDoce(hora)}${minutos} ${SUFIJO(hora)}`, hora };
+    const min = puntual[2] ? Number(puntual[2]) : puntual[3] === "media" ? 30 : puntual[3] === "cuarto" ? 15 : 0;
+    const minutos = puntual[2] ? `:${puntual[2]}` : min ? `:${String(min).padStart(2, "0")}` : "";
+    if (hora !== null) {
+      return { etiqueta: `a las ${enDoce(hora)}${minutos} ${SUFIJO(hora)}`, hora, ...(min ? { minutos: min } : {}) };
+    }
   }
 
   for (const periodo of PERIODOS) {

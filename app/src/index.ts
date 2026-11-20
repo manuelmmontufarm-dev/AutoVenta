@@ -104,7 +104,7 @@ import { sql } from "./db/client.js";
 import { presentacionDeApertura } from "./domain/saludo.js";
 import { bloqueDelSaludoFijoVigente, clienteEscribioDespuesDe } from "./services/saludoFijo.js";
 import { contieneElPedidoDeMedida } from "./domain/firstContact.js";
-import { algunLocalAbre, getStoreHours, localAbre } from "./services/settings.js";
+import { algunLocalAbre, esHoraExacta, getStoreHours, localAbre, localAtiendeALaHora } from "./services/settings.js";
 import { negocio, localPorNombre } from "./negocio/index.js";
 import {
   esPlazoDeDecision, respuestaDeCierreDelTurno, respuestaDePlazoDeDecision, tipoDeCierreDelTurno,
@@ -225,9 +225,17 @@ async function atenderTurno(
     `;
     const nombreLocal = explicitStore ?? ficha?.nearest_store ?? null;
     const clave = nombreLocal ? localPorNombre(negocio, nombreLocal)?.claveHorario ?? null : null;
-    if (localAbre(hours, clave, commitmentLeido.visitDate)) return commitmentLeido;
-    console.log(`📅 Conv ${conversation.id}: visita del ${commitmentLeido.visitDate.toISOString().slice(0, 10)} NO registrada: ${nombreLocal ?? "el local"} cierra ese día.`);
-    return null;
+    if (!localAbre(hours, clave, commitmentLeido.visitDate)) {
+      console.log(`📅 Conv ${conversation.id}: visita del ${commitmentLeido.visitDate.toISOString().slice(0, 10)} NO registrada: ${nombreLocal ?? "el local"} cierra ese día.`);
+      return null;
+    }
+    // Ni a una hora en que el local ya cerró (simulador Competimotor 18-nov,
+    // CM20: sábado 5:30 pm con cierre a las 16:00). Solo con hora exacta.
+    if (esHoraExacta(commitmentLeido.visitTimeLabel) && !localAtiendeALaHora(hours, clave, commitmentLeido.visitDate)) {
+      console.log(`📅 Conv ${conversation.id}: visita ${commitmentLeido.visitTimeLabel} NO registrada: ${nombreLocal ?? "el local"} no atiende a esa hora.`);
+      return null;
+    }
+    return commitmentLeido;
   })();
   await updateConversationFacts(conversation.id, {
     ...(medidaDelTexto ? { tireSize: medidaDelTexto } : {}),

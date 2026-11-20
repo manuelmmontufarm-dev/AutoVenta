@@ -81,7 +81,7 @@ import {
   requestsBenefitsAgain,
 } from "../services/benefits.js";
 import { brandProfilesForRender } from "../services/brandProfiles.js";
-import { getAiConfig, getPiecesConfig, getStoreHours, horarioEnPalabras, localAbre, siguienteDiaAbierto } from "../services/settings.js";
+import { getAiConfig, getPiecesConfig, getStoreHours, horarioEnPalabras, esHoraExacta, localAbre, localAtiendeALaHora, siguienteDiaAbierto } from "../services/settings.js";
 import { researchVehicleFitment } from "../services/vehicleFitmentResearch.js";
 import { arosDeCandidatos, arosDeMedidas, invitacionPorAroAmbiguo } from "../domain/fitmentResearch.js";
 import { aroVigenteDeLaVisita, rangoDeAros } from "../domain/aros.js";
@@ -4376,9 +4376,10 @@ export function buildTools(ctx: AgentContext) {
       const franjaTexto = franja?.trim() || lectura.franja?.trim() || null;
       // La hora que resuelva el texto del cliente manda sobre el relleno del
       // día: «jueves de 4 a 5» es el jueves a las 16:00, no a las 10:00.
-      const hora = franjaTexto ? franjaHoraria(franjaTexto)?.hora ?? null : null;
+      const franjaLeida = franjaTexto ? franjaHoraria(franjaTexto) : null;
+      const hora = franjaLeida?.hora ?? null;
       const conHora = fecha && hora !== null
-        ? new Date(Date.UTC(fecha.getUTCFullYear(), fecha.getUTCMonth(), fecha.getUTCDate(), hora + 5, 0, 0))
+        ? new Date(Date.UTC(fecha.getUTCFullYear(), fecha.getUTCMonth(), fecha.getUTCDate(), hora + 5, franjaLeida?.minutos ?? 0, 0))
         : fecha;
       const etiquetaFranja = franjaTexto ? franjaHoraria(franjaTexto)?.etiqueta ?? franjaTexto : null;
 
@@ -4410,6 +4411,18 @@ export function buildTools(ctx: AgentContext) {
           return JSON.stringify({
             error: "dia_cerrado",
             regla: `Ese día (${diaCerrado}) ${nombreLocal ?? "el local"} está CERRADO: NO quedó registrada la visita ni se avisó al asesor. Dile que ese día no atienden, da el horario del local y pregúntale si puede pasar ${diaSugerido ? `el ${diaSugerido}` : "otro día que atiendan"}.`,
+          });
+        }
+        // LA HORA TAMBIÉN (simulador Competimotor 18-nov, CM20): sábado 5:30 pm
+        // con el local abierto hasta las 16:00 quedaba registrado.
+        // La hora exacta puede venir en la franja que pasó el modelo («5:30 pm»)
+        // o solo en el texto del cliente (y de ahí salió la hora de `fecha`).
+        const horaDicha = [franjaLeida?.etiqueta, franjaHoraria(ctx.currentUserText ?? "")?.etiqueta].find((e) => esHoraExacta(e));
+        if (horaDicha && !localAtiendeALaHora(hours, clave, conHora)) {
+          console.log(`📅 Conv ${ctx.conversation.id}: agendar_visita rechazada (${horaDicha}, fuera del horario).`);
+          return JSON.stringify({
+            error: "hora_fuera_de_horario",
+            regla: `A esa hora (${horaDicha}) ${nombreLocal ?? "el local"} NO atiende: NO quedó registrada la visita ni se avisó al asesor. Dile el horario de ese día y pregúntale si puede llegar antes del cierre u otro día.`,
           });
         }
       }
