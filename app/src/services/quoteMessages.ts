@@ -394,7 +394,9 @@ export function buildVisitPlanQuestion(input: {
       ? " Con ese dato le aviso al asesor para que le atienda apenas llegue."
       : input.ahorro
         ? ` Con ese dato le aviso al asesor y le dejan lista su cotización con ${fraseDeAhorro({ ...input.ahorro, modo: input.ahorro.modo ?? piecesConfigEnMemoria().promocion.modo })}.`
-        : " Con ese dato le aviso al asesor y le aplican el descuento de su cotización apenas llegue.";
+        : politica.cotizacionConDescuento
+          ? " Con ese dato le aviso al asesor y le aplican el descuento de su cotización apenas llegue."
+          : " Con ese dato le aviso al asesor y le tienen lista su cotización apenas llegue.";
   // UN SOLO LOCAL: no hay a cuál ir. Se muestra el local y se pregunta el día
   // (Manuel, 18-nov, Competimotor). Regla del perfil, no del nombre del negocio.
   if (!hayQueElegirLocal) {

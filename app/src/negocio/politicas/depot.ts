@@ -16,6 +16,7 @@ export const POLITICA_DEPOT: PoliticaComercial = {
   // diga que NO, pero que si paga en cash hay descuento, pero eso se confirma
   // en el local». El monto del descuento no se dice: lo confirma el asesor.
   cuotasSinIntereses: "3 y 6 meses sin intereses",
+  cotizacionConDescuento: true,
   descuentoEnEfectivo: "Si paga en efectivo sí hay un descuento, que se lo confirman en el local.",
   // Pedido de Joaquín, 10-sep-2026, con su redacción palabra por palabra. Las
   // dos cosas que pidió con énfasis: que se entienda ADICIONAL, y que el

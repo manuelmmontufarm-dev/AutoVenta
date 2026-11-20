@@ -21,6 +21,8 @@ export const POLITICA_MUNDILLANTAS: PoliticaComercial = {
   // efectivo: null hasta que lo confirme (el bot no lo ofrece).
   formasDePago: ["efectivo", "transferencia", "tarjeta de crédito"],
   cuotasSinIntereses: "hasta 6 meses sin intereses con todas las tarjetas de crédito (hasta 12 meses con intereses)",
+  // Precio A normal, B tarjeta, C efectivo: no hay descuento sobre la cotización.
+  cotizacionConDescuento: false,
   descuentoEnEfectivo: null,
   // No ofrecieron beneficio por redes; si lo piden, va acá palabra por palabra.
   beneficioDeRedes: null,

@@ -39,6 +39,13 @@ export interface PoliticaComercial {
    */
   descuentoEnEfectivo: string | null;
   /**
+   * ¿Las cotizaciones de este negocio traen descuento? Si es false, la pregunta
+   * del día de la visita no puede decir «le aplican el descuento de su
+   * cotización»: en Competimotor no hay descuento y la frase salía en 16 de 18
+   * cotizaciones de la prueba del 18-nov (y un seguimiento la copió).
+   */
+  cotizacionConDescuento: boolean;
+  /**
    * El texto del beneficio por venir de redes sociales, palabra por palabra,
    * o null si el negocio no lo ofrece: entonces no se menciona en ninguna salida.
    */
