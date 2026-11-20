@@ -539,8 +539,18 @@ async function catalogoParaElGuardian(pedidas: readonly string[], cantidadDelCli
           : marcaConSegundaLlanta(politica.promocionDeTemporada, p.brand)
             ? `hoy $${p.minimumPriceWithTax.toFixed(2)} c/u con IVA — para ${n} llantas Black Friday NO aplica: este ES el precio`
             : `hoy $${p.minimumPriceWithTax.toFixed(2)} c/u con IVA`;
+        // Precio especial por código (Black Friday de Competimotor, 20-nov): el
+        // de hoy ya es el de la promo; el tachado es el de siempre. Y si el
+        // negocio cotiza con tarjeta, el precio en efectivo o transferencia
+        // (Precio C, nunca más caro que el de hoy) también es real y se puede decir.
+        const especial = p.promocionDePrecio
+          ? ` (${p.promocionDePrecio.nombre} ${p.promocionDePrecio.vigenciaCorta}; antes $${p.customerPriceWithTax.toFixed(2)}: decir «${p.promocionDePrecio.nombre}», el precio de antes tachado o el ahorro NO es error)`
+          : "";
+        const efectivo = politica.precioDeCotizacion === "tarjeta" && p.preciosPorPago
+          ? ` · con tarjeta de crédito $${p.minimumPriceWithTax.toFixed(2)}; en efectivo o transferencia $${Math.min(p.preciosPorPago.efectivoConIva, p.minimumPriceWithTax).toFixed(2)} c/u`
+          : "";
         filas.push(
-          `· ${p.brand} ${p.design} ${p.sizeLabel} ${tipo ? `[${tipo}]` : "[tipo sin clasificar]"} — ${precio} · ` +
+          `· ${p.brand} ${p.design} ${p.sizeLabel} ${tipo ? `[${tipo}]` : "[tipo sin clasificar]"} — ${precio}${especial}${efectivo} · ` +
           `stock hoy: ${p.stock}${estado}`,
         );
       }

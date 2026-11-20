@@ -160,6 +160,12 @@ export interface TemporadaDeLaPieza {
   bajada: string | null;
   /** «30 de noviembre», para «válido hasta el…»; null si la política no la trae. */
   hasta: string | null;
+  /**
+   * Precio de promoción por código (Black Friday de Competimotor, 20-nov): la
+   * llanta entera va rebajada, no la 2.ª. La franja dice «PRECIO ESPECIAL» y
+   * el total lleva el juego tachado.
+   */
+  precioEspecial?: boolean;
 }
 
 /**

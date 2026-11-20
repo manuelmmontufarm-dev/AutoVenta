@@ -248,6 +248,11 @@ describe("el orden de los candados en el turno", () => {
       "sin_visita_si_no_puede_venir",
       // La red del final: ningún mensaje sale cortado con su coma (12-sep).
       "sin_frase_colgando",
+      // Solo seguimientos (simulador Competimotor 20-nov, s12): el monto de la
+      // cotización que el catálogo de hoy cambió se quita, y el «---» del turno
+      // pasa a párrafo porque el seguimiento sale en UN mensaje. Los dos solo quitan.
+      "sin_precio_viejo_de_la_cotizacion",
+      "seguimiento_en_un_solo_mensaje",
     ]);
   });
 
@@ -318,6 +323,11 @@ describe("el orden de los candados en el turno", () => {
       "sin_visita_si_no_puede_venir",
       // La red del final: ningún mensaje sale cortado con su coma (12-sep).
       "sin_frase_colgando",
+      // Solo seguimientos (simulador Competimotor 20-nov, s12): el monto de la
+      // cotización que el catálogo de hoy cambió se quita, y el «---» del turno
+      // pasa a párrafo porque el seguimiento sale en UN mensaje. Los dos solo quitan.
+      "sin_precio_viejo_de_la_cotizacion",
+      "seguimiento_en_un_solo_mensaje",
     ]);
   });
 
@@ -326,7 +336,10 @@ describe("el orden de los candados en el turno", () => {
     // es `el_cliente_tomo_el_turno`): en un turno normal el calco
     // reciente ya lo cubre `sin_calco_reciente`, bloque a bloque.
     expect(pasosPara("respuesta").map((p) => p.nombre))
-      .toEqual(nombres.filter((n) => n !== "sin_calco_del_hilo" && n !== "el_cliente_tomo_el_turno"));
+      .toEqual(nombres.filter((n) => ![
+        "sin_calco_del_hilo", "el_cliente_tomo_el_turno",
+        "sin_precio_viejo_de_la_cotizacion", "seguimiento_en_un_solo_mensaje",
+      ].includes(n)));
   });
 
   it("el bot que retoma tras un humano corre los mismos candados", () => {

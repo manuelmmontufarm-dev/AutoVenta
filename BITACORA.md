@@ -24,6 +24,87 @@
   mundillantas con INV_NOV.XLS: la conv 469 sale en un turno con la lámina KENDA KR29 + FALKEN WILDPEAK M/T 30X9.5R15 y el
   guardián aprueba; «Esa es la medida exacta» → KR29 M/T a $220.80. Lámina de la TOURADOR renderizada sin «seguro».
 - **Horas:** 1,5.
+## 20-nov-2026 · Bot · Competimotor cotiza con P2 (tarjeta), ofrece P3 y Black Friday con precio tachado (rama `fix/competimotor-precio-p2-black-friday`)
+
+- **Qué (1, P2):** nueva perilla `politica.precioDeCotizacion = "tarjeta"` (solo Competimotor). Al cargar el Excel de
+  Fénix (`normalizarFilaDeCatalogo`, 4.º parámetro) el precio de la llanta es el **Precio B**: precio de hoy, «lista» y
+  mayorista = B, así que la pieza, el PDF, el texto, las 6 cuotas, el guardián y la cotización firmada salen de P2 sin
+  que nadie lo recalcule. Una llanta sin B y C válidos (B > A, bajo el D, C > B) no se cotiza y queda en «descartadas»
+  con su porqué. El bloque «según cómo paga» ya no dice el Precio A: tarjeta = el de hoy, efectivo/transferencia = C
+  (nunca más caro que el de hoy). `buildQuote` arma el total con IVA × cantidad solo en ese modo (por el camino sin
+  IVA 14 de 444 llantas salían un centavo arriba: 4 × $85.99 firmaba $343.97). El vendedor recibe
+  `precio_efectivo_o_transferencia_con_iva` y el Guardián ve tarjeta y efectivo en la fila del catálogo.
+- **Qué (2, Black Friday):** `politica.preciosEspeciales` + `domain/preciosEspeciales.ts`: lista por código con
+  `desde`/`hasta` exactos (hasta el 30-nov-2026 23:59:59 de Ecuador). `syncCatalog` la aplica sobre el catálogo: el
+  de hoy pasa a ser el de la promo y el P2 queda tachado; un temporizador rearma el catálogo en el segundo del cierre.
+  La pieza «día y noche» lleva la franja BLACK FRIDAY · «PRECIO ESPECIAL · −N%» · «Válido hasta el lunes 30 de
+  noviembre» y el total del juego tachado. La lista sale de `scripts/competimotor/black-friday.ts`, que cruza la hoja
+  de Carlos con el inventario (`domain/cruceDePromocion.ts`: medida + marca + cada palabra del modelo, UN artículo o
+  nada). 138 filas → 119 cruzan → 116 se prenden (1 con precio ≥ P2, 2 con más de 40 % de descuento que parecen
+  tipeo); 19 sin cruzar. Informe: `docs/clientes/competimotor-black-friday-2026.md`. IVA: el precio de la lista ya lo
+  trae (si se le sumara, 80 de 119 saldrían más caras que el precio normal en efectivo).
+- **Por qué:** Carlos Romero (Competimotor), 20-nov por WhatsApp: «Corregir PRECIO en cotizaciones: dar precio 2 y
+  cotizar en P2 y P3», y la lista de Black Friday. Manuel: «no hay cómo cagarla con los precios»; rige hasta el lunes
+  30-nov 23:59 y se apaga solo.
+- **Depot: sin cambios.** Todo cuelga de dos campos que su política no tiene (`test/depotPreciosSinCambios.test.ts`).
+  Los 16 hashes del arnés de piezas de Depot salen idénticos en `origin/main` y en esta rama.
+- **Con el #73 (seguimientos sin precio viejo):** el catálogo de hoy ya trae P2/Black Friday, así que una cotización
+  firmada con el Precio A no se repite y una de Black Friday vencida tampoco. Además, en una llanta con Black Friday el
+  P2 es el tachado y deja de contar como precio vigente (`services/precioViejo.ts`): una cotización firmada a P2 antes
+  de la promo no se repite mientras rige (`test/competimotorSeguimientoPrecio.test.ts`). Depot igual.
+- **Encontrado en el simulador:** con dos opciones de Black Friday en la lámina, el quitador de frases repetidas
+  (`estructurarTurno`) borraba el título de la 2.ª («… · Black Friday hasta el lunes 30-nov» las hacía «la misma
+  idea») y quedaba un precio sin su llanta. Ahora cada llanta con promo lleva 🖤 y la vigencia va una vez al pie.
+- **Probado:** `verificar-precios.ts` + `.py` (lee el Excel por su cuenta): 444/444 llantas al centavo (precio, total
+  de 4, 6 cuotas, P3), antes y después del 30-nov. Simulador (perfil mundillantas, INV_NOV.XLS): Townhall 185/65R14
+  Black Friday ($42 × 4 = $168, P2 $49.45 tachado), Kenda KR203 195/65R15 con «¿descuento?» (P2 $93.15 / P3 $83.95) y
+  lámina 265/65R17 con transferencia. Pruebas nuevas: `competimotorPrecioP2`, `competimotorBlackFriday`,
+  `depotPreciosSinCambios`; actualizadas las de precios por pago (el A ya no sale). Suite: fallan solo
+  `hashesPiezasDepot` y `unidadEnLaCantidad`, igual que en main. `sim:humo` y `--perfil ejemplo --humo` ✅.
+- **Horas:** 3.
+## 20-nov-2026 · Bot · El seguimiento no repite el precio viejo ni muestra el «---» (rama `fix/seguimiento-precio-y-guiones`)
+
+- **Qué:** dos pasos nuevos al final de la cadena de salida (`services/prepararSalida.ts`), solo para `seguimiento`:
+  `sin_precio_viejo_de_la_cotizacion` (`domain/precioViejo.ts` + `services/precioViejo.ts`) quita del texto el unitario,
+  la línea y el total de la última cotización del ciclo cuando el precio firmado ya no es ninguno de los de hoy (mínimo
+  y lista del catálogo, y el vivo del Interbot donde lo hay), y deja una alerta `precio_de_cotizacion_cambio` al asesor.
+  Las líneas con promo de la 2.ª llanta y los productos que ya no están en el catálogo no se juzgan.
+  `seguimiento_en_un_solo_mensaje` convierte cada bloque separado por «---» en un párrafo.
+- **Por qué:** prueba de seguimientos ×3 del 20-nov (código de main tras PR #68), caso s12: cotización del jueves
+  4 × KENDA KR203 a $104,65 ($418,60); el Excel del viernes 8 am la pone a $112,99 con 2 en stock. A la 1 pm el
+  Guardián reescribió el seguimiento con «— *$418.60 total*» (1 de 3) y `cerrarConLaAlternativa` le pegó
+  «\n\n---\n\n¿Le muestro las opciones…?» (2 de 3). El turno normal parte el texto por «---» (`index.ts`); el worker
+  de seguimientos lo manda entero, así que el cliente leía la raya. En producción de Competimotor: 0 casos en 7 días.
+- **Probado:** `seguimientoPrecioViejo.test.ts` (12, con el texto exacto que salió), `stockCortoViaja` y
+  `trasPruebasForma` con el orden nuevo, `tsc`, suite completa (fallan solo `hashesPiezasDepot` y
+  `unidadEnLaCantidad`, igual que en main), las cuatro de `CLAUDE.md`. Simulador: s12, s03 y s14 ×3 → 9/9 ($3,88); en
+  esas corridas el Guardián no volvió a escribir el precio, así que el paso del precio no llegó a actuar ahí: lo cubre la
+  prueba unitaria. Antes, en la misma noche: 16 conversaciones de los arreglos ×3 → 48/48 ($4,70) y seguimientos ×3 →
+  41/42.
+- **Horas:** 0,5.
+## 20-nov-2026 · Vendedores · Página aparte para ver las ventas registradas (rama `feat/registros-de-venta-pagina`)
+
+- **Qué:** `GET /venta/registros?k=…` (tabla con todos los registros y resumen) y `/venta/registros.csv` (Excel), con una
+  clave propia del dueño (`claveDeRegistros`, otra derivación de `ADMIN_KEY`): el enlace de los vendedores no la abre.
+  `GET /api/ventas-registradas` devuelve también `enlaceRegistros`.
+- **Por qué:** Manuel, 20-nov: quiere ver lo guardado en una página aparte del dashboard, no en el hub.
+- **Probado:** `registroDeVentas.integration.test.ts` (20: clave separada, tabla completa, HTML escapado, CSV), `tsc`.
+- **Horas:** 0,5.
+## 20-nov-2026 · Vendedores · Página `/venta` para registrar ventas y validar si vinieron de WhatsApp (rama `feat/registro-venta-vendedor`)
+
+- **Qué:** página pública con clave en el enlace (`/venta?k=…`, derivada de `ADMIN_KEY`, sin variable nueva). Paso 1: el
+  vendedor escribe su nombre y el número del cliente; se busca en `conversations` por `tel9` y SIEMPRE se guarda una fila
+  en `ventas_registradas` (migración 035), haya chat o no y aunque el número ya esté registrado ese día (en ese caso avisa
+  quién lo registró primero). «Vino de WhatsApp» = hay chat y el cliente escribió al menos una vez. Paso 2: factura o
+  referencia sobre la misma fila (`POST /venta/factura`). Para el dueño: `GET /api/ventas-registradas` (lista, enlace y
+  `?formato=csv`). Archivos: `server/registroVenta.ts`, `services/registroDeVentas.ts`.
+- **Por qué:** Manuel, 20-nov: puente hasta que podamos leer las facturas, para comprobar rápido si una venta vino de
+  WhatsApp y dejar registro (puede haber un obsequio por la compra).
+- **Probado:** `registroDeVentas.integration.test.ts` (16), `tsc`, `simuladorFidelidad`, `perfilAjeno.*`, los dos pasos en
+  el navegador a tamaño de celular. Suite completa: fallan solo `buscarPorAroCompleto`, `hashesPiezasDepot` y
+  `unidadEnLaCantidad`, igual que en main. `sim:humo` no corrió en el worktree (sin `.env`).
+- **Falta:** pantalla en el hub para ver los registros (hoy solo API/CSV).
+- **Horas:** 1.
 ## 20-nov-2026 · Hub · Para cerrar vacía en negocios de un solo local (rama `fix/para-cerrar-un-solo-local`)
 
 - **Qué:** `services/paraCerrar.ts` — con un solo local (`hayQueElegirLocal` = false, la regla de `tools.ts`) entra todo
@@ -5638,6 +5719,7 @@ Ya viene activado en este equipo.
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
 | 2026-11-20 | _(este mismo)_ | Competimotor: seguro solo Kenda y Falken; «pantanera» = M/T, tipos por nombre, «23575r15», 30X9.5R15 = 235/75R15 | 1,5 |
+| 2026-11-20 | _(este mismo)_ | Competimotor cotiza con P2 y ofrece P3; Black Friday por código con P2 tachado y fin exacto el 30-nov | 3 |
 | 2026-10-21 | _(este mismo)_ | La guía de medida no sale a quien ya escribió la suya aunque el modelo diga que la pidió | 0,5 |
 | 2026-10-21 | _(este mismo)_ | Una sola regla para la ficha: la última medida que el cliente escribe en el mensaje | 1 |
 | 2026-10-21 | _(este mismo)_ | Casos sueltos: fuera de Quito como hecho, equivalencias con carga XL y dirección del ciclo, precio no es medida, «ya compré X, ahora Y» no cierra, el turno ve solo lo suyo | 5 |

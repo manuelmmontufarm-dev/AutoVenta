@@ -506,8 +506,10 @@ const NEGRO_BF = "#0b0b0d";
  */
 function franjaTemporadaDiaNoche(line: PosterLine): SatoriNode | null {
   const bf = line.segundaLlanta;
-  if (!bf) return null;
   const tempo = line.temporada;
+  // Precio especial por código: la llanta entera va rebajada (no la 2.ª).
+  const especial = !bf && tempo?.precioEspecial ? porcentaje(line) : null;
+  if (!bf && especial === null) return null;
   return el({
     position: "relative", overflow: "hidden", alignItems: "center", justifyContent: "space-between", marginTop: 14,
     padding: "11px 16px 11px 14px", borderRadius: 12, backgroundColor: NEGRO_BF, border: `1px solid ${ORO}`,
@@ -521,13 +523,14 @@ function franjaTemporadaDiaNoche(line: PosterLine): SatoriNode | null {
         el({ width: 4, height: 22, backgroundColor: ORO, transform: "skewX(-22deg)" }),
       ),
       text({ ...ANCHO(900), fontSize: 22, lineHeight: 1, letterSpacing: -0.3, color: "#ffffff", whiteSpace: "nowrap" },
-        (tempo?.nombre ?? bf.nombre).toUpperCase()),
+        (tempo?.nombre ?? bf?.nombre ?? "").toUpperCase()),
       tempo?.bajada
         ? text({ ...ANCHO(800), fontSize: 13, lineHeight: 1, color: ORO, whiteSpace: "nowrap" }, `· ${tempo.bajada}`)
         : null,
     ),
     el({ flexDirection: "column", alignItems: "flex-end", gap: 3 },
-      text({ ...ANCHO(900), fontSize: 12.5, lineHeight: 1, color: ORO, whiteSpace: "nowrap" }, `−${bf.porcentaje}% EN CADA 2.ª LLANTA`),
+      text({ ...ANCHO(900), fontSize: 12.5, lineHeight: 1, color: ORO, whiteSpace: "nowrap" },
+        bf ? `−${bf.porcentaje}% EN CADA 2.ª LLANTA` : `PRECIO ESPECIAL · −${especial}%`),
       tempo?.hasta
         ? text({ ...BARLOW(500), fontSize: 8.5, lineHeight: 1, color: "#c9c9cf", whiteSpace: "nowrap" }, `Válido hasta el ${tempo.hasta}`)
         : null,
@@ -1043,7 +1046,7 @@ export function quotePosterDiaNoche(data: QuoteDiaNocheData, modo: ModoPieza): S
       ),
     ),
 
-    bf ? franjaTemporadaDiaNoche(line) : null,
+    bf || line.temporada?.precioEspecial ? franjaTemporadaDiaNoche(line) : null,
 
     // Héroe
     el({
@@ -1144,7 +1147,14 @@ export function quotePosterDiaNoche(data: QuoteDiaNocheData, modo: ModoPieza): S
           text({ ...CHAKRA(700), fontSize: 10.5, letterSpacing: 1.7, color: "rgba(255,255,255,0.9)" }, "TOTAL"),
           pildoraCantidad(17, 10, { backgroundColor: "#ffffff", padding: "2px 11px 2px 9px" }, "#c81e24"),
         ),
-        text({ ...ANCHO(800), fontSize: cuerpoQueCabe(total, 48, 278), lineHeight: 1, marginTop: 10, letterSpacing: -0.5, color: "#ffffff" }, total),
+        // Precio especial por código: el juego a precio normal, tachado, sobre el total.
+        !bf && line.temporada?.precioEspecial && pct !== null && line.pvpConIva
+          ? el({ alignItems: "center", gap: 7, marginTop: 8 },
+              text({ ...CHAKRA(700), fontSize: 8, letterSpacing: 1.6, color: "rgba(255,255,255,0.8)" }, "ANTES"),
+              text({ ...ARCHIVO, fontSize: 15, color: "rgba(255,255,255,0.85)", textDecoration: "line-through" }, dinero(line.pvpConIva * n)),
+            )
+          : null,
+        text({ ...ANCHO(800), fontSize: cuerpoQueCabe(total, 48, 278), lineHeight: 1, marginTop: !bf && line.temporada?.precioEspecial && pct !== null ? 4 : 10, letterSpacing: -0.5, color: "#ffffff" }, total),
         bf
           ? text({ ...BARLOW(700), fontSize: 10, marginTop: 8, color: "#ffffff" },
               `Ahorra ${dinero(ahorro)} en ${n === 1 ? "su llanta" : "el juego completo"}`)
