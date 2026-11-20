@@ -229,8 +229,12 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   // El mensaje de este turno ya está guardado con su hecho `medida_escrita`
   // (familia 3, 19-oct): no se vuelve a leer aquí con otro lector.
   ctx.medidaSinConfirmar = salesFacts.medidaConfirmadaPorCliente === false && !salesFacts.aroDelCliente;
-  const hechoDeMedidaInferida = ctx.medidaSinConfirmar && (salesFacts.vehicle || !salesFacts.tireSize)
-    ? "MEDIDA NO CONFIRMADA POR EL CLIENTE: el cliente no ha escrito ninguna medida completa ni mandado foto del costado; toda medida en juego la dedujo el bot por el vehículo o por el aro. Puedes mostrar opciones (son «las que más se usan en su vehículo»), pero PROHIBIDO llamar generar_cotizacion: el cierre pide la medida escrita del filo de la llanta (ej. 225/65R17) o una foto del costado. Con ella, buscar_llanta y ahí sí cotizas."
+  // EL HECHO SIGUE AL CANDADO (simulador Competimotor 18-nov, CM26): con la
+  // ficha llena y sin vehículo registrado (fitment apagado: el modelo adivinó
+  // la 185/60R14), el candado de generar_cotizacion estaba puesto pero el bot no
+  // lo sabía; intentaba cotizar y parafraseaba el error al cliente.
+  const hechoDeMedidaInferida = ctx.medidaSinConfirmar
+    ? "MEDIDA NO CONFIRMADA POR EL CLIENTE: el cliente no ha escrito ninguna medida completa ni mandado foto del costado; toda medida en juego la dedujo el bot por el vehículo o por el aro. Puedes mostrar opciones (son «las que más se usan en su vehículo»), pero PROHIBIDO llamar generar_cotizacion: el cierre pide la medida escrita del filo de la llanta (ej. 225/65R17) o una foto del costado. Con ella, buscar_llanta y ahí sí cotizas. Nunca le cuentes al cliente que algo «se bloqueó» ni lo que «pide el sistema»."
     : null;
   // MEDIA MEDIDA: SE PIDE LA MITAD QUE FALTA, NO LA MEDIDA ENTERA.
   //

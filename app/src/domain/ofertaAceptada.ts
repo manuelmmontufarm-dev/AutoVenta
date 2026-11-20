@@ -419,6 +419,8 @@ export function menuDeCotizarAbierto(historial: readonly { role: string; content
 /**
  * Un sí a la oferta de UNA llanta: el acuse, y además «las 4», «el juego»,
  * «esa» — el cliente que compra por juego contesta así (conv 23580, chat 21710).
+ * «Ok esa, 4» también (simulador Competimotor 18-nov, CM27): la cantidad pegada
+ * al «esa» no la vuelve otra cosa, y sin esto el bot repreguntaba «¿Se la cotizo?».
  * Es la lectura que comparten `ofertaDeCotizacionAceptada`, el candado de marca
  * y el de la equivalente de `generar_cotizacion`.
  */
@@ -426,7 +428,7 @@ export function respondeQueSi(mensajeDelCliente: string): boolean {
   if (esAcuseSimple(mensajeDelCliente)) return true;
   if (siConPedidoDeCotizar(mensajeDelCliente)) return true;
   const n = normalizar(mensajeDelCliente).replace(/[.,!¡]/g, " ").replace(/\s+/g, " ").trim();
-  return /^(?:(?:si|ok|dale|listo|claro)\s+)?(?:el\s+juego(?:\s+(?:de\s+)?(?:4|cuatro))?|las\s+(?:4|cuatro)|esa|esa\s+mism[ao]|ese|ese\s+mism[ao])(?:\s+(?:necesito|quiero|por\s+favor|porfa|gracias))*$/.test(n);
+  return /^(?:(?:si|ok|dale|listo|claro)\s+)?(?:el\s+juego(?:\s+(?:de\s+)?(?:4|cuatro))?|las\s+(?:4|cuatro)|esa|esa\s+mism[ao]|ese|ese\s+mism[ao])(?:\s+(?:[1-8]|dos|tres|cuatro|cinco|seis|siete|ocho)(?:\s+llantas?)?)?(?:\s+(?:necesito|quiero|por\s+favor|porfa|gracias))*$/.test(n);
 }
 
 /**

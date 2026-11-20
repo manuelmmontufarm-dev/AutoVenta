@@ -98,7 +98,7 @@ import { CAMPO_EQUIVALENTES, equivalentesAMostrar, reglaDeMostrarEquivalentes } 
 import { extractFlotationSizes, extractTireSizes, formatFlotationSize, formatTireSize, parseTireSize, type TireSize, type FlotationSize, flotacionIncompleta, medidaGuardable } from "../domain/tireSize.js";
 import { marcaPreguntada, pidioCotizacionExplicita, ultimaMarcaPedida } from "../domain/consultaConRespaldo.js";
 import { armarLista, ordenDeLaLista, confirmacionDeLaOpcion, opcionPorPosicion, posicionElegida, preguntaDeLaLista, MAX_NUMERADA } from "../domain/listaDeOpciones.js";
-import { escalonesDelConjunto, recomendacionDeLaMedida, type ModoDeRecomendacion } from "../domain/recomendacionPorMarca.js";
+import { escalonesDelConjunto, marcaNombradaEnLaMedida, marcasRechazadas, recomendacionDeLaMedida, type ModoDeRecomendacion } from "../domain/recomendacionPorMarca.js";
 import { cotizarLaUnicaDeUnaVez, ultimoTurnoDelBot } from "../domain/cotizarLaUnica.js";
 import { consienteEsta, type OfertaDeCotizar } from "../domain/ofertaVigente.js";
 import { leerOfertaVigente } from "../services/ofertaVigente.js";
@@ -1018,7 +1018,23 @@ export function buildTools(ctx: AgentContext) {
     const regla = politica.recomendacionPorMarca;
     if (!regla || !vendibles.length) return null;
     const { vistos, enPantalla } = await laminasDeLaMedida(medida);
-    const r = recomendacionDeLaMedida(vendibles, regla, { texto: ctx.currentUserText, yaMostrados: vistos });
+    // Lo que rechazó en esta visita no vuelve, salvo que lo pida por su nombre
+    // (simulador Competimotor 18-nov, CM27). Ver `marcasRechazadas`.
+    const entrantesDeLaVisita = await sql<{ content: string | null }[]>`
+      select content from messages
+      where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
+        and direction='inbound'
+      order by created_at desc limit 20
+    `;
+    const rechazadas = marcasRechazadas(
+      [ctx.currentUserText, ...entrantesDeLaVisita.map((m) => m.content)], vendibles,
+    );
+    const pidioPorNombre = marcaNombradaEnLaMedida(ctx.currentUserText, vendibles);
+    const sinRechazadas = rechazadas.size
+      ? vendibles.filter((p) => !rechazadas.has(p.brand.trim().toUpperCase()) || p.brand.trim().toUpperCase() === pidioPorNombre)
+      : vendibles;
+    const aMostrar = sinRechazadas.length ? sinRechazadas : vendibles;
+    const r = recomendacionDeLaMedida(aMostrar, regla, { texto: ctx.currentUserText, yaMostrados: vistos });
     if (r.modo === "primera" && enPantalla.length) {
       const siguen = enPantalla.map((c) => vendibles.find((p) => p.code === c)).filter((p): p is CatalogItem => Boolean(p));
       if (siguen.length === enPantalla.length) return { modo: "en_pantalla", opciones: siguen, vistos };
@@ -2516,12 +2532,19 @@ export function buildTools(ctx: AgentContext) {
       // 215/65R16): el cliente ya vio otras y está mirando, no eligió. Cotizarla
       // de una por el «cuánto cuestan» del primer mensaje le firmaba una llanta
       // que nunca pidió. Se le muestra y se le pregunta.
+      const codigosDistintos = [...new Set(
+        Object.values(escalones).map((e) => e?.codigo).filter(Boolean),
+      )] as string[];
+      const laUnica = codigosDistintos.length === 1
+        ? products.find((p) => p.code === codigosDistintos[0])
+        : undefined;
       const unicaConPrecioPedido = porMarca?.modo !== "mas" && cotizarLaUnicaDeUnaVez({
-        opcionesDistintas: new Set(
-          Object.values(escalones).map((e) => e?.codigo).filter(Boolean),
-        ).size,
+        opcionesDistintas: codigosDistintos.length,
         textosDelCliente: [ctx.currentUserText, ...mensajesDeLaVisitaActual(inbound).map((m) => m.content)],
         medidaSinConfirmar: Boolean(ctx.medidaSinConfirmar),
+        opcion: laUnica
+          ? { codigo: laUnica.code, marca: laUnica.brand, diseno: laUnica.design, medida: laUnica.sizeLabel }
+          : null,
       });
       const entregarRecomendacion =
         pidioCotizacionExplicita(ctx.currentUserText) ||

@@ -55,6 +55,7 @@ import {
   RESPUESTA_SEGURA_SOBRE_ACEITE,
 } from "../domain/alcanceComercial.js";
 import { sinJsonCrudo } from "../domain/jsonCrudo.js";
+import { sinTrastienda } from "../domain/sinTrastienda.js";
 import { conLocalesReales } from "./localesReales.js";
 import { sql } from "../db/client.js";
 import { respuestaDeUbicacionFueraDeCobertura, respuestaFijaFueraDeCobertura, sinVisitaNiMapas } from "../domain/visitaImposible.js";
@@ -199,6 +200,12 @@ export interface ContextoDeSalida {
    * actualizan; quien guarda el saliente la usa para el hecho (`services/ofertaVigente.ts`).
    */
   ofertaDelTurno?: OfertaDeCotizar | null;
+  /**
+   * El candado de `generar_cotizacion` está puesto: la medida en juego la dedujo
+   * el bot (`ctx.medidaSinConfirmar` del agente). El Guardián recibe el MISMO
+   * hecho que el candado (simulador Competimotor 18-nov, CM26).
+   */
+  medidaSinConfirmar?: boolean;
 }
 
 export interface PasoDeSalida {
@@ -354,6 +361,7 @@ export const PASOS: readonly PasoDeSalida[] = [
             ? { avisoRegistrado: await avisoRegistradoEnElTurno(ctx.conversation.id, ctx.inicioDelTurno, ctx.huella ?? []) }
             : {}),
           ofertaDelTurno: ctx.ofertaDelTurno ?? null,
+          ...(ctx.medidaSinConfirmar !== undefined ? { medidaSinConfirmar: ctx.medidaSinConfirmar } : {}),
         },
       );
       ctx.hallazgosDelGuardian = revision.hallazgos;
@@ -887,6 +895,32 @@ export const PASOS: readonly PasoDeSalida[] = [
           exactReason: limpio.quitados.join(" | ").slice(0, 500),
           suggestedAction: "Revisá el turno: el modelo devolvió el resultado de una herramienta como respuesta.",
           dedupeKey: `json_crudo:${ctx.conversation.id}:${ctx.conversation.current_cycle}`,
+        });
+      }
+      return limpio.texto;
+    },
+  },
+  {
+    // La trastienda tampoco (simulador Competimotor 18-nov, CM26): «La
+    // cotización se bloqueó porque el sistema pide…» salió aprobada por el
+    // Guardián. Misma familia que el JSON crudo. Ver domain/sinTrastienda.ts.
+    nombre: "sin_trastienda",
+    corre: ["respuesta", "retomada", "seguimiento"],
+    async aplicar(texto, ctx) {
+      const limpio = sinTrastienda(texto);
+      if (limpio.quitadas.length) {
+        console.warn(
+          `✂️ Trastienda quitada en la conv ${ctx.conversation.id}: ${limpio.quitadas.join(" | ").slice(0, 300)}`,
+        );
+        await createBotAlert({
+          conversationId: ctx.conversation.id,
+          cycle: ctx.conversation.current_cycle,
+          type: "json_crudo",
+          priority: "high",
+          summary: "El bot casi le cuenta al cliente cómo funciona por dentro (una herramienta bloqueada)",
+          exactReason: limpio.quitadas.join(" | ").slice(0, 500),
+          suggestedAction: "Revisá el turno: el modelo parafraseó el error de una herramienta como respuesta.",
+          dedupeKey: `trastienda:${ctx.conversation.id}:${ctx.conversation.current_cycle}`,
         });
       }
       return limpio.texto;

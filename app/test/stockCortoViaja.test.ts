@@ -183,6 +183,8 @@ describe("el orden de los candados en el turno", () => {
       // de auto… envíeme una foto» a quien ya la había escrito.
       "la_medida_del_cliente_no_se_cuestiona",
       "sin_json_crudo",
+      // Simulador Competimotor 18-nov (CM26): la trastienda parafraseada.
+      "sin_trastienda",
       "sin_locales_inventados",
       // Corrida 3 (auditoría 2-6 sep): el bot no da su propio número, los
       // mapas solo salen del bloque canónico y el menú de prioridad no se

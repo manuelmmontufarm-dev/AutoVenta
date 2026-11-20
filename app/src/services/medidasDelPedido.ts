@@ -153,8 +153,8 @@ export async function anotarMedidasEscritas(
   conversationId: number,
   cycle: number,
 ): Promise<{ anotadas: string[]; paraLaFicha: string | null }> {
-  const sinHecho = await sql<{ id: number; content: string | null; created_at: Date }[]>`
-    select id, content, created_at from messages
+  const sinHecho = await sql<{ id: number; content: string | null; created_at: Date; anuncio?: { titulo?: string | null; texto?: string | null } | null }[]>`
+    select id, content, created_at, metadata->'anuncio' as anuncio from messages
     where conversation_id=${conversationId} and cycle=${cycle}
       and direction='inbound' ${soloLoDelTurno()} and author_kind='customer'
       and not (metadata ? ${CLAVE_MEDIDA_ESCRITA})
@@ -169,8 +169,20 @@ export async function anotarMedidasEscritas(
     order by created_at desc limit 1
   `;
   const anotados: { medidas: string[]; created_at: Date }[] = [];
+  let delAnuncio: string | null = null;
   for (const fila of sinHecho) {
-    const medidas = medidasParaElHecho(fila.content);
+    // EL ANUNCIO DE UNA MEDIDA ES LA MEDIDA DEL CLIENTE (simulador
+    // Competimotor, 18-nov, CM34): llega desde «215/65 R16 desde $69,99» con
+    // «hola info de este precio» y dice «si 4 de esas». El cliente eligió esa
+    // medida al tocar el anuncio; sin esto quedaba «deducida por el bot» y la
+    // cotización se bloqueaba pidiéndole «la medida del filo de la llanta». Lo
+    // que él escriba en el mensaje manda; el anuncio solo si su texto no trae.
+    const propias = medidasParaElHecho(fila.content);
+    const medidas = propias.length || !fila.anuncio
+      ? propias
+      : medidasParaElHecho([fila.anuncio.titulo, fila.anuncio.texto].filter(Boolean).join(" "));
+    if (!propias.length && medidas.length) delAnuncio = medidas.at(-1) ?? null;
+    else if (propias.length) delAnuncio = null; // lo que escribió después manda
     anotados.push({ medidas, created_at: fila.created_at });
     await sql`
       update messages
@@ -180,6 +192,11 @@ export async function anotarMedidasEscritas(
   }
   return {
     anotadas: anotados.flatMap((m) => m.medidas),
-    paraLaFicha: medidaNuevaParaLaFicha(anotados, saliente?.created_at ?? null),
+    // El saludo fijo del anuncio sale ANTES de que corra el agente, así que el
+    // mensaje del anuncio ya queda «antes del último saliente» y la regla de
+    // arriba no lo deja llegar a la ficha (CM34 r1: cotizó la 215/65R16 con la
+    // ficha vacía). La medida del anuncio solo se anota una vez, en el turno en
+    // que llegó: ahí sí va a la ficha.
+    paraLaFicha: medidaNuevaParaLaFicha(anotados, saliente?.created_at ?? null) ?? delAnuncio,
   };
 }

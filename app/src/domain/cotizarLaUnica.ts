@@ -19,7 +19,8 @@
  * Puro a propósito: se prueba sin base y sin modelo.
  */
 
-import { pidioPrecioOCotizacion } from "./salesIntent.js";
+import { hasExplicitQuantity, pidioPrecioOCotizacion } from "./salesIntent.js";
+import { eleccionDeLaVitrina, type OpcionDeVitrina } from "./eleccionDeVitrina.js";
 
 export function cotizarLaUnicaDeUnaVez(input: {
   /** Cuántas llantas DISTINTAS ofrece la pieza (tres escalones con el mismo código son una). */
@@ -28,9 +29,23 @@ export function cotizarLaUnicaDeUnaVez(input: {
   textosDelCliente: readonly string[];
   /** La medida la dedujo el bot: sin la del cliente no se cotiza. */
   medidaSinConfirmar: boolean;
+  /** La única llanta que ofrece la pieza (para reconocer que el cliente ya la nombró). */
+  opcion?: OpcionDeVitrina | null;
 }): boolean {
   if (input.medidaSinConfirmar || input.opcionesDistintas !== 1) return false;
-  return input.textosDelCliente.some((texto) => pidioPrecioOCotizacion(texto ?? ""));
+  const textos = input.textosDelCliente.map((t) => t ?? "");
+  if (textos.some((texto) => pidioPrecioOCotizacion(texto))) return true;
+  // CANTIDAD + LA LLANTA NOMBRADA TAMBIÉN ES PEDIRLA (simulador Competimotor,
+  // 18-nov, CM36): «205 55 16» / «quiero 2» / «la kenda» con una sola Kenda
+  // salía «Es la única que tengo… ¿Se la cotizo?», y con «me cotiza» en el mismo
+  // mensaje (CM32) se cotizaba directo. Elegir ES pedir la cotización (Manuel,
+  // 1 y 7-sep, `eleccionDeVitrina.ts`): con la cantidad dicha y la única
+  // llanta nombrada por su marca o su diseño, no queda nada que preguntar.
+  const opcion = input.opcion;
+  if (!opcion) return false;
+  const conCantidad = textos.some((t) => hasExplicitQuantity(t)) || hasExplicitQuantity(textos.join("\n"));
+  if (!conCantidad) return false;
+  return [...textos, textos.join("\n")].some((t) => eleccionDeLaVitrina(t, [opcion])?.tipo === "una");
 }
 
 /**

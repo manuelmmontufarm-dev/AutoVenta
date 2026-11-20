@@ -201,3 +201,44 @@ describe("preparar_opciones arma la lámina con la regla, mande lo que mande el 
     expect(marcasDe(codigosDeLaPieza(salida, "205/55R16"))).toEqual(["MAXXIS"]);
   });
 });
+
+describe("una sola llanta, con cantidad y marca dichas: se cotiza igual que con «me cotiza» (simulador Competimotor 18-nov, CM36 vs CM32)", () => {
+  it("CM36 · «205 55 16» / «quiero 2» / «la kenda» (una ráfaga): cotiza la KENDA KR20 directo", async () => {
+    entrantes = ["205 55 16\nquiero 2\nla kenda"];
+    const salida = await prepararOpciones("205 55 16\nquiero 2\nla kenda", ["A0230"]);
+    expect(codigosDeLaPieza()).toEqual(["A0230"]);
+    expect(salida.unica_cotizada_directo).toBe(true);
+    expect(salida.recomendacion_entregada).toBe(true);
+  });
+
+  it("CM32 (control) · todo en un mensaje con «me cotiza»: cotiza la MAXXIS directo, como antes", async () => {
+    const texto = "hola necesito 4 llantas 205 55 16 maxxis, me cotiza y paso el sabado a las 10 a su local";
+    entrantes = [texto];
+    const salida = await prepararOpciones(texto, ["A0353"]);
+    expect(salida.unica_cotizada_directo).toBe(true);
+  });
+
+  it("solo la medida y la marca, sin cantidad («205 55 16 la kenda»): se muestra y se pregunta", async () => {
+    entrantes = ["205 55 16 la kenda"];
+    const salida = await prepararOpciones("205 55 16 la kenda", ["A0230"]);
+    expect(salida.unica_cotizada_directo).toBe(false);
+  });
+});
+
+describe("la marca rechazada no vuelve en «más modelos» (simulador Competimotor 18-nov, CM27)", () => {
+  it("«no quiero haida, se me gastaron rapido» y luego «mas modelos» en 205/55R16: ninguna HAIDA en la lámina nueva", async () => {
+    piezasPrevias = [{ codes: ["A0534", "A0230", "A0481"], sizeLabel: "205/55R16" }];
+    entrantes = ["mas modelos", "no quiero haida, se me gastaron rapido", "205 55 16"];
+    await prepararOpciones("mas modelos", ["A0129"]);
+    const enPantalla = codigosDeLaPieza();
+    expect(enPantalla.length).toBeGreaterThan(0);
+    expect(marcasDe(enPantalla)).not.toContain("HAIDA");
+  });
+
+  it("si la vuelve a pedir por su nombre, sí sale", async () => {
+    piezasPrevias = [{ codes: ["A0534", "A0230", "A0481"], sizeLabel: "205/55R16" }];
+    entrantes = ["bueno y la haida cuanto", "no quiero haida", "205 55 16"];
+    await prepararOpciones("bueno y la haida cuanto", ["A0129"]);
+    expect(marcasDe(codigosDeLaPieza())).toContain("HAIDA");
+  });
+});

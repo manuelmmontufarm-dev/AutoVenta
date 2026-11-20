@@ -398,6 +398,13 @@ export interface OpcionesRevision {
    * sin tener que leer la huella de la herramienta.
    */
   ofertaDelTurno?: OfertaDeCotizar | null;
+  /**
+   * El candado de la medida del agente (`ctx.medidaSinConfirmar`). Cuando la
+   * puerta lo trae, ESE es el hecho «MEDIDA NO CONFIRMADA»: sin él, el revisor
+   * solo lo veía con un vehículo registrado y aprobó «La cotización se bloqueó
+   * porque el sistema pide…» (simulador Competimotor 18-nov, CM26).
+   */
+  medidaSinConfirmar?: boolean;
 }
 
 type RespuestaOpenAI = OpenAI.Chat.Completions.ChatCompletion;
@@ -780,10 +787,10 @@ export async function armarContexto(
     // vehículo o del aro, no del cliente. Misma función que el candado de
     // `generar_cotizacion` (domain/medidaConfirmada), sobre los mensajes del
     // cliente de este ciclo.
-    hechos?.vehicle
+    (opciones.medidaSinConfirmar ?? (hechos?.vehicle
       && !clienteDioSuMedida(hechos.tire_size, [...mensajes.filter((m) => m.direction === "inbound").map((m) => m.content), ...entrantesDeLaVisita])
-      && !aroDadoPorElCliente(mensajes.filter((m) => m.direction === "inbound").map((m) => m.content))
-      ? "MEDIDA NO CONFIRMADA POR EL CLIENTE: el vehículo está registrado pero el cliente no escribió ninguna medida completa ni mandó foto en esta visita. Toda medida en juego la dedujo el bot. Opciones sí; cotización no; el cierre pide la medida."
+      && !aroDadoPorElCliente(mensajes.filter((m) => m.direction === "inbound").map((m) => m.content))))
+      ? "MEDIDA NO CONFIRMADA POR EL CLIENTE: el cliente no escribió ninguna medida completa ni mandó foto en esta visita. Toda medida en juego la dedujo el bot. Opciones sí; cotización no; el cierre pide la medida (UNA vez, nombrando la medida que se le mostró). Contarle al cliente que «la cotización se bloqueó» o que «el sistema pide» algo es **otro** ALTA: es la trastienda."
       : null,
     // HECHO DURO (simulador, 12-sep): media medida en pulgadas. A «MT 30.5 r15»
     // el revisor, con la regla 21 («no se esconde»), agregó KR29 en 235/75R15

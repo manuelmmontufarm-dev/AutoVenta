@@ -638,6 +638,18 @@ export function extractExplicitQuantity(text: string): number | null {
   // la autorización caía y el candado bloqueó una cotización legítima.
   const aSecas = normalized.match(/^(?:solo|solamente|unicamente|nomas|no\s+mas)\s+([1-8]|un|uno|una|dos|tres|cuatro|cinco|seis|siete|ocho)$/);
   if (aSecas) return /^\d$/.test(aSecas[1]) ? Number(aSecas[1]) : words[aSecas[1]] ?? null;
+  // «OK ESA, 4» (simulador Competimotor 18-nov, CM27): el sí a la oferta con la
+  // cantidad pegada. Solo el pronombre y el número, nada más en el mensaje.
+  const conEsa = normalized.match(/^(?:(?:si|ok|dale|listo|claro)\s+)?(?:esa|ese|esas|esos)(?:\s+mism[ao]s?)?\s+([1-8]|dos|tres|cuatro|cinco|seis|siete|ocho)(?:\s+llantas?)?$/);
+  if (conEsa) return /^\d$/.test(conEsa[1]) ? Number(conEsa[1]) : words[conEsa[1]] ?? null;
+  // «MEJOR SOLO 2 X AHORA» EN SU PROPIA LÍNEA (simulador Competimotor 18-nov,
+  // CM09): el agrupador pega «dale» detrás con «\n» y el «solo 2» quedaba en
+  // medio del texto, sin borde ni verbo: la cantidad nunca se leía y la
+  // cotización de 4 seguía vigente. Cada línea es un mensaje del cliente.
+  for (const linea of text.split(/\r?\n/).map((l) => sinLoQueCuentaOtraCosa(normalize(l)))) {
+    const soloN = linea.match(/^(?:(?:mejor|entonces|no|ok|bueno)\s+)*(?:solo|solamente|unicamente|nomas|no\s+mas)\s+([1-8]|un|uno|una|dos|tres|cuatro|cinco|seis|siete|ocho)(?:\s+(?:llantas?|unidades?))?(?:\s+(?:por|x)\s+(?:ahora|ahorita|el\s+momento|hoy)|\s+nomas|\s+mejor)?$/);
+    if (soloN) return /^\d$/.test(soloN[1]) ? Number(soloN[1]) : words[soloN[1]] ?? null;
+  }
   if (juego) return 4;
   // UN NÚMERO AL FINAL, CUANDO EL MENSAJE HABLA DE CUÁNTAS.
   //

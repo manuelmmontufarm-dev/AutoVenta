@@ -211,3 +211,29 @@ describe("seguimiento de la única cuando el cliente ya pidió el precio", () =>
     expect(texto).toMatch(/¿se la cotizo\?/i);
   });
 });
+
+describe("cantidad + la única llanta nombrada también autoriza (simulador Competimotor 18-nov, CM36)", () => {
+  const kenda = { codigo: "A0230", marca: "KENDA", diseno: "KR20", medida: "205/55R16" };
+  const base = { opcionesDistintas: 1, medidaSinConfirmar: false, opcion: kenda };
+
+  it("«205 55 16» / «quiero 2» / «la kenda» agrupados: cotiza", () => {
+    expect(cotizarLaUnicaDeUnaVez({ ...base, textosDelCliente: ["205 55 16\nquiero 2\nla kenda"] })).toBe(true);
+  });
+
+  it("en mensajes separados de la visita: cotiza", () => {
+    expect(cotizarLaUnicaDeUnaVez({ ...base, textosDelCliente: ["la kenda", "quiero 2", "205 55 16"] })).toBe(true);
+  });
+
+  it("la medida sola, o la marca sin cantidad: no", () => {
+    expect(cotizarLaUnicaDeUnaVez({ ...base, textosDelCliente: ["205 55 16"] })).toBe(false);
+    expect(cotizarLaUnicaDeUnaVez({ ...base, textosDelCliente: ["205 55 16 la kenda"] })).toBe(false);
+  });
+
+  it("cantidad con OTRA marca nombrada: no", () => {
+    expect(cotizarLaUnicaDeUnaVez({ ...base, textosDelCliente: ["quiero 2 la maxxis"] })).toBe(false);
+  });
+
+  it("con la medida sin confirmar: nunca", () => {
+    expect(cotizarLaUnicaDeUnaVez({ ...base, medidaSinConfirmar: true, textosDelCliente: ["quiero 2 la kenda"] })).toBe(false);
+  });
+});

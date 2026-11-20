@@ -1,3 +1,29 @@
+## 19-nov-2026 · Bot · Competimotor 40 × 3, familia B: se trababa antes de cotizar (rama `fix/competimotor-conversaciones`)
+
+- **Qué:** (1) **CM36** · con UNA sola llanta posible, la cantidad dicha y la llanta nombrada («205 55 16 / quiero 2 / la
+  kenda») autorizan cotizar igual que «me cotiza» (`cotizarLaUnica.ts`, la fuente única): antes salía «¿Se la cotizo?» y con
+  «me cotiza» (CM32) cotizaba directo. (2) **CM27** · «ok esa, 4» es el sí a la oferta de una llanta con su cantidad
+  (`respondeQueSi`, `extractExplicitQuantity`); el clasificador ya no pone `cotizacion_enviada` sin una cotización del ciclo
+  (r1 y r2 quedaban así con 0 cotizaciones); la marca rechazada en la visita («no quiero haida») no vuelve en la lámina de
+  «más modelos» que arma la regla por marca (`marcasRechazadas`), salvo que la pida por su nombre. (3) **CM34** · la medida de
+  un anuncio («215/65 R16 desde $69,99») cuenta como la medida del cliente en el hecho `medida_escrita` y va a la ficha
+  (antes: «necesito la medida del filo de la llanta»). (4) **CM26** · nuevo candado `sin_trastienda` después del Guardián
+  (la oración «la cotización se bloqueó porque el sistema pide…» se cae y queda la pregunta); el hecho «MEDIDA NO
+  CONFIRMADA» sigue al candado de `generar_cotizacion` en el agente y en el Guardián (antes solo con vehículo registrado,
+  y con fitment apagado el bot no sabía que no podía cotizar). Además, «solo N» en su propia línea («mejor solo 2 x ahora»)
+  se lee como cantidad (lo usa CM09, familia A).
+- **Por qué:** prueba del 18-nov: CM26, CM27, CM34 y CM36 fallaban 3/3.
+- **Depot:** todo es código común. Cambia para Depot lo mismo que para Competimotor: cotiza directo con una sola llanta,
+  cantidad y marca; «ok esa, 4» cotiza; la trastienda se cae; el Guardián recibe «MEDIDA NO CONFIRMADA» también sin
+  vehículo (texto del hecho actualizado). La regla por marca no corre en Depot. Ningún texto aprobado cambia.
+- **Escenarios corregidos** (`datos/`, fuera de git): CM26 ya no exige cotización (la regla del 1-sep no deja cotizar la
+  medida deducida del vehículo y nadie escribe una); CM34 suma «la 1» (con dos opciones, «de esas» no elige).
+- **Probado:** `cotizarLaUnica`, `recomendacionPorMarca.herramientas`, `prueba40.cotizar`, `familia3AnotarMedida`,
+  `sinTrastienda`, `clasificadorCotizacionSinCotizar.integration`, `medidaSinConfirmarGuardian.integration` (todas en rojo
+  antes del arreglo), suite completa (solo los 3 que ya fallan en `main`). Simulador: CM26 3/3, CM36 3/3, y tras el segundo
+  arreglo CM27 3/3 y CM34 3/3. **No probado** en WhatsApp real.
+- **Horas:** 1,5.
+
 ## 19-nov-2026 · Simulador · la flota de Competimotor y los seguimientos, versionados (rama `fix/competimotor-conversaciones`)
 
 - **Qué:** `competimotor-flota.mjs` (40 conversaciones difíciles en N simuladores, modalidad rápida, etapa/completa/tiempo),

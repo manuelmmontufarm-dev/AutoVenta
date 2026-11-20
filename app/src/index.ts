@@ -545,6 +545,7 @@ async function atenderTurno(
     consultaFueraDeCatalogo: agentContext.consultaFueraDeCatalogo,
     // Lo que la puerta ya sabe que ofreció (la equivalente, el menú, «¿Cuál…?»).
     ofertaDelTurno: agentContext.ofertaDelTurno ?? null,
+    medidaSinConfirmar: agentContext.medidaSinConfirmar,
   };
   const salida = await prepararSalida(reply, contextoDeSalida);
   if (!salida.texto) return;

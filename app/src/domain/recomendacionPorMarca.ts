@@ -120,6 +120,35 @@ export function marcaNombradaEnLaMedida(texto: string | null | undefined, produc
 }
 
 /**
+ * LAS MARCAS QUE EL CLIENTE RECHAZÓ EN ESTA VISITA (simulador Competimotor,
+ * 18-nov, CM27): «no quiero haida, se me gastaron rapido» y después «mas
+ * modelos» → la lámina nueva la arma esta regla y traía la HAIDA RUNSPIRIT; el
+ * Guardián lo marcó `insiste_tras_rechazo` en las tres corridas. Lo rechazado
+ * no se vuelve a ofrecer, salvo que el cliente la pida de nuevo con su nombre.
+ * Lista cerrada de formas de decir que no, cada una de un mensaje real.
+ */
+export function marcasRechazadas(
+  textosDelCliente: readonly (string | null | undefined)[],
+  productos: readonly { brand: string }[],
+): Set<string> {
+  const marcas = [...new Set(productos.map(marcaDe).filter(Boolean))];
+  const rechazadas = new Set<string>();
+  for (const texto of textosDelCliente) {
+    const t = (texto ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ");
+    for (const m of marcas) {
+      const marca = m.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+      if (!marca) continue;
+      const antes = new RegExp(
+        `\\b(?:no\\s+(?:quiero|deseo|me\\s+gusta\\w*|me\\s+sirve\\w*|me\\s+interesa\\w*|me\\s+ofrezca\\w*|me\\s+de\\w*)|nada\\s+de|menos)\\s+(?:(?:la|las|el|los|una|unas|esa|esas)\\s+)?(?:marca\\s+)?${marca}\\b`,
+      );
+      const despues = new RegExp(`\\b${marca}\\s+no\\s+(?:gracias|me\\s+gusta\\w*|quiero|por\\s+favor)\\b`);
+      if (antes.test(t) || despues.test(t)) rechazadas.add(m);
+    }
+  }
+  return rechazadas;
+}
+
+/**
  * ¿El cliente pide ver MÁS de lo que ya tiene en pantalla? «qué más tiene»,
  * «otras opciones», «otra marca», «algo más barato», «más opciones», «qué otras
  * hay». Elegir del menú («la más barata», «la 2») NO es pedir más.
