@@ -336,6 +336,7 @@ export function Ajustes() {
       {tab === "avisos" && (
         <div className="flex flex-col gap-4">
           <SeccionAsesores editable={esNivelMaximo} onError={setError} />
+          <SeccionAvisoManana editable={esNivelMaximo} onError={setError} />
           <SeccionMatrizAvisos editable={esNivelMaximo} onError={setError} />
         </div>
       )}
@@ -1550,6 +1551,92 @@ function VistaPrevia({ pieza, setPieza, paleta, fuente, plantilla, modo, benefic
 }
 
 // ---------------------------------------------------------------------------
+
+interface AvisoMananaConfig { activo: boolean; hora: string; plantilla: string; idioma: string }
+interface AvisoMananaResultado { dia: string; enviadoEn: string; total: number; enviados: number; fallos: { nombre: string; error: string }[]; manual: boolean }
+interface AvisoMananaEstado {
+  config: AvisoMananaConfig;
+  resultado: AvisoMananaResultado | null;
+  enMeta: { status: string; category: string } | null;
+  errorMeta: string | null;
+}
+
+const ESTADO_PLANTILLA: Record<string, string> = {
+  APPROVED: "Aprobada en Meta", PENDING: "En revisión en Meta", IN_APPEAL: "En apelación",
+  REJECTED: "Rechazada por Meta", PAUSED: "Pausada por Meta", DISABLED: "Desactivada por Meta",
+};
+
+/**
+ * El mensaje de la mañana a los asesores (19-nov-2026). WhatsApp solo deja
+ * avisarle a quien le escribió al bot en las últimas 24 h; esta plantilla, con
+ * un solo botón «Listo», abre esa ventana cada día con un toque. Se guarda al
+ * tocar, como el guardián.
+ */
+function SeccionAvisoManana({ editable, onError }: { editable: boolean; onError: (e: string) => void }) {
+  const [estado, setEstado] = useState<AvisoMananaEstado | null>(null);
+  const [enviando, setEnviando] = useState(false);
+
+  const cargar = () => api<AvisoMananaEstado & { ok: boolean }>("/api/aviso-manana")
+    .then(setEstado).catch((e) => onError(e instanceof Error ? e.message : "No se pudo cargar el aviso de la mañana"));
+  useEffect(() => { void cargar(); }, []);
+
+  const guardar = async (cambio: Partial<AvisoMananaConfig>) => {
+    if (!estado) return;
+    const config = { ...estado.config, ...cambio };
+    setEstado({ ...estado, config });
+    try { await api("/api/aviso-manana", { method: "PUT", body: JSON.stringify(config) }); }
+    catch (e) { onError(e instanceof Error ? e.message : "No se pudo guardar"); void cargar(); }
+  };
+
+  const enviarAhora = async () => {
+    setEnviando(true);
+    try { await api("/api/aviso-manana/enviar", { method: "POST" }); await cargar(); }
+    catch (e) { onError(e instanceof Error ? e.message : "No se pudo enviar"); }
+    finally { setEnviando(false); }
+  };
+
+  const r = estado?.resultado;
+  const aprobada = estado?.enMeta?.status === "APPROVED";
+  return <Tarjeta
+    titulo="Mensaje de la mañana a los asesores"
+    sub="Cada mañana a cada asesor le llega un mensaje con un botón «Listo». Al tocarlo, WhatsApp le deja recibir todos los avisos del bot durante 24 h. Cuesta ~1 centavo por asesor al día."
+  >
+    {!estado && <p className="text-[12px] text-text2">Cargando…</p>}
+    {estado && <div className="flex flex-col gap-3 text-[12px]">
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+        <label className="flex items-center gap-2 font-semibold">
+          <input type="checkbox" className="size-4 accent-[var(--color-ok)]" checked={estado.config.activo} disabled={!editable}
+            onChange={(e) => void guardar({ activo: e.target.checked })} />
+          {estado.config.activo ? "Encendido" : "Apagado"}
+        </label>
+        <label className="flex items-center gap-2">
+          <span className="text-text2">Hora</span>
+          <input type="time" className="settings-input w-auto" value={estado.config.hora} disabled={!editable}
+            onChange={(e) => e.target.value && void guardar({ hora: e.target.value })} />
+        </label>
+        <span>
+          <span className="text-text2">Plantilla:</span> <b>{estado.config.plantilla}</b>{" · "}
+          <span className={aprobada ? "text-ok" : "text-[var(--color-warn,#e8b33a)]"}>
+            {estado.errorMeta ? "no se pudo consultar Meta" : estado.enMeta ? (ESTADO_PLANTILLA[estado.enMeta.status] ?? estado.enMeta.status) : "no existe en Meta"}
+          </span>
+        </span>
+      </div>
+      {!aprobada && !estado.errorMeta && <p className="text-[var(--color-warn,#e8b33a)]">Mientras Meta no la apruebe, el mensaje no le llega a nadie.</p>}
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="text-text2">
+          {r
+            ? `Último envío: ${new Date(r.enviadoEn).toLocaleString("es-EC", { timeZone: "America/Guayaquil", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })} · ${r.enviados} de ${r.total} asesores${r.manual ? " (a mano)" : ""}`
+            : "Todavía no se ha enviado ninguno."}
+        </span>
+        {editable && <button onClick={() => void enviarAhora()} disabled={enviando}
+          className="rounded-full bg-bg px-2.5 py-1 font-semibold disabled:opacity-50">{enviando ? "Enviando…" : "Enviar ahora"}</button>}
+      </div>
+      {r && r.fallos.length > 0 && <div className="rounded-[6px] bg-bg p-2.5">
+        {r.fallos.map((f) => <p key={f.nombre}><b>{f.nombre}:</b> <span className="text-text2">{f.error}</span></p>)}
+      </div>}
+    </div>}
+  </Tarjeta>;
+}
 
 /**
  * Qué recibe cada nivel, aviso por aviso. Los niveles se crean, se renombran y

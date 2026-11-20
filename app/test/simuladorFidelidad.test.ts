@@ -175,8 +175,10 @@ describe("simulador · la Graph de mentira cubre lo que el bot usa", () => {
       [...cliente.matchAll(/\$\{GRAPH\}\/([^`"']*)/g)].map((m) => m[1].replace(/\$\{[^}]+\}/g, "«var»")),
     );
     expect([...rutas].sort()).toEqual([
+      "debug_token?input_token=«var»", // qué WABA gestiona el token → graph-sim: SIM_WABA
       "«var»",              // GET metadato de media entrante  → graph-sim lo responde con {url, mime_type}
       "«var»/media",        // subida de piezas                 → graph-sim guarda los bytes
+      "«var»/message_templates?fields=id,name,status,category,language,components&limit=200", // estado en Meta → graph-sim: todas aprobadas
       "«var»/messages",     // envío y «escribiendo…»           → graph-sim registra el envío
     ]);
   });

@@ -104,13 +104,43 @@ interface FollowUpTemplateAdmin {
   variables: string[]; buttons: unknown[]; preview: string;
   approval_status: "not_configured" | "pending" | "approved" | "rejected";
   configured: boolean; automatic_send: boolean;
+  meta_status?: string | null; meta_category?: string | null; meta_synced_at?: string | null;
+}
+
+/** Lo que contestó Meta, en palabras del panel. */
+const ESTADO_META: Record<string, { label: string; tono: "ok" | "warn" | "danger" }> = {
+  APPROVED: { label: "Aprobada", tono: "ok" },
+  PENDING: { label: "En revisión", tono: "warn" },
+  IN_APPEAL: { label: "En apelación", tono: "warn" },
+  REJECTED: { label: "Rechazada", tono: "danger" },
+  PAUSED: { label: "Pausada", tono: "danger" },
+  DISABLED: { label: "Desactivada", tono: "danger" },
+};
+
+function Pastilla({ tono, children }: { tono: "ok" | "warn" | "danger" | "neutro"; children: React.ReactNode }) {
+  const color = { ok: "var(--color-ok)", warn: "var(--color-warn,#e8b33a)", danger: "var(--color-danger,#e2564d)", neutro: "var(--color-text2)" }[tono];
+  return <span className="rounded-full px-2 py-0.5 text-[12px] font-semibold" style={{ color, background: `color-mix(in srgb, ${color} 15%, transparent)` }}>{children}</span>;
 }
 
 export function FollowUpSettingsPanel() {
   const [policy, setPolicy] = useState<FollowUpPolicyAdmin | null>(null);
   const [templates, setTemplates] = useState<FollowUpTemplateAdmin[]>([]);
   const [message, setMessage] = useState("");
-  useEffect(() => { void api<{ policy: FollowUpPolicyAdmin; templates: FollowUpTemplateAdmin[] }>("/api/follow-up-settings").then((data) => { setPolicy(data.policy); setTemplates(data.templates); }).catch((error) => setMessage(error instanceof Error ? error.message : "No se pudo cargar")); }, []);
+  const [sincronizando, setSincronizando] = useState(false);
+  const [errorMeta, setErrorMeta] = useState("");
+  async function sincronizar() {
+    setSincronizando(true); setErrorMeta("");
+    try {
+      const data = await api<{ templates: FollowUpTemplateAdmin[] }>("/api/follow-up-settings/templates/sync", { method: "POST" });
+      setTemplates(data.templates);
+    } catch (error) { setErrorMeta(error instanceof Error ? error.message : "No se pudo leer Meta"); }
+    finally { setSincronizando(false); }
+  }
+  useEffect(() => {
+    void api<{ policy: FollowUpPolicyAdmin; templates: FollowUpTemplateAdmin[] }>("/api/follow-up-settings")
+      .then((data) => { setPolicy(data.policy); setTemplates(data.templates); void sincronizar(); })
+      .catch((error) => setMessage(error instanceof Error ? error.message : "No se pudo cargar"));
+  }, []);
   if (!policy) return <div className="border border-line bg-surface rounded-[10px] p-6 text-[14px] text-text2">{message || "Cargando configuración…"}</div>;
   const setNumber = (key: keyof FollowUpPolicyAdmin, value: string) => setPolicy({ ...policy, [key]: Number(value) });
   async function savePolicy() {
@@ -143,11 +173,35 @@ export function FollowUpSettingsPanel() {
       <p className="microlabel">Cómo debe escribir el seguimiento</p>
       <p className="mt-1 text-[13px] text-text2">Un solo prompt editable por etapa. Ya está prellenado para mensajes breves, humanos, persuasivos y basados únicamente en el contexto real.</p>
       <div className="mt-3 grid gap-3 md:grid-cols-2">{ETAPAS.map((stage) => <label key={stage} className="rounded-[8px] border border-line p-3"><span className="text-[12px] font-semibold" style={{ color: ETAPA_META[stage].color }}>{ETAPA_META[stage].nombre}</span><textarea rows={4} className="settings-input mt-2" value={policy.stage_prompts?.[stage] ?? ""} onChange={(e) => setPolicy({ ...policy, stage_prompts: { ...policy.stage_prompts, [stage]: e.target.value } })} /></label>)}</div>
-      <details className="mt-4 rounded-[8px] border border-line p-3">
-        <summary className="cursor-pointer text-[12px] font-semibold">Configuración avanzada de Meta (solo cuando aprueben las plantillas)</summary>
-        <p className="mt-2 text-[12px] text-warn">Estas plantillas siguen desactivadas hasta registrar el nombre aprobado en Meta. Nunca se usa texto libre con la ventana cerrada.</p>
-        <div className="mt-3 grid gap-2">{templates.map((template, index) => <div key={template.template_key} className="grid items-end gap-2 rounded-[6px] bg-bg p-3 md:grid-cols-[1.2fr_1fr_1fr_auto]"><Field label={template.template_key}><input className="settings-input" placeholder="Nombre aprobado en Meta" value={template.template_name ?? ""} onChange={(e) => setTemplates(templates.map((item, i) => i === index ? { ...item, template_name: e.target.value || null } : item))} /></Field><Field label="Estado"><select className="settings-input" value={template.approval_status} onChange={(e) => setTemplates(templates.map((item, i) => i === index ? { ...item, approval_status: e.target.value as FollowUpTemplateAdmin["approval_status"] } : item))}><option value="not_configured">No configurada</option><option value="pending">Pendiente</option><option value="approved">Aprobada</option><option value="rejected">Rechazada</option></select></Field><label className="mb-2 flex items-center gap-2 text-[12px] font-semibold"><input type="checkbox" checked={template.automatic_send} onChange={(e) => setTemplates(templates.map((item, i) => i === index ? { ...item, automatic_send: e.target.checked, configured: e.target.checked || item.configured } : item))} />Envío automático</label><button onClick={() => void saveTemplate(template)} className="mb-1 rounded-[6px] bg-text px-3 py-2 text-[12px] font-semibold text-white">Guardar</button></div>)}</div>
-      </details>
+    </section>
+    <section className="border border-line bg-surface rounded-[10px] p-5 xl:col-span-2">
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <p className="text-[13px] font-semibold">Plantillas de WhatsApp</p>
+          <p className="text-[12px] text-text2">Los mensajes que el bot puede mandar con la ventana de 24 h cerrada. Estado y categoría salen directo de Meta.</p>
+        </div>
+        <button onClick={() => void sincronizar()} disabled={sincronizando} className="rounded-full bg-bg px-3 py-1.5 text-[12px] font-semibold disabled:opacity-50">{sincronizando ? "Consultando Meta…" : "Actualizar desde Meta"}</button>
+      </div>
+      {errorMeta && <p className="mt-2 text-[12px] text-[var(--color-danger,#e2564d)]">{errorMeta}</p>}
+      <div className="mt-3 grid gap-2">{templates.map((template, index) => {
+        const estado = template.meta_status ? ESTADO_META[template.meta_status] : null;
+        const categoriaCambio = template.meta_category && template.meta_category !== template.expected_category;
+        return <div key={template.template_key} className="rounded-[6px] bg-bg p-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[13px] font-semibold">{template.template_name ?? template.template_key}</span>
+            {estado ? <Pastilla tono={estado.tono}>{estado.label}</Pastilla> : <Pastilla tono="neutro">No está en Meta</Pastilla>}
+            {template.meta_category && <Pastilla tono={categoriaCambio ? "warn" : "neutro"}>{template.meta_category === "MARKETING" ? "Marketing · ~7 ¢" : template.meta_category === "UTILITY" ? "Utilidad · ~1 ¢" : template.meta_category}</Pastilla>}
+          </div>
+          {categoriaCambio && <p className="mt-1 text-[12px] text-[var(--color-warn,#e8b33a)]">Meta la pasó de {template.expected_category === "UTILITY" ? "Utilidad" : template.expected_category} a {template.meta_category === "MARKETING" ? "Marketing" : template.meta_category}: cada envío cuesta más. Se puede apelar en Business Support.</p>}
+          {template.preview && <p className="mt-1.5 text-[12px] text-text2">{template.preview}</p>}
+          <div className="mt-2 flex flex-wrap items-end gap-2">
+            <Field label="Nombre en Meta"><input className="settings-input" placeholder="Nombre aprobado en Meta" value={template.template_name ?? ""} onChange={(e) => setTemplates(templates.map((item, i) => i === index ? { ...item, template_name: e.target.value || null } : item))} /></Field>
+            <label className="mb-2 flex items-center gap-2 text-[12px] font-semibold"><input type="checkbox" checked={template.automatic_send} disabled={template.meta_status !== "APPROVED"} onChange={(e) => setTemplates(templates.map((item, i) => i === index ? { ...item, automatic_send: e.target.checked, configured: e.target.checked || item.configured } : item))} />Envío automático</label>
+            <button onClick={() => void saveTemplate(template)} className="mb-1 rounded-[6px] bg-text px-3 py-2 text-[12px] font-semibold text-white">Guardar</button>
+          </div>
+        </div>;
+      })}</div>
+      <p className="mt-2 text-[12px] text-text2">Crear o cambiar el texto de una plantilla se hace en Meta (guía en docs/PLANTILLAS_META.md). «Envío automático» solo se puede prender cuando Meta la aprobó.</p>
     </section>
     <section className="border border-line bg-surface rounded-[10px] p-5"><p className="microlabel">Alertas</p><label className="mt-4 flex items-center gap-2 text-[13px] font-semibold"><input type="checkbox" checked={policy.alert_settings.sound ?? true} onChange={(e) => setPolicy({ ...policy, alert_settings: { ...policy.alert_settings, sound: e.target.checked } })} />Sonido</label><Field label="Destinatario"><input className="settings-input" value={policy.alert_settings.recipient ?? "owner"} onChange={(e) => setPolicy({ ...policy, alert_settings: { ...policy.alert_settings, recipient: e.target.value } })} /></Field><label className="mt-3 flex items-center gap-2 text-[13px] font-semibold"><input type="checkbox" checked={policy.alert_settings.autoAssign ?? false} onChange={(e) => setPolicy({ ...policy, alert_settings: { ...policy.alert_settings, autoAssign: e.target.checked } })} />Autoasignación</label><p className="mt-3 text-[12px] text-text2">Escalamiento inicial: asesor al día {policy.advisor_alert_days}; recomendar Perdido al día {policy.recommend_close_days}, sin cierre automático.</p></section>
     <section className="border border-line bg-surface rounded-[10px] p-5"><p className="microlabel">Seguridad</p>{([["require_consent","Requerir consentimiento"],["respect_opt_out","Respetar opt-out"],["never_outside_hours","Nunca fuera de horario"],["pause_on_human_control","Pausar al tomar control humano"]] as const).map(([key, label]) => <label key={key} className="mt-3 flex items-center gap-2 text-[13px] font-semibold"><input type="checkbox" checked={policy[key]} onChange={(e) => setPolicy({ ...policy, [key]: e.target.checked })} />{label}</label>)}<Field label="Máximo diario"><input type="number" className="settings-input" value={policy.max_messages_per_day} onChange={(e) => setNumber("max_messages_per_day", e.target.value)} /></Field></section>

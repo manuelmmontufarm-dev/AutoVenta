@@ -1,3 +1,27 @@
+## 19-nov-2026 · Mensaje de la mañana a los asesores y plantillas al día con Meta
+
+**Qué:**
+- **Mensaje de la mañana** (`services/avisoDeLaManana.ts`): cada día a la hora elegida (8:00 por
+  defecto, hora de Guayaquil, hasta el mediodía) cada asesor activo recibe la plantilla
+  `avisos_del_dia_v1` con un solo botón «Listo». El toque cuenta como mensaje suyo y abre su
+  ventana de 24 h: los avisos del día le llegan gratis. Candado por día; sale todos los días, sin
+  mirar la ventana (decisión de Manuel). Plantilla creada en Meta el 19-nov en Depot y Competimotor.
+- **Webhook**: el toque a un botón de plantilla llega como `type: "button"` y se perdía. El «Listo»
+  de un asesor se confirma y no entra al bot de ventas; el de un cliente entra como texto.
+- **Panel**: Ajustes → Avisos tiene la tarjeta «Mensaje de la mañana» (encendido, hora, estado de
+  la plantilla en Meta, último envío, «Enviar ahora»). Ajustes → Seguimientos muestra las
+  plantillas con estado, categoría y texto traídos de Meta (`services/plantillasMeta.ts`), avisa
+  si Meta cambió Utilidad → Marketing, y solo deja prender el envío automático si está aprobada.
+- Migración 033: columnas `meta_*` en `follow_up_templates` y la fila `visita_no_llego_v1`.
+- La Graph de mentira del simulador atiende `debug_token` y `message_templates`.
+
+**Por qué:** los avisos a asesores mueren con 131047 si no le escribieron al bot en 24 h; el
+recordatorio de agosto dependía de que alguien hiciera caso. Esto cuesta ~1 ¢ por asesor al día.
+
+**Qué falta:** el código que manda `recordatorio_visita_v1` y `visita_no_llego_v1` a los clientes.
+
+**Horas:** 3
+
 ## 18-nov-2026 · Plantillas de seguimiento enviadas a Meta por API (Depot y Competimotor)
 
 **Qué:** `docs/PLANTILLAS_META.md` — guía de 6 pasos para crear plantillas de WhatsApp sin

@@ -256,6 +256,28 @@ async function supervisarVentanas(signal: AbortSignal): Promise<void> {
 }
 
 /**
+ * El aviso de la mañana a los asesores (19-nov-2026): una plantilla con el
+ * botón «Listo» que, al tocarlo, deja abierta su ventana de 24 h. Mismo ritmo
+ * de cuarto de hora: la condición «ya son las 8» dura toda la mañana y lo que
+ * evita duplicados es el candado por día en `enviarAvisoDeLaManana`.
+ */
+async function supervisarAvisoDeLaManana(signal: AbortSignal): Promise<void> {
+  while (!signal.aborted) {
+    try {
+      const { enviarAvisoDeLaManana } = await import("../services/avisoDeLaManana.js");
+      const r = await enviarAvisoDeLaManana();
+      if (r) {
+        console.log(`🌅 Aviso de la mañana: ${r.enviados}/${r.total} asesor(es)` +
+          (r.fallos.length ? ` · fallaron: ${r.fallos.map((f) => f.nombre).join(", ")}` : ""));
+      }
+    } catch (error) {
+      console.warn("⚠️ Aviso de la mañana falló:", error instanceof Error ? error.message : error);
+    }
+    await esperar(VISITAS_MS, signal);
+  }
+}
+
+/**
  * Bucle del reporte del día.
  *
  * Comparte el ritmo de las visitas por la misma razón: la condición «ya son las
@@ -349,6 +371,7 @@ export function startEmbeddedFollowUpWorker(): void {
   void supervisarChatsOlvidados(controller.signal);
   void supervisarVisitas(controller.signal);
   void supervisarVentanas(controller.signal);
+  void supervisarAvisoDeLaManana(controller.signal);
   void supervisarReporteDiario(controller.signal);
   void supervisarPrefacturas(controller.signal);
 }

@@ -20,7 +20,7 @@ process.on("unhandledRejection", (reason) => {
     reason instanceof Error ? reason.stack ?? reason.message : reason,
   );
 });
-import { initWa, setWaHandlers, sendCustomerText, sendCustomerButtons, showTyping, downloadMedia } from "./wa/client.js";
+import { initWa, setWaHandlers, sendAdvisorText, sendCustomerText, sendCustomerButtons, showTyping, downloadMedia } from "./wa/client.js";
 import { describirFotoDeLlanta } from "./services/vision.js";
 import { transcribirAudio } from "./services/transcripcion.js";
 import { conResumenDeLinks } from "./services/linkPreview.js";
@@ -52,6 +52,7 @@ import {
 } from "./services/conversations.js";
 import { emitLiveEvent } from "./services/liveEvents.js";
 import { registrarMensajeDeAsesor } from "./services/advisorWindow.js";
+import { BOTON_LISTO } from "./services/avisoDeLaManana.js";
 import { contestaAunApagado, isBotActive } from "./services/botPower.js";
 import { textoParaMensajeQueNoSeLee } from "./domain/mensajeQueNoSeLee.js";
 import { medidaQueConfirmoAlAsesor } from "./domain/medidaQueConfirmoAlAsesor.js";
@@ -913,6 +914,26 @@ setWaHandlers({
           receivedAt,
           citado,
         );
+        break;
+      }
+      // TOQUE A UN BOTÓN DE PLANTILLA (19-nov-2026). Meta no lo manda como
+      // `interactive` sino como `button` (`{ text, payload }`), y hasta hoy se
+      // perdía. Dos casos:
+      // - El «Listo» del aviso de la mañana: es de un asesor. Su ventana ya se
+      //   reabre con el toque; se le confirma y NO entra al pipeline (el bot de
+      //   ventas no tiene nada que contestarle a «Listo»).
+      // - Un cliente tocando «Sí voy» / «Cambiar día» de un seguimiento: entra
+      //   como si lo hubiera escrito, igual que los botones interactivos.
+      case "button": {
+        const boton = (message as unknown as { button?: { text?: string; payload?: string } }).button;
+        const texto = boton?.text?.trim() || boton?.payload?.trim();
+        if (!texto) break;
+        if (texto === BOTON_LISTO && (await registrarMensajeDeAsesor(from, receivedAt))) {
+          await sendAdvisorText("✅ Listo. Hoy te llegan los avisos de clientes del bot.", from)
+            .catch((error) => console.warn("⚠️ No se pudo confirmar el «Listo» del asesor:", error));
+          break;
+        }
+        await recibirMensaje(from, name, texto, message.id, receivedAt, citado);
         break;
       }
       case "location":

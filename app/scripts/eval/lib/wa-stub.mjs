@@ -121,6 +121,15 @@ export async function sendAdvisorPdf(input) {
   });
 }
 
+export async function sendAdvisorTemplate(input) {
+  return registrar("plantilla_asesor", { to: input?.to ?? null, caption: input?.templateName ?? null });
+}
+
+/** En la evaluación no hay Meta: ninguna plantilla existe. */
+export async function listarPlantillasDeMeta() {
+  return [];
+}
+
 export async function sendApprovedTemplate(input) {
   return registrar("plantilla", {
     conversationId: input?.conversationId ?? null,

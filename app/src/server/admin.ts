@@ -147,7 +147,9 @@ import {
   usuariosHub,
   type UsuarioHub,
 } from "../services/hubUsers.js";
-import { sendImage, reloadWa } from "../wa/client.js";
+import { sendImage, reloadWa, listarPlantillasDeMeta } from "../wa/client.js";
+import { enviarAvisoDeLaManana, getAvisoManana, saveAvisoManana, ultimoResultadoAvisoManana } from "../services/avisoDeLaManana.js";
+import { sincronizarPlantillas } from "../services/plantillasMeta.js";
 import { registrarEnviado } from "../wa/outboundRegistry.js";
 import {
   SESIONES_HABILITADAS,
@@ -1003,6 +1005,17 @@ export function createAdminRouter(): express.Router {
     const rescheduled = await rescheduleActiveConversationPlans();
     emitLiveEvent("settings"); emitLiveEvent("follow_up");
     res.json({ ok: true, rescheduled });
+  });
+
+  // Trae de Meta estado y categoría reales de cada plantilla (19-nov-2026).
+  router.post("/follow-up-settings/templates/sync", async (_req, res) => {
+    try {
+      const { actualizadas, enMeta } = await sincronizarPlantillas();
+      emitLiveEvent("settings");
+      res.json({ ok: true, actualizadas, enMeta, ...(await getFollowUpSettings()) });
+    } catch (error) {
+      res.status(502).json({ ok: false, error: mensaje(error, "No se pudo leer Meta") });
+    }
   });
 
   router.put("/follow-up-settings/templates/:key", async (req, res) => {
@@ -2142,6 +2155,37 @@ export function createAdminRouter(): express.Router {
 
   router.get("/aviso-niveles", async (_req, res) => {
     res.json({ ok: true, niveles: await getNivelesAviso(), catalogo: catalogoPorCategoria(), generales: AVISOS_GENERALES.map((g) => ({ id: g, nombre: NOMBRE_DE_AVISO_GENERAL[g] })), avisos: catalogoDeAvisos().avisos });
+  });
+
+  // El aviso de la mañana a los asesores (19-nov-2026): una plantilla con el
+  // botón «Listo» que deja abierta su ventana de 24 h. Ver avisoDeLaManana.ts.
+  router.get("/aviso-manana", async (_req, res) => {
+    const [config, resultado] = await Promise.all([getAvisoManana(), ultimoResultadoAvisoManana()]);
+    let enMeta: { status: string; category: string } | null = null;
+    let errorMeta: string | null = null;
+    try {
+      const plantilla = (await listarPlantillasDeMeta()).find((p) => p.name === config.plantilla);
+      enMeta = plantilla ? { status: plantilla.status, category: plantilla.category } : null;
+    } catch (error) {
+      errorMeta = mensaje(error, "No se pudo leer Meta");
+    }
+    res.json({ ok: true, config, resultado, enMeta, errorMeta });
+  });
+
+  router.put("/aviso-manana", exigirNivelMaximo, async (req, res) => {
+    try {
+      res.json({ ok: true, config: await saveAvisoManana(req.body) });
+    } catch (error) {
+      res.status(400).json({ ok: false, error: mensaje(error, "Ajuste inválido") });
+    }
+  });
+
+  router.post("/aviso-manana/enviar", exigirNivelMaximo, async (_req, res) => {
+    try {
+      res.json({ ok: true, resultado: await enviarAvisoDeLaManana({ forzar: true }) });
+    } catch (error) {
+      res.status(500).json({ ok: false, error: mensaje(error, "No se pudo enviar") });
+    }
   });
 
   router.put("/aviso-niveles", exigirNivelMaximo, async (req, res) => {

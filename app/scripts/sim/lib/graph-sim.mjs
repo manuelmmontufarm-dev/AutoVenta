@@ -78,6 +78,23 @@ export async function levantarGraphSim({ puerto, dirPiezas }) {
       return res.end(pieza.bytes);
     }
 
+    // --- Plantillas (19-nov-2026): el panel pregunta a Meta el estado ------
+    // `debug_token` dice qué WABA gestiona el token; `message_templates` lista
+    // las plantillas. En el simulador todas están aprobadas como Utilidad, para
+    // que el mensaje de la mañana y los seguimientos se puedan ejercitar.
+    if (req.method === "GET" && ruta.endsWith("/debug_token")) {
+      return json(res, 200, { data: { is_valid: true, granular_scopes: [
+        { scope: "whatsapp_business_management", target_ids: ["SIM_WABA"] },
+      ] } });
+    }
+    if (req.method === "GET" && ruta.endsWith("/message_templates")) {
+      const nombres = ["avisos_del_dia_v1", "recordatorio_visita_v1", "visita_no_llego_v1"];
+      return json(res, 200, { data: nombres.map((name, i) => ({
+        id: `SIM_TPL_${i + 1}`, name, status: "APPROVED", category: "UTILITY", language: "es",
+        components: [{ type: "BODY", text: `Texto de ${name} (simulador)` }],
+      })) });
+    }
+
     // --- Diagnóstico de canal: el panel pregunta por el número -----------
     if (req.method === "GET") {
       return json(res, 200, {

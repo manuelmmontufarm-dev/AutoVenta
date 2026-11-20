@@ -544,3 +544,96 @@ export async function notifySeller(summary: string): Promise<void> {
   if (!ch.sellerPhone) return;
   await sendText(ch.sellerPhone, `🔔 *AutoVenta*\n${summary}`);
 }
+
+/**
+ * Plantilla aprobada a un ASESOR (no a un cliente), fuera de su ventana de 24 h.
+ *
+ * El aviso de la mañana (19-nov-2026) existe justo para el asesor que no le
+ * escribió al bot ayer: a él ningún texto libre le llega (131047). La plantilla
+ * sí, y su botón «Listo» cuenta como un mensaje suyo, que reabre la ventana.
+ * No pasa por `assertConversationOutbound` porque no hay conversación comercial
+ * de por medio: es una notificación interna, como `sendAdvisorText`.
+ */
+export async function sendAdvisorTemplate(input: {
+  to: string;
+  templateName: string;
+  language: string;
+  variables: string[];
+}): Promise<string | undefined> {
+  return graphSend("la plantilla al asesor", (ch) => ({
+    path: `${ch.phoneId}/messages`,
+    body: {
+      messaging_product: "whatsapp",
+      to: input.to,
+      type: "template",
+      template: {
+        name: input.templateName,
+        language: { code: input.language },
+        components: input.variables.length
+          ? [{ type: "body", parameters: input.variables.map((text) => ({ type: "text", text })) }]
+          : [],
+      },
+    },
+  }));
+}
+
+export interface PlantillaEnMeta {
+  id: string;
+  name: string;
+  status: string;
+  category: string;
+  language: string;
+  /** El texto del cuerpo, tal como lo aprobó Meta. */
+  texto?: string;
+}
+
+let wabaCache: { token: string; id: string } | null = null;
+
+/**
+ * La cuenta de WhatsApp (WABA) del token. No se guarda en el canal: se saca de
+ * los permisos del propio token, que dicen a qué WABA puede gestionar. Así un
+ * cliente nuevo no tiene un dato más que pegar en Ajustes.
+ */
+async function wabaDelToken(token: string): Promise<string> {
+  const deEntorno = process.env.WHATSAPP_WABA_ID?.trim();
+  if (deEntorno) return deEntorno;
+  if (wabaCache?.token === token) return wabaCache.id;
+  const r = await fetch(`${GRAPH}/debug_token?input_token=${encodeURIComponent(token)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = (await r.json().catch(() => ({}))) as {
+    data?: { granular_scopes?: { scope: string; target_ids?: string[] }[] };
+    error?: MetaError;
+  };
+  const id = data.data?.granular_scopes
+    ?.find((s) => s.scope === "whatsapp_business_management")?.target_ids?.[0];
+  if (!id) {
+    throw new Error(
+      data.error?.message
+        ? `Meta no dejó leer la cuenta de WhatsApp: ${data.error.message}`
+        : "El token no tiene permiso para gestionar plantillas (whatsapp_business_management).",
+    );
+  }
+  wabaCache = { token, id };
+  return id;
+}
+
+/** Las plantillas de la cuenta tal como las ve Meta hoy: estado y categoría. */
+export async function listarPlantillasDeMeta(): Promise<PlantillaEnMeta[]> {
+  const ch = await getChannelConfig();
+  if (!ch.token) throw new Error("Canal de WhatsApp sin token: configúralo en Ajustes → Canal.");
+  const waba = await wabaDelToken(ch.token);
+  const r = await fetch(
+    `${GRAPH}/${waba}/message_templates?fields=id,name,status,category,language,components&limit=200`,
+    { headers: { Authorization: `Bearer ${ch.token}` } },
+  );
+  const data = (await r.json().catch(() => ({}))) as {
+    data?: (PlantillaEnMeta & { components?: { type: string; text?: string }[] })[];
+    error?: MetaError;
+  };
+  if (!r.ok) throw new Error(translateMetaError(data.error, "la lista de plantillas"));
+  return (data.data ?? []).map(({ components, ...p }) => ({
+    ...p,
+    texto: components?.find((c) => c.type === "BODY")?.text,
+  }));
+}
