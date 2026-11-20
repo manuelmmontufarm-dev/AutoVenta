@@ -12,6 +12,7 @@ import { anuncioDeLaConversacion } from "../services/anuncio.js";
 import OpenAI from "openai";
 import { nuevoClienteOpenAI } from "./openaiCliente.js";
 import { aroDadoPorElCliente, aroRespondido, medidaConfirmadaPorCliente } from "../domain/medidaConfirmada.js";
+import { avisoRegistradoEnElCiclo } from "../services/avisoAlAsesor.js";
 import { medidasDelMensaje, medidaSinConfirmar } from "../domain/medidaDelCliente.js";
 import { esFalloDelProveedor } from "../domain/falloDelProveedor.js";
 import { createBotAlert } from "../services/followUps.js";
@@ -455,11 +456,9 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   // LA ZANAHORIA DEL ASESOR SE EJECUTA O SE SUELTA (T115 conv 8288, corrida 4):
   // si algún turno ya ofreció asesor y el aviso nunca salió, el modelo recibe
   // la obligación por delante. La negativa del cliente la apaga.
-  const hayAvisoEnCiclo = (await sql<{ existe: number }[]>`
-    select 1 as existe from advisor_notifications
-    where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
-    limit 1
-  `).length > 0;
+  // Cuenta también la alerta de escalamiento del ciclo (CM04/CM05, simulador
+  // Competimotor 18-nov): ver `avisoRegistradoEnElCiclo`.
+  const hayAvisoEnCiclo = await avisoRegistradoEnElCiclo(ctx.conversation.id, ctx.conversation.current_cycle);
   const ofrecioAsesorSinAvisar = !hayAvisoEnCiclo
     && history.some((m) => m.role === "assistant" && typeof m.content === "string" && ofrecioAsesor(m.content));
   // Tema fuera del catálogo sin aviso todavía: derivar es la respuesta, no un

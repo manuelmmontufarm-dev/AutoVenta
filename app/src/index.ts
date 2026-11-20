@@ -116,6 +116,7 @@ import { decidirQuienContesta, vaAContestarElBot } from "./services/turnoDelHuma
 import { quiereComprarADistancia } from "./domain/compraADistancia.js";
 import { registrarDondeEstaElCliente } from "./services/dondeEstaElCliente.js";
 import { avisarCompraADistancia } from "./services/compraADistancia.js";
+import { avisarPrecioPorVolumen } from "./services/avisoAlAsesor.js";
 
 /** Pausa entre bloques: suficiente para que se lean como mensajes seguidos y no como spam. */
 const PAUSA_ENTRE_BLOQUES_MS = 900;
@@ -273,6 +274,11 @@ async function atenderTurno(
     void avisarCompraADistancia(conversation, text)
       .catch((error) => console.error("⚠️ No se pudo avisar la compra a distancia:", error));
   }
+  // PRECIO POR VOLUMEN DE UNA COMPRA GRANDE: lo da un asesor, y el aviso lo
+  // registra el código (simulador Competimotor 18-nov, CM35: «lo confirma un
+  // asesor» sin aviso, 3/3). Esperado: así el Guardián ve el aviso REGISTRADO.
+  await avisarPrecioPorVolumen(conversation, text)
+    .catch((error) => { console.error("⚠️ No se pudo avisar el precio por volumen:", error); return false; });
   // Cupón de confirmación: se emite en el MISMO turno en que el cliente dice
   // cuándo viene, para que el código llegue pegado a esa confirmación y no en
   // un mensaje suelto que se lee sin contexto. Devuelve null mientras el cupón

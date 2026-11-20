@@ -156,3 +156,24 @@ export function conLaCantidadDicha(confirmacion: string, cantidad: number): stri
     ? confirmacion.replace(cola, `Le dejo la cotización por ${unidad} 👍`)
     : `${confirmacion}\n${avisoDeCantidad(cantidad)}`;
 }
+
+/**
+ * ¿PIDE PRECIO POR VOLUMEN SOBRE UNA COMPRA GRANDE? (simulador Competimotor,
+ * 18-nov, CM35: «tengo 3 camionetas de la empresa necesito 12 llantas…» y
+ * después «precio especial por volumen?»). El bot no tiene precio de flota y
+ * dice «el valor especial lo confirma un asesor», pero `notificar_vendedor`
+ * no corría y nadie se enteraba (0 avisos, 3/3). Con más de 8 llantas en juego
+ * —las que dice ahora o las de la ficha— y la pregunta por un precio especial,
+ * el caso es del asesor: lo registra el código, no la memoria del modelo.
+ */
+export function pidePrecioPorVolumen(texto: string, cantidadDeLaFicha: number | null | undefined): boolean {
+  const n = (texto ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  const pide =
+    /\b(?:precio|valor|descuento|tarifa|costo)s?\s+(?:especial|preferencial|mayorista|de\s+(?:flota|empresa|mayorista)|por\s+(?:volumen|cantidad|mayor))\b/.test(n)
+    || /\bpor\s+(?:volumen|cantidad)\b/.test(n)
+    || /\bal\s+por\s+mayor\b/.test(n)
+    || /\bmayorista\b/.test(n);
+  if (!pide) return false;
+  const cantidad = cantidadGrandePedida(texto) ?? cantidadValidaDeLaFicha(cantidadDeLaFicha);
+  return cantidad !== null && cantidad > MAXIMO_NORMAL;
+}

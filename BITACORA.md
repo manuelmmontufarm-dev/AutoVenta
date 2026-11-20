@@ -1,3 +1,23 @@
+## 19-nov-2026 · Bot · Competimotor 40 × 3, familia C: avisos al asesor sin repetir ni faltar (rama `fix/competimotor-conversaciones`)
+
+- **Qué:** (1) **CM04/CM05** · `avisoRegistradoEnElCiclo` (services/avisoAlAsesor.ts): el agente cuenta como «ya se le
+  pasó el caso a un asesor» también la alerta de escalamiento del ciclo (`caso_sin_resolver`, `human_requested`…), no solo
+  `advisor_notifications`. Los asesores de Competimotor no reciben ese tipo de aviso por WhatsApp, la fila no se creaba y el
+  agente ordenaba en cada turno «OFRECISTE ASESOR Y NO LO NOTIFICASTE… llama notificar_vendedor AHORA»: dos llamadas por
+  lo mismo. La consulta prometida («se lo consulto») usa ahora la misma llave que `notificar_vendedor` caso_sin_resolver
+  (CM29 tenía dos alertas iguales). (2) **CM35** · `pidePrecioPorVolumen` (domain/cantidadGrande.ts) +
+  `avisarPrecioPorVolumen`: con más de 8 llantas (dichas o en la ficha) y la pregunta por precio especial / por volumen /
+  mayorista, el código registra el caso para el asesor (alerta alta + aviso, misma llave); antes el bot decía «el valor
+  especial lo confirma un asesor» y nadie se enteraba (0 avisos, 3/3).
+- **Por qué:** prueba del 18-nov: CM04 3/3, CM05 2/3, CM35 3/3.
+- **Depot:** código común. En Depot la fila de `advisor_notifications` ya existía en estos casos, así que la orden de
+  notificar seguía igual; el aviso por volumen es nuevo para los dos. Ningún texto al cliente cambia.
+- **Escenario corregido** (`datos/`, fuera de git): CM35 juzga la alerta de escalamiento en la base, no que corra la herramienta.
+- **Para producción (no es código):** en la copia de Ajustes de Competimotor los asesores solo reciben avisos de ventas y
+  visitas; los escalamientos (caso sin resolver, pide humano, envío) quedan solo en el Hub. Revisar los niveles en Ajustes.
+- **Probado:** `avisoDelCiclo.integration` (en rojo antes), suite completa. Simulador: ver la entrada de verificación final.
+- **Horas:** 0,7.
+
 ## 19-nov-2026 · Bot · Competimotor 40 × 3, familia A: el cambio de idea queda en la base (rama `fix/competimotor-conversaciones`)
 
 - **Qué:** (1) **CM08** · «si esa misma marca» tras corregir la medida elige, en la lámina nueva, la marca de la última
