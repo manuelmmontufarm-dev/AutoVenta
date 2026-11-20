@@ -101,6 +101,7 @@ import { despedidaQueCorresponde } from "./domain/cierrePerdido.js";
 import { botonesParaBloque, recortarTitulo, textoDeBoton, type BloqueConBotones } from "./domain/botones.js";
 import { esComandoDeReinicio, MENSAJE_DE_REINICIO } from "./domain/reinicio.js";
 import { esClienteQueVuelve } from "./domain/clienteQueVuelve.js";
+import { politica } from "./negocio/politica.js";
 import { esSoloPregunta } from "./domain/preguntaSola.js";
 import { sql } from "./db/client.js";
 import { presentacionDeApertura } from "./domain/saludo.js";
@@ -109,7 +110,7 @@ import { contieneElPedidoDeMedida } from "./domain/firstContact.js";
 import { algunLocalAbre, esHoraExacta, getStoreHours, localAbre, localAtiendeALaHora } from "./services/settings.js";
 import { negocio, localPorNombre } from "./negocio/index.js";
 import {
-  esPlazoDeDecision, respuestaDeCierreDelTurno, respuestaDePlazoDeDecision, tipoDeCierreDelTurno,
+  esPlazoDeDecision, etapaDelCierreDelTurno, respuestaDeCierreDelTurno, respuestaDePlazoDeDecision, tipoDeCierreDelTurno,
 } from "./domain/cierreTurno.js";
 import { esAcuseSimple, esPreguntaCualLeCotizo } from "./domain/ofertaAceptada.js";
 import { respuestaDirectaDeUbicacionFueraDeCobertura } from "./domain/visitaImposible.js";
@@ -683,16 +684,20 @@ async function atenderTurno(
     // Una compra explícitamente terminada sí es evidencia de funnel y debe
     // quedar en ventas. El clasificador resuelve este caso de forma
     // determinística (sin llamada de IA) antes de cortar los seguimientos.
-    if (cierreDelTurno === "compra_terminada") {
+    // La etapa que deja cada cierre tiene una sola fuente:
+    // `etapaDelCierreDelTurno` (domain/cierreTurno.ts). «No gracias» + «ya
+    // compré» compró en OTRO lado (CM30) y es perdida; el «no gracias» solo es
+    // perdida si la política del negocio lo pide (Competimotor sí, Depot no).
+    const etapaDelCierre = etapaDelCierreDelTurno(cierreDelTurno, politica);
+    if (etapaDelCierre === "clasificar") {
       await classifyStage(conversation, text, reply);
-    }
-    // «No gracias» + «ya compré» compró en OTRO lado (simulador Competimotor
-    // 18-nov, CM30): es la venta perdida con su motivo, no una ganada.
-    if (cierreDelTurno === "compra_ajena") {
+    } else if (etapaDelCierre === "perdido") {
       await setStage(conversation.id, "perdido", {
         actor: "customer",
-        reason: "Cliente dijo que ya compró, justo después de rechazar la oferta (compra en otro lado)",
-      }).catch((error) => console.error("⚠️ No se pudo cerrar como perdida tras compra ajena:", error));
+        reason: cierreDelTurno === "compra_ajena"
+          ? "Cliente dijo que ya compró, justo después de rechazar la oferta (compra en otro lado)"
+          : `Cliente rechazó la oferta: «${text.slice(0, 80)}»`,
+      }).catch((error) => console.error("⚠️ No se pudo cerrar como perdida tras el cierre del turno:", error));
     }
     await cancelPendingFollowUps(
       conversation.id,

@@ -1,3 +1,21 @@
+## 20-nov-2026 · Bot · «No gracias» como venta perdida, por perfil (rama `fix/competimotor-pendientes`)
+
+- **Qué:** nuevo interruptor `politica.rechazoCierraComoPerdida`. Competimotor `true`, Depot y el perfil de ejemplo
+  `false`. La etapa que deja cada cierre del turno tiene una sola fuente, `etapaDelCierreDelTurno` (domain/cierreTurno.ts):
+  compra terminada → clasificador (ganado), compra ajena → perdido, rechazo suave → perdido solo con el interruptor, y lo
+  demás no mueve la etapa. `index.ts` la aplica; los seguimientos se cancelan igual que antes. Como ahora el «no gracias»
+  cierra el ciclo, `previousInboundText` mira el ciclo anterior si el actual no tiene otro mensaje y cae en la misma visita
+  (12 h): sin eso, «ya compré» después de «no gracias» (CM30) se leía solo y quedaba como venta ganada.
+- **Por qué:** pedido de Manuel tras la prueba del 18-nov (CM28 y CM40 quedaban en `seleccionando` /
+  `cotizacion_enviada` después de «no gracias»).
+- **Depot: sin cambios, y cambiarlo es decisión de Manuel.** Su regla (index.ts, `cierrePerdido.test.ts`) dice que
+  «no gracias» cancela los seguimientos pero no cierra como perdida, porque cerrar archiva el ciclo; con el arreglo de CM31
+  y la ficha que se conserva 12 h, ese costo es menor que cuando se decidió.
+- **Escenarios** (`datos/`, fuera de git): CM28 y CM40 vuelven a exigir `perdido` (más «ningún seguimiento programado»).
+- **Probado:** `rechazoCierraComoPerdida` y `cierreEntreCiclos.integration` (en rojo antes), `cierreTurno`, `cierrePerdido`, perfil ajeno, fidelidad, suite
+  completa. Simulador: ver la entrada de verificación.
+- **Horas:** 0,4.
+
 ## 20-nov-2026 · Bot · CM31: al cliente que vuelve en la misma visita no se le presenta el negocio otra vez (rama `fix/competimotor-pendientes`)
 
 - **Qué:** `esClienteQueVuelve` (domain/clienteQueVuelve.ts) + `ultimoSalienteDeOtroCiclo` (services/conversations.ts):

@@ -111,6 +111,24 @@ export function tipoDeCierreDelTurno(
   return null;
 }
 
+/**
+ * QUÉ ETAPA DEJA EL CIERRE DEL TURNO (fuente única; la usa `index.ts`).
+ *  · compra_terminada → «clasificar»: el clasificador lo cierra como ganado.
+ *  · compra_ajena     → perdido (CM30).
+ *  · rechazo_suave    → perdido SOLO si la política lo pide
+ *                       (`rechazoCierraComoPerdida`: Competimotor sí, Depot no).
+ *  · lo demás         → la etapa no se mueve.
+ */
+export function etapaDelCierreDelTurno(
+  tipo: CierreDelTurno,
+  politica: { rechazoCierraComoPerdida: boolean },
+): "perdido" | "clasificar" | null {
+  if (tipo === "compra_terminada") return "clasificar";
+  if (tipo === "compra_ajena") return "perdido";
+  if (tipo === "rechazo_suave" && politica.rechazoCierraComoPerdida) return "perdido";
+  return null;
+}
+
 export function esCierreComercialDelTurno(texto: string): boolean {
   return tipoDeCierreDelTurno(texto) !== null;
 }

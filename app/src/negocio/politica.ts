@@ -46,6 +46,14 @@ export interface PoliticaComercial {
    */
   cotizacionConDescuento: boolean;
   /**
+   * ¿Un «no gracias» (rechazo suave, `domain/cierreTurno.ts`) deja la venta como
+   * PERDIDA? Depot: false a propósito (index.ts, `cierrePerdido.test.ts`: solo
+   * cancela los seguimientos; cerrar borra el ciclo y lo de la visita).
+   * Competimotor: true (Manuel, 20-nov, tras la prueba 40 × 3: CM28 y CM40).
+   * Cambiarlo en Depot es decisión de Manuel.
+   */
+  rechazoCierraComoPerdida: boolean;
+  /**
    * El texto del beneficio por venir de redes sociales, palabra por palabra,
    * o null si el negocio no lo ofrece: entonces no se menciona en ninguna salida.
    */

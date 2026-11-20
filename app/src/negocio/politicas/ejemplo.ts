@@ -13,6 +13,7 @@ export const POLITICA_EJEMPLO: PoliticaComercial = {
   formasDePago: ["efectivo", "tarjeta", "transferencia"],
   cuotasSinIntereses: null,
   cotizacionConDescuento: false,
+  rechazoCierraComoPerdida: false,
   descuentoEnEfectivo: null,
   beneficioDeRedes: null,
   vendeADistancia: true,
