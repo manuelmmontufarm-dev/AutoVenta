@@ -594,6 +594,24 @@ function panelSegundaLlanta(line: PosterLine, t: Tokens): SatoriNode[] {
   ];
 }
 
+/**
+ * Lo que dice la bajada de la lámina de opciones sobre el juego.
+ *
+ * El «seguro» solo si TODAS las opciones lo llevan. Competimotor, 20-nov-2026
+ * (Carlos): en 265/65R17 la lámina de una TOURADOR FORCE AT II decía «con IVA,
+ * instalación, seguro y mantenimiento ya incluidos», y esa marca no tiene seguro
+ * («las únicas marcas que manejamos con seguro son KENDA y FALKEN»). La frase
+ * era fija; ahora la decide `golpesMeses` de cada opción, que sale de
+ * `garantias` del perfil. Con una sola opción sin seguro la frase no lo
+ * nombra: el chip «N meses de seguro» de cada tarjeta dice cuáles sí.
+ */
+export function loIncluidoEnElJuego(lines: readonly Pick<PosterLine, "golpesMeses">[]): string {
+  const todasConSeguro = lines.length > 0 && lines.every((l) => (l.golpesMeses ?? 0) > 0);
+  return todasConSeguro
+    ? "con IVA, instalación, seguro y mantenimiento ya incluidos."
+    : "con IVA, instalación y mantenimiento ya incluidos.";
+}
+
 /** Hasta seis tarjetas: es el tope de `preparar_opciones`. */
 const MAX_OPCIONES = 6;
 
@@ -635,7 +653,7 @@ export function optionsPosterDiaNoche(data: OptionsDiaNocheData, modo: ModoPieza
       : [
           { texto: "El precio grande es el" },
           { texto: `juego completo de ${n} llantas,`, negrita: true },
-          { texto: beneficios.length ? "con IVA, instalación, seguro y mantenimiento ya incluidos." : "con IVA incluido." },
+          { texto: beneficios.length ? loIncluidoEnElJuego(lines) : "con IVA incluido." },
         ],
     11, t.sub, t.txt, pcts.length ? 420 : 560,
   );

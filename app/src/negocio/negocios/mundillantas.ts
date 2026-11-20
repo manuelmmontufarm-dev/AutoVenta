@@ -64,9 +64,10 @@ function respaldoCon(locales: Respaldo[number]): Respaldo {
     {
       icono: "escudoOk",
       titulo: "SEGURO CONTRA IMPACTO",
-      // Jenny, 18-nov: «solo con la factura y solo en marcas maxxis, falken, kenda y winrun».
+      // Jenny, 18-nov: «solo con la factura». Carlos, 20-nov: «las únicas
+      // marcas que manejamos con seguro son KENDA y FALKEN».
       detalle: "Incluido con su llanta. Se hace válido con la factura de su compra.",
-      marcas: ["Kenda", "Falken", "Winrun", "Maxxis"],
+      marcas: ["Kenda", "Falken"],
     },
     {
       icono: "medalla",
@@ -117,7 +118,8 @@ export const MUNDILLANTAS: PerfilDeNegocio = {
     5: { open: "08:00", close: "18:00" },
     6: { open: "08:00", close: "16:00" },
   },
-  // Las cuatro con garantía y seguro contra impacto (Jenny, 6-nov). Los
+  // Las cuatro con garantía de fábrica (Jenny, 6-nov); seguro contra impacto,
+  // solo Kenda y Falken (Carlos, 20-nov). Los
   // letreros muestran más (Toyo, BFGoodrich, Aeolus); el catálogo manda.
   marcas: ["Kenda", "Falken", "Winrun", "Maxxis"],
   identidades: [
@@ -202,8 +204,11 @@ export const MUNDILLANTAS: PerfilDeNegocio = {
     default: { golpesMeses: 0, fabricaAnios: 0 },
     Kenda: { golpesMeses: 12, fabricaAnios: 1 },
     Falken: { golpesMeses: 18, fabricaAnios: 1.5 },
-    Winrun: { golpesMeses: 6, fabricaAnios: 0.5 },
-    Maxxis: { golpesMeses: 12, fabricaAnios: 1 },
+    // Carlos, 20-nov-2026 (conv del 265/65R17 Tourador): «Las únicas marcas que
+    // manejamos con seguro son KENDA y FALKEN». Winrun y Maxxis se quedan con su
+    // garantía de fábrica y sin seguro contra impacto.
+    Winrun: { golpesMeses: 0, fabricaAnios: 0.5 },
+    Maxxis: { golpesMeses: 0, fabricaAnios: 1 },
   },
   vendedor: { nombre: "[PENDIENTE] nombre del vendedor" },
   piezas: {
@@ -254,7 +259,7 @@ export const MUNDILLANTAS: PerfilDeNegocio = {
       etiqueta: "Impacto",
       corto: "de seguro contra impacto",
       insignia: "SEGURO CONTRA IMPACTO",
-      detalle: "Se hace válido con la factura de su compra. Aplica en Kenda, Falken, Winrun y Maxxis.",
+      detalle: "Se hace válido con la factura de su compra. Aplica en Kenda y Falken.",
     },
     horarioBajoElPrecio: true,
     letraDelModelo: "deportiva",
@@ -273,4 +278,7 @@ export const MUNDILLANTAS: PerfilDeNegocio = {
     { text: "Mantenimiento cada 10.000 km: rotación, revisión mecánica y nitrógeno (comprando 2 o 4 llantas)", minQuantity: 2 },
   ],
   pendientesNumericos: PENDIENTES_NUMERICOS,
+  // Carlos (Competimotor), 20-nov-2026, conv 469: la 30X9.5R15 es la 235/75R15
+  // en pulgadas; ahí están sus M/T cuando la métrica no tiene.
+  equivalenciasEnPulgadas: [{ metrica: "235/75R15", pulgadas: "30X9.5R15" }],
 };
