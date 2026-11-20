@@ -35,6 +35,8 @@ const RELLENO = new Set([
   "favor", "porfa", "pf", "dale", "ok", "si", "bueno", "entonces", "de", "una", "un", "opcion", "llanta", "llantas", "modelo",
   "marca", "mande", "mandeme", "envie", "envieme", "pasame", "paseme", "entonces", "ya", "solo", "nomas", "juego", "4", "cuatro",
   "the", "en", "esa", "quiero", "elijo", "escojo", "tomo", "va", "listo",
+  // El saludo del primer mensaje (CM39: «hola, 4 llantas 185 60 14 kenda»).
+  "hola", "buenas", "buenos", "buen", "dia", "dias", "tardes", "noches", "saludos",
 ]);
 const TIPOS = new Set(["a/t", "h/t", "r/t", "m/t", "at", "ht", "rt", "mt"]);
 

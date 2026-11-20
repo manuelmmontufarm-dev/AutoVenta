@@ -265,3 +265,21 @@ describe("CM18 · el pedido nombra una de las opciones con su cantidad (simulado
     expect(laNombradaConCantidad({ ...base, medidaSinConfirmar: true, textosDelCliente: ["4 llantas maxclaw at"] })).toBeNull();
   });
 });
+
+describe("CM39 · el saludo no le quita la elección al primer mensaje (simulador Competimotor 19/20-nov)", () => {
+  const kr20 = { codigo: "A0217", marca: "KENDA", diseno: "KR20", medida: "185/60R14" };
+  it("«hola, 4 llantas 185 60 14 kenda» con una sola Kenda: cotiza", () => {
+    expect(cotizarLaUnicaDeUnaVez({
+      opcionesDistintas: 1, medidaSinConfirmar: false, opcion: kr20,
+      textosDelCliente: ["hola, 4 llantas 185 60 14 kenda"],
+    })).toBe(true);
+  });
+  it("«buenas tardes, 2 llantas kenda» también; «hola» solo no elige nada", () => {
+    expect(cotizarLaUnicaDeUnaVez({
+      opcionesDistintas: 1, medidaSinConfirmar: false, opcion: kr20, textosDelCliente: ["buenas tardes, 2 llantas kenda"],
+    })).toBe(true);
+    expect(cotizarLaUnicaDeUnaVez({
+      opcionesDistintas: 1, medidaSinConfirmar: false, opcion: kr20, textosDelCliente: ["hola 4"],
+    })).toBe(false);
+  });
+});

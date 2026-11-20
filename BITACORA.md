@@ -1,3 +1,14 @@
+## 20-nov-2026 · Bot · CM39: el saludo no le quita la elección al primer mensaje (rama `fix/competimotor-pendientes`)
+
+- **Qué:** «hola», «buenas», «buenos días/tardes/noches», «saludos» son relleno para `eleccionDeLaVitrina`.
+- **Por qué:** «hola, 4 llantas 185 60 14 kenda» con una sola Kenda: el «hola» era una palabra sin dueño, la elección daba
+  null y la regla de «la única con cantidad y marca» (PR #64, CM36) no corría: salía «¿Se la cotizo?», y el turno
+  siguiente («listo paso el viernes» + «son 2 nomas no 4») solo agendaba la visita, sin cotización y con la ficha en 4.
+  Falló en la pasada × 1 de hoy y en la final del 19-nov (2 de las últimas 3).
+- **Depot:** código común: un primer mensaje con saludo, cantidad y la única llanta nombrada se cotiza directo.
+- **Probado:** 2 casos nuevos en `cotizarLaUnica` (en rojo antes), suite completa. Simulador: CM39 3/3.
+- **Horas:** 0,2.
+
 ## 20-nov-2026 · Bot · «No gracias» como venta perdida, por perfil (rama `fix/competimotor-pendientes`)
 
 - **Qué:** nuevo interruptor `politica.rechazoCierraComoPerdida`. Competimotor `true`, Depot y el perfil de ejemplo
