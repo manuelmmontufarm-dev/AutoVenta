@@ -1,3 +1,14 @@
+## 20-nov-2026 · Hub · el login rebotaba a los usernames con punto (rama `fix/token-usuario-con-punto`)
+
+- **Qué:** `verificarToken` (server/auth.ts) parte el token `userId.expiración.firma` desde la derecha.
+- **Por qué:** Carlos Romero (Competimotor, `carlos.romero`) creó su clave y el hub le volvía a pedir la clave. El
+  username admite `.`, el token salía con 4 trozos y `split(".")` exigía 3: 401 en cada petición, el hub lo leía como
+  «Falta la clave». Mismo problema para `carlos.andres`.
+- **Depot:** código común; sus usernames no llevan punto, nada cambia. Los tokens ya emitidos siguen valiendo.
+- **Probado:** prueba nueva en `auth.test.ts` (en rojo antes), auth + loginHub 32/32, `tsc` limpio. Suite completa: 3
+  archivos fallan igual en `main` (buscarPorAroCompleto, hashesPiezasDepot, unidadEnLaCantidad).
+- **Horas:** 0,2.
+
 ## 20-nov-2026 · Simulador · verificación de los pendientes de la prueba 40 × 3 (rama `fix/competimotor-pendientes`)
 
 - **Qué:** escenarios CM28 y CM40 de vuelta a exigir `perdido` (con la política de Competimotor); notas en `COMPETIMOTOR-40.md`.
