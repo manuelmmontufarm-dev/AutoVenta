@@ -157,3 +157,29 @@ Depot, llevado a lo que en Competimotor es distinto. Los datos y los jueces est�
   con el día y la hora que da el cliente (domingo, sábado 17:30), no con la hora del mensaje.
 - **Aveo Family (CM26):** se acepta 185/60R14 o 175/70R13, las dos que aparecen para ese
   carro y están en el Excel.
+
+## Escenarios corregidos el 19-nov (PR de arreglos de la prueba 40 × 3)
+
+`datos/competimotor-40.mjs` está fuera de git (trae los precios D del Excel), así que las correcciones quedan anotadas
+acá y en un comentario `// CORREGIDO 19-nov` junto a cada escenario. Regla: el escenario se corrige solo cuando el bot
+hizo lo correcto según una regla ya decidida; entonces se juzga el HECHO de la base, nunca que corra una herramienta.
+
+| ID | Qué pedía | Por qué estaba mal | Ahora |
+|---|---|---|---|
+| CM26 | cotización de 185/60R14 o 175/70R13 | regla del 1-sep (conv 13862): la medida deducida del vehículo no se cotiza; nadie escribe una medida | `sinCotizacion` + visita el sábado; la rúbrica prohíbe contar «se bloqueó» |
+| CM28 | etapa `perdido` o `seguimiento_venta` tras «no gracias» | «no gracias» no cierra como perdida a propósito (`index.ts`, `cierrePerdido.test.ts`) | ningún `follow_up_jobs` en «scheduled» y etapa no avanzada |
+| CM29 | cotización sin que el cliente elija | menú de dos sin marca: se pregunta cuál (playbook) | se agrega «la 1» |
+| CM30 | cotización tras «precio de 4» con menú de tres | «el precio a secas no autoriza con menú» (1-sep, conv 13615) | etapa `perdido` tras «no gracias» + «ya compré» (arreglo de la familia A) |
+| CM31 | cotización de 265/70R16 sin elegir | cuatro opciones: se pregunta cuál | se agrega «la townhall» |
+| CM32 | que corra `agendar_visita` | la visita la registra el lector del turno (mismo lector) | `visitaEl(6)` + `visitaALas(10)` + una sola cotización |
+| CM34 | cotización tras «si 4 de esas» con dos opciones | «de esas» no elige entre dos (regla del 19-oct) | se agrega «la 1»; se juzga además que la ficha tenga la 215/65R16 |
+| CM35 | que corra `notificar_vendedor` | desde este PR el aviso de precio por volumen lo registra el código | alerta de escalamiento en `bot_alerts` |
+| CM40 | etapa distinta de `cotizacion_enviada` | igual que CM28 | ningún seguimiento programado |
+| CM04 | `notificar_vendedor` a lo sumo 1 vez | el daño es el aviso doble; la misma llave ya no lo duplica | a lo sumo una alerta `caso_sin_resolver` |
+| todas | `preciosD(…)` | la tabla tenía las columnas corridas (B guardado como «C», C como «D») | releída del Excel: A · C efectivo · D mayorista |
+
+Helpers nuevos en el archivo: `H.sinSeguimientoPendiente()`, `H.visitaALas(h)`, `H.conAlerta(...tipos)`, `H.alertaMax(tipo, n)`. El corredor
+(`lib/corredor-competimotor.mjs`) trae ahora `seguimientos` (los `follow_up_jobs` de la conversación) en `estadoFinal`.
+
+Pendiente (bot, no escenario): **CM31 vuelve a presentarse completo** a un cliente conocido al abrirse un ciclo nuevo
+(`index.ts`: `presentadoAntes` mira solo el ciclo actual). Cambiarlo toca a Depot: queda para decidir.

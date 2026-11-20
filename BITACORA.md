@@ -1,3 +1,20 @@
+## 19-nov-2026 · Simulador · Competimotor 40 × 3, familia F y verificación final (rama `fix/competimotor-conversaciones`)
+
+- **Qué:** escenarios dudosos resueltos y otros corregidos en `datos/competimotor-40.mjs` (fuera de git; la tabla está en
+  `COMPETIMOTOR-40.md`, sección «Escenarios corregidos el 19-nov»). CM29 y CM31: el bot pregunta cuál con un menú (correcto),
+  se agrega la elección. CM32: la visita la registra el lector del turno; se juzga `visit_date` (sábado, 10:00), no la
+  herramienta. Además la tabla de precios del archivo tenía las columnas corridas (guardaba B como «C» y C como «D»):
+  CM13 marcaba «dijo el precio D» cuando el bot dijo el C de efectivo, que es lo que pidió Manuel. Releída del Excel.
+- **Verificación (simulador, clave de pruebas):** las 12 con error del bot, × 3 tras su arreglo: CM04, CM05, CM08, CM09,
+  CM20, CM26, CM27, CM28, CM30, CM34, CM35, CM36, CM40 → 3/3 cada una (CM04 juzgada por el hecho: una sola alerta
+  `caso_sin_resolver`; CM20 tras un segundo arreglo: el modelo pasaba «5:30 pm» a secas). Pasada final 40 × 1: 38/40 con
+  los escenarios corregidos; CM39 falló 1 vez y pasó al repetirla; **CM18 no armó su prefijo 2 de 2** (con «4 llantas
+  265 65 17 winrun maxclaw at» el bot muestra las dos Maxclaw y pregunta cuál; antes cotizaba por `buscar_catalogo`): sin
+  resolver. Seguimientos: s08 1/1 con la semilla aplicada, s14 1/1 con Fase 4 encendida; s03 sin re-correr (presupuesto).
+- **Gasto de OpenAI de esta sesión:** $7,79 (B $1,39 · A + B otra vez $1,47 · C/D $1,41 · 40 × 1 $3,29 · re-corridas $0,14 ·
+  seguimientos $0,09).
+- **Horas:** 0,5.
+
 ## 19-nov-2026 · Simulador · Competimotor, familia E: seguimientos tras una pregunta, sin código del bot (rama `fix/competimotor-conversaciones`)
 
 - **Qué:** `seguimientos-competimotor.mjs --con-semilla` corre `seed:negocio` sobre la copia de producción (como quedará
