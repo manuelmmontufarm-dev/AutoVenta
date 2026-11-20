@@ -1,3 +1,15 @@
+## 20-nov-2026 · Simulador · verificación de los pendientes de la prueba 40 × 3 (rama `fix/competimotor-pendientes`)
+
+- **Qué:** escenarios CM28 y CM40 de vuelta a exigir `perdido` (con la política de Competimotor); notas en `COMPETIMOTOR-40.md`.
+- **Simulador (clave de pruebas):** CM18 3/3 (el prefijo cotiza la MAXCLAW A/T × 4), CM28 3/3 y CM40 3/3 (`perdido`, sin
+  seguimientos), CM31 3/3 (0 presentaciones en el ciclo 2, revisado en la transcripción). Pasada × 1 de los que el código
+  toca de rebote: CM08, CM09, CM13, CM20, CM23, CM24, CM29, CM30, CM32, CM34, CM36, CM37 verdes; CM39 falló y se arregló
+  (entrada de CM39), luego 3/3.
+- **Comprobaciones de CLAUDE.md:** `sim:humo`, fidelidad, perfil ajeno (38/38) y `--perfil ejemplo --humo` en verde (este
+  último falla la primera vez cuando corre pegado a `sim:humo` y pasa solo; pasó igual el 19-nov).
+- **Gasto de OpenAI:** $2,28 (× 3 $0,96 · × 1 $1,11 · CM39 × 3 $0,22).
+- **Horas:** 0,3.
+
 ## 20-nov-2026 · Bot · CM39: el saludo no le quita la elección al primer mensaje (rama `fix/competimotor-pendientes`)
 
 - **Qué:** «hola», «buenas», «buenos días/tardes/noches», «saludos» son relleno para `eleccionDeLaVitrina`.
