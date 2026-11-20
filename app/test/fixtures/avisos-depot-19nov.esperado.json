@@ -1,0 +1,79 @@
+{
+ "evento:human_requested": [
+  3
+ ],
+ "evento:quote_created": [
+  1
+ ],
+ "evento:customer_ready_to_buy": [
+  1
+ ],
+ "evento:negative_sentiment": [
+  3
+ ],
+ "evento:customer_opt_out": [
+  3
+ ],
+ "evento:repetitive_conversation": [
+  3
+ ],
+ "evento:send_error": [
+  3
+ ],
+ "evento:guard_bot_atascado": [
+  3
+ ],
+ "evento:guard_idea_repetida": [
+  3
+ ],
+ "evento:guard_pide_foto": [
+  3
+ ],
+ "evento:guard_mensaje_duplicado": [
+  3
+ ],
+ "evento:guard_saludo_repetido": [
+  3
+ ],
+ "evento:guard_precio_ajustado": [
+  3
+ ],
+ "evento:guard_stock_recordado": [
+  3
+ ],
+ "evento:bot_apagado_con_clientes": [
+  3
+ ],
+ "evento:visita_comprometida": [
+  3
+ ],
+ "evento:visita_manana": [
+  3
+ ],
+ "evento:visita_hoy": [
+  3
+ ],
+ "evento:envio_fuera_de_cobertura": [
+  3
+ ],
+ "evento:caso_sin_resolver": [
+  3
+ ],
+ "evento:ventana_por_cerrar": [],
+ "evento:venta_confirmada": [
+  1,
+  3
+ ],
+ "general:reporte_diario": [
+  1,
+  3
+ ],
+ "general:bot_prendido_apagado": [
+  1,
+  3
+ ],
+ "ventana_del_asesor": [
+  1,
+  3
+ ]
+}

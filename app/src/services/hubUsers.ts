@@ -26,6 +26,8 @@ export interface UsuarioHub extends Usuario {
   claveCompartida: boolean;
   /** `salt:hash` (scrypt) de la clave propia. null = todavía no la creó. */
   pinHash: string | null;
+  /** Hash del código de invitación de una cuenta pendiente (ver el schema). */
+  invitacionHash?: string | null;
 }
 
 /**
@@ -68,6 +70,14 @@ const UsuarioHubSchema = z.object({
   email: z.string().trim().toLowerCase().email("Email inválido").max(120).nullable().default(null),
   claveCompartida: z.boolean().default(false),
   pinHash: z.string().max(300).nullable().default(null),
+  /**
+   * Hash (scrypt, como la clave) del código de invitación de una cuenta
+   * pendiente. Con él, la cuenta se activa SOLO desde su enlace (19-nov-2026):
+   * `/auth/users` es pública y dice qué cuentas están pendientes, así que sin
+   * esto cualquiera que abriera el login podía crearle la clave a otro. null =
+   * cuenta activa, o pendiente creada antes del enlace (se activa como antes).
+   */
+  invitacionHash: z.string().max(300).nullable().default(null),
 });
 
 const ListaSchema = z.array(UsuarioHubSchema).min(1).max(30)
@@ -150,14 +160,27 @@ async function guardar(lista: UsuarioHub[]): Promise<UsuarioHub[]> {
   return clonar(valida);
 }
 
-export async function crearUsuarioHub(input: unknown): Promise<UsuarioHub> {
-  const nuevo = UsuarioHubSchema.parse(input);
+/** Un código de invitación nuevo: 24 bytes al azar, en base64url (sin `+/=`). */
+function nuevoCodigoDeInvitacion(): string {
+  return randomBytes(24).toString("base64url");
+}
+
+/**
+ * Crea la cuenta. Si queda pendiente (sin clave compartida), devuelve también
+ * su código de invitación: es la ÚNICA vez que existe en claro — de la base
+ * solo se puede comprobar, no leer.
+ */
+export async function crearUsuarioHub(input: unknown): Promise<UsuarioHub & { invitacion?: string }> {
+  // La clave y la invitación no se fijan desde afuera: nacen aquí.
+  const datos = UsuarioHubSchema.parse({ ...(input as object), pinHash: null, invitacionHash: null });
   await cargarUsuariosHub();
-  if (espejo.some((u) => u.id === nuevo.id)) {
-    throw new Error(`El username «${nuevo.id}» ya existe`);
+  if (espejo.some((u) => u.id === datos.id)) {
+    throw new Error(`El username «${datos.id}» ya existe`);
   }
+  const invitacion = datos.claveCompartida ? undefined : nuevoCodigoDeInvitacion();
+  const nuevo: UsuarioHub = { ...datos, invitacionHash: invitacion ? crearHashDeClave(invitacion) : null };
   await guardar([...espejo, nuevo]);
-  return { ...nuevo, permisos: { ...nuevo.permisos } };
+  return { ...nuevo, permisos: { ...nuevo.permisos }, ...(invitacion ? { invitacion } : {}) };
 }
 
 export async function actualizarUsuarioHub(id: string, patch: unknown): Promise<UsuarioHub> {
@@ -224,6 +247,7 @@ export function claveCoincide(pin: string, guardado: string): boolean {
 const ActivacionSchema = z.object({
   email: z.string().trim().toLowerCase().email("Escribe un email válido").max(120),
   pin: z.string().min(4, "La clave necesita al menos 4 caracteres").max(60),
+  invitacion: z.string().trim().max(200).optional(),
 });
 
 /**
@@ -238,7 +262,12 @@ export async function activarUsuarioHub(id: string, input: unknown): Promise<Usu
   const actual = espejo.find((u) => u.id === id);
   if (!actual) throw new Error("Usuario no encontrado");
   if (estadoClave(actual) !== "pendiente") throw new Error("Esta cuenta ya tiene su clave creada");
-  const editado: UsuarioHub = { ...actual, email: datos.email, pinHash: crearHashDeClave(datos.pin) };
+  // Con invitación, solo su código la activa. Sin ella (pendiente creada antes
+  // del 19-nov), como siempre.
+  if (actual.invitacionHash && !(datos.invitacion && claveCoincide(datos.invitacion, actual.invitacionHash))) {
+    throw new Error("Para crear tu clave abre el enlace de invitación que te mandaron. Si no lo tienes, pídele uno nuevo a quien administra el panel.");
+  }
+  const editado: UsuarioHub = { ...actual, email: datos.email, pinHash: crearHashDeClave(datos.pin), invitacionHash: null };
   await guardar(espejo.map((u) => (u.id === id ? editado : u)));
   return { ...editado, permisos: { ...editado.permisos } };
 }
@@ -248,14 +277,30 @@ export async function activarUsuarioHub(id: string, input: unknown): Promise<Usu
  * pendiente — la persona crea una nueva en su próximo ingreso. El email se
  * conserva.
  */
-export async function restablecerClaveHub(id: string): Promise<UsuarioHub> {
+export async function restablecerClaveHub(id: string): Promise<UsuarioHub & { invitacion: string }> {
   await cargarUsuariosHub();
   const actual = espejo.find((u) => u.id === id);
   if (!actual) throw new Error("Usuario no encontrado");
   if (actual.claveCompartida) throw new Error("Esta cuenta usa la clave compartida: no hay nada que restablecer");
-  const editado: UsuarioHub = { ...actual, pinHash: null };
+  const invitacion = nuevoCodigoDeInvitacion();
+  const editado: UsuarioHub = { ...actual, pinHash: null, invitacionHash: crearHashDeClave(invitacion) };
   await guardar(espejo.map((u) => (u.id === id ? editado : u)));
-  return { ...editado, permisos: { ...editado.permisos } };
+  return { ...editado, permisos: { ...editado.permisos }, invitacion };
+}
+
+/**
+ * Un enlace nuevo para una cuenta TODAVÍA pendiente (Manuel perdió el anterior,
+ * o lo mandó al número equivocado): el viejo deja de servir.
+ */
+export async function nuevaInvitacionHub(id: string): Promise<UsuarioHub & { invitacion: string }> {
+  await cargarUsuariosHub();
+  const actual = espejo.find((u) => u.id === id);
+  if (!actual) throw new Error("Usuario no encontrado");
+  if (estadoClave(actual) !== "pendiente") throw new Error("Esta cuenta ya tiene su clave: para cambiarla, restablécela");
+  const invitacion = nuevoCodigoDeInvitacion();
+  const editado: UsuarioHub = { ...actual, invitacionHash: crearHashDeClave(invitacion) };
+  await guardar(espejo.map((u) => (u.id === id ? editado : u)));
+  return { ...editado, permisos: { ...editado.permisos }, invitacion };
 }
 
 /** Solo para pruebas: fija la lista en memoria sin tocar la base. */

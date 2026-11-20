@@ -1132,7 +1132,10 @@ interface NivelAviso { id: string; nombre: string; eventos: string[]; generales:
 interface CatalogoAvisos {
   catalogo: { id: string; nombre: string; eventos: { id: string; nombre: string }[] }[];
   generales: { id: string; nombre: string }[];
+  /** Cada aviso suelto, en orden, con su línea de qué es (19-nov). */
+  avisos?: AvisoDelCatalogo[];
 }
+interface AvisoDelCatalogo { id: string; tipo: "evento" | "general"; clave: string; nombre: string; descripcion: string; grupo: string }
 
 /**
  * Los niveles los usan dos tarjetas (el selector de cada asesor y la tabla de
@@ -1154,7 +1157,7 @@ function useNivelesAviso(onError: (e: string) => void) {
     oyentesNiveles.add(oyente);
     if (!nivelesCompartidos) {
       api<{ niveles: NivelAviso[] } & CatalogoAvisos>("/api/aviso-niveles")
-        .then((r) => publicarNiveles(r.niveles, { catalogo: r.catalogo, generales: r.generales }))
+        .then((r) => publicarNiveles(r.niveles, { catalogo: r.catalogo, generales: r.generales, avisos: r.avisos }))
         .catch((e) => onError(e instanceof Error ? e.message : "No se pudieron cargar los niveles de aviso"));
     }
     return () => { oyentesNiveles.delete(oyente); };
@@ -1556,7 +1559,6 @@ function VistaPrevia({ pieza, setPieza, paleta, fuente, plantilla, modo, benefic
  */
 function SeccionMatrizAvisos({ editable, onError }: { editable: boolean; onError: (e: string) => void }) {
   const { niveles, catalogo } = useNivelesAviso(onError);
-  const [abiertas, setAbiertas] = useState<Record<string, boolean>>({});
   const [nombres, setNombres] = useState<Record<string, string>>({});
 
   const guardar = async (siguiente: NivelAviso[]) => {
@@ -1613,7 +1615,7 @@ function SeccionMatrizAvisos({ editable, onError }: { editable: boolean; onError
   return (
     <Tarjeta
       titulo="Qué recibe cada nivel"
-      sub="Cada aviso del bot se marca por nivel. La casilla de un grupo marca o desmarca todos sus avisos; ábrelo para elegir uno por uno."
+      sub="Cada mensaje que manda el bot tiene su casilla. Marca, nivel por nivel, cuáles le llegan. Cada casilla se guarda sola."
     >
       <div className="overflow-x-auto">
         <div className="flex min-w-max flex-col gap-2">
@@ -1638,47 +1640,34 @@ function SeccionMatrizAvisos({ editable, onError }: { editable: boolean; onError
             ))}
           </div>
 
-          {catalogo.catalogo.map((c) => {
-            const ids = c.eventos.map((e) => e.id);
-            const abierta = !!abiertas[c.id];
-            return (
-              <div key={c.id} className="rounded-[8px] border border-line bg-bg">
-                <div className="grid items-center gap-2 p-3" style={{ gridTemplateColumns: columnas }}>
-                  <button onClick={() => setAbiertas((x) => ({ ...x, [c.id]: !abierta }))} className="min-w-0 text-left" aria-expanded={abierta}>
-                    <p className="text-[12.5px] font-semibold">{c.nombre}</p>
-                    <p className="mt-0.5 text-[12px] text-text2">{abierta ? "Ocultar" : `Elegir uno por uno · ${ids.length} ${ids.length === 1 ? "aviso" : "avisos"}`}</p>
-                  </button>
-                  {niveles.map((n) => {
-                    const marcados = ids.filter((e) => n.eventos.includes(e)).length;
-                    return <Casilla key={n.id} etiqueta={`${c.nombre} para ${n.nombre}`} checked={marcados === ids.length}
-                      indeterminado={marcados > 0 && marcados < ids.length} onChange={(v) => cambiarEventos(n.id, ids, v)} />;
-                  })}
-                </div>
-                {abierta && c.eventos.map((e) => (
-                  <div key={e.id} className="grid items-center gap-2 border-t border-line px-3 py-2" style={{ gridTemplateColumns: columnas }}>
-                    <span className="pl-3 text-[12px] text-text2">{e.nombre}</span>
+          {/* CADA AVISO ES SU FILA (Manuel, 19-nov): nombre, una línea de qué es
+              y una casilla por nivel. Los grupos solo ordenan: no se pliegan. */}
+          {(() => {
+            const avisos: AvisoDelCatalogo[] = catalogo.avisos ?? [
+              ...catalogo.catalogo.flatMap((c) => c.eventos.map((e) => ({ id: `evento:${e.id}`, tipo: "evento" as const, clave: e.id, nombre: e.nombre, descripcion: "", grupo: c.nombre }))),
+              ...catalogo.generales.map((g) => ({ id: `general:${g.id}`, tipo: "general" as const, clave: g.id, nombre: g.nombre, descripcion: "", grupo: "Avisos generales" })),
+            ];
+            const grupos = [...new Set(avisos.map((a) => a.grupo))];
+            const marcado = (n: NivelAviso, a: AvisoDelCatalogo) => a.tipo === "evento" ? n.eventos.includes(a.clave) : n.generales.includes(a.clave);
+            const cambiar = (n: NivelAviso, a: AvisoDelCatalogo, v: boolean) => a.tipo === "evento" ? cambiarEventos(n.id, [a.clave], v) : cambiarGeneral(n.id, a.clave, v);
+            return grupos.map((grupo) => (
+              <div key={grupo} className="rounded-[8px] border border-line bg-bg">
+                <p className="px-3 pt-3 pb-1 text-[12.5px] font-semibold">{grupo}</p>
+                {avisos.filter((a) => a.grupo === grupo).map((a) => (
+                  <div key={a.id} className="grid items-center gap-2 border-t border-line px-3 py-2" style={{ gridTemplateColumns: columnas }}>
+                    <div className="min-w-0">
+                      <p className="text-[12.5px] text-text">{a.nombre}</p>
+                      {a.descripcion && <p className="mt-0.5 text-[11.5px] leading-snug text-text2">{a.descripcion}</p>}
+                    </div>
                     {niveles.map((n) => (
-                      <Casilla key={n.id} etiqueta={`${e.nombre} para ${n.nombre}`} checked={n.eventos.includes(e.id)}
-                        onChange={(v) => cambiarEventos(n.id, [e.id], v)} />
+                      <Casilla key={n.id} etiqueta={`${a.nombre} para ${n.nombre}`} checked={marcado(n, a)}
+                        onChange={(v) => cambiar(n, a, v)} />
                     ))}
                   </div>
                 ))}
               </div>
-            );
-          })}
-
-          <div className="rounded-[8px] border border-line bg-bg">
-            <div className="px-3 pt-3"><p className="text-[12.5px] font-semibold">Avisos generales</p><p className="mt-0.5 text-[12px] text-text2">No son de un chat: salen a todo el nivel.</p></div>
-            {catalogo.generales.map((g) => (
-              <div key={g.id} className="grid items-center gap-2 px-3 py-2" style={{ gridTemplateColumns: columnas }}>
-                <span className="pl-3 text-[12px] text-text2">{g.nombre}</span>
-                {niveles.map((n) => (
-                  <Casilla key={n.id} etiqueta={`${g.nombre} para ${n.nombre}`} checked={n.generales.includes(g.id)}
-                    onChange={(v) => cambiarGeneral(n.id, g.id, v)} />
-                ))}
-              </div>
-            ))}
-          </div>
+            ));
+          })()}
         </div>
       </div>
       {editable && (
@@ -1705,12 +1694,24 @@ interface UsuarioHub {
   /** Para avisos del bot y recuperar la clave. Lo deja el usuario al activar. */
   email: string | null;
   estadoClave: "compartida" | "propia" | "pendiente";
+  /** Cuenta pendiente con enlace de invitación vigente (19-nov). */
+  invitacionVigente?: boolean;
+}
+
+/**
+ * El enlace que se le manda a la persona: abre el login con su usuario elegido
+ * y el código que deja crear su clave. Se arma aquí, con la dirección con la
+ * que el administrador está viendo el panel, así sirve igual en cada cliente.
+ */
+function enlaceDeInvitacion(id: string, codigo: string): string {
+  const { origin, pathname } = window.location;
+  return `${origin}${pathname}?usuario=${encodeURIComponent(id)}&invitacion=${encodeURIComponent(codigo)}`;
 }
 
 const ESTADO_CLAVE_UI: Record<UsuarioHub["estadoClave"], { label: string; explica: string }> = {
   compartida: { label: "clave compartida", explica: "Entra con la clave común de siempre (los cuatro originales)." },
   propia: { label: "clave propia", explica: "Ya creó su clave personal; solo esa clave abre." },
-  pendiente: { label: "pendiente", explica: "Todavía no entra: su primer ingreso será crear su clave y dejar su email." },
+  pendiente: { label: "pendiente", explica: "Todavía no entra: abre su enlace de invitación, crea su clave y deja su email." },
 };
 
 /** Cada interruptor en el idioma de las pestañas que abre o esconde. */
@@ -1741,7 +1742,22 @@ function SeccionUsuarios({ onError }: { onError: (e: string) => void }) {
   const [username, setUsername] = useState("");
   const [nombre, setNombre] = useState("");
   const [rol, setRol] = useState<"admin" | "asesor">("asesor");
+  // El enlace de invitación recién creado, por usuario. Existe solo en este
+  // momento: el servidor no lo guarda en claro y no lo puede volver a dar.
+  const [enlaces, setEnlaces] = useState<Record<string, string>>({});
+  const [copiado, setCopiado] = useState<string | null>(null);
   const yo = useHub((s) => s.usuario);
+  const conEnlace = (id: string, codigo?: string) => {
+    if (codigo) setEnlaces((x) => ({ ...x, [id]: enlaceDeInvitacion(id, codigo) }));
+  };
+  const copiar = async (id: string) => {
+    try {
+      await navigator.clipboard.writeText(enlaces[id]);
+      setCopiado(id);
+    } catch {
+      onError("No se pudo copiar: selecciona el enlace y cópialo a mano.");
+    }
+  };
 
   const cargar = useCallback(async () => {
     try {
@@ -1754,10 +1770,12 @@ function SeccionUsuarios({ onError }: { onError: (e: string) => void }) {
 
   const crear = async () => {
     try {
-      await api("/api/hub-users", {
+      const id = username.trim().toLowerCase();
+      const r = await api<{ invitacion?: string }>("/api/hub-users", {
         method: "POST",
-        body: JSON.stringify({ id: username.trim().toLowerCase(), nombre: nombre.trim(), rol }),
+        body: JSON.stringify({ id, nombre: nombre.trim(), rol }),
       });
+      conEnlace(id, r.invitacion);
       setUsername(""); setNombre(""); setRol("asesor");
       onError("");
       await cargar();
@@ -1792,18 +1810,31 @@ function SeccionUsuarios({ onError }: { onError: (e: string) => void }) {
   /** La cuenta vuelve a pendiente: la persona crea su clave de nuevo al entrar. */
   const restablecer = async (id: string) => {
     try {
-      const r = await api<{ usuario: UsuarioHub }>(`/api/hub-users/${encodeURIComponent(id)}/reset-clave`, { method: "POST" });
+      const r = await api<{ usuario: UsuarioHub; invitacion?: string }>(`/api/hub-users/${encodeURIComponent(id)}/reset-clave`, { method: "POST" });
       setUsuarios(usuarios.map((u) => (u.id === id ? r.usuario : u)));
+      conEnlace(id, r.invitacion);
       onError("");
     } catch (e) {
       onError(e instanceof Error ? e.message : "No se pudo restablecer la clave");
     }
   };
 
+  /** Otro enlace para una cuenta pendiente (el anterior deja de servir). */
+  const nuevoEnlace = async (id: string) => {
+    try {
+      const r = await api<{ usuario: UsuarioHub; invitacion?: string }>(`/api/hub-users/${encodeURIComponent(id)}/invitacion`, { method: "POST" });
+      setUsuarios(usuarios.map((u) => (u.id === id ? r.usuario : u)));
+      conEnlace(id, r.invitacion);
+      onError("");
+    } catch (e) {
+      onError(e instanceof Error ? e.message : "No se pudo crear el enlace");
+    }
+  };
+
   return (
     <Tarjeta
       titulo="Usuarios del panel"
-      sub="Quién sale en el desplegable del login y qué pestañas ve. Los usuarios nuevos crean su propia clave y dejan su email la primera vez que entran; si alguien la olvida, «Restablecer clave» lo deja crearla de nuevo. Los cambios de acceso se aplican en su próximo inicio de sesión."
+      sub="Quién sale en el desplegable del login y qué pestañas ve. Al crear un usuario aparece su enlace de invitación: mándaselo a esa persona; con él crea su propia clave y deja su email. Solo ese enlace activa la cuenta y sirve una vez. Si alguien olvida su clave, «Restablecer clave» da un enlace nuevo. Los cambios de acceso se aplican en su próximo inicio de sesión."
     >
       <div className="flex flex-col gap-4">
         {usuarios.map((u) => (
@@ -1866,10 +1897,29 @@ function SeccionUsuarios({ onError }: { onError: (e: string) => void }) {
                 <button
                   onClick={() => void restablecer(u.id)}
                   className="shrink-0 rounded-full bg-bg px-3 py-1.5 text-[12px] font-semibold hover:bg-bg"
-                  title="Borra su clave: la próxima vez que entre crea una nueva. El email se conserva."
+                  title="Borra su clave y da un enlace nuevo para que cree otra. El email se conserva."
                 >Restablecer clave</button>
               )}
+              {u.estadoClave === "pendiente" && !enlaces[u.id] && (
+                <button
+                  onClick={() => void nuevoEnlace(u.id)}
+                  className="shrink-0 rounded-full bg-bg px-3 py-1.5 text-[12px] font-semibold hover:bg-bg"
+                  title="Crea otro enlace de invitación; el anterior deja de servir."
+                >Nuevo enlace de invitación</button>
+              )}
             </div>
+            {enlaces[u.id] && (
+              <div className="mt-2.5 rounded-[6px] border border-line p-2.5">
+                <p className="text-[12px] font-semibold">Enlace de invitación de {u.nombre}</p>
+                <p className="mt-0.5 text-[11.5px] text-text2">Mándaselo solo a esa persona. Sirve una vez; no se puede volver a ver cuando salgas de esta pantalla.</p>
+                <div className="mt-1.5 flex flex-wrap gap-2">
+                  <input readOnly value={enlaces[u.id]} onFocus={(e) => e.currentTarget.select()} aria-label={`Enlace de invitación de ${u.nombre}`} className={`${inputCls} min-w-0 flex-1 text-[11.5px]`} />
+                  <button onClick={() => void copiar(u.id)} className="shrink-0 rounded-[6px] bg-bg px-3 text-[12px] font-semibold hover:bg-bg">
+                    {copiado === u.id ? "Copiado" : "Copiar"}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         ))}
       </div>

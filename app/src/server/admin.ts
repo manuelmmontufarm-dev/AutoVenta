@@ -129,6 +129,7 @@ import {
   NOMBRE_DE_EVENTO,
   AVISOS_GENERALES,
   NOMBRE_DE_AVISO_GENERAL,
+  catalogoDeAvisos,
   getNivelesAviso,
   mensajeCambioDeBot,
   saveNivelesAviso,
@@ -142,6 +143,7 @@ import {
   crearUsuarioHub,
   estadoClave,
   restablecerClaveHub,
+  nuevaInvitacionHub,
   usuariosHub,
   type UsuarioHub,
 } from "../services/hubUsers.js";
@@ -453,16 +455,32 @@ export function createAdminRouter(): express.Router {
       return;
     }
     const input = z
-      .object({ userId: z.string().min(1).max(40), email: z.string().min(3).max(120), pin: z.string().min(4).max(60) })
+      .object({
+        userId: z.string().min(1).max(40), email: z.string().min(3).max(120), pin: z.string().min(4).max(60),
+        // El código del enlace de invitación (19-nov): obligatorio para las
+        // cuentas creadas desde entonces; lo comprueba `activarUsuarioHub`.
+        invitacion: z.string().max(200).optional(),
+      })
       .safeParse(req.body);
     if (!input.success) {
       res.status(400).json({ ok: false, error: "Hace falta el email y una clave de al menos 4 caracteres." });
       return;
     }
     try {
+      // El freno de fuerza bruta también aquí: el código no se adivina, pero
+      // nadie tiene por qué poder probar sin límite.
+      const espera = esperaDeLogin(`activar:${input.data.userId}`);
+      if (espera > 0) {
+        res.status(429).json({ ok: false, error: `Demasiados intentos. Vuelve a probar en ${Math.ceil(espera / 1000)} s.` });
+        return;
+      }
       const usuario = await activarUsuarioHub(input.data.userId, {
         email: input.data.email,
         pin: input.data.pin,
+        invitacion: input.data.invitacion,
+      }).catch((error: unknown) => {
+        registrarLoginFallido(`activar:${input.data.userId}`);
+        throw error;
       });
       registrarLoginBueno(usuario.id);
       res.json({
@@ -2116,19 +2134,19 @@ export function createAdminRouter(): express.Router {
   // para que el panel no tenga que copiarlo: un aviso nuevo aparece solo.
   // Leerlo puede cualquiera del hub; cambiarlo es de administradores.
 
-  const catalogoDeAvisos = () => CATEGORIAS_AVISO.map((c) => ({
+  const catalogoPorCategoria = () => CATEGORIAS_AVISO.map((c) => ({
     id: c,
     nombre: NOMBRE_DE_CATEGORIA[c],
     eventos: EVENTOS_AVISO.filter((e) => CATEGORIA_DE_EVENTO[e] === c).map((e) => ({ id: e, nombre: NOMBRE_DE_EVENTO[e] })),
   }));
 
   router.get("/aviso-niveles", async (_req, res) => {
-    res.json({ ok: true, niveles: await getNivelesAviso(), catalogo: catalogoDeAvisos(), generales: AVISOS_GENERALES.map((g) => ({ id: g, nombre: NOMBRE_DE_AVISO_GENERAL[g] })) });
+    res.json({ ok: true, niveles: await getNivelesAviso(), catalogo: catalogoPorCategoria(), generales: AVISOS_GENERALES.map((g) => ({ id: g, nombre: NOMBRE_DE_AVISO_GENERAL[g] })), avisos: catalogoDeAvisos().avisos });
   });
 
   router.put("/aviso-niveles", exigirNivelMaximo, async (req, res) => {
     try {
-      res.json({ ok: true, niveles: await saveNivelesAviso(req.body?.niveles ?? req.body), catalogo: catalogoDeAvisos(), generales: AVISOS_GENERALES.map((g) => ({ id: g, nombre: NOMBRE_DE_AVISO_GENERAL[g] })) });
+      res.json({ ok: true, niveles: await saveNivelesAviso(req.body?.niveles ?? req.body), catalogo: catalogoPorCategoria(), generales: AVISOS_GENERALES.map((g) => ({ id: g, nombre: NOMBRE_DE_AVISO_GENERAL[g] })), avisos: catalogoDeAvisos().avisos });
     } catch (error) {
       const texto = error instanceof Error && "issues" in error
         ? ((error as { issues: Array<{ message: string }> }).issues[0]?.message ?? "Niveles inválidos")
@@ -2142,8 +2160,13 @@ export function createAdminRouter(): express.Router {
   // pantallas ve; /advisors es qué teléfono recibe avisos por WhatsApp.
 
   /** Lo que ve el panel: nunca el hash, sí el estado de la clave y el email. */
-  const usuarioParaPanel = ({ pinHash: _hash, claveCompartida: _c, ...resto }: UsuarioHub, completo: UsuarioHub) =>
-    ({ ...resto, estadoClave: estadoClave(completo) });
+  const usuarioParaPanel = (
+    { pinHash: _hash, claveCompartida: _c, invitacionHash: _inv, ...resto }: UsuarioHub & { invitacion?: string },
+    completo: UsuarioHub,
+  ) => {
+    const { invitacion: _codigo, ...sinCodigo } = resto;
+    return { ...sinCodigo, estadoClave: estadoClave(completo), invitacionVigente: Boolean(completo.invitacionHash) };
+  };
 
   router.get("/hub-users", exigirNivelMaximo, (_req, res) => {
     res.json({ ok: true, usuarios: usuariosHub().map((u) => usuarioParaPanel(u, u)) });
@@ -2152,7 +2175,9 @@ export function createAdminRouter(): express.Router {
   router.post("/hub-users", exigirNivelMaximo, async (req, res) => {
     try {
       const usuario = await crearUsuarioHub(req.body);
-      res.json({ ok: true, usuario: usuarioParaPanel(usuario, usuario) });
+      // El código va UNA vez, fuera del objeto del usuario: el panel arma el
+      // enlace y se lo muestra a quien lo creó.
+      res.json({ ok: true, usuario: usuarioParaPanel(usuario, usuario), ...(usuario.invitacion ? { invitacion: usuario.invitacion } : {}) });
     } catch (error) {
       res.status(400).json({ ok: false, error: mensaje(error, "No se pudo crear el usuario") });
     }
@@ -2171,9 +2196,19 @@ export function createAdminRouter(): express.Router {
   router.post("/hub-users/:id/reset-clave", exigirNivelMaximo, async (req, res) => {
     try {
       const usuario = await restablecerClaveHub(String(req.params.id));
-      res.json({ ok: true, usuario: usuarioParaPanel(usuario, usuario) });
+      res.json({ ok: true, usuario: usuarioParaPanel(usuario, usuario), invitacion: usuario.invitacion });
     } catch (error) {
       res.status(400).json({ ok: false, error: mensaje(error, "No se pudo restablecer la clave") });
+    }
+  });
+
+  /** Otro enlace de invitación para una cuenta pendiente; el anterior deja de servir. */
+  router.post("/hub-users/:id/invitacion", exigirNivelMaximo, async (req, res) => {
+    try {
+      const usuario = await nuevaInvitacionHub(String(req.params.id));
+      res.json({ ok: true, usuario: usuarioParaPanel(usuario, usuario), invitacion: usuario.invitacion });
+    } catch (error) {
+      res.status(400).json({ ok: false, error: mensaje(error, "No se pudo crear el enlace") });
     }
   });
 

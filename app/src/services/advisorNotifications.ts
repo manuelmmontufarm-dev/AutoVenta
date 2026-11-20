@@ -142,15 +142,84 @@ export const NOMBRE_DE_EVENTO: Record<AdvisorEventType, string> = {
 };
 
 /**
+ * Una línea de QUÉ ES cada aviso, para quien marca las casillas en Ajustes
+ * (Manuel, 19-nov-2026: «ver cada tipo de mensaje que mandamos… con una línea
+ * de qué es»). Un evento nuevo sin su línea rompe el test.
+ */
+export const DESCRIPCION_DE_EVENTO: Record<AdvisorEventType, string> = {
+  quote_created: "El bot le mandó una cotización a un cliente: llega el total y el chat.",
+  customer_ready_to_buy: "El cliente dijo que quiere comprar o pagar: hay que atenderlo ya.",
+  venta_confirmada: "Llegó la factura de una venta que empezó en un chat del bot.",
+  visita_comprometida: "El cliente dijo qué día va a pasar por el local.",
+  visita_manana: "Recordatorio la víspera: un cliente dijo que viene mañana.",
+  visita_hoy: "Recordatorio el mismo día: un cliente dijo que viene hoy.",
+  ventana_por_cerrar: "Un cliente está por quedar fuera de las 24 h en que WhatsApp deja escribirle gratis.",
+  human_requested: "El cliente pidió hablar con una persona.",
+  negative_sentiment: "El cliente se mostró molesto o se quejó.",
+  customer_opt_out: "El cliente pidió que no le escriban más.",
+  repetitive_conversation: "El chat da vueltas sobre lo mismo y no avanza.",
+  guard_bot_atascado: "El bot no supo qué contestar y se frenó el mensaje.",
+  guard_idea_repetida: "El bot iba a repetir lo mismo otra vez y se frenó.",
+  guard_pide_foto: "El bot iba a pedir una foto que no hacía falta y se frenó.",
+  guard_mensaje_duplicado: "El bot iba a mandar dos veces el mismo mensaje y se frenó.",
+  guard_saludo_repetido: "El bot iba a volver a saludar en medio del chat y se frenó.",
+  guard_precio_ajustado: "Un precio del mensaje no cuadraba con la cotización y se corrigió antes de salir.",
+  guard_stock_recordado: "Se agregó al mensaje cuántas llantas hay de verdad.",
+  caso_sin_resolver: "El bot no pudo resolver lo que pidió el cliente y lo deja a una persona.",
+  envio_fuera_de_cobertura: "El cliente pidió envío o atención fuera de la zona que se atiende.",
+  bot_apagado_con_clientes: "El bot está apagado y hay clientes escribiendo sin respuesta.",
+  send_error: "Un mensaje de WhatsApp no se pudo enviar (falla de Meta o del número).",
+};
+
+/**
  * Avisos que no son de una conversación: salen a todo un nivel de una vez. Antes
  * iban fijos a `admin`; ahora también se eligen por nivel, como los demás.
+ *
+ * `ventana_del_asesor` (19-nov-2026): «a un asesor se le cierra la ventana de
+ * 24 h y va a dejar de recibir avisos». Salía por el canal de
+ * `bot_prendido_apagado`, sin casilla propia; ahora la tiene.
  */
-export const AVISOS_GENERALES = ["reporte_diario", "bot_prendido_apagado"] as const;
+export const AVISOS_GENERALES = ["reporte_diario", "bot_prendido_apagado", "ventana_del_asesor"] as const;
 export type AvisoGeneral = (typeof AVISOS_GENERALES)[number];
 export const NOMBRE_DE_AVISO_GENERAL: Record<AvisoGeneral, string> = {
   reporte_diario: "Reporte diario de las 20:00",
   bot_prendido_apagado: "Alguien prendió o apagó el bot",
+  ventana_del_asesor: "Un asesor va a dejar de recibir avisos",
 };
+export const DESCRIPCION_DE_AVISO_GENERAL: Record<AvisoGeneral, string> = {
+  reporte_diario: "El resumen del día: chats, cotizaciones, visitas y ventas.",
+  bot_prendido_apagado: "Alguien prendió o apagó el bot desde el panel, y quién fue.",
+  ventana_del_asesor: "A un asesor se le cierra la ventana de 24 h de WhatsApp: tiene que escribirle al bot para seguir recibiendo avisos.",
+};
+
+/**
+ * Un aviso general NUEVO entra igual que el canal por donde salía antes, en los
+ * niveles guardados antes de que existiera: así nadie deja de recibir lo que
+ * recibía (Depot, 19-nov). Desde que alguien guarda los niveles en Ajustes,
+ * manda lo guardado.
+ */
+const GENERAL_QUE_HEREDA: Partial<Record<AvisoGeneral, AvisoGeneral>> = {
+  ventana_del_asesor: "bot_prendido_apagado",
+};
+
+/**
+ * Lo que el panel muestra: CADA aviso suelto, en el orden de sus grupos, con su
+ * nombre y su línea de qué es. `id` = `evento:<x>` o `general:<x>`.
+ */
+export function catalogoDeAvisos(): {
+  avisos: Array<{ id: string; tipo: "evento" | "general"; clave: string; nombre: string; descripcion: string; grupo: string }>;
+} {
+  const eventos = CATEGORIAS_AVISO.flatMap((c) =>
+    EVENTOS_AVISO.filter((e) => CATEGORIA_DE_EVENTO[e] === c).map((e) => ({
+      id: `evento:${e}`, tipo: "evento" as const, clave: e, nombre: NOMBRE_DE_EVENTO[e],
+      descripcion: DESCRIPCION_DE_EVENTO[e], grupo: NOMBRE_DE_CATEGORIA[c],
+    })));
+  const generales = AVISOS_GENERALES.map((g) => ({
+    id: `general:${g}`, tipo: "general" as const, clave: g, nombre: NOMBRE_DE_AVISO_GENERAL[g],
+    descripcion: DESCRIPCION_DE_AVISO_GENERAL[g], grupo: "Avisos generales (no son de un chat)",
+  }));
+  return { avisos: [...eventos, ...generales] };
+}
 
 /** Un nivel de aviso: su nombre, qué avisos de chat recibe y qué avisos generales. */
 export interface NivelAviso {
@@ -164,6 +233,8 @@ export interface NivelAviso {
    * `EVENTOS_ENCENDIDOS_AL_LLEGAR`. Lo pone `saveNivelesAviso`, no el panel.
    */
   vistos?: AdvisorEventType[];
+  /** Lo mismo para los avisos generales: los que existían al guardar. */
+  generalesVistos?: AvisoGeneral[];
 }
 
 /**
@@ -181,7 +252,12 @@ export function completarEventosNuevos(niveles: NivelAviso[]): NivelAviso[] {
   return niveles.map((n) => {
     const vistos = n.vistos ?? [];
     const faltan = EVENTOS_ENCENDIDOS_AL_LLEGAR.filter((e) => !vistos.includes(e) && !n.eventos.includes(e));
-    return faltan.length ? { ...n, eventos: [...n.eventos, ...faltan] } : n;
+    const generalesVistos = n.generalesVistos ?? [];
+    const heredados = (Object.entries(GENERAL_QUE_HEREDA) as Array<[AvisoGeneral, AvisoGeneral]>)
+      .filter(([nuevo, viejo]) => !generalesVistos.includes(nuevo) && !n.generales.includes(nuevo) && n.generales.includes(viejo))
+      .map(([nuevo]) => nuevo);
+    if (!faltan.length && !heredados.length) return n;
+    return { ...n, eventos: [...n.eventos, ...faltan], generales: [...n.generales, ...heredados] };
   });
 }
 
@@ -206,9 +282,12 @@ const NivelSchema = z.object({
   eventos: z.array(z.enum(EVENTOS_AVISO)).default([]),
   generales: z.array(z.enum(AVISOS_GENERALES)).default([]),
   vistos: z.array(z.enum(EVENTOS_AVISO)).optional(),
+  generalesVistos: z.array(z.enum(AVISOS_GENERALES)).optional(),
 });
 const NivelesSchema = z.array(NivelSchema).min(1, "Tiene que quedar al menos un nivel").max(12)
   .refine((ns) => new Set(ns.map((n) => n.id)).size === ns.length, "Dos niveles con el mismo id");
+/** Solo para pruebas: leer niveles guardados como los lee el servidor. */
+export const NivelesSchemaParaPruebas = NivelesSchema;
 
 /** La matriz vieja (categorías por `admin`/`asesor`), para leer lo que Andrés ya había marcado. */
 const MatrizViejaSchema = z.object({
@@ -256,7 +335,7 @@ export async function getNivelesAviso(): Promise<NivelAviso[]> {
 export async function saveNivelesAviso(input: unknown): Promise<NivelAviso[]> {
   // Quien guarda vio todos los avisos que hay hoy: lo que dejó sin marcar
   // queda apagado, también los que `completarEventosNuevos` había prendido.
-  const value = NivelesSchema.parse(input).map((n) => ({ ...n, vistos: [...EVENTOS_AVISO] }));
+  const value = NivelesSchema.parse(input).map((n) => ({ ...n, vistos: [...EVENTOS_AVISO], generalesVistos: [...AVISOS_GENERALES] }));
   const ids = value.map((n) => n.id);
   const huerfanos = await sql<{ nombre: string; rol: string }[]>`
     select nombre, rol from advisors where not (rol = any(${ids}::text[]))
@@ -452,14 +531,14 @@ export function mensajeCambioDeBot(input: {
  * NUNCA lanza: quien la llama está apagando el bot, y un WhatsApp caído no
  * puede impedir un apagado de emergencia.
  */
-export async function avisarAsesoresGlobal(texto: string): Promise<{
+export async function avisarAsesoresGlobal(texto: string, general: AvisoGeneral = "bot_prendido_apagado"): Promise<{
   enviados: number;
   error?: string;
 }> {
   try {
     // Solo los niveles que lo tienen marcado (por defecto, el Nivel 1): encender
     // o apagar el bot es una decisión de quien dirige, no del mostrador.
-    const destinatarios = await asesoresActivos({ general: "bot_prendido_apagado" });
+    const destinatarios = await asesoresActivos({ general });
     if (!destinatarios.length) {
       console.log("📣 Aviso global sin destino: no hay asesores activos configurados");
       return { enviados: 0, error: "No hay asesores activos configurados" };
