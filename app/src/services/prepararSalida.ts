@@ -42,6 +42,7 @@ import { ofertaEnElTexto, type OfertaDeCotizar } from "../domain/ofertaVigente.j
 import { applyOutboundGuard } from "./outboundGuard.js";
 import { revisarConGuardian, type HuellaHerramienta, type RevisionGuardian } from "./guardian.js";
 import { asegurarAvisoDeStock } from "./stockCorto.js";
+import { sinPrecioViejoDeLaCotizacion } from "./precioViejo.js";
 import { insistirConLoQueFalta, sinPreguntaPendienteConsecutiva } from "./insistirCierre.js";
 import { createBotAlert } from "./followUps.js";
 import { composeBlocks, MAX_BLOCKS, textoDeLaPieza } from "./quoteMessages.js";
@@ -1649,7 +1650,41 @@ export const PASOS: readonly PasoDeSalida[] = [
       return limpio;
     },
   },
+  {
+    // EL PRECIO DE AYER NO SE REPITE SI EL EXCEL LO CAMBIÓ HOY (simulador
+    // Competimotor 20-nov, caso s12): el Guardián leyó la cotización del jueves
+    // en el hilo y el seguimiento del viernes dijo «$418.60 total» con la llanta
+    // ya a otro precio. Al final, después de todo lo que reescribe o escribe un
+    // precio. Ver domain/precioViejo.ts.
+    nombre: "sin_precio_viejo_de_la_cotizacion",
+    corre: ["seguimiento"],
+    async aplicar(texto, ctx) {
+      return sinPrecioViejoDeLaCotizacion(ctx.conversation.id, ctx.conversation.current_cycle, texto);
+    },
+  },
+  {
+    // UN SEGUIMIENTO ES UN SOLO MENSAJE: SIN «---» A LA VISTA (simulador
+    // Competimotor 20-nov, caso s12, 2 de 3). En el turno normal `index.ts`
+    // parte el texto en mensajes por el «---»; el worker de seguimientos lo
+    // manda entero, así que el cliente leía la raya. El Guardián y
+    // `cerrarConLaAlternativa` escriben con el separador del turno: aquí, el
+    // último paso, cada bloque pasa a ser un párrafo.
+    nombre: "seguimiento_en_un_solo_mensaje",
+    corre: ["seguimiento"],
+    async aplicar(texto) {
+      return unSoloMensaje(texto);
+    },
+  },
 ];
+
+/** Los bloques separados por «---» como párrafos de un mismo mensaje. */
+export function unSoloMensaje(texto: string): string {
+  return texto
+    .split(/^[ \t]*-{3,}[ \t]*$/m)
+    .map((b) => b.trim())
+    .filter(Boolean)
+    .join("\n\n");
+}
 
 
 /**
