@@ -7,7 +7,7 @@
  * Sin ADMIN_KEY la API queda abierta — solo aceptable durante el piloto.
  */
 import express from "express";
-import { claveDelEnlace, listarVentasRegistradas, ventasACsv } from "../services/registroDeVentas.js";
+import { claveDeRegistros, claveDelEnlace, listarVentasRegistradas, ventasACsv } from "../services/registroDeVentas.js";
 import { z } from "zod";
 import { sql } from "../db/client.js";
 import { AnunciosActivosSchema } from "../domain/anunciosActivos.js";
@@ -1711,7 +1711,7 @@ export function createAdminRouter(): express.Router {
       res.type("text/csv").attachment("ventas-registradas.csv").send(ventasACsv(ventas));
       return;
     }
-    res.json({ ok: true, enlace: `/venta?k=${claveDelEnlace()}`, ventas });
+    res.json({ ok: true, enlace: `/venta?k=${claveDelEnlace()}`, enlaceRegistros: `/venta/registros?k=${claveDeRegistros()}`, ventas });
   });
 
   router.get("/ventas/archivo", async (_req, res) => {

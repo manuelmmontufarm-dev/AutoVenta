@@ -10,7 +10,10 @@ import express from "express";
 import { negocio } from "../negocio/index.js";
 import { nombreDelResponsable } from "./privacidad.js";
 import { tel9 } from "../services/fuentes/contifico.js";
-import { claveValida, guardarFactura, registrarVenta, validarEntrada } from "../services/registroDeVentas.js";
+import {
+  claveDeRegistrosValida, claveValida, guardarFactura, listarVentasRegistradas, registrarVenta, validarEntrada,
+  ventasACsv, type VentaRegistrada,
+} from "../services/registroDeVentas.js";
 
 // ── Freno simple contra el que quiera probar números en masa ─────────────────
 
@@ -220,6 +223,67 @@ const ENLACE_MALO = /* html */ `<!doctype html><html lang="es"><meta charset="ut
 <h1 style="font-size:22px">Este enlace no está completo</h1>
 <p>Pide de nuevo el enlace para registrar ventas y ábrelo tal como te lo enviaron.</p></body></html>`;
 
+// ── La página del dueño: todos los registros ────────────────────────────────
+
+const fechaHora = (d: Date) =>
+  d.toLocaleString("es-EC", { timeZone: "America/Guayaquil", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", hour12: false });
+const soloFecha = (d: Date | null) =>
+  d ? d.toLocaleDateString("es-EC", { timeZone: "America/Guayaquil", day: "2-digit", month: "short", year: "numeric" }) : "";
+
+export function paginaDeRegistros(nombreNegocio: string, ventas: VentaRegistrada[], clave: string): string {
+  const si = ventas.filter((v) => v.vinoDeWhatsapp).length;
+  const sinFactura = ventas.filter((v) => !v.factura).length;
+  const filas = ventas.map((v) => `<tr>
+    <td>${escapar(fechaHora(v.createdAt))}</td>
+    <td>${escapar(v.vendedor)}</td>
+    <td class="num">${escapar(v.telefono)}</td>
+    <td><span class="chip ${v.vinoDeWhatsapp ? "si" : "no"}">${v.vinoDeWhatsapp ? "Sí" : "No"}</span></td>
+    <td>${escapar(v.cliente ?? "")}</td>
+    <td>${escapar(soloFecha(v.ultimoMensajeAt))}</td>
+    <td>${v.vinoDeWhatsapp ? (v.cotizaciones > 0 ? "Sí" : "No") : ""}</td>
+    <td class="num">${v.factura ? escapar(v.factura) : '<span class="falta">sin factura</span>'}</td>
+  </tr>`).join("");
+  const negocioHtml = escapar(nombreNegocio);
+  return /* html */ `<!doctype html>
+<html lang="es"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Ventas registradas · ${negocioHtml}</title>
+<style>
+  body { margin:0; background:#f4f5f7; color:#14171c; font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 48px; }
+  .negocio { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color:#5d6673; margin:0 0 4px; }
+  h1 { font-size: 26px; margin: 0 0 16px; }
+  .resumen { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:16px; }
+  .dato { background:#fff; border:1px solid #d5d9e0; border-radius:10px; padding:8px 14px; }
+  .dato b { font-size: 20px; margin-right: 6px; font-variant-numeric: tabular-nums; }
+  a.boton { margin-left:auto; background:#14171c; color:#fff; text-decoration:none; font-weight:700; padding:10px 16px; border-radius:10px; }
+  .tabla { background:#fff; border:1px solid #d5d9e0; border-radius:12px; overflow-x:auto; }
+  table { border-collapse: collapse; width:100%; min-width: 820px; }
+  th, td { text-align:left; padding:10px 12px; border-bottom:1px solid #eceef2; white-space:nowrap; }
+  th { font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:#5d6673; background:#fafbfc; }
+  tr:last-child td { border-bottom:0; }
+  .num { font-variant-numeric: tabular-nums; }
+  .chip { display:inline-block; padding:2px 10px; border-radius:999px; font-weight:700; font-size:13px; }
+  .chip.si { background:#e6f6ec; color:#0e7a43; } .chip.no { background:#fff3e0; color:#a3540a; }
+  .falta { color:#8a93a0; }
+  .vacio { padding: 28px 16px; color:#5d6673; }
+</style></head><body><main>
+  <p class="negocio">${negocioHtml}</p>
+  <h1>Ventas registradas</h1>
+  <div class="resumen">
+    <span class="dato"><b>${ventas.length}</b>registros</span>
+    <span class="dato"><b>${si}</b>vinieron de WhatsApp</span>
+    <span class="dato"><b>${ventas.length - si}</b>no están en los chats</span>
+    <span class="dato"><b>${sinFactura}</b>sin factura</span>
+    <a class="boton" href="/venta/registros.csv?k=${encodeURIComponent(clave)}">Descargar Excel</a>
+  </div>
+  <div class="tabla">${ventas.length ? `<table>
+    <thead><tr><th>Registrado</th><th>Vendedor</th><th>Número</th><th>WhatsApp</th><th>Nombre en el chat</th><th>Último mensaje</th><th>Cotizó el bot</th><th>Factura o referencia</th></tr></thead>
+    <tbody>${filas}</tbody></table>` : '<p class="vacio">Todavía no hay ventas registradas.</p>'}</div>
+</main></body></html>`;
+}
+
 // ── Las rutas ────────────────────────────────────────────────────────────────
 
 export function createRegistroVentaRouter(): express.Router {
@@ -232,6 +296,25 @@ export function createRegistroVentaRouter(): express.Router {
       return;
     }
     res.type("html").send(paginaDeRegistro(nombreDelResponsable(negocio)));
+  });
+
+  router.get(["/registros", "/registros.csv"], async (req, res) => {
+    res.set("Cache-Control", "no-store").set("Referrer-Policy", "no-referrer");
+    if (!claveDeRegistrosValida(req.query.k)) {
+      res.status(404).type("html").send(ENLACE_MALO);
+      return;
+    }
+    try {
+      const ventas = await listarVentasRegistradas();
+      if (req.path.endsWith(".csv")) {
+        res.type("text/csv").attachment("ventas-registradas.csv").send(ventasACsv(ventas));
+        return;
+      }
+      res.type("html").send(paginaDeRegistros(nombreDelResponsable(negocio), ventas, String(req.query.k)));
+    } catch (error) {
+      console.error("❌ /venta/registros:", error);
+      res.status(500).type("html").send("No se pudieron cargar los registros. Recarga la página.");
+    }
   });
 
   router.post("/registrar", express.json({ limit: "4kb" }), async (req, res) => {

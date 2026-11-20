@@ -34,12 +34,21 @@ function derivar(proposito: string): string {
 /** La clave del enlace que se les pasa a los vendedores. */
 export const claveDelEnlace = (): string => derivar("registro-de-ventas:vendedores");
 
-export function claveValida(clave: unknown): boolean {
+/**
+ * La clave del enlace del DUEÑO, para ver todos los registros. Es otra distinta
+ * a propósito: el enlace de los vendedores no sirve para ver la lista.
+ */
+export const claveDeRegistros = (): string => derivar("registro-de-ventas:dueno");
+
+function coincide(clave: unknown, esperada: string): boolean {
   if (!REGISTRO_HABILITADO || typeof clave !== "string") return false;
   const a = Buffer.from(clave);
-  const b = Buffer.from(claveDelEnlace());
+  const b = Buffer.from(esperada);
   return a.length === b.length && timingSafeEqual(a, b);
 }
+
+export const claveValida = (clave: unknown): boolean => coincide(clave, claveDelEnlace());
+export const claveDeRegistrosValida = (clave: unknown): boolean => coincide(clave, claveDeRegistros());
 
 // ── Lo que escribe el vendedor ───────────────────────────────────────────────
 
@@ -175,7 +184,7 @@ export async function guardarFactura(id: number, llave: string, factura: unknown
   return fila ? aVenta(fila) : null;
 }
 
-export async function listarVentasRegistradas(limite = 500): Promise<VentaRegistrada[]> {
+export async function listarVentasRegistradas(limite = 2000): Promise<VentaRegistrada[]> {
   const filas = await sql<Fila[]>`
     select ${COLUMNAS} from ventas_registradas order by created_at desc limit ${limite}
   `;

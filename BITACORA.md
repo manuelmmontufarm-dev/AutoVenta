@@ -1,3 +1,11 @@
+## 20-nov-2026 · Vendedores · Página aparte para ver las ventas registradas (rama `feat/registros-de-venta-pagina`)
+
+- **Qué:** `GET /venta/registros?k=…` (tabla con todos los registros y resumen) y `/venta/registros.csv` (Excel), con una
+  clave propia del dueño (`claveDeRegistros`, otra derivación de `ADMIN_KEY`): el enlace de los vendedores no la abre.
+  `GET /api/ventas-registradas` devuelve también `enlaceRegistros`.
+- **Por qué:** Manuel, 20-nov: quiere ver lo guardado en una página aparte del dashboard, no en el hub.
+- **Probado:** `registroDeVentas.integration.test.ts` (20: clave separada, tabla completa, HTML escapado, CSV), `tsc`.
+- **Horas:** 0,5.
 ## 20-nov-2026 · Vendedores · Página `/venta` para registrar ventas y validar si vinieron de WhatsApp (rama `feat/registro-venta-vendedor`)
 
 - **Qué:** página pública con clave en el enlace (`/venta?k=…`, derivada de `ADMIN_KEY`, sin variable nueva). Paso 1: el
