@@ -1,3 +1,11 @@
+## 19-nov-2026 · Build del panel con el mensaje de la mañana
+
+**Qué:** `app/site` reconstruido sobre main después de integrar `feat/avisos-y-usuarios`; el commit anterior subió el index de main sin las tarjetas nuevas.
+
+**Por qué:** el panel versionado tiene que salir del mismo código que `hub/src`.
+
+**Horas:** 0,1
+
 ## 19-nov-2026 · Mensaje de la mañana a los asesores y plantillas al día con Meta
 
 **Qué:**
