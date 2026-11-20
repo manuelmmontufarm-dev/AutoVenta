@@ -46,13 +46,17 @@ export interface PoliticaComercial {
    */
   cotizacionConDescuento: boolean;
   /**
-   * ¿Un «no gracias» (rechazo suave, `domain/cierreTurno.ts`) deja la venta como
-   * PERDIDA? Depot: false a propósito (index.ts, `cierrePerdido.test.ts`: solo
-   * cancela los seguimientos; cerrar borra el ciclo y lo de la visita).
-   * Competimotor: true (Manuel, 20-nov, tras la prueba 40 × 3: CM28 y CM40).
-   * Cambiarlo en Depot es decisión de Manuel.
+   * ¿Un «no gracias» A SECAS después de una lámina o una cotización es «esa no»
+   * y se le ofrece otra? (Manuel, 20-nov: «no gracias» no es venta perdida, es
+   * «no quiero esa» o «quiero otra opción».) Con true sale la lámina con las de
+   * la medida que no vio, o la pregunta de qué busca
+   * (`services/otraOpcionTrasNoGracias.ts`). Con false se despide con el texto
+   * de siempre. El desistimiento explícito («no gracias ya no», «ya no», «ya
+   * compré») se despide en los dos casos.
+   * Depot: false (su despedida es texto aprobado; cambiarlo es decisión de
+   * Manuel). Competimotor: true.
    */
-  rechazoCierraComoPerdida: boolean;
+  noGraciasPideOtraOpcion: boolean;
   /**
    * El texto del beneficio por venir de redes sociales, palabra por palabra,
    * o null si el negocio no lo ofrece: entonces no se menciona en ninguna salida.

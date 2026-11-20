@@ -97,12 +97,12 @@ import { tryReenviarOpciones } from "./services/reenviarOpciones.js";
 import { tryMedidaIncompleta } from "./services/medidaIncompleta.js";
 import { tryRecomendarConLaPieza } from "./services/recomendarConLaPieza.js";
 import { tryMasOpcionesPorMarca } from "./services/masOpcionesPorMarca.js";
+import { PREGUNTA_TRAS_NO_GRACIAS, tryOtraOpcionTrasNoGracias } from "./services/otraOpcionTrasNoGracias.js";
 import { firstContactReply, isGenericFirstContact, pedidoDeMedidaDelPrimerContacto } from "./domain/firstContact.js";
 import { despedidaQueCorresponde } from "./domain/cierrePerdido.js";
 import { botonesParaBloque, recortarTitulo, textoDeBoton, type BloqueConBotones } from "./domain/botones.js";
 import { esComandoDeReinicio, MENSAJE_DE_REINICIO } from "./domain/reinicio.js";
 import { esClienteQueVuelve } from "./domain/clienteQueVuelve.js";
-import { politica } from "./negocio/politica.js";
 import { esSoloPregunta } from "./domain/preguntaSola.js";
 import { sql } from "./db/client.js";
 import { presentacionDeApertura } from "./domain/saludo.js";
@@ -461,12 +461,21 @@ async function atenderTurno(
   // Una salida terminal se reconoce aquí: las herramientas sirven para vender,
   // y cuando el cliente ya compró en otro lado no deben ejecutarse siquiera.
   const cierreAntesDeHerramientas = despedidaQueCorresponde(textoConLinks);
-  const cierreDelTurno = cierreAntesDeHerramientas
+  const cierreLeido = cierreAntesDeHerramientas
     ? null
     : tipoDeCierreDelTurno(
         textoConLinks,
         await previousInboundText(conversation.id),
       );
+  // «No gracias» a secas tras una lámina o una cotización es «esa no», no una
+  // despedida (Manuel, 20-nov): con `politica.noGraciasPideOtraOpcion`
+  // (Competimotor) sale la lámina con las que no vio o la pregunta de qué
+  // busca, y el turno sigue como uno de mostrar. Ver services/otraOpcionTrasNoGracias.ts.
+  const otraOpcionTrasNoGracias = cierreLeido === "rechazo_suave"
+    ? await tryOtraOpcionTrasNoGracias({ conversation, customerPhone: from, customerName: name }, textoConLinks)
+    : null;
+  if (otraOpcionTrasNoGracias) agentContext.faseOperativa = "medida_confirmada";
+  const cierreDelTurno = otraOpcionTrasNoGracias ? null : cierreLeido;
   const plazoDeDecision = !cierreAntesDeHerramientas && !cierreDelTurno
     && esPlazoDeDecision(textoConLinks);
   // Conv 22625: si en el mismo mensaje dice que está fuera de Quito y pide
@@ -483,6 +492,8 @@ async function atenderTurno(
   // respuesta sobre el local ni sobre el día. Ver services/recotizar.ts.
   const directReply = cierreAntesDeHerramientas || cierreDelTurno
     ? null
+    : otraOpcionTrasNoGracias
+      ? otraOpcionTrasNoGracias
     : plazoDeDecision
       ? respuestaDePlazoDeDecision()
       : ubicacionFueraDeCobertura
@@ -563,7 +574,9 @@ async function atenderTurno(
     // ventana en la que el cliente puede escribir antes del pedido de medida.
     suprimirEmpujeComercial: Boolean(
       cierreAntesDeHerramientas || cierreDelTurno || plazoDeDecision || ubicacionFueraDeCobertura
-        || isFirstGenericMessage,
+        || isFirstGenericMessage
+        // La pregunta de qué busca tras el «no gracias» también es una constante.
+        || otraOpcionTrasNoGracias === PREGUNTA_TRAS_NO_GRACIAS,
     ),
     consultaFueraDeCatalogo: agentContext.consultaFueraDeCatalogo,
     // Lo que la puerta ya sabe que ofreció (la equivalente, el menú, «¿Cuál…?»).
@@ -687,18 +700,16 @@ async function atenderTurno(
     // determinística (sin llamada de IA) antes de cortar los seguimientos.
     // La etapa que deja cada cierre tiene una sola fuente:
     // `etapaDelCierreDelTurno` (domain/cierreTurno.ts). «No gracias» + «ya
-    // compré» compró en OTRO lado (CM30) y es perdida; el «no gracias» solo es
-    // perdida si la política del negocio lo pide (Competimotor sí, Depot no).
-    const etapaDelCierre = etapaDelCierreDelTurno(cierreDelTurno, politica);
+    // compré» compró en OTRO lado (CM30) y es perdida; el «no gracias» solo
+    // no lo es en ningún negocio (Manuel, 20-nov).
+    const etapaDelCierre = etapaDelCierreDelTurno(cierreDelTurno);
     if (etapaDelCierre === "clasificar") {
       await classifyStage(conversation, text, reply);
     } else if (etapaDelCierre === "perdido") {
       await setStage(conversation.id, "perdido", {
         actor: "customer",
-        reason: cierreDelTurno === "compra_ajena"
-          ? "Cliente dijo que ya compró, justo después de rechazar la oferta (compra en otro lado)"
-          : `Cliente rechazó la oferta: «${text.slice(0, 80)}»`,
-      }).catch((error) => console.error("⚠️ No se pudo cerrar como perdida tras el cierre del turno:", error));
+        reason: "Cliente dijo que ya compró, justo después de rechazar la oferta (compra en otro lado)",
+      }).catch((error) => console.error("⚠️ No se pudo cerrar como perdida tras compra ajena:", error));
     }
     await cancelPendingFollowUps(
       conversation.id,

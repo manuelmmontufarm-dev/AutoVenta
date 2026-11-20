@@ -114,19 +114,28 @@ export function tipoDeCierreDelTurno(
 /**
  * QUÉ ETAPA DEJA EL CIERRE DEL TURNO (fuente única; la usa `index.ts`).
  *  · compra_terminada → «clasificar»: el clasificador lo cierra como ganado.
- *  · compra_ajena     → perdido (CM30).
- *  · rechazo_suave    → perdido SOLO si la política lo pide
- *                       (`rechazoCierraComoPerdida`: Competimotor sí, Depot no).
- *  · lo demás         → la etapa no se mueve.
+ *  · compra_ajena     → perdido (CM30: «no gracias» y después «ya compré»).
+ *  · lo demás         → la etapa no se mueve. El «no gracias» NO es venta
+ *                       perdida en ningún negocio (Manuel, 20-nov).
  */
-export function etapaDelCierreDelTurno(
-  tipo: CierreDelTurno,
-  politica: { rechazoCierraComoPerdida: boolean },
-): "perdido" | "clasificar" | null {
+export function etapaDelCierreDelTurno(tipo: CierreDelTurno): "perdido" | "clasificar" | null {
   if (tipo === "compra_terminada") return "clasificar";
   if (tipo === "compra_ajena") return "perdido";
-  if (tipo === "rechazo_suave" && politica.rechazoCierraComoPerdida) return "perdido";
   return null;
+}
+
+/**
+ * «NO GRACIAS» A SECAS (Manuel, 20-nov): solo el «no gracias», con cortesía
+ * alrededor, sin nada que diga que se va. Después de una lámina o una
+ * cotización significa «esa no» (`services/otraOpcionTrasNoGracias.ts`).
+ * «no gracias ya no», «ya no», «ya compré», «no me interesa» son desistimiento
+ * explícito: no entran aquí y se despiden como siempre.
+ */
+const NO_GRACIAS_A_SECAS = new RegExp(
+  `^${CORTESIA}no[\\s,.]+(?:muchas\\s+)?gracias[\\s.,!¡🙏🤝👍]*$`,
+);
+export function esNoGraciasASecas(texto: string): boolean {
+  return NO_GRACIAS_A_SECAS.test(normalizar(texto));
 }
 
 export function esCierreComercialDelTurno(texto: string): boolean {

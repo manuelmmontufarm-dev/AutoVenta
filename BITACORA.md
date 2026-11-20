@@ -1,3 +1,28 @@
+## 20-nov-2026 · Bot · «No gracias» a secas es «esa no»: se ofrece otra, no es venta perdida (rama `fix/no-gracias-otra-opcion`)
+
+- **Qué:** se quita `politica.rechazoCierraComoPerdida` (PR #65): ningún «no gracias» deja la venta perdida, en ningún
+  negocio. `etapaDelCierreDelTurno` ya no recibe la política (compra terminada → clasificador, compra ajena → perdido, lo
+  demás no mueve la etapa). Se quita también el respaldo entre ciclos de `previousInboundText`: solo existía porque el
+  «no gracias» cerraba el ciclo; CM30 («no gracias» + «ya compré» → perdido) sigue con la regla de `compra_ajena`.
+  Nuevo interruptor `politica.noGraciasPideOtraOpcion` (Competimotor `true`, Depot y ejemplo `false`) y ruta directa
+  `services/otraOpcionTrasNoGracias.ts`: un «no gracias» a secas (`esNoGraciasASecas`) después de una lámina o una
+  cotización saca la lámina con los modelos de la medida que el cliente no vio (la misma de «qué más tiene»,
+  `laminaConLasQueNoVio`) o, si no quedan o no hubo lámina, «¿Qué busca: algo más económico, otra marca u otro tipo de
+  llanta?». Una vez por ciclo (hecho en `funnel_events`): el segundo «no gracias» se despide como siempre.
+- **Por qué:** Manuel, 20-nov: «no gracias» no es venta perdida, se interpreta como «no quiero esa» o «quiero otra
+  opción». Hasta hoy los dos bots contestaban la despedida fija («Entendido, gracias por avisar. Quedamos a las órdenes…»).
+- **Lo que NO cambia:** el desistimiento explícito («no gracias ya no», «ya no», «ya compré», «no me interesa») se
+  despide igual que hoy.
+- **Depot: sin cambios.** Su despedida es texto aprobado; ofrecer otra opción allí es decisión de Manuel (una línea en
+  `negocio/politicas/depot.ts`). Lo único común: el «no gracias» ya no puede quedar perdido (en Depot nunca lo fue).
+- **Escenarios** (`datos/`, fuera de git): CM28 exige etapa ≠ perdido + lámina con modelos nuevos o «¿qué busca?», sin
+  despedida (`H.ofreceOtraTrasElNo`); CM40 exige etapa ≠ perdido, sin seguimientos y que lo último sea la despedida
+  (`H.terminaConDespedida`). El de CM28 falla sobre la corrida vieja («se despidió»).
+- **Probado:** `noGraciasOtraOpcion` (10 casos, en rojo antes), `masOpcionesPorMarca`, suite completa (fallan solo
+  `hashesPiezasDepot` y `unidadEnLaCantidad`, igual que en main), las cuatro de CLAUDE.md. Simulador (clave de pruebas):
+  CM28 3/3 (sale la DURUN B717, que no había visto), CM30 3/3 (pregunta qué busca; «ya compré» → perdido), CM40 3/3
+  (despedida, queda en `cotizacion_enviada`). Gasto $0,89.
+- **Horas:** 0,5.
 ## 20-nov-2026 · Hub · el login rebotaba a los usernames con punto (rama `fix/token-usuario-con-punto`)
 
 - **Qué:** `verificarToken` (server/auth.ts) parte el token `userId.expiración.firma` desde la derecha.

@@ -29,7 +29,23 @@ export interface MasOpcionesContext {
 }
 
 export async function tryMasOpcionesPorMarca(ctx: MasOpcionesContext, text: string): Promise<string | null> {
-  if (!politica.recomendacionPorMarca || !pideMasOpciones(text)) return null;
+  if (!pideMasOpciones(text)) return null;
+  const lamina = await laminaConLasQueNoVio(ctx, text);
+  if (!lamina) return null;
+  console.log(`🧭 «Qué más tiene» por marca en la conv ${ctx.conversation.id}.`);
+  await logFunnelEvent(ctx.conversation.id, "respuesta_directa", { route: "mas_opciones_por_marca" }).catch(() => undefined);
+  return lamina;
+}
+
+/**
+ * La lámina con las opciones de la medida en pantalla que el cliente todavía no
+ * vio, o null (sin la regla por marca, sin lámina de la regla, o ya las vio
+ * todas). `pedido` es lo que lee la herramienta: tiene que ser un pedido de más
+ * (`pideMasOpciones`), o arma la primera lámina otra vez. La usan «qué más
+ * tiene» y el «no gracias» a secas (`otraOpcionTrasNoGracias.ts`).
+ */
+export async function laminaConLasQueNoVio(ctx: MasOpcionesContext, pedido: string): Promise<string | null> {
+  if (!politica.recomendacionPorMarca) return null;
   const [pieza] = await sql<{ metadata: { codes?: unknown; sizeLabel?: unknown; seleccion?: unknown; recomendado?: unknown } | null }[]>`
     select metadata from messages
     where conversation_id=${ctx.conversation.id}
@@ -48,7 +64,7 @@ export async function tryMasOpcionesPorMarca(ctx: MasOpcionesContext, text: stri
     conversation: ctx.conversation,
     customerPhone: ctx.customerPhone,
     customerName: ctx.customerName,
-    currentUserText: text,
+    currentUserText: pedido,
   });
   const opciones = tools.find((t) => t.function.name === "preparar_opciones");
   if (!opciones) return null;
@@ -66,7 +82,5 @@ export async function tryMasOpcionesPorMarca(ctx: MasOpcionesContext, text: stri
     return null;
   }
   if (salida.error || !salida.mensaje_para_enviar) return null;
-  console.log(`🧭 «Qué más tiene» por marca en la conv ${ctx.conversation.id} (${m.sizeLabel}).`);
-  await logFunnelEvent(ctx.conversation.id, "respuesta_directa", { route: "mas_opciones_por_marca" }).catch(() => undefined);
   return salida.mensaje_para_enviar;
 }
