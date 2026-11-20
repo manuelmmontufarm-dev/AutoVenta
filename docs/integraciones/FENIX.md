@@ -61,6 +61,21 @@ Cómo distinguirlos con el cliente: preguntar «Comercial Contable (programa de 
    ya funciona). Stock al día solo hasta la última exportación y **sin facturas**: no hay Métricas
    comprobables ni estadísticas. No es «igual que Depot».
 
+## El conector propio (camino 2), 20-nov-2026
+
+Ya existe: [`app/conector-fenix/`](../../app/conector-fenix/README.md). Un programa en el servidor
+del cliente lee la base de Fénix cada 5 minutos (solo lectura) y entrega inventario y facturas al
+bot por `/conector/*`, que los pasa por la misma importación del Excel. Probado de punta a punta
+contra una base de mentira (`app/test/conectorFenix.test.ts`).
+
+Lo que falta no se puede hacer sin entrar al servidor del cliente:
+
+1. Correr `Diagnostico.bat` allá para saber **qué motor de base de datos usa** (sigue sin
+   confirmar; buscado otra vez el 20-nov, ninguna fuente pública lo dice). Hoy el conector solo
+   habla PostgreSQL; otro motor es un archivo más en `src/motores/`.
+2. Conseguir un **usuario de solo lectura** a esa base (su técnico o Fenixcorp).
+3. Una sesión remota de una hora para encontrar las tablas y escribir las dos consultas.
+
 ## Precios de FÉNIX (CIADE, sin IVA, vistos 27-oct-2026)
 
 | Módulo | Mensual | Anual |

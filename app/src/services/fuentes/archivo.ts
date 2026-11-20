@@ -948,6 +948,59 @@ export async function importarCatalogoYSincronizar(nombre: string, cuerpo: Buffe
   return { importado, reporte, catalog: catalogStatus() };
 }
 
+/**
+ * El conector de Fénix manda el inventario cada pocos minutos. Si no cambió
+ * nada (misma huella) el catálogo no se toca, pero igual tiene que constar
+ * que está al día: la tarjeta «Inventario de hoy» y el aviso de inventario
+ * viejo miden `subidoEn`. Sin esto, un stock que no se movió en toda la tarde
+ * se vería como un conector caído.
+ */
+export async function marcarCatalogoAlDia(ahora = new Date()): Promise<void> {
+  await sql`
+    update settings
+    set value = jsonb_set(value, '{subidoEn}', to_jsonb(${ahora.toISOString()}::text)), updated_at = now()
+    where key = 'catalogo_archivo'
+  `;
+}
+
+/**
+ * Lee el archivo y dice qué pasaría al cargarlo, SIN guardar nada. Es lo que
+ * usa el conector con `--probar` mientras se ajusta la consulta en el servidor
+ * del cliente: se ve cuántas llantas entrarían y por qué se descarta el resto
+ * sin tocar el catálogo con el que el bot está cotizando.
+ */
+export async function ensayarInventario(nombre: string, cuerpo: Buffer) {
+  const [mapeo, anterior] = await Promise.all([leerMapeoCatalogo(), leerCatalogoArchivo()]);
+  const lectura = await leerInventario(nombre, cuerpo, mapeo);
+  const decision = decidirCarga(lectura, anterior);
+  return {
+    decision,
+    llantas: lectura.catalogo.filas.length,
+    aros: lectura.catalogo.aros.length,
+    unidades: unidadesEnStock(lectura.catalogo),
+    cargadas: anterior ? { llantas: anterior.filas.length, unidades: unidadesEnStock(anterior) } : null,
+    descartadas: descartadasEnPalabras(lectura.catalogo.descartadas).map((g) => ({ motivo: g.motivo, filas: g.filas.length })),
+    columnasVistas: lectura.columnasVistas,
+    faltantes: lectura.faltantes,
+  };
+}
+
+/** Lo mismo para las facturas: cuántas se leerían con el mapeo vigente, sin guardarlas. */
+export async function ensayarFacturas(nombre: string, cuerpo: Buffer) {
+  const filas = await filasDelArchivo(nombre, cuerpo);
+  const { facturas, descartadas } = agruparFacturasSubidas(filas, await leerMapeoFacturas());
+  const dias = facturas.map((f) => f.dia).sort();
+  return {
+    facturas: facturas.length,
+    conTelefono: facturas.filter((f) => f.telefonos.length).length,
+    conLlantas: facturas.filter((f) => f.lineas.some((l) => LLANTA.test(l.nombre))).length,
+    primerDia: dias[0] ?? null,
+    ultimoDia: dias.at(-1) ?? null,
+    descartadas: descartadas.length,
+    motivos: [...new Set(descartadas.map((d) => d.motivo))].slice(0, 5),
+  };
+}
+
 export const fuenteArchivoCatalogo: FuenteDeCatalogo = {
   id: "archivo",
   async sincronizar() {

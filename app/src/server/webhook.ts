@@ -21,6 +21,7 @@ import {
   toRenderLine,
 } from "../render/quoteImage.js";
 import { createAdminRouter, exigirCredencial } from "./admin.js";
+import { createConectorRouter } from "./conector.js";
 import { paginaPrivacidad } from "./privacidad.js";
 import { createRegistroVentaRouter } from "./registroVenta.js";
 import { negocio } from "../negocio/index.js";
@@ -292,6 +293,10 @@ export function createServer(): express.Express {
 
   // La página donde el vendedor registra una venta (enlace con clave, sin login).
   app.use("/venta", createRegistroVentaRouter());
+
+  // El conector que corre en el servidor del cliente (Fénix): clave propia,
+  // solo deja entregar inventario y facturas. Sin CONECTOR_KEY contesta 404.
+  app.use("/conector", createConectorRouter());
 
   // La política de privacidad lleva el nombre del negocio de ESTA instancia
   // (Meta la pide para publicar la app). Va antes del estático: si no, se
