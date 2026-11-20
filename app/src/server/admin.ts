@@ -7,6 +7,7 @@
  * Sin ADMIN_KEY la API queda abierta — solo aceptable durante el piloto.
  */
 import express from "express";
+import { claveDeRegistros, claveDelEnlace, listarVentasRegistradas, ventasACsv } from "../services/registroDeVentas.js";
 import { z } from "zod";
 import { sql } from "../db/client.js";
 import { AnunciosActivosSchema } from "../domain/anunciosActivos.js";
@@ -1701,6 +1702,16 @@ export function createAdminRouter(): express.Router {
     } catch (error) {
       res.status(400).json({ ok: false, error: error instanceof Error ? error.message : "Mapeo inválido" });
     }
+  });
+
+  // Ventas que los vendedores registran a mano en /venta, y el enlace que se les pasa.
+  router.get("/ventas-registradas", async (req, res) => {
+    const ventas = await listarVentasRegistradas();
+    if (req.query.formato === "csv") {
+      res.type("text/csv").attachment("ventas-registradas.csv").send(ventasACsv(ventas));
+      return;
+    }
+    res.json({ ok: true, enlace: `/venta?k=${claveDelEnlace()}`, enlaceRegistros: `/venta/registros?k=${claveDeRegistros()}`, ventas });
   });
 
   router.get("/ventas/archivo", async (_req, res) => {
