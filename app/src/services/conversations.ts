@@ -507,6 +507,18 @@ export async function setStage(
         closed_at = excluded.closed_at
     `;
   }
+  // DESHACER UN CIERRE EN LA MISMA VISITA (21-nov: Eric Acosta, marcado
+  // «Vendido» por error probando Para cerrar). Volver de ganado/perdido a una
+  // etapa abierta sin cambiar de ciclo es decir «ese cierre no pasó»: su fila
+  // de `sales_history` se va, o la venta seguiría contándose en el panel y en
+  // el reporte del día. La transición queda registrada arriba.
+  const estabaCerrada = current.stage === "ganado" || current.stage === "perdido";
+  if (estabaCerrada && stage !== "ganado" && stage !== "perdido") {
+    await sql`
+      delete from sales_history
+      where conversation_id = ${conversationId} and cycle = ${current.current_cycle}
+    `;
+  }
   await cancelPendingFollowUps(
     conversationId,
     stage === "ganado" || stage === "perdido" ? `conversation_closed_${stage}` : "stage_changed",
