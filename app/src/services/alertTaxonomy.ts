@@ -74,6 +74,9 @@ const OPERATIVOS = new Set([
   "quote_created",
   "envio_fuera_de_cobertura",
   "caso_sin_resolver",
+  // Competimotor (21-nov-2026): pidió algo sin stock y el vendedor lo busca.
+  // Es trabajo comercial, no un error del bot.
+  "pedido_sin_stock",
 ]);
 
 export function clasificarAlerta(type: string): ClaseAlerta {

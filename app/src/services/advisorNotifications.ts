@@ -49,6 +49,9 @@ export const EVENTOS_AVISO = [
   // atendió el bot terminó en venta. Es la única buena noticia que el equipo
   // no se enteraba: la venta se cerraba en el local y nadie la ligaba al bot.
   "venta_confirmada",
+  // Competimotor (21-nov-2026): el cliente pidió algo sin stock; el vendedor
+  // busca cómo conseguirlo (pedirlo, traerlo). Ver services/sinStockAlAsesor.ts.
+  "pedido_sin_stock",
 ] as const;
 
 export type AdvisorEventType = (typeof EVENTOS_AVISO)[number];
@@ -81,6 +84,7 @@ export const CATEGORIA_DE_EVENTO: Record<AdvisorEventType, CategoriaAviso> = {
   quote_created: "ventas",
   customer_ready_to_buy: "ventas",
   venta_confirmada: "ventas",
+  pedido_sin_stock: "ventas",
   visita_comprometida: "visitas",
   visita_manana: "visitas",
   visita_hoy: "visitas",
@@ -120,6 +124,7 @@ export const NOMBRE_DE_EVENTO: Record<AdvisorEventType, string> = {
   quote_created: "Nueva cotización",
   customer_ready_to_buy: "El cliente quiere comprar",
   venta_confirmada: "¡Venta del bot! (celebración cuando llega la factura)",
+  pedido_sin_stock: "Pidió algo que no está en stock",
   visita_comprometida: "Confirmó cuándo viene",
   visita_manana: "Viene mañana",
   visita_hoy: "Viene hoy",
@@ -150,6 +155,7 @@ export const DESCRIPCION_DE_EVENTO: Record<AdvisorEventType, string> = {
   quote_created: "El bot le mandó una cotización a un cliente: llega el total y el chat.",
   customer_ready_to_buy: "El cliente dijo que quiere comprar o pagar: hay que atenderlo ya.",
   venta_confirmada: "Llegó la factura de una venta que empezó en un chat del bot.",
+  pedido_sin_stock: "El cliente pidió una medida, tipo o marca sin stock: va qué pidió y qué opciones vio, para conseguírsela.",
   visita_comprometida: "El cliente dijo qué día va a pasar por el local.",
   visita_manana: "Recordatorio la víspera: un cliente dijo que viene mañana.",
   visita_hoy: "Recordatorio el mismo día: un cliente dijo que viene hoy.",
@@ -245,7 +251,9 @@ export interface NivelAviso {
  * del bot la pidió Manuel para todos (8-nov), así que entra marcada en cada
  * nivel hasta que alguien la desmarque y guarde — desde ahí manda lo guardado.
  */
-export const EVENTOS_ENCENDIDOS_AL_LLEGAR: readonly AdvisorEventType[] = ["venta_confirmada"];
+// `pedido_sin_stock` (21-nov-2026): solo lo dispara un negocio con
+// `politica.nuncaDecirNoHay` (Competimotor), y allá lo pidieron para el vendedor.
+export const EVENTOS_ENCENDIDOS_AL_LLEGAR: readonly AdvisorEventType[] = ["venta_confirmada", "pedido_sin_stock"];
 
 /** Agrega a cada nivel los avisos nuevos que su dueño todavía no vio. Pura. */
 export function completarEventosNuevos(niveles: NivelAviso[]): NivelAviso[] {
@@ -395,6 +403,7 @@ const CABECERAS: Record<AdvisorEventType, string> = {
   quote_created: "💰 *NUEVA COTIZACIÓN*",
   customer_ready_to_buy: "💰 *QUIERE COMPRAR*",
   venta_confirmada: "🎉 *¡VENTA DEL BOT!*",
+  pedido_sin_stock: "🔎 *PIDIÓ ALGO SIN STOCK*",
   // Visita
   visita_comprometida: "📅 *CONFIRMÓ VISITA*",
   visita_manana: "⏰ *VIENE MAÑANA*",

@@ -76,6 +76,7 @@ import { faltanteDeCotizacion } from "./stockCorto.js";
 import { alcanzaParaVender } from "../domain/stockCorto.js";
 import { hayDescuentoEnEfectivo, politicaDePagos } from "../domain/datosDelNegocio.js";
 import { politica } from "../negocio/politica.js";
+import { REGLA_SIN_NO_HAY_GUARDIAN } from "../domain/sinNoHay.js";
 import { despedidaQueCorresponde } from "../domain/cierrePerdido.js";
 import { hechoDeMenuSinElegir, menuDeCotizarAbierto, ofertaDeCotizarAceptada, soloAcuseOCantidad } from "../domain/ofertaAceptada.js";
 import {
@@ -924,6 +925,8 @@ export async function armarContexto(
     hechoDeOrigenDeMarcas(),
     hechoDePagos(),
     hechoDelNegocio(),
+    // Competimotor (21-nov-2026): «no hay» no existe con el cliente. Ver domain/sinNoHay.ts.
+    politica.nuncaDecirNoHay ? REGLA_SIN_NO_HAY_GUARDIAN : null,
     // EL CONOCIMIENTO DE PRODUCTO (17-nov-2026): la MISMA función que arma el
     // hecho del vendedor. Sin él, el revisor borra «10 lonas», «unos 68.500 km»
     // o «la alineación va incluida» porque no puede verificarlos.
