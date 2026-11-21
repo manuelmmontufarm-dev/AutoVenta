@@ -39,7 +39,7 @@ import { comoVistaPrevia } from "../services/temporadaDelTurno.js";
 import { politica } from "../negocio/politica.js";
 import { informeGuardian } from "../services/guardian.js";
 import { canjearCupon, consultarCupon, resumenCupones } from "../services/coupons.js";
-import { fotoDelTicket, historialDelTicket, quienEnElPanel, registrarAccion } from "../services/accionesDelPanel.js";
+import { fotoDelTicket, historialDelTicket, quienEnElPanel, registrarAccion, registrarCambioDelPanel } from "../services/accionesDelPanel.js";
 import {
   agregarFactura, confirmaGanado, confirmarVentaEnElPanel, listarPendientes, revisarCierreGanado, ventaCompleta, ventaDelTicket,
 } from "../services/registroDeVentas.js";
@@ -507,6 +507,13 @@ export function createAdminRouter(): express.Router {
   });
 
   router.use(exigirCredencial);
+  // TODO CAMBIO QUEDA CON NOMBRE (Manuel, 21-nov: «literal todo lo que podría
+  // algún día ser preocupante se tiene que guardar quién fue»). Cualquier
+  // POST/PUT/PATCH/DELETE del panel —incluidas las rutas que se agreguen
+  // después— deja una fila en `audit_events`: quién, qué ruta, el cuerpo (sin
+  // claves) y cómo terminó. Las acciones de ticket además guardan su foto
+  // antes/después con `registrarAccion`.
+  router.use(registrarCambioDelPanel);
 
   // Quién es el negocio de esta instancia, para que el panel no diga Depot en
   // el servicio de otro cliente (MULTICLIENTE.md §3.2).
