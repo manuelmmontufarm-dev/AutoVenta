@@ -537,6 +537,34 @@ export async function setStage(
 }
 
 /**
+ * «Deshacer venta» del panel (Manuel, 21-nov): un solo botón para el «Vendido»
+ * que se marcó por error. Vuelve a la etapa en la que estaba antes del cierre,
+ * en la MISMA visita: conserva el día, la cotización y la ficha, y `setStage`
+ * borra la venta de las métricas y anula su registro. «Reabrir» no sirve para
+ * esto: empieza una visita nueva y deja la venta contada (Eric Acosta).
+ *
+ * Solo deshace un ganado del ciclo vigente. Devuelve la etapa a la que volvió,
+ * o null si no había nada que deshacer.
+ */
+export async function deshacerVenta(conversationId: number): Promise<Stage | null> {
+  const [c] = await sql<{ stage: Stage; status: string; current_cycle: number }[]>`
+    select stage, status, current_cycle from conversations where id = ${conversationId}
+  `;
+  if (!c || c.stage !== "ganado") return null;
+  const [t] = await sql<{ from_stage: Stage | null }[]>`
+    select from_stage from stage_transitions
+    where conversation_id = ${conversationId} and cycle = ${c.current_cycle} and to_stage = 'ganado'
+    order by created_at desc, id desc limit 1
+  `;
+  // Sin transición (ganados muy viejos) o si venía de otro cierre: la recta final.
+  const antes = t?.from_stage && t.from_stage !== "ganado" && t.from_stage !== "perdido" && isStage(t.from_stage)
+    ? t.from_stage
+    : "seguimiento_venta";
+  await setStage(conversationId, antes, { actor: "owner", reason: "Venta deshecha desde el panel" });
+  return antes;
+}
+
+/**
  * Lo último que le dijimos al cliente, lo haya escrito el bot o un asesor.
  * Sirve para leer su respuesta en contexto: "el sábado" solo significa una
  * visita si lo anterior fue una pregunta por el día.

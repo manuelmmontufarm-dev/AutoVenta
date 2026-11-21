@@ -29,7 +29,7 @@ interface Deshacer { texto: string; accion?: () => Promise<void> }
 
 export function ParaCerrar() {
   const { datos, error, cargar, decidir } = useParaCerrar();
-  const { dataMode, cerrar, registroVenta } = useHub();
+  const { dataMode, cerrar, deshacerVenta, registroVenta } = useHub();
   const now = useNow();
   const [vista, setVista] = useState<Vista>("cerrar");
   const [vendiendo, setVendiendo] = useState<PorVender | null>(null);
@@ -63,6 +63,11 @@ export function ParaCerrar() {
   const accion = (id: number, a: AccionParaCerrar) => () => decidir(id, a);
   const cerrarYRecargar = (id: number, cierre: "ganado" | "perdido", nota?: string, venta?: DatosCierreGanado) => async () => {
     await cerrar(id, cierre, nota, venta);
+    await Promise.all([cargar(), cargarPendientes()]);
+  };
+  // El «Deshacer» del aviso de «Vendido»: vuelve a su día en el calendario.
+  const deshacerYRecargar = (id: number) => async () => {
+    await deshacerVenta(id);
     await Promise.all([cargar(), cargarPendientes()]);
   };
 
@@ -161,8 +166,9 @@ export function ParaCerrar() {
       </div>
 
       <AnimatePresence>
-        {/* Cerrar un ticket no tiene «Deshacer»: reabrirlo empieza una visita
-            nueva sin la cotización ni el día. Por eso se confirma antes. */}
+        {/* «Vendido» se confirma antes y, si igual fue un error, el aviso trae
+            «Deshacer»: vuelve a su etapa y su día (no «reabrir», que empieza
+            una visita nueva sin la cotización ni el día). Perdido no tiene. */}
         {vendiendo && (
           <Modal onClose={() => setVendiendo(null)}>
             <Hoja titulo={`¿Vendido a ${vendiendo.nombre ?? "este cliente"}?`} detalle={`${vendiendo.detalle} — el ticket se cierra como ganado.`} onCerrar={() => setVendiendo(null)}>
@@ -172,7 +178,7 @@ export function ParaCerrar() {
                 <button className="btn-quiet h-9 rounded-[6px] px-3.5 text-[13px]" onClick={() => setVendiendo(null)}>Cancelar</button>
                 <button className="btn-signal h-9 rounded-[6px] px-3.5 text-[13px]" disabled={pideVenta && Boolean(faltaParaCerrar(ventaVendido, false))} onClick={() => {
                   const c = vendiendo; setVendiendo(null);
-                  void hacer(`Vendido · ${c.nombre ?? c.telefono}`, cerrarYRecargar(c.ticketId, "ganado", undefined, pideVenta ? ventaVendido : undefined));
+                  void hacer(`Vendido · ${c.nombre ?? c.telefono}`, cerrarYRecargar(c.ticketId, "ganado", undefined, pideVenta ? ventaVendido : undefined), deshacerYRecargar(c.ticketId));
                 }}>Sí, vendido</button>
               </div>
             </Hoja>

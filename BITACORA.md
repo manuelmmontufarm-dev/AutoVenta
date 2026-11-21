@@ -1,3 +1,18 @@
+## 21-nov-2026 · Panel · «Deshacer venta»: un solo botón para un «Vendido» por error (rama `feat/deshacer-venta`)
+
+- **Qué:** `POST /api/hub/tickets/:id/deshacer-venta` (`deshacerVenta` en `services/conversations.ts`): un ganado del
+  ciclo vigente vuelve a la etapa de antes del cierre (la de su transición a `ganado`; sin ella, `seguimiento_venta`)
+  por `setStage`, que borra la venta de `sales_history` y anula su registro. Misma visita: día, cotización y ficha
+  quedan. En el panel: la ficha de un ganado muestra «Deshacer venta» (con confirmación) en vez de «Reabrir», y el
+  aviso de «Vendido» de Para cerrar trae «Deshacer».
+- **Por qué:** Manuel (21-nov): «mejor que haya un solo botón para esto que salga cuando se marca manual la venta».
+  Antes había que saber usar «Mover de etapa»; «Reabrir» empieza una visita nueva y borró el día de Eric Acosta.
+- **Probado:** `deshacerCierre.integration.test.ts` 5/5 (+3: vuelve a la etapa de antes con su día y sin venta;
+  ganado viejo → recta final; un no-ganado no se toca). `tsc` app y hub ✅. Panel local: «Vendido» con factura →
+  «Deshacer» en el aviso lo devuelve al día; «Completar después» → ficha → «Deshacer venta» → abierto en
+  Seguimiento con visita y cotización.
+- **Horas:** 0,4.
+
 ## 21-nov-2026 · Venta · Deshacer un «Vendido» también anula su registro de venta (rama `feat/venta-registrada-en-panel`)
 
 - **Qué:** rebase sobre main con #84 (deshacer un cierre en la misma visita borra su `sales_history`). En ese mismo

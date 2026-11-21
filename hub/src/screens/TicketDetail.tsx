@@ -15,7 +15,7 @@ function nombreCorto(ticket: Ticket): string {
 }
 
 export function TicketDetail({ id }: { id: number }) {
-  const { tickets, ticketsSueltos, mensajes, typing, abrirTicket, enviarMensaje, setAtiende, cerrar, reabrir, agregarNota } = useHub();
+  const { tickets, ticketsSueltos, mensajes, typing, abrirTicket, enviarMensaje, setAtiende, cerrar, reabrir, deshacerVenta, agregarNota } = useHub();
   // El listado corta en 500: un enlace viejo apunta a una conversación que
   // existe pero no vino en el lote. `abrirTicket` la trae de a una.
   const ticket = tickets.find((t) => t.id === id) ?? ticketsSueltos[id];
@@ -26,6 +26,7 @@ export function TicketDetail({ id }: { id: number }) {
   const [verCotizacion, setVerCotizacion] = useState(false);
   // Abierto con un cierre ya elegido cuando viene de «Compró acá / en otro lado».
   const [cerrando, setCerrando] = useState<false | { cierre?: Cierre; nota?: string }>(false);
+  const [deshaciendo, setDeshaciendo] = useState(false);
   const [fichaMovil, setFichaMovil] = useState(false);
   const [verDescuento, setVerDescuento] = useState(false);
   const [cargandoTicket, setCargandoTicket] = useState(!ticket);
@@ -124,7 +125,7 @@ export function TicketDetail({ id }: { id: number }) {
         setFichaMovil(false);
         setVerCotizacion(true);
       }}
-      onReabrir={() => void reabrir(ticket.id)}
+      onReabrir={() => (ticket.cierre === "ganado" ? setDeshaciendo(true) : void reabrir(ticket.id))}
       onNota={(texto) => void agregarNota(ticket.id, texto)}
       onCerrarComo={(cierre, nota) => {
         setFichaMovil(false);
@@ -188,9 +189,17 @@ export function TicketDetail({ id }: { id: number }) {
                   const detalle = DETALLE_VENTA[estadoDeLaVenta(ticket) ?? "completa"];
                   return detalle && <span className="-ml-2 hidden text-[13px] whitespace-nowrap text-text2 xl:inline">· {detalle}</span>;
                 })()}
-                <button onClick={() => void reabrir(ticket.id)} className="btn-quiet flex h-8 items-center gap-1.5 rounded-[6px] px-3 text-[12px]">
-                  <IconRefresh size={13} /> Reabrir
-                </button>
+                {/* Un ganado se DESHACE (misma visita, con su día), no se reabre:
+                    reabrir empieza una visita nueva y deja la venta contada. */}
+                {ticket.cierre === "ganado" ? (
+                  <button onClick={() => setDeshaciendo(true)} className="btn-quiet flex h-8 items-center gap-1.5 rounded-[6px] px-3 text-[12px]">
+                    <IconRefresh size={13} /> Deshacer venta
+                  </button>
+                ) : (
+                  <button onClick={() => void reabrir(ticket.id)} className="btn-quiet flex h-8 items-center gap-1.5 rounded-[6px] px-3 text-[12px]">
+                    <IconRefresh size={13} /> Reabrir
+                  </button>
+                )}
               </span>
             ) : null}
           </div>
@@ -254,6 +263,27 @@ export function TicketDetail({ id }: { id: number }) {
         {verCotizacion && ticket.cotizacion && (
           <Modal onClose={() => setVerCotizacion(false)} ancho={520}>
             <CotizacionModal ticket={ticket} />
+          </Modal>
+        )}
+        {deshaciendo && (
+          <Modal onClose={() => setDeshaciendo(false)}>
+            <div className="flex flex-col gap-4 p-5">
+              <div>
+                <h3 className="text-[17px] font-semibold tracking-[-0.01em]">¿Deshacer la venta de {ticket.nombre ?? "este cliente"}?</h3>
+                <p className="mt-1.5 text-[13px] leading-relaxed text-text2">
+                  Vuelve a la etapa en la que estaba, con su día y su cotización, y la venta deja de contarse.
+                </p>
+              </div>
+              <div className="flex justify-end gap-2">
+                <button className="btn-quiet h-9 rounded-[6px] px-3.5 text-[13px]" onClick={() => setDeshaciendo(false)}>Cancelar</button>
+                <button
+                  className="btn-signal h-9 rounded-[6px] px-3.5 text-[13px]"
+                  onClick={async () => { setDeshaciendo(false); await deshacerVenta(ticket.id); }}
+                >
+                  Sí, deshacer
+                </button>
+              </div>
+            </div>
           </Modal>
         )}
         {cerrando && (
@@ -539,7 +569,7 @@ function Ficha({
         />
         {!abierto && (
           <button onClick={onReabrir} className="btn-quiet flex h-10 items-center justify-center gap-2 rounded-[6px] text-[13px]">
-            <IconRefresh size={14} /> Reabrir ticket
+            <IconRefresh size={14} /> {ticket.cierre === "ganado" ? "Deshacer venta" : "Reabrir ticket"}
           </button>
         )}
       </Seccion>
