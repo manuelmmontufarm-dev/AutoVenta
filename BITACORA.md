@@ -1,3 +1,14 @@
+## 21-nov-2026 · Venta · Deshacer un «Vendido» también anula su registro de venta (rama `feat/venta-registrada-en-panel`)
+
+- **Qué:** rebase sobre main con #84 (deshacer un cierre en la misma visita borra su `sales_history`). En ese mismo
+  punto de `setStage` ahora también se anula (`anulada_at`) el registro de venta de ese ciclo: si no, el ticket
+  reabierto seguía diciendo «venta registrada» con la factura del cierre deshecho.
+- **Por qué:** con el cierre «ganado» escribiendo en `ventas_registradas`, deshacer el «Vendido» de Eric Acosta
+  dejaba la venta viva en el panel aunque ya no contara en las métricas.
+- **Probado:** prueba nueva en `ventaRegistradaEnTicket.integration` (y `deshacerCierre` de #84 sigue verde).
+  Suite: solo `hashesPiezasDepot` y `unidadEnLaCantidad`, como en main. `tsc`, `sim:humo` y fidelidad ✅.
+- **Horas:** 0.5.
+
 ## 21-nov-2026 · Venta · «Ganado» = venta confirmada (factura y monto, o completar después) y «ya compré» queda por confirmar (rama `feat/venta-registrada-en-panel`)
 
 - **Qué:** (1) Cerrar como ganado desde el panel (ficha, Pipeline, «Vendido» de Para cerrar) pide «El cliente llegó y

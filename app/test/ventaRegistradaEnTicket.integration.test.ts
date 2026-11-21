@@ -313,14 +313,24 @@ describe("«ganado» a mano = el asesor confirma que compró ACÁ", () => {
     expect((await listarPendientes()).facturaPendiente.map((p) => p.conversationId)).not.toContain(id);
   });
 
-  it("un ticket que un vendedor ya registró: el cierre completa ESE registro, no crea otro", async () => {
-    const id = await chat("593991110014", "Ya registrado");
-    const v = await registrar("Luis Mora", "0991110014");
-    expect((await estado(id)).stage).toBe("ganado");
-    await setStage(id, "seguimiento_venta", { actor: "owner", reason: "reabierto a mano" });
+  it("un ticket con un registro de antes (20-nov, sin cerrar): el cierre completa ESE registro, no crea otro", async () => {
+    const id = await chat("593991110014", "Registro viejo");
+    const [vieja] = await sql<{ id: number }[]>`
+      insert into ventas_registradas (vendedor, telefono, tel9, vino_de_whatsapp, conversation_id, cycle, dia)
+      values ('Luis Mora', '0991110014', '991110014', true, ${id}, 1, current_date) returning id::int as id`;
     expect((await cerrarDesdeElPanel(id, "ganado", { confirmado: true, factura: "F-14", monto: "100" })).status).toBe(200);
     const filas = await sql`select id::int as id, factura from ventas_registradas where conversation_id = ${id}`;
-    expect(filas).toEqual([{ id: v.json.venta.id, factura: "F-14" }]);
+    expect(filas).toEqual([{ id: vieja.id, factura: "F-14" }]);
+  });
+
+  it("deshacer un «Vendido» (volver a una etapa abierta, PR #84) anula su registro de venta", async () => {
+    const id = await chat("593991110021", "Vendido por error");
+    await cerrarDesdeElPanel(id, "ganado", { confirmado: true, factura: "F-21", monto: "50" });
+    expect((await post(`/api/hub/tickets/${id}/stage`, { stage: "seguimiento_venta" }, true)).status).toBe(200);
+    expect(await estado(id)).toMatchObject({ stage: "seguimiento_venta", historia: [] });
+    expect((await getHubTicket(id))?.ventaRegistrada).toBeNull();
+    const [fila] = await sql`select anulada_at from ventas_registradas where conversation_id = ${id}`;
+    expect(fila.anulada_at).toBeTruthy();
   });
 
   it("un ganado viejo sin registrar se completa con el mismo formulario, sin moverle la etapa", async () => {
