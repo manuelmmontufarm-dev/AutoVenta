@@ -10,6 +10,8 @@
   que se vaya completando con cada cliente, sin olvidar las plantillas.
 - **Probado:** los enlaces de la guía abren (0 rotos). Solo documentos y un script que ya se usó el 17-nov; no toca
   el bot. **Sin confirmar:** el estado de aprobación de las plantillas en Meta (quedaron PENDING al enviarlas).
+- **20-nov:** puesta al día con `main` (conflictos solo en esta bitácora y `PLANTILLAS_META.md`) y se agrega
+  `WHATSAPP_WABA_ID` a las variables del paso 4 (sin ella «Actualizar desde Meta» no trae el estado real).
 - **Horas:** 1.
 
 ## 20-nov-2026 · Bot · La insignia de la lámina no promete descuento en las opciones que no lo tienen, y dice BLACK FRIDAY (rama `fix/lamina-bf-insignia`)

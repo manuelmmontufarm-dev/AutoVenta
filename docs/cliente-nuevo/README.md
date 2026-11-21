@@ -149,6 +149,7 @@ Detalle completo: [ALTA-DE-CLIENTE.md](../clientes/ALTA-DE-CLIENTE.md), seccione
 | `OPENAI_API_KEY` | proyecto de OpenAI propio de este cliente | Los tokens se mezclan con otro cliente |
 | `BILLING_START`, `BILLING_MANTENIMIENTO` | primer día facturable y cuota | Cuenta como Depot ($80 desde el 12-ago) |
 | `OPENAI_*` de modelos y `AI_*` | copiadas de Depot, **sin** las `*_CANARY_*` | |
+| `WHATSAPP_WABA_ID` | el ID de la cuenta de WhatsApp Business del cliente (paso de Meta) | El botón «Actualizar desde Meta» del panel no trae el estado real de las plantillas |
 
 - [ ] Deploy y luego la semilla, con la URL **pública** del Postgres del cliente:
 
