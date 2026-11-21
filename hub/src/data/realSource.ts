@@ -16,6 +16,7 @@ import type {
   FollowUpCard,
   BotAlert,
   BotPower,
+  RegistroVentaConfig,
 } from "./types";
 
 const ADMIN_KEY_STORAGE = "autoventa_admin_key";
@@ -438,6 +439,19 @@ export class RealSource implements DataSource {
 
   async getPhases(): Promise<PhaseFlags> {
     return (await this.request<{ phases: PhaseFlags }>("/api/phases")).phases;
+  }
+
+  async getRegistroVenta(): Promise<RegistroVentaConfig> {
+    const r = await this.request<RegistroVentaConfig & { ok: true }>("/api/hub/registro-venta");
+    return { enlace: r.enlace, exigirParaGanado: r.exigirParaGanado };
+  }
+
+  async setRegistroVenta(exigirParaGanado: boolean): Promise<RegistroVentaConfig> {
+    const r = await this.request<RegistroVentaConfig & { ok: true }>("/api/hub/registro-venta", {
+      method: "PUT",
+      body: JSON.stringify({ exigirParaGanado }),
+    });
+    return { enlace: r.enlace, exigirParaGanado: r.exigirParaGanado };
   }
 
   async getBotPower(): Promise<BotPower> {

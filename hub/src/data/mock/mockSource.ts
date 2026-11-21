@@ -16,6 +16,7 @@ import {
   type LocalAsignado,
   type Mensaje,
   type PhaseFlags,
+  type RegistroVentaConfig,
   type Rol,
   type Ticket,
   type TipoMensaje,
@@ -70,6 +71,17 @@ export class MockSource implements DataSource {
   async setBotPower(activo: boolean, motivo = ""): Promise<BotPower> {
     this.power = { activo, apagadoAt: activo ? null : new Date().toISOString(), motivo };
     return { ...this.power };
+  }
+
+  private registroVenta: RegistroVentaConfig = { enlace: "/venta?k=demo", exigirParaGanado: false };
+
+  async getRegistroVenta(): Promise<RegistroVentaConfig> {
+    return { ...this.registroVenta };
+  }
+
+  async setRegistroVenta(exigirParaGanado: boolean): Promise<RegistroVentaConfig> {
+    this.registroVenta = { ...this.registroVenta, exigirParaGanado };
+    return { ...this.registroVenta };
   }
 
   async listTickets(mes?: string | null): Promise<Ticket[]> {

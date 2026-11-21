@@ -186,7 +186,37 @@ export interface Ticket {
     id: number; type: string; status: string; createdAt: string;
     sentAt?: string; deliveredAt?: string; readAt?: string; error?: string;
   }>;
+  /**
+   * La venta registrada por un vendedor en `/venta` para este ticket (su ciclo
+   * vigente). null/ausente = sin registrar: un «ganado» así lo marcó alguien a
+   * mano. Contrato `ventaDelTicket` de app/src/services/registroDeVentas.ts.
+   */
+  ventaRegistrada?: VentaDelTicket | null;
 }
+
+export interface VentaDelTicket {
+  id: number;
+  vendedor: string;
+  /** ISO. */
+  registradaEn: string;
+  factura: string | null;
+}
+
+/** `/api/hub/registro-venta`: el enlace de los vendedores y el interruptor del negocio. */
+export interface RegistroVentaConfig {
+  /** `/venta?k=…`: se le suma `&tel=` para abrirlo con el número puesto. */
+  enlace: string;
+  /** Encendido, «ganado» exige la venta registrada. Nace apagado. */
+  exigirParaGanado: boolean;
+}
+
+/** «Ganado» que nadie registró en `/venta`: lo marcaron a mano. */
+export const ganadoSinRegistrar = (t: Pick<Ticket, "cierre" | "ventaRegistrada">): boolean =>
+  t.cierre === "ganado" && !t.ventaRegistrada;
+
+/** El enlace a `/venta` con el número del cliente ya puesto. */
+export const enlaceRegistrarVenta = (config: RegistroVentaConfig, telefono: string): string =>
+  `${config.enlace}${config.enlace.includes("?") ? "&" : "?"}tel=${encodeURIComponent(telefono)}`;
 
 export type FollowUpBucket = "needs_human" | "closing" | "visita_confirmada" | "attention_now" | "today" | "scheduled" | "commitments" | "window_closed" | "human_review" | "cancelled_failed";
 
@@ -291,6 +321,8 @@ export interface HubMetrics {
     cotizado: number;
     cotizaciones: number;
     ganados: number;
+    /** De `ganados`, los que tienen venta registrada en `/venta`; el resto se marcó a mano. */
+    ganadosRegistrados?: number;
     vendido: number;
     primeraRespuestaSegundos: number | null;
   };
@@ -319,6 +351,7 @@ export interface HubMetrics {
     ratio: number;
     abiertosAhora: number;
     ganados: number;
+    ganadosRegistrados?: number;
     valor: number;
   };
   replyHours?: Array<{ hour: number; label: string; replies: number }>;
@@ -542,6 +575,8 @@ export interface FinalStageTicket {
   cotizacion: number | null;
   /** ISO del momento en que tocó la última columna por primera vez. */
   llegoEn: string;
+  /** Hay venta registrada en `/venta` para este ciclo. */
+  ventaRegistrada?: boolean;
 }
 
 export interface FinalStageDay {
@@ -553,6 +588,8 @@ export interface FinalStageDay {
 export interface FinalStage {
   total: number;
   ganados: number;
+  /** De `ganados`, los que tienen venta registrada; el resto se marcó a mano. */
+  ganadosRegistrados?: number;
   days: FinalStageDay[];
 }
 

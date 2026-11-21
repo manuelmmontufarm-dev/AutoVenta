@@ -1,4 +1,4 @@
-import type { Atiende, Billing, BotAlert, BotPower, Cierre, EchoHealth, Etapa, FeedItem, FinalStage, FollowUpCard, HubMetrics, MesDisponible, Mensaje, PhaseFlags, Rol, TemplatePlanPreview, Ticket } from "./types";
+import type { Atiende, Billing, RegistroVentaConfig, BotAlert, BotPower, Cierre, EchoHealth, Etapa, FeedItem, FinalStage, FollowUpCard, HubMetrics, MesDisponible, Mensaje, PhaseFlags, Rol, TemplatePlanPreview, Ticket } from "./types";
 
 /**
  * El contrato entre la UI y los datos. Parte 1: MockSource (fixtures + simulador).
@@ -53,5 +53,8 @@ export interface DataSource {
   /** Interruptor global: si el bot está contestando o está apagado. */
   getBotPower(): Promise<BotPower>;
   setBotPower(activo: boolean, motivo?: string, confirmarFaltantes?: boolean): Promise<BotPower>;
+  /** Enlace de `/venta` para «Registrar venta» y el interruptor «ganado exige la venta registrada». */
+  getRegistroVenta(): Promise<RegistroVentaConfig>;
+  setRegistroVenta(exigirParaGanado: boolean): Promise<RegistroVentaConfig>;
   subscribe(listener: (ev: SourceEvent) => void): () => void;
 }

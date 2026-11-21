@@ -18,6 +18,8 @@ import { forceSyncNow, interbotPricesState } from "../services/interbotPrices.js
 import { PLANTILLA_NAMES, MODO_NAMES,
   getAiConfig,
   getCouponConfig,
+  getVentaRegistradaConfig,
+  saveVentaRegistradaConfig,
   getGuardianConfig,
   getPiecesConfig,
   getStoreHours,
@@ -37,6 +39,7 @@ import { comoVistaPrevia } from "../services/temporadaDelTurno.js";
 import { politica } from "../negocio/politica.js";
 import { informeGuardian } from "../services/guardian.js";
 import { canjearCupon, consultarCupon, resumenCupones } from "../services/coupons.js";
+import { ERROR_GANADO_SIN_REGISTRO, ganadoPermitido } from "../services/registroDeVentas.js";
 import {
   catalogStatus,
   catalogInventoryMetrics,
@@ -1303,6 +1306,9 @@ export function createAdminRouter(): express.Router {
     if (!Number.isInteger(id) || !isStage(stage)) {
       return res.status(400).json({ ok: false, error: "Etapa inválida" });
     }
+    if (stage === "ganado" && !(await ganadoPermitido(id))) {
+      return res.status(409).json({ ok: false, code: "venta_sin_registrar", error: ERROR_GANADO_SIN_REGISTRO });
+    }
     await setStage(id, stage, {
       actor: "owner",
       reason: String(req.body?.reason ?? "Movimiento manual desde Kanban").slice(0, 300),
@@ -1316,6 +1322,11 @@ export function createAdminRouter(): express.Router {
     const closure = String(req.body?.closure ?? "");
     if (!Number.isInteger(id) || !["ganado", "perdido", "sin_respuesta"].includes(closure)) {
       return res.status(400).json({ ok: false, error: "Cierre inválido" });
+    }
+    // «Ganado» a mano sigue permitido mientras el interruptor del negocio esté
+    // apagado (hoy). Encendido, exige la venta registrada en `/venta`.
+    if (closure === "ganado" && !(await ganadoPermitido(id))) {
+      return res.status(409).json({ ok: false, code: "venta_sin_registrar", error: ERROR_GANADO_SIN_REGISTRO });
     }
     await setStage(id, closure === "ganado" ? "ganado" : "perdido", {
       actor: "owner",
@@ -1939,6 +1950,24 @@ export function createAdminRouter(): express.Router {
   // decisión comercial de Depot (cuándo empezar, con qué porcentaje), y tiene
   // que poder tomarse desde Ajustes el día de la capacitación de cajeros, sin
   // esperar un deploy. Nace apagado.
+  // Registro de ventas (`/venta`) visto desde el panel: el enlace de los
+  // vendedores (para el botón «Registrar venta» de la ficha) y el interruptor
+  // del negocio «ganado exige la venta registrada», que nace apagado.
+  router.get("/hub/registro-venta", async (_req, res) => {
+    const config = await getVentaRegistradaConfig();
+    res.json({ ok: true, enlace: `/venta?k=${encodeURIComponent(claveDelEnlace())}`, ...config });
+  });
+
+  router.put("/hub/registro-venta", async (req, res) => {
+    try {
+      const config = await saveVentaRegistradaConfig(req.body);
+      emitLiveEvent("settings");
+      res.json({ ok: true, enlace: `/venta?k=${encodeURIComponent(claveDelEnlace())}`, ...config });
+    } catch {
+      res.status(400).json({ ok: false, error: "Ajuste inválido" });
+    }
+  });
+
   router.get("/cupones", async (req, res) => {
     const dias = Math.min(365, Math.max(1, Number(req.query.dias ?? 30)));
     const [cfg, resumen] = await Promise.all([getCouponConfig(), resumenCupones(dias)]);

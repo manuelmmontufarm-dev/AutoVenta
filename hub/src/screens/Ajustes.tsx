@@ -304,6 +304,7 @@ export function Ajustes() {
         <div className="flex flex-col gap-4">
           {hours && <SeccionHorarios hours={hours} setHours={setHours} locales={negocio.locales} onError={setError} />}
           <SeccionCupones onError={setError} />
+          <SeccionVentaRegistrada onError={setError} />
           <SeccionAnuncios onError={setError} />
         </div>
       )}
@@ -618,6 +619,35 @@ interface CuponesEstado {
  * El canje también vive aquí porque es lo que se hace en el mostrador: se
  * teclea lo que el cliente dicta y el panel dice si vale.
  */
+function SeccionVentaRegistrada({ onError }: { onError: (v: string) => void }) {
+  const { registroVenta, cambiarExigirVentaRegistrada } = useHub();
+  const [cambiando, setCambiando] = useState(false);
+  const exige = registroVenta?.exigirParaGanado ?? false;
+  const cambiar = async () => {
+    setCambiando(true);
+    try {
+      await cambiarExigirVentaRegistrada(!exige);
+      onError("");
+    } catch (e) { onError(e instanceof Error ? e.message : "No se pudo guardar el ajuste"); }
+    finally { setCambiando(false); }
+  };
+  return <Tarjeta
+    titulo="Ganado solo con venta registrada"
+    sub="Cuando un vendedor registra una venta en /venta y el número coincide con un chat, ese ticket queda como ganado. Encendido, el panel ya no deja marcar «ganado» a mano: primero hay que registrar la venta. APAGADO mientras el registro está en prueba; los ganados a mano se ven como «sin registrar»."
+    extra={registroVenta
+      ? <button
+          onClick={() => void cambiar()}
+          disabled={cambiando}
+          className={`rounded-full px-4 py-2 text-[12px] font-semibold disabled:opacity-50 ${
+            exige ? "bg-ok text-text" : "bg-bg text-text2 hover:bg-bg"
+          }`}
+        >{cambiando ? "Cambiando…" : exige ? "● Prendido" : "○ Apagado"}</button>
+      : null}
+  >
+    {!registroVenta && <p className="text-[12px] text-text2">Cargando el ajuste…</p>}
+  </Tarjeta>;
+}
+
 function SeccionCupones({ onError }: { onError: (v: string) => void }) {
   const [estado, setEstado] = useState<CuponesEstado | null>(null);
   const [cambiando, setCambiando] = useState(false);

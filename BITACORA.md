@@ -1,3 +1,29 @@
+## 21-nov-2026 · Venta · Registrar la venta en `/venta` marca el ticket y el panel lo muestra (rama `feat/venta-registrada-en-panel`)
+
+- **Qué:** (1) Registrar en `/venta` un número que cruza con un chat pasa ese ticket (ciclo vigente) a «ganado» con
+  el motivo «Venta registrada por <vendedor>», por el `setStage` de siempre. Ya ganado → no se toca. Varios chats con
+  el mismo número → solo el que vio el vendedor (el más reciente donde el cliente escribió); marcarlos todos inflaría
+  los ganados con una sola venta. Sin chat → solo queda el registro. Un perdido también pasa a ganado.
+  (2) «Corregir el número» llama a `POST /venta/anular`: la fila queda anulada y el ticket vuelve a su etapa anterior
+  (borra el ganado de `sales_history` si estaba abierto; un perdido recupera su motivo), salvo que alguien lo haya
+  movido después o haya otro registro vivo. (3) Panel: sección «Venta» en la ficha (quién, cuándo, factura) o botón
+  «Registrar venta» que abre `/venta?k=…&tel=…` con el número puesto; «Ganado · sin registrar» en Inbox, cabecera
+  del chat (desde xl) y «Llegaron al final». (4) Interruptor por negocio `settings.venta_registrada_config`
+  (`exigirParaGanado`, APAGADO) en Ajustes → Negocio: encendido, `close`/`stage` a ganado sin venta registrada dan
+  409 y el cierre del panel deshabilita «Ganado». El ganado que declara el cliente («ya compré», clasificador) NO
+  pasa por el interruptor: queda como «sin registrar». (5) Métricas: `ganadosRegistrados` junto a `ganados` en el
+  resumen, `reachedFinal` y «Llegaron al final»; los números de siempre no cambian. (6) Migración 036: `cycle`,
+  `efecto_en_ticket`, `etapa_anterior`, `motivo_anterior`, `anulada_at`; los registros del 20-nov se vinculan a su
+  ciclo sin cambiar etapas.
+- **Por qué:** Manuel quiere que a futuro «ganado» exija la venta registrada; mientras el registro está en prueba se
+  sigue marcando a mano, pero el panel tiene que mostrar la diferencia.
+- **Probado:** `ventaRegistradaEnTicket.integration` (18, Postgres local): 17 en rojo contra main, 18 en verde acá.
+  `registroDeVentas.integration` sigue verde. Suite: solo `hashesPiezasDepot`, `unidadEnLaCantidad` y
+  `buscarPorAroCompleto`, que fallan igual en main. `tsc` app y hub ✅, `sim:humo` ✅, fidelidad + perfil ajeno ✅.
+  Panel compilado servido por la API real sobre una base desechable: registrar desde el botón de la ficha deja el
+  ticket ganado con vendedor y factura; ganado a mano sale «sin registrar»; con el interruptor encendido «Ganado»
+  queda deshabilitado. **No probado:** en producción.
+- **Horas:** 1.5.
 ## 21-nov-2026 · Bot · Deshacer un cierre en la misma visita borra su venta (rama `fix/asesor-de-verdad`)
 
 - **Qué:** `setStage` de `ganado`/`perdido` a una etapa abierta sin cambiar de ciclo borra la fila de

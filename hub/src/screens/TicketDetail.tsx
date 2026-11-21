@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { ChatBubble, Composer, CotizacionModal, TypingBubble } from "../components/chat";
 import { IconBack, IconDoc, IconRefresh, IconX } from "../components/icons";
 import { BlockTitle, Campo, CierreBadge, CierreIcon, MedidaChip, Modal, Segmented } from "../components/ui";
-import { CIERRE_META, ETAPA_META, type Cierre, type Mensaje, type Ticket } from "../data/types";
+import { CIERRE_META, ETAPA_META, enlaceRegistrarVenta, ganadoSinRegistrar, type Cierre, type Mensaje, type Ticket } from "../data/types";
 import { etiquetaVisita, money, relTime } from "../lib/format";
 import { navigate } from "../router";
 import { useHub, useNow } from "../store";
@@ -177,6 +177,8 @@ export function TicketDetail({ id }: { id: number }) {
             ) : ticket.cierre ? (
               <span className="flex items-center gap-3">
                 <CierreBadge cierre={ticket.cierre} />
+                {/* Aquí el espacio es corto: con la ficha al lado no entra antes de xl. La sección «Venta» de la ficha lo dice siempre. */}
+                {ganadoSinRegistrar(ticket) && <span className="-ml-2 hidden text-[13px] whitespace-nowrap text-text2 xl:inline">· sin registrar</span>}
                 <button onClick={() => void reabrir(ticket.id)} className="btn-quiet flex h-8 items-center gap-1.5 rounded-[6px] px-3 text-[12px]">
                   <IconRefresh size={13} /> Reabrir
                 </button>
@@ -455,6 +457,8 @@ function Ficha({
         )}
       </Seccion>
 
+      <SeccionVenta ticket={ticket} />
+
       <section ref={descuentoRef} className="flex flex-col gap-3.5 border-b border-line px-5 pt-5 pb-[18px]">
         <BlockTitle aside={abierto ? <button onClick={onToggleDescuento} className="font-medium text-signal">{verDescuento ? "Cancelar" : ticket.descuentoActivo ? "Ajustar" : "Ofrecer"}</button> : undefined}>Descuento</BlockTitle>
         {ticket.descuentoActivo ? (
@@ -530,6 +534,50 @@ function Ficha({
   );
 }
 
+/* ── Venta registrada: lo que el vendedor anotó en /venta para este ticket ── */
+
+/**
+ * Si la venta está registrada: quién, cuándo y la factura. Si no, el botón que
+ * abre `/venta` con el número del cliente ya puesto. Un «ganado» sin registro
+ * lo dice: lo marcó alguien a mano.
+ */
+function SeccionVenta({ ticket }: { ticket: Ticket }) {
+  const { registroVenta } = useHub();
+  const venta = ticket.ventaRegistrada;
+  const mono = "tnum font-mono";
+  return (
+    <Seccion titulo="Venta" aside={venta ? "Registrada" : "Sin registrar"}>
+      {venta ? (
+        <Campos>
+          <Campo etiqueta="Registró">{venta.vendedor}</Campo>
+          <Campo etiqueta="Cuándo">
+            {new Date(venta.registradaEn).toLocaleString("es-EC", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "America/Guayaquil" })}
+          </Campo>
+          <Campo etiqueta="Factura">{venta.factura ? <span className={mono}>{venta.factura}</span> : <span className="text-text2">Sin factura todavía</span>}</Campo>
+        </Campos>
+      ) : (
+        <>
+          <p className="text-[13px] leading-relaxed text-text2">
+            {ganadoSinRegistrar(ticket)
+              ? "Marcado como ganado a mano: ningún vendedor registró esta venta."
+              : "Cuando el cliente compre, el vendedor registra la venta y el ticket queda como ganado."}
+          </p>
+          {registroVenta && (
+            <a
+              href={enlaceRegistrarVenta(registroVenta, ticket.telefono)}
+              target="_blank"
+              rel="noreferrer"
+              className="btn-quiet flex h-9 items-center justify-center rounded-[6px] text-[13px]"
+            >
+              Registrar venta
+            </a>
+          )}
+        </>
+      )}
+    </Seccion>
+  );
+}
+
 /* ── Cierre con motivo: el motivo alimenta las métricas del embudo ── */
 
 export function CerrarSheet({
@@ -543,6 +591,9 @@ export function CerrarSheet({
 }) {
   const [cierre, setCierre] = useState<Cierre | null>(null);
   const [nota, setNota] = useState("");
+  // Interruptor del negocio (Ajustes): encendido, «ganado» exige la venta registrada.
+  const { registroVenta } = useHub();
+  const ganadoBloqueado = Boolean(registroVenta?.exigirParaGanado && !ticket.ventaRegistrada);
   const explicacion: Record<Cierre, string> = {
     ganado: "Vino y compró",
     perdido: "No compró — anota por qué",
@@ -566,23 +617,30 @@ export function CerrarSheet({
           {(Object.keys(CIERRE_META) as Cierre[]).map((c) => {
             const meta = CIERRE_META[c];
             const activo = cierre === c;
+            const bloqueado = c === "ganado" && ganadoBloqueado;
             return (
               <button
                 key={c}
                 role="radio"
                 aria-checked={activo}
+                disabled={bloqueado}
                 onClick={() => setCierre(c)}
-                className={`flex items-center gap-3 rounded-[8px] border px-4 py-3 text-left transition-colors ${activo ? "border-signal bg-signal-tint" : "border-line bg-surface hover:bg-bg"}`}
+                className={`flex items-center gap-3 rounded-[8px] border px-4 py-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${activo ? "border-signal bg-signal-tint" : "border-line bg-surface hover:bg-bg"}`}
               >
                 <CierreIcon cierre={c} size={18} />
                 <span>
                   <span className={`block text-[14px] ${activo ? "font-semibold" : "font-medium"}`}>{meta.nombre}</span>
-                  <span className="text-[12px] text-text2">{explicacion[c]}</span>
+                  <span className="text-[12px] text-text2">{bloqueado ? "Primero registra la venta" : explicacion[c]}</span>
                 </span>
               </button>
             );
           })}
         </div>
+        {ganadoBloqueado && registroVenta && (
+          <a href={enlaceRegistrarVenta(registroVenta, ticket.telefono)} target="_blank" rel="noreferrer" className="mt-2 block text-[12px] font-medium text-signal underline underline-offset-[3px]">
+            Registrar venta
+          </a>
+        )}
         <input
           value={nota}
           onChange={(e) => setNota(e.target.value)}

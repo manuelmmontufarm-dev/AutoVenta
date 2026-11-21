@@ -59,12 +59,18 @@ const CIERRE_COLOR: Record<Cierre, string> = {
   sin_respuesta: "var(--color-text2)",
 };
 
-export function CierreBadge({ cierre }: { cierre: Cierre }) {
+/**
+ * `sinRegistrar`: un «ganado» que nadie registró en `/venta` (lo marcaron a
+ * mano). Se dice al lado, en gris, para que se note sin gritar: mientras el
+ * registro está en prueba sigue siendo un cierre válido.
+ */
+export function CierreBadge({ cierre, sinRegistrar = false }: { cierre: Cierre; sinRegistrar?: boolean }) {
   const meta = CIERRE_META[cierre];
   return (
     <span className="inline-flex items-center gap-1.5 text-[13px] font-medium whitespace-nowrap" style={{ color: CIERRE_COLOR[cierre] }}>
       <CierreIcon cierre={cierre} size={13} />
       {meta.nombre}
+      {sinRegistrar && <span className="font-normal text-text2">· sin registrar</span>}
     </span>
   );
 }
