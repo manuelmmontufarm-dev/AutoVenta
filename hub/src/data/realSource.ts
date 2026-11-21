@@ -16,6 +16,7 @@ import type {
   FollowUpCard,
   BotAlert,
   BotPower,
+  AccionDelHistorial,
   DatosCierreGanado,
   RegistroVentaConfig,
   VentasPendientes,
@@ -381,11 +382,15 @@ export class RealSource implements DataSource {
     });
   }
 
-  async completarVenta(ticketId: number, factura: string, monto: string, cycle?: number): Promise<void> {
-    await this.request(`/api/hub/tickets/${ticketId}/venta`, {
+  async agregarFactura(ticketId: number, factura: string, monto: string, cycle?: number): Promise<void> {
+    await this.request(`/api/hub/tickets/${ticketId}/facturas`, {
       method: "POST",
       body: JSON.stringify({ factura, monto, cycle }),
     });
+  }
+
+  async getHistorial(ticketId: number): Promise<AccionDelHistorial[]> {
+    return (await this.request<{ historial: AccionDelHistorial[] }>(`/api/hub/tickets/${ticketId}/historial`)).historial;
   }
 
   async getVentasPendientes(): Promise<VentasPendientes> {

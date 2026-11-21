@@ -11,14 +11,16 @@
  *  - «Corregir el número» anula el registro y devuelve el ticket a donde estaba,
  *    salvo que alguien lo haya movido después;
  *  - el ticket del panel trae quién registró, cuándo, la factura y el monto;
- *  - «ganado» a mano (21-nov, Manuel) pide «el cliente llegó y compró» y
- *    factura + monto, o «completar después»; crea o completa el registro de
- *    venta del ticket (la misma tabla). Arrastrar a ganado no alcanza. Con el
- *    ajuste del negocio apagado, el cierre libre de antes;
- *  - la factura pendiente y los ganados viejos se completan con el mismo formulario;
+ *  - «ganado» a mano (21-nov, Manuel) pide SIEMPRE «el cliente llegó y compró»,
+ *    factura y monto (sin ellos se espera; «completar después» se quitó); escribe
+ *    la factura del ticket (la misma tabla). Arrastrar a ganado no alcanza. Con
+ *    el ajuste del negocio apagado, el cierre libre de antes;
+ *  - un ticket ganado puede tener varias facturas (dos compras): sigue siendo
+ *    UNA venta y lo pagado es la suma; desde el panel o desde /venta;
+ *  - los ganados viejos sin factura se completan con el mismo formulario;
  *  - «Gracias ya compré.» (conv 293) NO cierra como ganado: queda por confirmar;
  *  - las métricas no cambian sus números: solo agregan el desglose
- *    completa / factura pendiente / sin registrar.
+ *    con factura / sin factura y lo facturado.
  */
 import express from "express";
 import type { Server } from "node:http";
@@ -70,7 +72,7 @@ const registrar = (vendedor: string, telefono: string) => post("/venta/registrar
 const anular = (id: number, telefono: string) => post("/venta/anular", { id, telefono });
 const cerrarDesdeElPanel = (id: number, closure: string, venta: Record<string, unknown> = {}) =>
   post(`/api/hub/tickets/${id}/close`, { closure, ...venta }, true);
-const completar = (id: number, venta: Record<string, unknown>) => post(`/api/hub/tickets/${id}/venta`, venta, true);
+const completar = (id: number, venta: Record<string, unknown>) => post(`/api/hub/tickets/${id}/facturas`, venta, true);
 
 async function interruptor(confirmarGanado: boolean) {
   const r = await fetch(`${url}/api/hub/registro-venta`, {
@@ -264,7 +266,8 @@ describe("«ganado» a mano = el asesor confirma que compró ACÁ", () => {
     expect(revisarCierreGanado({ confirmado: true, factura: "F-1" }, false)).toMatchObject({ ok: false, code: "faltan_factura_y_monto" });
     expect(revisarCierreGanado({ confirmado: true, factura: "F-1", monto: "diez" }, false)).toMatchObject({ ok: false, code: "monto_invalido" });
     expect(revisarCierreGanado({ confirmado: true, factura: "F-1", monto: "230" }, false)).toEqual({ ok: true, factura: "F-1", monto: 230 });
-    expect(revisarCierreGanado({ confirmado: true, completarDespues: true }, false)).toEqual({ ok: true, factura: null, monto: null });
+    // «Completar después» ya no existe: sin factura y monto no se cierra.
+    expect(revisarCierreGanado({ confirmado: true, completarDespues: true }, false)).toMatchObject({ ok: false, code: "faltan_factura_y_monto" });
     // La venta ya la registró completa un vendedor: basta confirmar.
     expect(revisarCierreGanado({ confirmado: true }, true)).toMatchObject({ ok: true });
   });
@@ -292,25 +295,50 @@ describe("«ganado» a mano = el asesor confirma que compró ACÁ", () => {
     const [fila] = await sql`select vendedor, factura, monto::float8 as monto, origen, cycle, efecto_en_ticket, etapa_anterior, telefono
       from ventas_registradas where conversation_id = ${id}`;
     expect(fila).toMatchObject({
-      vendedor: "Panel", factura: "001-001-000900", monto: 450.75, origen: "panel", cycle: 1,
+      vendedor: "clave admin", factura: "001-001-000900", monto: 450.75, origen: "panel", cycle: 1,
       efecto_en_ticket: "marcado_ganado", etapa_anterior: "cotizacion_enviada", telefono: "593991110012",
     });
     expect((await getHubTicket(id))?.ventaRegistrada).toMatchObject({ factura: "001-001-000900", monto: 450.75, origen: "panel" });
   });
 
-  it("«completar después»: cuenta como ganado con la factura pendiente, y se completa con el mismo formulario", async () => {
+  it("«completar después» ya no cierra: sin factura y monto, se espera", async () => {
     const id = await chat("593991110013", "Después");
-    expect((await cerrarDesdeElPanel(id, "ganado", { confirmado: true, completarDespues: true })).status).toBe(200);
-    expect((await estado(id)).stage).toBe("ganado");
-    expect((await getHubTicket(id))?.ventaRegistrada).toMatchObject({ factura: null, monto: null });
-    expect((await listarPendientes()).facturaPendiente.map((p) => p.conversationId)).toContain(id);
+    const r = await cerrarDesdeElPanel(id, "ganado", { confirmado: true, completarDespues: true });
+    expect(r.status).toBe(400);
+    expect(r.json.code).toBe("faltan_factura_y_monto");
+    expect((await estado(id)).stage).toBe("cotizacion_enviada");
+    expect(await sql`select 1 from ventas_registradas where conversation_id = ${id}`).toHaveLength(0);
+  });
 
-    // Sin los dos datos no se completa.
-    expect((await completar(id, { factura: "F-77" })).status).toBe(400);
-    const r = await completar(id, { factura: "F-77", monto: "199" });
-    expect(r.json).toMatchObject({ ok: true, venta: { factura: "F-77", monto: 199 } });
-    expect(await sql`select 1 from ventas_registradas where conversation_id = ${id}`).toHaveLength(1);
-    expect((await listarPendientes()).facturaPendiente.map((p) => p.conversationId)).not.toContain(id);
+  it("«añadir otra factura»: dos compras en el mismo ticket, una sola venta, lo pagado se suma", async () => {
+    const id = await chat("593991110022", "Dos compras");
+    await cerrarDesdeElPanel(id, "ganado", { confirmado: true, factura: "001-001-000100", monto: "400" });
+    const r = await completar(id, { factura: "001-001-000101", monto: "120.50" });
+    expect(r.status).toBe(200);
+    expect(r.json.facturas.map((f: { factura: string }) => f.factura)).toEqual(["001-001-000100", "001-001-000101"]);
+
+    const ticket = await getHubTicket(id);
+    expect(ticket?.facturas.map((f) => [f.factura, f.monto])).toEqual([["001-001-000100", 400], ["001-001-000101", 120.5]]);
+    expect(ticket?.totalPagado).toBe(520.5);
+    // La misma factura otra vez no se suma (escrita con espacios, igual es la misma).
+    const repetida = await completar(id, { factura: " 001-001-000101 ", monto: "120.50" });
+    expect(repetida.status).toBe(409);
+    expect(repetida.json.code).toBe("factura_repetida");
+    // Sigue siendo UNA venta ganada.
+    expect(await estado(id)).toMatchObject({ stage: "ganado", historia: [{ outcome: "ganado" }] });
+  });
+
+  it("/venta también suma una segunda factura al mismo comprador", async () => {
+    const id = await chat("593991110023", "Dos compras por /venta");
+    const v1 = await registrar("Luis Mora", "0991110023");
+    await post("/venta/factura", { id: v1.json.venta.id, telefono: "0991110023", factura: "F-23-A", monto: "200" });
+    const v2 = await registrar("Pedro", "0991110023");
+    expect(v2.json.venta.efectoEnTicket).toBe("ya_ganado");
+    await post("/venta/factura", { id: v2.json.venta.id, telefono: "0991110023", factura: "F-23-B", monto: "80" });
+    const ticket = await getHubTicket(id);
+    expect(ticket?.facturas.map((f) => f.factura)).toEqual(["F-23-A", "F-23-B"]);
+    expect(ticket?.totalPagado).toBe(280);
+    expect((await estado(id)).historia).toHaveLength(1);
   });
 
   it("un ticket con un registro de antes (20-nov, sin cerrar): el cierre completa ESE registro, no crea otro", async () => {
@@ -336,14 +364,23 @@ describe("«ganado» a mano = el asesor confirma que compró ACÁ", () => {
   it("un ganado viejo sin registrar se completa con el mismo formulario, sin moverle la etapa", async () => {
     const id = await chat("593991110015", "Ganado viejo");
     await setStage(id, "ganado", { actor: "owner", reason: "ganado" });
-    expect((await listarPendientes()).sinRegistrar.map((p) => p.conversationId)).toContain(id);
+    expect((await listarPendientes()).sinFactura.map((p) => p.conversationId)).toContain(id);
     const antes = await estado(id);
     const r = await completar(id, { factura: "F-OLD", monto: "300" });
-    expect(r.json).toMatchObject({ ok: true, venta: { factura: "F-OLD", monto: 300, origen: "panel" } });
+    expect(r.json).toMatchObject({ ok: true, facturas: [{ factura: "F-OLD", monto: 300, origen: "panel" }] });
     expect(await estado(id)).toEqual(antes);
     const [fila] = await sql`select efecto_en_ticket from ventas_registradas where conversation_id = ${id}`;
     expect(fila.efecto_en_ticket).toBe("ya_ganado");
-    expect((await listarPendientes()).sinRegistrar.map((p) => p.conversationId)).not.toContain(id);
+    expect((await listarPendientes()).sinFactura.map((p) => p.conversationId)).not.toContain(id);
+  });
+
+  it("un ganado de /venta que se quedó sin factura sale en «sin factura», y la factura llena ESE registro", async () => {
+    const id = await chat("593991110024", "Paso 1 nada más");
+    await registrar("Luis Mora", "0991110024");
+    expect((await listarPendientes()).sinFactura.map((p) => p.conversationId)).toContain(id);
+    await completar(id, { factura: "F-24", monto: "90" });
+    expect(await sql`select factura from ventas_registradas where conversation_id = ${id}`).toEqual([{ factura: "F-24" }]);
+    expect((await listarPendientes()).sinFactura.map((p) => p.conversationId)).not.toContain(id);
   });
 
   it("no se completa la venta de un ticket que no está ganado", async () => {
@@ -402,33 +439,35 @@ describe("«ya compré» queda por confirmar (conv 293)", () => {
 });
 
 describe("métricas", () => {
-  it("los ganados de siempre, más el desglose completa / factura pendiente / sin registrar", async () => {
+  it("los ganados de siempre, más el desglose con factura / sin factura, y lo facturado", async () => {
     const [{ ganados }] = await sql<{ ganados: number }[]>`
       select count(*)::int as ganados from sales_history where outcome = 'ganado'`;
-    const venta = (completa: boolean) => sql<{ n: number }[]>`
+    const [{ n: conFactura }] = await sql<{ n: number }[]>`
       select count(*)::int as n from sales_history s where outcome = 'ganado'
         and exists (select 1 from ventas_registradas v
-          where v.conversation_id = s.conversation_id and v.cycle = s.cycle and v.anulada_at is null)
-        and ${completa} = exists (select 1 from ventas_registradas v
           where v.conversation_id = s.conversation_id and v.cycle = s.cycle and v.anulada_at is null
             and v.factura is not null and v.monto is not null)`;
-    const [{ n: completas }] = await venta(true);
-    const [{ n: pendientes }] = await venta(false);
-    const sinRegistrar = ganados - completas - pendientes;
-    expect(completas).toBeGreaterThan(0);
-    expect(pendientes).toBeGreaterThan(0);
-    expect(sinRegistrar).toBeGreaterThan(0);
+    const sinFactura = ganados - conFactura;
+    expect(conFactura).toBeGreaterThan(0);
+    expect(sinFactura).toBeGreaterThan(0);
 
     const m = await getHubMetrics();
-    expect(m.summary).toMatchObject({
-      ganados, ganadosRegistrados: completas, ganadosFacturaPendiente: pendientes, ganadosSinRegistrar: sinRegistrar,
-    });
-    expect(m.reachedFinal).toMatchObject({ ganados, ganadosRegistrados: completas, ganadosFacturaPendiente: pendientes });
+    expect(m.summary).toMatchObject({ ganados, ganadosRegistrados: conFactura, ganadosSinRegistrar: sinFactura });
+    expect(m.summary).not.toHaveProperty("ganadosFacturaPendiente");
+    // El ticket con dos compras suma las dos (400 + 120.50) y la factura escrita dos veces cuenta una vez.
+    const [{ total }] = await sql<{ total: number }[]>`
+      select coalesce(sum(monto), 0)::float8 as total from (
+        select distinct on (v.conversation_id, v.cycle, lower(regexp_replace(v.factura, '\\s+', '', 'g'))) v.monto
+        from ventas_registradas v join sales_history s on s.conversation_id = v.conversation_id and s.cycle = v.cycle
+        where s.outcome = 'ganado' and v.anulada_at is null and v.factura is not null and v.monto is not null
+        order by v.conversation_id, v.cycle, lower(regexp_replace(v.factura, '\\s+', '', 'g')), v.created_at) f`;
+    expect(m.summary.facturado).toBeCloseTo(total, 2);
+    expect(m.reachedFinal).toMatchObject({ ganados, ganadosRegistrados: conFactura });
 
     const final = await getFinalStageArrivals();
-    expect(final).toMatchObject({ ganados, ganadosRegistrados: completas, ganadosFacturaPendiente: pendientes });
+    expect(final).toMatchObject({ ganados, ganadosRegistrados: conFactura });
     const tickets = final.days.flatMap((d) => d.tickets as { cierre: string; venta: string | null }[]);
-    expect(tickets.filter((t) => t.cierre === "ganado" && t.venta === null).length).toBe(sinRegistrar);
+    expect(tickets.filter((t) => t.cierre === "ganado" && t.venta === null).length).toBe(sinFactura);
   });
 });
 
@@ -444,5 +483,67 @@ describe("los registros de antes de este cambio", () => {
     expect(fila).toMatchObject({ cycle: 1, efecto_en_ticket: null });
     expect((await estado(id)).stage).toBe("cotizacion_enviada");
     expect((await getHubTicket(id))?.ventaRegistrada).toMatchObject({ vendedor: "Luis Mora" });
+  });
+});
+
+describe("quién hizo qué (21-nov, Manuel: «para saber a quién escribirle»)", () => {
+  const historial = async (id: number) => {
+    const r = await fetch(`${url}/api/hub/tickets/${id}/historial`, { headers: { "x-admin-key": ADMIN_KEY } });
+    return ((await r.json()) as { historial: { accion: string; quien: string; detalle: Record<string, unknown> }[] }).historial;
+  };
+
+  it("el nombre es el del usuario logueado; con la clave admin sin usuario queda «clave admin», no «Panel»", async () => {
+    const { quienEnElPanel, CLAVE_ADMIN } = await import("../src/services/accionesDelPanel.js");
+    expect(quienEnElPanel({ usuario: { nombre: "Carlos Romero" } } as never)).toBe("Carlos Romero");
+    expect(quienEnElPanel({} as never)).toBe(CLAVE_ADMIN);
+    expect(CLAVE_ADMIN).toBe("clave admin");
+  });
+
+  it("cerrar ganado, añadir factura, deshacer y cerrar perdido quedan con quién y qué", async () => {
+    const id = await chat("593991110030", "Historial");
+    await cerrarDesdeElPanel(id, "ganado", { confirmado: true, factura: "860", monto: "300" });
+    const [venta] = await sql`select vendedor from ventas_registradas where conversation_id = ${id}`;
+    expect(venta.vendedor).toBe("clave admin");
+    await completar(id, { factura: "861", monto: "40" });
+    await post(`/api/hub/tickets/${id}/deshacer-venta`, {}, true);
+    await cerrarDesdeElPanel(id, "perdido", { note: "Compró en otro lado" });
+    await post(`/api/hub/tickets/${id}/reopen`, {}, true);
+    await fetch(`${url}/api/hub/tickets/${id}/assignee`, {
+      method: "PATCH", headers: { "content-type": "application/json", "x-admin-key": ADMIN_KEY }, body: JSON.stringify({ assignedTo: "human" }),
+    });
+
+    const h = await historial(id);
+    expect(h.map((a) => a.accion)).toEqual(["tomar", "reabrir", "cerrar_perdido", "deshacer_venta", "agregar_factura", "cerrar_ganado"]);
+    expect(h.every((a) => a.quien === "clave admin")).toBe(true);
+    expect(h.find((a) => a.accion === "cerrar_ganado")?.detalle).toMatchObject({ factura: "860", monto: 300 });
+    expect(h.find((a) => a.accion === "cerrar_perdido")?.detalle).toMatchObject({ nota: "Compró en otro lado" });
+    // Con el ticket, el ciclo y el antes/después: lo que responde «¿quién hizo qué?».
+    const [fila] = await sql`select actor, entity_id, before_value, after_value from audit_events
+      where entity_type = 'conversation' and entity_id = ${String(id)} and action = 'cerrar_ganado'`;
+    expect(fila).toMatchObject({
+      actor: "clave admin", entity_id: String(id),
+      before_value: { etapa: "cotizacion_enviada", estado: "open", ciclo: 1 },
+      after_value: { etapa: "ganado", estado: "closed", ciclo: 1, factura: "860" },
+    });
+  });
+
+  it("en /venta queda el nombre que escribe el vendedor", async () => {
+    const id = await chat("593991110031", "Por /venta");
+    const r = await registrar("Rosa Pérez", "0991110031");
+    await post("/venta/factura", { id: r.json.venta.id, telefono: "0991110031", factura: "F-31", monto: "75" });
+    const h = await historial(id);
+    expect(h.map((a) => [a.accion, a.quien])).toEqual([["agregar_factura", "Rosa Pérez"], ["registrar_venta", "Rosa Pérez"]]);
+  });
+
+  it("quién escribió un mensaje del panel se GUARDA (metadata.autor) pero el panel no lo muestra", async () => {
+    const { appendMessage } = await import("../src/services/conversations.js");
+    const { getHubMessages } = await import("../src/services/hubData.js");
+    const id = await chat("593991110032", "Mensajes");
+    await appendMessage(id, "assistant", "Hola, soy Carlos", "wamid.panel", { authorKind: "owner", status: "sent", metadata: { autor: "Carlos Romero" } });
+    await appendMessage(id, "assistant", "desde el celular", "wamid.eco", { authorKind: "owner", status: "sent" });
+    const [guardado] = await sql`select metadata from messages where wa_message_id = 'wamid.panel'`;
+    expect(guardado.metadata).toMatchObject({ autor: "Carlos Romero" });
+    const mensajes = await getHubMessages(id);
+    expect(mensajes.find((m) => m.contenido === "Hola, soy Carlos")).not.toHaveProperty("autor");
   });
 });

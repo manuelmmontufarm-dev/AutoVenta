@@ -1,3 +1,47 @@
+## 21-nov-2026 · Panel · «Quién hizo qué» solo se guarda, no se muestra (rama `feat/ganado-varias-facturas`)
+
+- **Qué:** simplificación de Manuel: cada acción del panel sigue guardando el usuario en `audit_events` (actor,
+  acción, ticket), ahora con la foto del ticket antes y después (etapa, estado, quién atiende, ciclo) más el detalle.
+  Se quitaron el historial de la ficha y el nombre en los mensajes del chat (el nombre queda guardado en
+  `metadata.autor`). Queda solo «Marcado ganado por X · hora · factura N» en la venta. Consulta de una línea para
+  «¿quién hizo qué en el ticket N?» en `docs/QUIEN-HIZO-QUE.md` (probada contra Postgres).
+- **Por qué:** Manuel lo pregunta cuando lo necesita; no hace falta UI.
+- **Probado:** `ventaRegistradaEnTicket.integration` (34) con antes/después y ciclo; suite: solo `hashesPiezasDepot`
+  y `unidadEnLaCantidad`, como en main. `tsc` app y hub ✅.
+- **Horas:** 0.5.
+
+## 21-nov-2026 · Panel · Quién hizo qué: cada acción del panel guarda el usuario (rama `feat/ganado-varias-facturas`)
+
+- **Qué:** las acciones del panel sobre un ticket (cerrar ganado/perdido/sin respuesta —incluye «compró acá / en otro
+  lado»—, añadir factura, deshacer venta, reabrir, tomar o devolver al bot, descuentos, mover de etapa y mensajes) se
+  guardan en `audit_events` con el usuario logueado (`services/accionesDelPanel.ts`); con la clave admin sin usuario
+  queda «clave admin» (antes las ventas decían «Panel»). `/venta` guarda el nombre que escribe el vendedor (registro,
+  factura y corrección). La ficha muestra «Marcado ganado por X · hora · factura N» y un historial corto
+  (`GET /hub/tickets/:id/historial`); los mensajes escritos desde el panel guardan `metadata.autor` y el chat muestra
+  ese nombre en vez de «Asesor». Migración 037: solo un índice en `audit_events` (sin tabla ni columna nueva).
+- **Límite:** lo que contestan desde el WhatsApp del teléfono (ecos de Meta, `author_kind = 'owner'`) no dice quién fue:
+  es un solo número. Solo se sabe si escriben desde el panel.
+- **Por qué:** Manuel quiere saber siempre quién hizo qué para saber a quién escribirle.
+- **Probado:** 4 pruebas nuevas en `ventaRegistradaEnTicket.integration` (34 en total, verdes). Suite: solo
+  `hashesPiezasDepot` y `unidadEnLaCantidad`, como en main. `tsc` app y hub ✅, `sim:humo` ✅, fidelidad ✅. Panel
+  compilado contra la API real: «Marcado ganado por clave admin · factura 860», historial y «Carlos Romero» en el chat.
+- **Horas:** 1.
+
+## 21-nov-2026 · Venta · Sin «Completar después» y «Añadir otra factura» en un ticket ganado (rama `feat/ganado-varias-facturas`)
+
+- **Qué:** (1) El cierre «ganado» del panel exige SIEMPRE «el cliente llegó y compró» + factura + monto; sin ellos se
+  espera (400). Se quitó «Completar después», el grupo «Factura pendiente» de Por completar y `ganadosFacturaPendiente`
+  de las métricas: en producción no quedó ninguna (Depot 0 registros, Competimotor 0 pendientes). Por completar sigue
+  con «ya compré» por confirmar y «Ganados sin factura» (viejos, o un /venta que quedó en el paso 1).
+  (2) «Añadir otra factura» en un ticket ganado (`POST /hub/tickets/:id/facturas`; `/venta` queda como alias): dos
+  compras = un ticket, dos facturas; la ficha lista las facturas y el total pagado. Llena primero un registro sin
+  factura; la misma factura dos veces da 409. `/venta`: registrar otra vez al mismo comprador suma la segunda factura.
+  (3) Métricas: el ticket sigue contando como UNA venta ganada; `facturado` nuevo = suma de sus facturas.
+- **Por qué:** pedido de Manuel tras el #80 en producción.
+- **Probado:** `ventaRegistradaEnTicket.integration` (30): 8 en rojo contra main, todas verdes acá. Suite: solo
+  `hashesPiezasDepot` y `unidadEnLaCantidad` (como en main; `brandProfilesPorNegocio` falló una vez al cargar y pasa
+  sola). `tsc` app y hub ✅, `sim:humo` ✅, fidelidad ✅ (sin tablas ni columnas nuevas). Panel compilado contra la
+  API real: dos facturas, total $520,50 y «Añadir otra factura».
 ## 21-nov-2026 · Competimotor · Nunca «no hay» al cliente: «No me sale en stock…» + aviso al asesor (rama `fix/competimotor-sin-stock-sin-no-hay`)
 
 - **Qué:** regla de la política (`politica.nuncaDecirNoHay`, solo Competimotor; Depot no cambia). (1) Las búsquedas

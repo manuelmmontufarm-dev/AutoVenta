@@ -197,6 +197,9 @@ export interface Ticket {
    * acá (ganado) o en otro lado (perdido). El bot ya no cierra como ganado solo.
    */
   compraPorConfirmar?: { dijoEn: string; texto: string | null } | null;
+  /** Las facturas del ticket (dos compras = un ticket, dos facturas) y lo pagado en total. */
+  facturas?: FacturaDelTicket[];
+  totalPagado?: number;
 }
 
 export interface VentaDelTicket {
@@ -222,43 +225,51 @@ export interface RegistroVentaConfig {
   confirmarGanado: boolean;
 }
 
-/** Lo que el formulario de cierre «ganado» le manda al servidor. */
+/** Lo que el formulario de cierre «ganado» le manda al servidor: siempre factura y monto. */
 export interface DatosCierreGanado {
   confirmado: boolean;
   factura: string;
   monto: string;
-  completarDespues: boolean;
+}
+
+/** Una factura del ticket: el cliente puede comprar dos veces en la misma visita. */
+export interface FacturaDelTicket {
+  ventaId: number;
+  factura: string;
+  monto: number | null;
+  vendedor: string;
+  /** ISO. */
+  registradaEn: string;
+  origen: "vendedor" | "panel";
 }
 
 /**
- * Cómo está la venta de un ticket ganado: «completa» (factura y monto),
- * «pendiente» (cuenta como venta, falta la factura o el monto) o
- * «sin_registrar» (un ganado viejo, de antes de que el cierre pidiera la
- * venta). null si el ticket no está ganado.
+ * Cómo está la venta de un ticket ganado: «completa» (al menos una factura con
+ * monto) o «sin_factura» (un ganado viejo, o un /venta que se quedó en el paso
+ * 1). null si el ticket no está ganado. («Factura pendiente» se quitó el 21-nov.)
  */
-export type EstadoDeLaVenta = "completa" | "pendiente" | "sin_registrar";
+export type EstadoDeLaVenta = "completa" | "sin_factura";
 
 export const ventaCompleta = (v: Pick<VentaDelTicket, "factura" | "monto"> | null | undefined): boolean =>
   Boolean(v?.factura && v.monto != null);
 
-export function estadoDeLaVenta(t: Pick<Ticket, "cierre" | "ventaRegistrada">): EstadoDeLaVenta | null {
+export function estadoDeLaVenta(t: Pick<Ticket, "cierre" | "ventaRegistrada" | "facturas">): EstadoDeLaVenta | null {
   if (t.cierre !== "ganado") return null;
-  if (!t.ventaRegistrada) return "sin_registrar";
-  return ventaCompleta(t.ventaRegistrada) ? "completa" : "pendiente";
+  const conMonto = (t.facturas ?? []).some((f) => f.monto != null) || ventaCompleta(t.ventaRegistrada);
+  return conMonto ? "completa" : "sin_factura";
 }
 
-/** El texto corto que acompaña a «Ganado» cuando la venta no está completa. */
+/** El texto corto que acompaña a «Ganado» cuando falta la factura. */
 export const DETALLE_VENTA: Record<EstadoDeLaVenta, string | null> = {
   completa: null,
-  pendiente: "factura pendiente",
-  sin_registrar: "sin registrar",
+  sin_factura: "sin factura",
 };
 
 /** `/api/hub/ventas-pendientes`: lo que falta para que «ganado» sea venta. */
 export interface VentasPendientes {
   porConfirmar: Array<{ conversationId: number; nombre: string | null; telefono: string; texto: string | null; dijoEn: string; cotizado: number | null }>;
-  facturaPendiente: Array<{ conversationId: number; cycle: number; ventaId: number; nombre: string | null; telefono: string; vendedor: string; registradaEn: string; factura: string | null; monto: number | null; cotizado: number | null }>;
-  sinRegistrar: Array<{ conversationId: number; cycle: number; nombre: string | null; telefono: string; cerradoEn: string; cotizado: number | null }>;
+  /** Ganados sin una factura con monto (viejos, o /venta que se quedó en el paso 1). Los 200 más recientes. */
+  sinFactura: Array<{ conversationId: number; cycle: number; nombre: string | null; telefono: string; cerradoEn: string; cotizado: number | null }>;
 }
 
 /** El enlace a `/venta` con el número del cliente ya puesto. */
@@ -325,6 +336,16 @@ export interface Mensaje {
   hora: string;
 }
 
+/** Una acción del panel sobre el ticket y quién la hizo (`/api/hub/tickets/:id/historial`). */
+export interface AccionDelHistorial {
+  accion: string;
+  /** El usuario del panel, el vendedor de /venta, o «clave admin». */
+  quien: string;
+  /** ISO. */
+  at: string;
+  detalle: Record<string, unknown>;
+}
+
 /**
  * ¿Llega al panel lo que un asesor contesta desde su propio WhatsApp?
  *
@@ -368,12 +389,12 @@ export interface HubMetrics {
     cotizado: number;
     cotizaciones: number;
     ganados: number;
-    /** De `ganados`: con la venta completa (factura y monto)… */
+    /** De `ganados`: con al menos una factura con monto… */
     ganadosRegistrados?: number;
-    /** …con la factura o el monto pendiente (cuenta como venta)… */
-    ganadosFacturaPendiente?: number;
-    /** …y ganados viejos sin registrar. Las tres suman `ganados`. */
+    /** …y sin factura (ganados viejos). Las dos suman `ganados`. */
     ganadosSinRegistrar?: number;
+    /** Suma de las facturas de esos ganados: un ticket con dos compras suma las dos. */
+    facturado?: number;
     /** Hoy: clientes que dijeron «ya compré» y esperan que el asesor decida. */
     porConfirmar?: number;
     vendido: number;
@@ -405,7 +426,6 @@ export interface HubMetrics {
     abiertosAhora: number;
     ganados: number;
     ganadosRegistrados?: number;
-    ganadosFacturaPendiente?: number;
     valor: number;
   };
   replyHours?: Array<{ hour: number; label: string; replies: number }>;
@@ -647,7 +667,7 @@ export interface FinalStageTicket {
   /** ISO del momento en que tocó la última columna por primera vez. */
   llegoEn: string;
   /** La venta de ese ciclo: completa, con la factura pendiente, o null (sin registrar). */
-  venta?: "completa" | "pendiente" | null;
+  venta?: "completa" | null;
 }
 
 export interface FinalStageDay {
@@ -659,9 +679,8 @@ export interface FinalStageDay {
 export interface FinalStage {
   total: number;
   ganados: number;
-  /** De `ganados`: con la venta completa, y con la factura pendiente. El resto, sin registrar. */
+  /** De `ganados`, los que tienen factura. El resto, sin factura. */
   ganadosRegistrados?: number;
-  ganadosFacturaPendiente?: number;
   days: FinalStageDay[];
 }
 

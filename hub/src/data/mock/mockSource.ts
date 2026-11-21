@@ -86,17 +86,20 @@ export class MockSource implements DataSource {
     return { ...this.registroVenta };
   }
 
-  async completarVenta(ticketId: number, factura: string, monto: string): Promise<void> {
+  async agregarFactura(ticketId: number, factura: string, monto: string): Promise<void> {
     const t = this.tickets.get(ticketId);
     if (!t) return;
-    t.ventaRegistrada = {
-      ...(t.ventaRegistrada ?? { id: ticketId, vendedor: "Demo", registradaEn: new Date().toISOString(), origen: "panel" as const }),
-      factura, monto: Number(monto.replace(",", ".")) || null,
-    };
+    const nueva = { ventaId: Date.now(), factura, monto: Number(monto.replace(",", ".")) || null, vendedor: "Demo", registradaEn: new Date().toISOString(), origen: "panel" as const };
+    t.facturas = [...(t.facturas ?? []), nueva];
+    t.totalPagado = t.facturas.reduce((suma, f) => suma + (f.monto ?? 0), 0);
+  }
+
+  async getHistorial(): Promise<never[]> {
+    return [];
   }
 
   async getVentasPendientes(): Promise<VentasPendientes> {
-    return { porConfirmar: [], facturaPendiente: [], sinRegistrar: [] };
+    return { porConfirmar: [], sinFactura: [] };
   }
 
   async listTickets(mes?: string | null): Promise<Ticket[]> {
@@ -367,6 +370,10 @@ export class MockSource implements DataSource {
         id: ticketId, vendedor: "Demo", registradaEn: new Date().toISOString(),
         factura: venta.factura.trim() || null, monto: Number.isFinite(monto) && monto > 0 ? monto : null, origen: "panel",
       };
+      t.facturas = t.ventaRegistrada.factura
+        ? [{ ventaId: ticketId, factura: t.ventaRegistrada.factura, monto: t.ventaRegistrada.monto, vendedor: "Demo", registradaEn: t.ventaRegistrada.registradaEn, origen: "panel" }]
+        : [];
+      t.totalPagado = t.ventaRegistrada.monto ?? 0;
     }
     t.estado = "cerrado";
     t.cierre = cierre;

@@ -39,8 +39,9 @@ import { comoVistaPrevia } from "../services/temporadaDelTurno.js";
 import { politica } from "../negocio/politica.js";
 import { informeGuardian } from "../services/guardian.js";
 import { canjearCupon, consultarCupon, resumenCupones } from "../services/coupons.js";
+import { fotoDelTicket, historialDelTicket, quienEnElPanel, registrarAccion } from "../services/accionesDelPanel.js";
 import {
-  completarVenta, confirmaGanado, confirmarVentaEnElPanel, listarPendientes, revisarCierreGanado, ventaCompleta, ventaDelTicket,
+  agregarFactura, confirmaGanado, confirmarVentaEnElPanel, listarPendientes, revisarCierreGanado, ventaCompleta, ventaDelTicket,
 } from "../services/registroDeVentas.js";
 import {
   catalogStatus,
@@ -1091,9 +1092,11 @@ export function createAdminRouter(): express.Router {
         prompt: z.string().trim().min(3).max(500),
         deliveryMode: z.enum(["now", "next_message"]).default("next_message"),
       }).parse(req.body);
+      const antes = await fotoDelTicket(id);
       const created = await createDiscountFromPrompt(
         id, input.prompt, "admin_prompt", null, input.deliveryMode,
       );
+      await registrarAccion(id, "descuento", quienEnElPanel(req), { indicacion: input.prompt, entrega: input.deliveryMode }, antes);
       const message = created.status === "pending"
         ? pendingDiscountNoticeMessage(created.pending)
         : discountOfferMessage(created.offer);
@@ -1314,10 +1317,12 @@ export function createAdminRouter(): express.Router {
     if (stage === "ganado" && (await confirmaGanado())) {
       return res.status(409).json({ ok: false, code: "ganado_sin_confirmar", error: "Para cerrar como ganado, confirma la venta en «Cerrar ticket»." });
     }
+    const antes = await fotoDelTicket(id);
     await setStage(id, stage, {
       actor: "owner",
       reason: String(req.body?.reason ?? "Movimiento manual desde Kanban").slice(0, 300),
     });
+    await registrarAccion(id, "mover_etapa", quienEnElPanel(req), { a: stage }, antes);
     emitLiveEvent("sync", id);
     res.json({ ok: true });
   });
@@ -1329,22 +1334,24 @@ export function createAdminRouter(): express.Router {
       return res.status(400).json({ ok: false, error: "Cierre inválido" });
     }
     // «GANADO» = EL ASESOR CONFIRMA QUE COMPRÓ ACÁ (21-nov-2026, Manuel): «el
-    // cliente llegó y compró» + factura y monto, o «completar después». Eso
-    // crea o completa el registro de venta del ticket (la misma tabla que
-    // /venta) y lo cierra. Con el ajuste del negocio apagado, el cierre libre
+    // cliente llegó y compró» + factura y monto, siempre (sin ellos se espera).
+    // Eso escribe la factura del ticket (la misma tabla que /venta) y lo cierra. Con el ajuste del negocio apagado, el cierre libre
     // de antes. «Perdido» y «sin respuesta» no cambian.
+    const antes = await fotoDelTicket(id);
     if (closure === "ganado") {
       const cuerpo = (req.body ?? {}) as Record<string, unknown>;
-      const vendedor = req.usuario?.nombre ?? "Panel";
+      const vendedor = quienEnElPanel(req);
       const nota = typeof cuerpo.note === "string" ? cuerpo.note : null;
       if (await confirmaGanado()) {
         const revision = revisarCierreGanado(cuerpo, ventaCompleta(await ventaDelTicket(id)));
         if (!revision.ok) return res.status(revision.status).json(revision);
         const venta = await confirmarVentaEnElPanel(id, { vendedor, factura: revision.factura, monto: revision.monto, nota });
         if (!venta) return res.status(404).json({ ok: false, error: "Conversación no encontrada" });
+        await registrarAccion(id, "cerrar_ganado", vendedor, { factura: revision.factura, monto: revision.monto, nota }, antes);
         return res.json({ ok: true, venta });
       }
       await setStage(id, "ganado", { actor: "owner", reason: String(nota ?? closure) });
+      await registrarAccion(id, "cerrar_ganado", vendedor, { nota }, antes);
       emitLiveEvent("sync", id);
       return res.json({ ok: true });
     }
@@ -1352,28 +1359,42 @@ export function createAdminRouter(): express.Router {
       actor: "owner",
       reason: closure === "sin_respuesta" ? "sin_respuesta" : String(req.body?.note ?? closure),
     });
+    await registrarAccion(id, closure === "sin_respuesta" ? "cerrar_sin_respuesta" : "cerrar_perdido", quienEnElPanel(req), {
+      nota: typeof req.body?.note === "string" ? req.body.note : null,
+    }, antes);
     emitLiveEvent("sync", id);
     res.json({ ok: true });
   });
 
-  // Completar la venta de un ganado: la factura y el monto que quedaron
-  // pendientes, o un ganado viejo que nadie registró. No mueve la etapa.
-  // `cycle` solo para un ganado de un ciclo anterior (el cliente volvió).
-  router.post("/hub/tickets/:id/venta", async (req, res) => {
+  // Añadir una factura a un ticket ganado: la primera de un ganado viejo, u
+  // otra más si el cliente hizo dos compras (mismo ticket y ciclo; sigue siendo
+  // UNA venta, lo pagado se suma). No mueve la etapa. `cycle` solo para un
+  // ganado de un ciclo anterior (el cliente volvió). `/venta` queda como el
+  // nombre de antes de la misma ruta.
+  router.post(["/hub/tickets/:id/facturas", "/hub/tickets/:id/venta"], async (req, res) => {
     const id = Number(req.params.id);
     const cycle = req.body?.cycle == null ? null : Number(req.body.cycle);
     if (!Number.isInteger(id) || (cycle != null && !Number.isInteger(cycle))) {
       return res.status(400).json({ ok: false, error: "id inválido" });
     }
-    const r = await completarVenta(id, cycle, {
-      vendedor: req.usuario?.nombre ?? "Panel", factura: req.body?.factura, monto: req.body?.monto,
-    });
+    const quien = quienEnElPanel(req);
+    const antes = await fotoDelTicket(id);
+    const r = await agregarFactura(id, cycle, { vendedor: quien, factura: req.body?.factura, monto: req.body?.monto });
     if (!r.ok) return res.status(r.status).json(r);
+    const ultima = r.facturas[r.facturas.length - 1];
+    await registrarAccion(id, "agregar_factura", quien, { factura: ultima?.factura ?? null, monto: ultima?.monto ?? null }, antes);
     res.json(r);
   });
 
   // Lo que falta para que «ganado» sea venta: compras por confirmar («ya
   // compré»), facturas pendientes y ganados viejos sin registrar.
+  // Quién hizo qué en este ticket (services/accionesDelPanel.ts).
+  router.get("/hub/tickets/:id/historial", async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return res.status(400).json({ ok: false, error: "id inválido" });
+    res.json({ ok: true, historial: await historialDelTicket(id) });
+  });
+
   router.get("/hub/ventas-pendientes", async (_req, res) => {
     res.json({ ok: true, pendientes: await listarPendientes() });
   });
@@ -1385,8 +1406,10 @@ export function createAdminRouter(): express.Router {
     if (!Number.isInteger(id)) {
       return res.status(400).json({ ok: false, error: "id inválido" });
     }
+    const antes = await fotoDelTicket(id);
     const etapa = await deshacerVenta(id);
     if (!etapa) return res.status(409).json({ ok: false, error: "Este ticket no está cerrado como venta" });
+    await registrarAccion(id, "deshacer_venta", quienEnElPanel(req), { etapa }, antes);
     emitLiveEvent("sync", id);
     res.json({ ok: true, etapa });
   });
@@ -1400,9 +1423,11 @@ export function createAdminRouter(): express.Router {
     // reabrir a los minutos de un cierre (p. ej. un cierre equivocado que el
     // asesor deshace desde el panel) conserva la medida, el carro y el local;
     // pasadas las 12 h de silencio sí empieza una visita limpia.
+    const antes = await fotoDelTicket(id);
     await reopenConversation(id, "owner", "Conversación reabierta manualmente", {
       conservarFichaSiEsMismaVisita: true,
     });
+    await registrarAccion(id, "reabrir", quienEnElPanel(req), {}, antes);
     emitLiveEvent("sync", id);
     res.json({ ok: true });
   });
@@ -1413,7 +1438,9 @@ export function createAdminRouter(): express.Router {
     if (!Number.isInteger(id) || !["bot", "human"].includes(assignedTo)) {
       return res.status(400).json({ ok: false, error: "Asignación inválida" });
     }
+    const antes = await fotoDelTicket(id);
     await setConversationAssignee(id, assignedTo as "bot" | "human");
+    await registrarAccion(id, assignedTo === "bot" ? "devolver_al_bot" : "tomar", quienEnElPanel(req), {}, antes);
     const resumed = assignedTo === "bot" ? await resumeBotIfUnanswered(id) : null;
     emitLiveEvent("sync", id);
     res.json({ ok: true, resumed });
@@ -1879,13 +1906,18 @@ export function createAdminRouter(): express.Router {
       });
     }
 
+    const antes = await fotoDelTicket(id);
     const sent = await sendTextDetailed(conversation.phone, text);
     if (!sent.ok) return res.status(sent.status).json(sent);
 
+    // Quién escribió: se GUARDA (el WhatsApp del teléfono no lo dice; solo el panel lo sabe), no se muestra.
+    const autor = quienEnElPanel(req);
     await appendMessage(id, "assistant", text, sent.id, {
       authorKind: "owner",
       status: "sent",
+      metadata: { autor },
     });
+    await registrarAccion(id, "mensaje", autor, { texto: text.slice(0, 120) }, antes);
     await captureManualDiscount(id, text, sent.id);
     await pauseBot(id, undefined, "persona_escribio");
     await setConversationAssignee(id, "human", "persona_escribio");
@@ -1900,12 +1932,14 @@ export function createAdminRouter(): express.Router {
     if (!Number.isInteger(id) || !["pausar", "activar"].includes(accion)) {
       return res.status(400).json({ ok: false, error: "Acción inválida" });
     }
+    const antes = await fotoDelTicket(id);
     if (accion === "pausar") {
       await pauseBot(id);
       await setConversationAssignee(id, "human");
     } else {
       await setConversationAssignee(id, "bot");
     }
+    await registrarAccion(id, accion === "pausar" ? "tomar" : "devolver_al_bot", quienEnElPanel(req), {}, antes);
     emitLiveEvent("sync", id);
     res.json({ ok: true });
   });

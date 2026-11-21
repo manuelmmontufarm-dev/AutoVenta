@@ -633,7 +633,7 @@ function SeccionVentaRegistrada({ onError }: { onError: (v: string) => void }) {
   };
   return <Tarjeta
     titulo="Ganado = venta confirmada"
-    sub="Encendido (lo normal), cerrar un ticket como ganado pide «El cliente llegó y compró» más el número de factura y el monto, o «Completar después» (cuenta como venta y queda en Para cerrar → Por completar). Así ganado y venta registrada son lo mismo. El bot nunca cierra como ganado: si el cliente dice «ya compré», queda por confirmar. Apagarlo vuelve al cierre libre de antes: solo para una emergencia."
+    sub="Encendido (lo normal), cerrar un ticket como ganado pide «El cliente llegó y compró» más el número de factura y el monto, siempre: sin ellos se espera para cerrar. Si el cliente compra dos veces, el ticket ganado admite otra factura. Así ganado y venta registrada son lo mismo. El bot nunca cierra como ganado: si el cliente dice «ya compré», queda por confirmar. Apagarlo vuelve al cierre libre de antes: solo para una emergencia."
     extra={registroVenta
       ? <button
           onClick={() => void cambiar()}

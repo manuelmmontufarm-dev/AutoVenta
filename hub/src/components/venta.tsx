@@ -6,12 +6,12 @@ import { useHub } from "../store";
  * «GANADO» = EL ASESOR CONFIRMA QUE EL CLIENTE COMPRÓ ACÁ (Manuel, 21-nov-2026).
  *
  * Los campos del cierre ganado: «El cliente llegó y compró», el número de
- * factura y el monto pagado — o «Completar después», que cierra como ganado
- * (cuenta como venta) y deja la factura pendiente en «Para cerrar → Por
- * completar». Las mismas reglas que `revisarCierreGanado` en el servidor.
+ * factura y el monto pagado. Siempre los tres: sin factura y monto se espera
+ * para cerrar («Completar después» se quitó el 21-nov). Las mismas reglas que
+ * `revisarCierreGanado` en el servidor.
  */
 
-export const DATOS_VACIOS: DatosCierreGanado = { confirmado: false, factura: "", monto: "", completarDespues: false };
+export const DATOS_VACIOS: DatosCierreGanado = { confirmado: false, factura: "", monto: "" };
 
 /** Pura: el monto como lo escriba el asesor, en dólares. null si no es un monto. Espejo de `leerMonto`. */
 export function leerMonto(valor: string): number | null {
@@ -27,8 +27,8 @@ export function leerMonto(valor: string): number | null {
 export function faltaParaCerrar(d: DatosCierreGanado, yaCompleta: boolean): string | null {
   if (!d.confirmado) return "Confirma que el cliente llegó y compró.";
   if (d.monto.trim() && leerMonto(d.monto) == null) return "Revisa el monto: solo el número, por ejemplo 230.50.";
-  if (yaCompleta || d.completarDespues) return null;
-  if (!d.factura.trim() || leerMonto(d.monto) == null) return "Escribe la factura y el monto, o marca «Completar después».";
+  if (yaCompleta && !d.factura.trim() && !d.monto.trim()) return null;
+  if (!d.factura.trim() || leerMonto(d.monto) == null) return "Escribe el número de factura y el monto. Sin los dos no se cierra como ganado.";
   return null;
 }
 
@@ -98,40 +98,26 @@ export function CamposCierreGanado({ datos, onChange, yaCompleta }: {
       {yaCompleta ? (
         <p className="text-[12px] text-text2">La venta ya está registrada con factura y monto.</p>
       ) : (
-        <>
-          <CamposFacturaMonto
-            factura={datos.factura}
-            monto={datos.monto}
-            onFactura={(factura) => cambiar({ factura })}
-            onMonto={(monto) => cambiar({ monto })}
-            deshabilitado={datos.completarDespues}
-          />
-          <label className="flex items-start gap-2.5 text-[12px] text-text2">
-            <input
-              type="checkbox"
-              checked={datos.completarDespues}
-              onChange={(e) => cambiar({ completarDespues: e.target.checked })}
-              className="mt-0.5 h-4 w-4"
-            />
-            <span>
-              <span className="font-medium text-text">Completar después</span> — cuenta como venta, y la factura y el
-              monto quedan pendientes en Para cerrar → Por completar.
-            </span>
-          </label>
-        </>
+        <CamposFacturaMonto
+          factura={datos.factura}
+          monto={datos.monto}
+          onFactura={(factura) => cambiar({ factura })}
+          onMonto={(monto) => cambiar({ monto })}
+        />
       )}
     </div>
   );
 }
 
 /**
- * Completar la venta de un ganado: la factura pendiente, o un ganado viejo
- * sin registrar. Escribe sobre el registro del ticket; no mueve la etapa.
+ * Añadir una factura a un ganado: la primera de un ganado viejo sin factura, u
+ * otra más si el cliente hizo dos compras (mismo ticket; sigue siendo una
+ * venta y lo pagado se suma). No mueve la etapa.
  */
-export function CompletarVenta({ ticketId, cycle, onListo, compacto = false }: {
-  ticketId: number; cycle?: number; onListo?: () => void; compacto?: boolean;
+export function AgregarFactura({ ticketId, cycle, onListo, compacto = false, etiqueta = "Guardar factura" }: {
+  ticketId: number; cycle?: number; onListo?: () => void; compacto?: boolean; etiqueta?: string;
 }) {
-  const { completarVenta } = useHub();
+  const { agregarFactura } = useHub();
   const [factura, setFactura] = useState("");
   const [monto, setMonto] = useState("");
   const [guardando, setGuardando] = useState(false);
@@ -146,7 +132,7 @@ export function CompletarVenta({ ticketId, cycle, onListo, compacto = false }: {
     setGuardando(true);
     setError(null);
     try {
-      await completarVenta(ticketId, factura.trim(), monto.trim(), cycle);
+      await agregarFactura(ticketId, factura.trim(), monto.trim(), cycle);
       setFactura("");
       setMonto("");
       onListo?.();
@@ -167,7 +153,7 @@ export function CompletarVenta({ ticketId, cycle, onListo, compacto = false }: {
         disabled={guardando}
         className={`btn-signal rounded-[6px] text-[13px] ${compacto ? "h-[38px] px-4" : "h-9"}`}
       >
-        {guardando ? "Guardando…" : "Guardar venta"}
+        {guardando ? "Guardando…" : etiqueta}
       </button>
       {error && <p className="w-full text-[12px] text-signal">{error}</p>}
     </div>
