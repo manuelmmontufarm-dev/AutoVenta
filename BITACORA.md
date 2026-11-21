@@ -16,6 +16,7 @@
 - **Probado:** `competimotorSinNoHay.test.ts` 8/8 (7/7 en rojo sin el arreglo). Simulador perfil mundillantas con
   INV_NOV.XLS: 225/65R16 (parecidas), 285/35R22 y 325/30R21 (ninguna), conv 469 — sin «no hay» y con aviso. Suite: solo
   `hashesPiezasDepot` y `unidadEnLaCantidad`, como en main. `tsc`, `sim:humo`, fidelidad ✅.
+- **Merge con main (#85, #89):** solo chocó BITACORA; bundle del panel regenerado (`cd hub && npm run build`).
 - **Pendiente aparte:** la ruta directa lee «325/30R21» como «30 R21» en pulgadas y pide el ancho (bug viejo).
 - **Horas:** 1.
 
