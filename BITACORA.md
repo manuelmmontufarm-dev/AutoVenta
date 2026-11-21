@@ -1,3 +1,13 @@
+## 21-nov-2026 · Panel · Métricas: monto después de la factura y «Asesor» solo sin bot (rama `fix/tabla-ventas-monto-al-final`)
+
+- **Qué:** en la tabla de ventas (Contífico y registradas) el monto va justo después de la factura y la fecha.
+  `grupoDeAtencion`: si escribieron el bot y el asesor, la venta es «Bot + asesor» aunque el asesor haya escrito
+  más; «Asesor» queda solo cuando el bot no escribió nada. La columna «Atendió» de Depot usa el mismo grupo.
+- **Por qué:** Manuel, 21-nov: la conv 469 (asesor 23, bot 20) salía «Asesor» y esa venta fue de los dos.
+- **Probado:** estadisticaVentas, ventasConfirmadas, metricasComprobables, metricasVentasRegistradas (+ integración)
+  67/67; `tsc` app y hub; build del hub.
+- **Horas:** 0.3.
+
 ## 21-nov-2026 · Bot · «325/30R21» es métrica, no flotación sin ancho (rama `fix/medida-metrica-no-es-flotacion`)
 
 - **Qué:** `flotacionIncompleta` (`domain/tireSize.ts`) ya no toma «30 R21» como diámetro de flotación cuando

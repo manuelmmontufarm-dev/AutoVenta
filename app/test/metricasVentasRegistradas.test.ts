@@ -76,7 +76,7 @@ describe("negocio sin sistema contable: ventas del registro", () => {
     expect(m.ventas.n).toBe(2);
     expect(m.ventas.conIva).toBe(667);
     expect(m.ventas.sinIva).toBe(580);
-    expect(m.ventas.grupos.asesor).toEqual({ n: 1, conIva: 230 });
+    expect(m.ventas.grupos.bot_y_asesor).toEqual({ n: 1, conIva: 230 }); // bot 4 + asesor 6 = de los dos
     expect(m.embudo.compraron).toBe(2);
     expect(m.registradas.map((r) => r.ticketId)).toEqual([469, 596]); // la más nueva primero
   });

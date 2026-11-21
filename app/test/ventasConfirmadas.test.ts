@@ -192,9 +192,10 @@ describe("lo que agrega Métricas comprobables (aditivo)", () => {
     expect(ventas[0].sinIva).toBeLessThanOrEqual(ventas[0].total);
   });
 
-  it("un asesor que escribió una vez no le quita la venta al bot; uno que escribió más que el bot, sí", () => {
+  it("un asesor que escribió una vez no le quita la venta al bot; si escribieron los dos es de los dos; «asesor» solo sin bot", () => {
     const f = factura({ telefonos: "0990000001", fecha: "20/09/2026", total: 400, lineas: [[LLANTA_KENDA, 4, 100]] });
     expect(cruzar([f], [conv({ phone: "593990000001", mensajesAsesor: 1, mensajesBot: 0 })]).ventas[0].grupo).toBe("bot");
-    expect(cruzar([f], [conv({ phone: "593990000001", mensajesAsesor: 9, mensajesBot: 4 })]).ventas[0].grupo).toBe("asesor");
+    expect(cruzar([f], [conv({ phone: "593990000001", mensajesAsesor: 9, mensajesBot: 4 })]).ventas[0].grupo).toBe("bot_y_asesor");
+    expect(cruzar([f], [conv({ phone: "593990000001", mensajesAsesor: 9, mensajesBot: 0 })]).ventas[0].grupo).toBe("asesor");
   });
 });
