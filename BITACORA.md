@@ -1,3 +1,14 @@
+## 21-nov-2026 · Bot · Deshacer un cierre en la misma visita borra su venta (rama `fix/asesor-de-verdad`)
+
+- **Qué:** `setStage` de `ganado`/`perdido` a una etapa abierta sin cambiar de ciclo borra la fila de
+  `sales_history` de ese ciclo. La transición queda en `stage_transitions`; el día, la cotización y la ficha no se
+  tocan (es lo que hace «Mover de etapa» en el Pipeline).
+- **Por qué:** Manuel probando Para cerrar marcó «Vendido» a Eric Acosta (Competimotor) por error. «Reabrir» no
+  sirve para deshacerlo: empieza una visita nueva (sin día ni cotización, fuera de Para cerrar) y guarda el cierre
+  como venta. Moverlo de etapa sí lo devolvía, pero la venta seguía contándose en el panel y el reporte del día.
+- **Probado:** `deshacerCierre.integration.test.ts` 2/2, en rojo contra main (la venta seguía) y en verde acá.
+- **Horas:** 0,2.
+
 ## 21-nov-2026 · Panel · «Asesor» = contesta una persona (la regla del bot), no `assigned_to` a secas (rama `fix/asesor-de-verdad`)
 
 - **Qué:** la marca y el orden de «lo atiende un asesor» (PR #81) salen de `atiendeUnaPersona`
