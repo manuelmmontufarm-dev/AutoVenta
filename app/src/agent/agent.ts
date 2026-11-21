@@ -3,6 +3,9 @@
  * Ejecuta las tools locales y devuelve los resultados al modelo hasta obtener
  * una respuesta final para WhatsApp.
  */
+import { detalleDeItems } from "../domain/detalleDeCotizacion.js";
+import { textoDeLaFicha, type FichaDelCicloAnterior } from "../domain/fichaDelCicloAnterior.js";
+import { leerFichaDelCicloAnterior } from "../services/fichaDelCicloAnterior.js";
 import { cantidadValidaDeLaFicha } from "../domain/cantidadGrande.js";
 import { obligacionDeMostrarEquivalentes } from "../domain/equivalentesPorMostrar.js";
 import { opcionPorPosicion, posicionElegida } from "../domain/listaDeOpciones.js";
@@ -1200,29 +1203,16 @@ export interface AgentSalesFacts {
   aroDelCliente?: number | null;
   /** Los códigos de la última lámina de opciones del ciclo, en orden. */
   codigosDeLaVitrina?: string[];
+  /**
+   * Lo que se sabe de la compra del ciclo anterior (conv 469, 21-nov): con una
+   * venta ganada, el bot no le vuelve a pedir la medida y pasa al asesor las
+   * preguntas por el pedido. Ver domain/fichaDelCicloAnterior.ts.
+   */
+  fichaDelCicloAnterior?: FichaDelCicloAnterior | null;
 }
 
-/**
- * «4 × KENDA KR50 225/60R17» — lo que la cotización CONTIENE, para el prompt.
- *
- * Sin esto el hecho decía número y total, y el modelo le colgaba la medida de
- * la conversación: la semana del 14-ago el guardián corrigió 8 borradores que
- * atribuían la cotización vigente a otra medida o marca (COT-MT06MIVA «queda
- * con Falken» siendo 4 × KR50, COT-MT0BS1YT «de 185/70R15» siendo 225/60R17).
- */
-export function detalleDeItems(items: unknown): string | null {
-  if (!Array.isArray(items) || !items.length) return null;
-  const partes = items
-    .map((raw) => {
-      const linea = raw as { quantity?: unknown; brand?: unknown; design?: unknown; size?: unknown; sizeLabel?: unknown };
-      const nombre = [linea.brand, linea.design].filter(Boolean).join(" ");
-      if (!nombre) return null;
-      const medida = linea.sizeLabel ?? linea.size;
-      return `${Number(linea.quantity) || 1} × ${nombre}${medida ? ` ${medida}` : ""}`;
-    })
-    .filter(Boolean);
-  return partes.length ? partes.join(", ") : null;
-}
+// `detalleDeItems` vive en domain/detalleDeCotizacion.ts (también lo usa la ficha del ciclo anterior).
+export { detalleDeItems };
 
 /** Las medidas escritas en una lista de entrantes, cada una leída de su hecho `medida_escrita`. */
 function escritasEn(contenidos: readonly string[] | undefined, hechos: readonly unknown[] | undefined): string[] {
@@ -1317,6 +1307,7 @@ export async function getAgentSalesFacts(conversationId: number): Promise<AgentS
         }
       : null,
     escalones: row?.escalones ?? null,
+    fichaDelCicloAnterior: await leerFichaDelCicloAnterior(conversationId),
   };
 }
 
@@ -1375,6 +1366,7 @@ export function salesFactsPrompt(facts: AgentSalesFacts, resumedFromHuman = fals
   return [
     "HECHOS COMERCIALES CONFIRMADOS (fuente determinística):",
     ...(lines.length ? lines : ["Todavía no hay datos estructurados confirmados."]),
+    textoDeLaFicha(facts.fichaDelCicloAnterior),
     "No vuelvas a preguntar un dato listado aquí. Pregunta únicamente lo que falte.",
     facts.nearestStore && facts.visitDate
       ? "Local y visita ya están confirmados. Confirma el plan una sola vez y NO vuelvas a pedir local ni fecha."
@@ -1400,7 +1392,11 @@ export function salesFactsPrompt(facts: AgentSalesFacts, resumedFromHuman = fals
     // Desde el 6-ago el bot SÍ lee fotos (visión); la instrucción vieja
     // («nunca pidas fotos: no puedes leerlas») ya era falsa y le quitaba un
     // camino para conseguir la medida.
-    "Si falta la medida: pídela escrita (ej. 225/65R17) o pide una foto del costado de la llanta — sí puedes leer fotos. Siempre ofreciendo algo concreto en la misma respuesta.",
+    // Al cliente que ya compró no se le pide la medida de lo que compró: la
+    // ficha de arriba lo prohíbe y esta línea no puede decir lo contrario.
+    facts.fichaDelCicloAnterior?.resultado === "ganado"
+      ? null
+      : "Si falta la medida: pídela escrita (ej. 225/65R17) o pide una foto del costado de la llanta — sí puedes leer fotos. Siempre ofreciendo algo concreto en la misma respuesta.",
     resumedFromHuman ? "El asesor devolvió la conversación al bot con un mensaje del cliente pendiente. Responde directamente ese último mensaje y retoma el hilo; nunca lo dejes sin contestar." : null,
   ].filter(Boolean).join("\n");
 }

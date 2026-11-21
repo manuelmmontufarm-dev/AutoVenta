@@ -103,6 +103,14 @@ async function visitasDe(dia: string): Promise<Candidato[]> {
       and c.opted_out_at is null
       and c.negative_sentiment_at is null
       and c.stage not in ('ganado', 'perdido')
+      -- La visita que se conservó al reabrir una venta GANADA (la fecha no se
+      -- borra mientras siga vigente, domain/vigenciaDeLaFecha.ts) es de alguien
+      -- que ya compró: ni «le esperamos mañana» ni «no llegó».
+      and not exists (
+        select 1 from sales_history s
+        where s.conversation_id = c.id and s.cycle = c.current_cycle - 1
+          and s.outcome = 'ganado' and s.visit_date = c.visit_date
+      )
     order by c.visit_date
   `;
 }

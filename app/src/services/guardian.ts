@@ -68,6 +68,8 @@ import { logAiRun } from "./conversations.js";
 import { crearAlertaRepeticion } from "./conversationQuality.js";
 import { createBotAlert } from "./followUps.js";
 import { getActiveBenefits } from "./benefits.js";
+import { textoDeLaFicha } from "../domain/fichaDelCicloAnterior.js";
+import { leerFichaDelCicloAnterior } from "./fichaDelCicloAnterior.js";
 import { hechoDeTemporadaParaElGuardian } from "./hechosDeTemporada.js";
 import { formatStoreHours, getGuardianConfig, getPiecesConfig, getStoreHours } from "./settings.js";
 import { faltanteDeCotizacion } from "./stockCorto.js";
@@ -607,6 +609,7 @@ export async function armarContexto(
   // revisor solo los 16 mensajes recientes, y esa diferencia fue justo la
   // grieta por la que se firmó una medida vieja.
   const pedidas = await medidasDelPedido(conversationId, cycle);
+  const fichaAnterior = textoDeLaFicha(await leerFichaDelCicloAnterior(conversationId).catch(() => null));
   // Los beneficios son datos duros, no adorno: sin ellos el revisor no puede
   // distinguir «mantenimiento gratuito cada 10.000 km» (que Depot sí da y está
   // en la tabla) de una cifra inventada por el redactor. Sin esta sección, el
@@ -876,6 +879,16 @@ export async function armarContexto(
         : "(ninguna)"
     }`,
     `Compromiso de visita en palabras del cliente: ${hechos?.customer_commitment ?? "(ninguno)"}`,
+    // LA FICHA DE LA COMPRA ANTERIOR (conv 469, 21-nov): el revisor solo lee
+    // el ciclo vigente; sin este hecho, «pídale la medida» le parecía lo
+    // correcto con un cliente que ya había comprado 4 llantas. Ver
+    // domain/fichaDelCicloAnterior.ts.
+    fichaAnterior,
+    fichaAnterior && /Resultado: GANADA/.test(fichaAnterior)
+      ? "CLIENTE QUE YA COMPRÓ (ficha de arriba): pedirle la medida, el aro o una foto de lo que ya compró, o volver a cotizarle esa compra, es **re-pregunta** ALTA. " +
+        "Si pregunta por su pedido (si llegaron o se consiguieron las llantas, la entrega, la instalación, la factura), el turno correcto es avisarle que le pasa con el asesor: " +
+        "eso NO es un mensaje mudo ni le falta un siguiente paso, y NO lo cambies por una pregunta de medida ni por una cotización."
+      : null,
     // Quien compra a distancia no tiene día de visita pendiente (conv 21766):
     // el hecho de abajo le pedía al revisor AGREGAR «¿qué día puede pasar?»
     // a quien acababa de decir «lo compro x este medio… me envía».
