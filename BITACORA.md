@@ -1,3 +1,10 @@
+## 20-nov-2026 · Panel · `app/site/demo-showroom-gp` con los botones en el chat (rama `fix/opciones-con-letras-y-botones`)
+
+- **Qué:** la segunda copia del build del hub (la del showroom), recompilada con el cambio del commit anterior
+  (botones enviados y «Tocó el botón» en el chat). Sin código nuevo.
+- **Por qué:** el hook del panel exige recompilar; la copia `admin` entró en el commit anterior y esta quedó afuera.
+- **Horas:** 0.
+
 ## 20-nov-2026 · Bot · «uno», «la dos», «opción tres» eligen la opción, y la lista de Competimotor cierra con botones 1 / 2 / 3 (rama `fix/opciones-con-letras-y-botones`)
 
 - **Qué:** (1) `domain/opcionEnLetras.ts` traduce la posición escrita con letras a dígito («la dos» → «la 2»;
