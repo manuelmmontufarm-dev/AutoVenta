@@ -72,6 +72,7 @@ import {
   setReviewLater,
   setStage,
   reopenConversation,
+  deshacerVenta,
   logQuoteArtifact,
 } from "../services/conversations.js";
 import { getFinalStageArrivals, getHubFeed, getHubMessages, getHubMetrics, getHubTicket, listHubTickets } from "../services/hubData.js";
@@ -1375,6 +1376,19 @@ export function createAdminRouter(): express.Router {
   // compré»), facturas pendientes y ganados viejos sin registrar.
   router.get("/hub/ventas-pendientes", async (_req, res) => {
     res.json({ ok: true, pendientes: await listarPendientes() });
+  });
+
+  // «Deshacer venta»: vuelve a la etapa de antes del «Vendido», en la misma
+  // visita, y la venta deja de contarse (`deshacerVenta`).
+  router.post("/hub/tickets/:id/deshacer-venta", async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      return res.status(400).json({ ok: false, error: "id inválido" });
+    }
+    const etapa = await deshacerVenta(id);
+    if (!etapa) return res.status(409).json({ ok: false, error: "Este ticket no está cerrado como venta" });
+    emitLiveEvent("sync", id);
+    res.json({ ok: true, etapa });
   });
 
   router.post("/hub/tickets/:id/reopen", async (req, res) => {

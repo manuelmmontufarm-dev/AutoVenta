@@ -392,6 +392,13 @@ export class RealSource implements DataSource {
     return (await this.request<{ pendientes: VentasPendientes }>("/api/hub/ventas-pendientes")).pendientes;
   }
 
+  async deshacerVenta(ticketId: number): Promise<void> {
+    await this.request(`/api/hub/tickets/${ticketId}/deshacer-venta`, {
+      method: "POST",
+      body: "{}",
+    });
+  }
+
   async reabrir(ticketId: number): Promise<void> {
     await this.request(`/api/hub/tickets/${ticketId}/reopen`, {
       method: "POST",

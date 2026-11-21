@@ -43,6 +43,8 @@ export interface DataSource {
   completarVenta(ticketId: number, factura: string, monto: string, cycle?: number): Promise<void>;
   getVentasPendientes(): Promise<VentasPendientes>;
   reabrir(ticketId: number): Promise<void>;
+  /** Deshace un «Vendido»: vuelve a la etapa de antes, en la misma visita, y la venta deja de contarse. */
+  deshacerVenta(ticketId: number): Promise<void>;
   setAtiende(ticketId: number, atiende: Atiende): Promise<void>;
   /** Pin "para después" del modo revisión: prioridad visible en Oportunidades. */
   marcarParaDespues(ticketId: number, enabled: boolean): Promise<void>;

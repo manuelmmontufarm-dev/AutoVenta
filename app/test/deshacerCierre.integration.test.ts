@@ -25,7 +25,7 @@ await admin.unsafe(`create database ${BASE}`);
 
 const { sql } = await import("../src/db/client.js");
 const { ensureSchema } = await import("../src/db/schema.js");
-const { setStage } = await import("../src/services/conversations.js");
+const { setStage, deshacerVenta } = await import("../src/services/conversations.js");
 await ensureSchema();
 
 afterAll(async () => {
@@ -72,5 +72,35 @@ describe("deshacer un cierre en la misma visita", () => {
     await setStage(id, "cotizacion_enviada", { actor: "owner" });
     const [n] = await sql`select count(*)::int as n from sales_history where conversation_id=${id}`;
     expect(n.n).toBe(1);
+  });
+});
+
+describe("«Deshacer venta», un solo botón (Manuel, 21-nov)", () => {
+  it("vuelve a la etapa de antes del «Vendido», con su día, y la venta deja de contarse", async () => {
+    const id = await chatConVisita("593990000003");
+    await setStage(id, "cotizacion_enviada", { actor: "customer" });
+    await setStage(id, "ganado", { actor: "owner", reason: "ganado" });
+
+    expect(await deshacerVenta(id)).toBe("cotizacion_enviada");
+
+    const [c] = await sql`select status, stage, current_cycle, visit_time_label from conversations where id=${id}`;
+    expect(c).toMatchObject({ status: "open", stage: "cotizacion_enviada", current_cycle: 1, visit_time_label: "10:00" });
+    const [v] = await sql`select count(*)::int as n from sales_history where conversation_id=${id}`;
+    expect(v.n).toBe(0);
+  });
+
+  it("si no hay de dónde volver (ganado viejo), vuelve a la recta final", async () => {
+    const id = await chatConVisita("593990000004");
+    await sql`update conversations set stage='ganado', status='closed', closed_at=now() where id=${id}`;
+    expect(await deshacerVenta(id)).toBe("seguimiento_venta");
+  });
+
+  it("un ticket que no está vendido no se toca", async () => {
+    const id = await chatConVisita("593990000005");
+    expect(await deshacerVenta(id)).toBeNull();
+    await setStage(id, "perdido", { actor: "owner", reason: "Precio" });
+    expect(await deshacerVenta(id)).toBeNull();
+    const [c] = await sql`select stage from conversations where id=${id}`;
+    expect(c.stage).toBe("perdido");
   });
 });

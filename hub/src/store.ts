@@ -120,6 +120,7 @@ interface HubState {
   cerrar(id: number, cierre: Cierre, nota?: string, venta?: DatosCierreGanado): Promise<void>;
   completarVenta(id: number, factura: string, monto: string, cycle?: number): Promise<void>;
   reabrir(id: number): Promise<void>;
+  deshacerVenta(id: number): Promise<void>;
   setAtiende(id: number, atiende: Atiende): Promise<void>;
   marcarParaDespues(id: number, enabled: boolean): Promise<void>;
   enviarMensaje(id: number, texto: string): Promise<void>;
@@ -571,6 +572,10 @@ export const useHub = create<HubState>((set, get) => {
       await refrescar();
     },
     reabrir: (id) => source.reabrir(id),
+    async deshacerVenta(id) {
+      await source.deshacerVenta(id);
+      await refrescar();
+    },
     /**
      * Optimista: el control cambia de cara en el acto. Antes esperaba al PUT y
      * al siguiente sync de la lista entera, y el asesor tocaba dos y tres

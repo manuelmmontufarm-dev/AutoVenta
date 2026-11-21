@@ -397,6 +397,18 @@ export class MockSource implements DataSource {
     }
   }
 
+  async deshacerVenta(ticketId: number): Promise<void> {
+    const t = this.tickets.get(ticketId);
+    if (!t || t.cierre !== "ganado") return;
+    t.estado = "abierto";
+    t.cierre = undefined;
+    t.cerradoEn = undefined;
+    t.etapa = "seguimiento_venta";
+    t.ultimaActividad = new Date().toISOString();
+    this.pushFeed("↺", `Venta deshecha: ${this.nombre(t)}`, ticketId);
+    this.emit({ tipo: "sync" });
+  }
+
   async reabrir(ticketId: number): Promise<void> {
     const t = this.tickets.get(ticketId);
     if (!t) return;
