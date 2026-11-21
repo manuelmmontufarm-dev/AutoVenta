@@ -123,7 +123,8 @@ export const PERFILES_SIM = {
   depot: { entorno: "Depot_Tire", servicio: "AutoVenta", catalogo: "contifico" },
   ejemplo: { entorno: null, servicio: null, catalogo: "archivo" },
   // Servicio creado el 5-nov-2026 (R-41). Su base se lee de app/.env.sim.mundillantas.
-  mundillantas: { entorno: "Depot_Tire", servicio: "Mundillantas", catalogo: "archivo" },
+  // El servicio se renombró a «Competimotors» el 17-nov-2026; con el nombre viejo el simulador no alineaba los AI_*.
+  mundillantas: { entorno: "Depot_Tire", servicio: "Competimotors", catalogo: "archivo" },
 };
 
 /** El perfil pedido con `--perfil`. Uno desconocido NO arranca, a propósito. */
