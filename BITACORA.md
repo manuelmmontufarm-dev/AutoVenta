@@ -1,3 +1,21 @@
+## 21-nov-2026 · Métricas · Ventas de Competimotor desde el registro de ventas (rama `feat/metricas-ventas-registradas`)
+
+- **Qué:** si el negocio no tiene fuente de facturas (ni Contífico ni archivo), Métricas → Ventas usa
+  `ventas_registradas` (no anuladas, con factura, monto y chat): una venta por chat, varias facturas se suman (la
+  misma escrita dos veces cuenta una), sin IVA = monto / (1 + `negocio.iva`), día y hora = primer registro. Lectura
+  en `services/ventasRegistradasMetricas.ts` (archivo nuevo; solo lee). Contrato `MetricasComprobables` + `fuente`
+  y `registradas` (detalle del período). Panel: subtítulo «ventas registradas con factura», detalle con número de
+  factura y quién registró, «Cuándo se factura» con la hora del registro; «De lo que vende la tienda» y la columna
+  de la tienda dicen «Disponible cuando conectemos su sistema contable».
+- **Por qué:** Manuel, 21-nov: Competimotor (Fénix, sin conector) mostraba «Sin Contífico» aunque ya hay una venta
+  real (ticket 469, Abg Jumbo, factura 860, $437, ganada el 21-nov desde el panel).
+- **Probado:** `metricasVentasRegistradas.test.ts` (1 y 2 ventas, una con 2 facturas, anulada/sin factura/sin
+  monto/sin chat no cuentan, período) e `.integration.test.ts` (`resumenComprobables` contra Postgres sin Contífico);
+  Depot idéntico: salida de `armarComprobables` igual a `fixtures/comprobables-depot-antes.json`, generada con main
+  antes del cambio. `tsc` app y hub, hub reconstruido, `simuladorFidelidad`, `perfilAjeno.*`. Base de Competimotor
+  (solo lectura): el registro 4 es el único que cuenta → noviembre = 1 venta, $437, $380 sin IVA.
+- **Horas:** 0,5.
+
 ## 21-nov-2026 · Bot · El ciclo nuevo hereda la ficha de la compra anterior y, con fecha de llegada o visita, la memoria no vence (rama `fix/memoria-tras-venta-ganada`)
 
 - **Qué:** dos reglas aprobadas por Manuel, para Depot y Competimotor.
