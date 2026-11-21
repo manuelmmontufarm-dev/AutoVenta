@@ -35,6 +35,13 @@ export function Cargando() {
 }
 
 const mono = "tnum font-mono";
+/**
+ * Negocio sin sistema contable conectado (Competimotor con Fénix, 21-nov): las
+ * ventas son las registradas con factura y monto. Lo que pide ver TODAS las
+ * facturas de la tienda o el detalle de cada una lo dice así, no «Sin Contífico».
+ */
+export const SIN_SISTEMA_CONTABLE = "Disponible cuando conectemos su sistema contable.";
+export const esRegistro = (c: MetricasComprobables | undefined) => c?.fuente === "registro";
 const num = (n: number) => n.toLocaleString("es-EC");
 /** 14.9 → «14,9»; 50 → «50». */
 const dec = (n: number) => n.toLocaleString("es-EC", { maximumFractionDigits: 1 });
@@ -165,6 +172,8 @@ export function VentasComprobadasBloque({ c, vc, estado, enElPeriodo, now }: {
         ? `actualizado ${relTime(ultimaSync, now)}${vc?.ultimaFactura ? ` · última factura ${diaCorto(vc.ultimaFactura)}` : ""}`
         : "leyendo facturas de Contífico…";
 
+  if (estado === "listo" && c && esRegistro(c)) return <VentasRegistradasBloque c={c} enElPeriodo={enElPeriodo} now={now} />;
+
   let cuerpo: ReactNode;
   if (estado === "cargando") cuerpo = <Cargando />;
   else if (!vc?.disponible && estado !== "listo") cuerpo = <SinDatos estado={estado} />;
@@ -263,6 +272,64 @@ export function VentasComprobadasBloque({ c, vc, estado, enElPeriodo, now }: {
   return <Bloque titulo="Ventas comprobadas en Contífico" nota={nota}>{cuerpo}</Bloque>;
 }
 
+/**
+ * El mismo bloque para un negocio sin sistema contable: las ventas son los
+ * tickets con factura y monto registrados en el panel o en /venta. El detalle
+ * dice el número de factura y quién la registró; no hay llantas ni local
+ * porque eso está en la factura, que todavía no leemos.
+ */
+function VentasRegistradasBloque({ c, enElPeriodo, now }: { c: MetricasComprobables; enElPeriodo: string; now: number }) {
+  const v = c.ventas;
+  const detalle = c.registradas;
+  return (
+    <Bloque titulo="Ventas comprobadas con factura registrada" nota={c.ultimaSync ? `actualizado ${relTime(c.ultimaSync, now)}` : undefined}>
+      <Cifra valor={`${num(v.n)} · ${money(v.conIva)}`}>
+        {v.n === 1 ? "venta" : "ventas"} con IVA {enElPeriodo} · <span className={mono}>{money(v.sinIva)}</span> sin IVA
+      </Cifra>
+      <p className="text-[13px] text-text2">
+        Todavía son pocas ventas para sacar conclusiones. A este ritmo, un período igual podría cerrar con entre{" "}
+        <span className={`${mono} text-text`}>{Math.round(v.rango.bajo)}</span> y <span className={`${mono} text-text`}>{Math.round(v.rango.alto)}</span> ventas:
+        una venta más o una menos es suerte, no una tendencia.
+      </p>
+      <Grupos grupos={v.grupos} n={v.n} />
+      {detalle.length > 0 ? (
+        <details className="group">
+          <summary className="inline-flex cursor-pointer list-none items-center gap-2 rounded-[6px] border border-line-strong px-3 py-1.5 text-[13px] font-medium select-none hover:bg-bg [&::-webkit-details-marker]:hidden">
+            <span className="group-open:hidden">Ver quiénes compraron · {detalle.length === 1 ? "1 venta" : `${detalle.length} ventas`}</span>
+            <span className="hidden group-open:inline">Ocultar {detalle.length === 1 ? "la venta" : "las ventas"}</span>
+          </summary>
+          <div className="mt-2 overflow-x-auto">
+            <table className="w-full min-w-[520px] text-left text-[13px]">
+              <thead className="text-[12px] font-medium text-text2">
+                <tr><th className="py-2">Cliente</th><th>Factura</th><th>Registró</th><th>Atendió</th><th className="text-right">Monto</th></tr>
+              </thead>
+              <tbody>
+                {detalle.map((r) => (
+                  <tr key={r.ticketId} className="cursor-pointer border-t border-line hover:bg-bg" onClick={() => navigate(`ticket/${r.ticketId}`)}>
+                    <td className="py-2 pr-3 font-medium">{r.nombre || `Ticket ${r.ticketId}`}</td>
+                    <td className={`${mono} pr-3 text-[12px] whitespace-nowrap`}>
+                      {r.facturas.map((f) => <div key={f.numero}>{f.numero} · {diaCorto(f.dia)}</div>)}
+                    </td>
+                    <td className="pr-3 whitespace-nowrap">{[...new Set(r.facturas.map((f) => f.vendedor))].join(" · ")}</td>
+                    <td className="pr-3">{GRUPOS.find((g) => g.clave === r.grupo)?.nombre ?? "Bot"}</td>
+                    <td className={`${mono} text-right`}>{money(r.total)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </details>
+      ) : (
+        <p className="text-[13px] text-text2">Ningún chat terminó en una venta registrada {enElPeriodo} todavía.</p>
+      )}
+      <ComoSeCuenta>
+        <p>Una venta cuenta cuando alguien la registra con su número de factura y el monto pagado: el asesor al cerrar el ticket como ganado en el panel, o el vendedor en /venta con el número del cliente que escribió al bot. Si el ticket tiene varias facturas, se suman. «Sin IVA» es el monto sin el IVA. El día y la hora son los del registro.</p>
+        <p>{SIN_SISTEMA_CONTABLE.replace(/\.$/, "")}: ahí se van a ver las llantas de cada factura y las ventas que nadie registró.</p>
+      </ComoSeCuenta>
+    </Bloque>
+  );
+}
+
 /** Quién atendió las ventas: una barra partida en tres y la cifra de cada parte. */
 function Grupos({ grupos, n }: { grupos: MetricasComprobables["ventas"]["grupos"]; n: number }) {
   return (
@@ -288,6 +355,13 @@ function Grupos({ grupos, n }: { grupos: MetricasComprobables["ventas"]["grupos"
 export function ParteDeLaTiendaBloque({ c, estado, enElPeriodo }: { c: MetricasComprobables | undefined; estado: EstadoComprobables; enElPeriodo: string }) {
   if (estado !== "listo" || !c) {
     return <Bloque titulo="De las llantas que vende la tienda, cuántas vienen del bot" nota="facturas con llantas"><SinDatos estado={estado} /></Bloque>;
+  }
+  if (esRegistro(c)) {
+    return (
+      <Bloque titulo="De las llantas que vende la tienda, cuántas vienen del bot" nota="facturas con llantas">
+        <p className="text-[13px] text-text2">{SIN_SISTEMA_CONTABLE} Para esto hay que ver todas las facturas de la tienda, no solo las de los chats.</p>
+      </Bloque>
+    );
   }
   const { periodo, semanas } = c.participacion;
   const suma = (filtro: (s: (typeof semanas)[number]) => boolean) => semanas.filter(filtro).reduce(
@@ -360,7 +434,7 @@ export function DelChatALaFacturaBloque({ c, estado, periodoTexto }: { c: Metric
         <Campo etiqueta="Con día de visita"><span className={mono}>{conDia.compraron} de {num(conDia.chats)} compraron · {pctDe(conDia.compraron, conDia.chats)}</span></Campo>
         <Campo etiqueta="Sin día de visita"><span className={mono}>{sinDia.compraron} de {num(sinDia.chats)} compraron · {pctDe(sinDia.compraron, sinDia.chats)}</span></Campo>
       </Cifras>
-      <ComoSeCuenta><p>Cada paso sale de un dato guardado, no de una estimación: la medida anotada en la ficha, una cotización enviada, un día de visita acordado y una factura en Contífico.</p></ComoSeCuenta>
+      <ComoSeCuenta><p>Cada paso sale de un dato guardado, no de una estimación: la medida anotada en la ficha, una cotización enviada, un día de visita acordado y {esRegistro(c) ? "una venta registrada con su número de factura" : "una factura en Contífico"}.</p></ComoSeCuenta>
     </Bloque>
   );
 }
@@ -395,7 +469,7 @@ export function CuantoTardanBloque({ c, estado }: { c: MetricasComprobables | un
               <span className={mono}>~{Math.round(r.porLlegar.esperado)}</span> <span className="text-text2">(entre {num(r.porLlegar.bajo)} y {num(r.porLlegar.alto)}), de los {num(r.porLlegar.chatsVivos)} chats abiertos que aún no compran</span>
             </Campo>
           </Cifras>
-          <ComoSeCuenta><p>Calculado con {ventasN(r.n)}. Las ventas esperadas son una estimación: se basa en cuántos chats viejos terminaron comprando y en cuánto suelen tardar. Es un rango, no una promesa.</p></ComoSeCuenta>
+          <ComoSeCuenta><p>Calculado con {ventasN(r.n)}{esRegistro(c) ? ", contando hasta el día en que se registró la factura" : ""}. Las ventas esperadas son una estimación: se basa en cuántos chats viejos terminaron comprando y en cuánto suelen tardar. Es un rango, no una promesa.</p></ComoSeCuenta>
         </>
       )}
     </Bloque>
@@ -483,6 +557,7 @@ export function CuandoSeFacturaBloque({ c, estado }: { c: MetricasComprobables |
     return <Bloque titulo="Cuándo se factura" nota="hora de Quito"><SinDatos estado={estado} /></Bloque>;
   }
   const k = c.cuando;
+  if (esRegistro(c)) return <CuandoSeRegistraBloque k={k} />;
   // El bot se mide sobre sus ventas (el contrato trae el total); la tienda, sobre
   // la serie de cada gráfico, por si una factura sin hora cae en una y no en otra.
   const botTotal = k.ventasTotales;
@@ -523,6 +598,46 @@ export function CuandoSeFacturaBloque({ c, estado }: { c: MetricasComprobables |
         {picoBot && <Campo etiqueta="Cuándo factura más el bot"><span className={mono}>{FRANJA[picoBot.franja].nombre} {FRANJA[picoBot.franja].horas}</span> <span className="text-text2">{picoBot.bot} de {botTotal} facturas del bot · {pctDe(picoBot.bot, botTotal)}</span></Campo>}
         {picoBot && <Campo etiqueta="La tienda en ese horario"><span className={mono}>{pctDe(k.facturanPorFranja.find((f) => f.franja === picoBot.franja)?.tienda ?? 0, tiendaTotal)}</span> <span className="text-text2">de sus facturas con llantas</span></Campo>}
       </Cifras>
+    </Bloque>
+  );
+}
+
+/**
+ * «Cuándo se factura» sin sistema contable: la hora y el día en que se
+ * REGISTRÓ cada venta del bot. No hay facturas de la tienda para comparar.
+ */
+function CuandoSeRegistraBloque({ k }: { k: MetricasComprobables["cuando"] }) {
+  const total = k.ventasTotales;
+  const pico = k.facturanPorFranja.reduce<(typeof k.facturanPorFranja)[number] | null>((m, f) => (f.bot > (m?.bot ?? 0) ? f : m), null);
+  return (
+    <Bloque titulo="Cuándo se factura" nota={avisoMuestra(k) ?? `desde el inicio · ${ventasN(total)}`}>
+      <div className="grid gap-x-6 gap-y-4 lg:grid-cols-2">
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <h3 className="text-[13px] font-medium">Por horario <span className="font-normal text-text2">· hora de Quito</span></h3>
+          <BarrasDeParte
+            alto={200} unidad="ventas" etiqueta="Ventas del bot por franja horaria del registro"
+            data={k.facturanPorFranja.map((f) => ({
+              x: FRANJA[f.franja].corto, total: f.bot, encima: String(f.bot),
+              detalle: `${FRANJA[f.franja].nombre} ${FRANJA[f.franja].horas}: ${f.bot} de ${total} ventas · ${pctDe(f.bot, total)}`,
+            }))}
+          />
+        </div>
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <h3 className="text-[13px] font-medium">Por día de la semana</h3>
+          <BarrasDeParte
+            alto={200} unidad="ventas" etiqueta="Ventas del bot por día de la semana del registro"
+            data={porDiaLunADom(k.facturanPorDia).map((d) => ({
+              x: DIA_CORTO[d.dia], total: d.bot, encima: String(d.bot),
+              detalle: `${DIA[d.dia]}: ${d.bot} de ${total} ventas · ${pctDe(d.bot, total)}`,
+            }))}
+          />
+        </div>
+      </div>
+      <Cifras>
+        {pico && <Campo etiqueta="Cuándo factura más el bot"><span className={mono}>{FRANJA[pico.franja].nombre} {FRANJA[pico.franja].horas}</span> <span className="text-text2">{pico.bot} de {total} ventas · {pctDe(pico.bot, total)}</span></Campo>}
+        <Campo etiqueta="La tienda"><span className="text-text2">{SIN_SISTEMA_CONTABLE}</span></Campo>
+      </Cifras>
+      <ComoSeCuenta><p>Es la hora en que se registró la venta con su factura (en el panel o en /venta), no la hora de emisión de la factura. Siempre muestra todas las ventas desde el inicio, aunque arriba se elija otro mes.</p></ComoSeCuenta>
     </Bloque>
   );
 }
