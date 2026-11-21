@@ -3,6 +3,9 @@
 > Playbook definitivo. Escrito el **1-ago-2026** después de conectar Depot Tire, donde el camino
 > equivocado costó una jornada entera. Lee la regla de oro antes de tocar nada.
 
+> **¿El cliente todavía no tiene WABA (ningún proveedor la creó)?** Primero haz
+> [ALTA_META_CLIENTE_NUEVO.md](ALTA_META_CLIENTE_NUEVO.md): verificación del negocio + Embedded Signup.
+
 ---
 
 ## ⚠️ La regla de oro
