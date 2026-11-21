@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ETAPA_META, type Ticket } from "../data/types";
+import { DETALLE_VENTA, ETAPA_META, estadoDeLaVenta, type Ticket } from "../data/types";
 import { horaLista } from "../lib/format";
 import { navigate } from "../router";
 import { useHub, useNow } from "../store";
@@ -39,7 +39,7 @@ function Fila({ ticket, now }: { ticket: Ticket; now: number }) {
   // Con asesor manda la marca aunque espere respuesta: la fila ya va teñida y
   // con la hora en rojo, y lo que no se puede perder es de quién es el chat.
   const atiende = cerrado && ticket.cierre ? (
-    <CierreBadge cierre={ticket.cierre} />
+    <CierreBadge cierre={ticket.cierre} detalle={DETALLE_VENTA[estadoDeLaVenta(ticket) ?? "completa"]} />
   ) : asesor ? (
     <MarcaAsesor />
   ) : espera ? (

@@ -165,6 +165,7 @@ const seeds: TicketSeed[] = [
     cotizacion: cot(1019, [llanta("245/70 R16", "Kenda", "Klever A/T KR28", 126)]),
     localAsignado: { nombre: SUR.nombre, direccion: SUR.direccion, distanciaKm: 2.2 },
     esRecurrente: false, creadoEn: hace(60 * 52),
+    ventaRegistrada: { id: 1, vendedor: "Luis Mora", registradaEn: hace(60 * 49), factura: "001-001-000123", monto: 504, origen: "vendedor" },
   },
   {
     id: 20, telefono: "+593 99 872 5510", nombre: "Nathaly Aguirre", estado: "cerrado",
@@ -181,6 +182,7 @@ const seeds: TicketSeed[] = [
     cotizacion: cot(1021, [llanta("265/65 R17", "Falken", "Wildpeak A/T3W", 189)]),
     localAsignado: { nombre: SUR.nombre, direccion: SUR.direccion, distanciaKm: 1.9 },
     esRecurrente: true, creadoEn: hace(60 * 101), notas: ["Cliente frecuente — 3ra compra. Pidió descuento y se le dio 5%."],
+    ventaRegistrada: { id: 2, vendedor: "Pedro", registradaEn: hace(60 * 98), factura: null, monto: null, origen: "panel" },
   },
   {
     id: 22, telefono: "+593 98 990 4152", nombre: "Tatiana Rueda", estado: "cerrado",

@@ -41,6 +41,7 @@ import { runBeneficiosDeArranqueMigration } from "./migrations/032_beneficios_de
 import { runPlantillasEnMetaMigration } from "./migrations/033_plantillas_en_meta.js";
 import { runRecordatoriosDeVisitaMigration } from "./migrations/034_recordatorios_de_visita.js";
 import { VENTAS_REGISTRADAS_MIGRATION_ID, runVentasRegistradasMigration } from "./migrations/035_ventas_registradas.js";
+import { VENTA_EN_TICKET_MIGRATION_ID, runVentaEnTicketMigration } from "./migrations/036_venta_registrada_en_ticket.js";
 
 export const SCHEMA = /* sql */ `
 create table if not exists conversations (
@@ -442,6 +443,7 @@ async function aplicarEsquema(db: Sql): Promise<void> {
   await runPlantillasEnMetaMigration(db);
   await runRecordatoriosDeVisitaMigration(db);
   await runVentasRegistradasMigration(db);
+  await runVentaEnTicketMigration(db);
   // 030 NO va acá: crea índices con CONCURRENTLY y corre después de abrir el
   // puerto (`crearIndicesEnSegundoPlano`), para que un deploy con la base
   // cargada no se quede sin contestar /health (26-oct, deploy FAILED).
@@ -452,7 +454,7 @@ async function aplicarEsquema(db: Sql): Promise<void> {
  * `schema_migrations`, todo lo de arriba ya se aplicó alguna vez. Al agregar una
  * migración nueva a la lista, actualizar esta constante.
  */
-const ULTIMA_MIGRACION_REGISTRADA = VENTAS_REGISTRADAS_MIGRATION_ID;
+const ULTIMA_MIGRACION_REGISTRADA = VENTA_EN_TICKET_MIGRATION_ID;
 
 /**
  * Aplica el esquema (idempotente). Se llama al arrancar el bot.

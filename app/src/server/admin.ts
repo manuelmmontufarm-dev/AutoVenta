@@ -18,6 +18,8 @@ import { forceSyncNow, interbotPricesState } from "../services/interbotPrices.js
 import { PLANTILLA_NAMES, MODO_NAMES,
   getAiConfig,
   getCouponConfig,
+  getVentaRegistradaConfig,
+  saveVentaRegistradaConfig,
   getGuardianConfig,
   getPiecesConfig,
   getStoreHours,
@@ -37,6 +39,9 @@ import { comoVistaPrevia } from "../services/temporadaDelTurno.js";
 import { politica } from "../negocio/politica.js";
 import { informeGuardian } from "../services/guardian.js";
 import { canjearCupon, consultarCupon, resumenCupones } from "../services/coupons.js";
+import {
+  completarVenta, confirmaGanado, confirmarVentaEnElPanel, listarPendientes, revisarCierreGanado, ventaCompleta, ventaDelTicket,
+} from "../services/registroDeVentas.js";
 import {
   catalogStatus,
   catalogInventoryMetrics,
@@ -1303,6 +1308,11 @@ export function createAdminRouter(): express.Router {
     if (!Number.isInteger(id) || !isStage(stage)) {
       return res.status(400).json({ ok: false, error: "Etapa inválida" });
     }
+    // «Ganado» se confirma en el formulario de cierre (factura y monto, o
+    // completar después): arrastrar la tarjeta no alcanza.
+    if (stage === "ganado" && (await confirmaGanado())) {
+      return res.status(409).json({ ok: false, code: "ganado_sin_confirmar", error: "Para cerrar como ganado, confirma la venta en «Cerrar ticket»." });
+    }
     await setStage(id, stage, {
       actor: "owner",
       reason: String(req.body?.reason ?? "Movimiento manual desde Kanban").slice(0, 300),
@@ -1317,12 +1327,54 @@ export function createAdminRouter(): express.Router {
     if (!Number.isInteger(id) || !["ganado", "perdido", "sin_respuesta"].includes(closure)) {
       return res.status(400).json({ ok: false, error: "Cierre inválido" });
     }
-    await setStage(id, closure === "ganado" ? "ganado" : "perdido", {
+    // «GANADO» = EL ASESOR CONFIRMA QUE COMPRÓ ACÁ (21-nov-2026, Manuel): «el
+    // cliente llegó y compró» + factura y monto, o «completar después». Eso
+    // crea o completa el registro de venta del ticket (la misma tabla que
+    // /venta) y lo cierra. Con el ajuste del negocio apagado, el cierre libre
+    // de antes. «Perdido» y «sin respuesta» no cambian.
+    if (closure === "ganado") {
+      const cuerpo = (req.body ?? {}) as Record<string, unknown>;
+      const vendedor = req.usuario?.nombre ?? "Panel";
+      const nota = typeof cuerpo.note === "string" ? cuerpo.note : null;
+      if (await confirmaGanado()) {
+        const revision = revisarCierreGanado(cuerpo, ventaCompleta(await ventaDelTicket(id)));
+        if (!revision.ok) return res.status(revision.status).json(revision);
+        const venta = await confirmarVentaEnElPanel(id, { vendedor, factura: revision.factura, monto: revision.monto, nota });
+        if (!venta) return res.status(404).json({ ok: false, error: "Conversación no encontrada" });
+        return res.json({ ok: true, venta });
+      }
+      await setStage(id, "ganado", { actor: "owner", reason: String(nota ?? closure) });
+      emitLiveEvent("sync", id);
+      return res.json({ ok: true });
+    }
+    await setStage(id, "perdido", {
       actor: "owner",
       reason: closure === "sin_respuesta" ? "sin_respuesta" : String(req.body?.note ?? closure),
     });
     emitLiveEvent("sync", id);
     res.json({ ok: true });
+  });
+
+  // Completar la venta de un ganado: la factura y el monto que quedaron
+  // pendientes, o un ganado viejo que nadie registró. No mueve la etapa.
+  // `cycle` solo para un ganado de un ciclo anterior (el cliente volvió).
+  router.post("/hub/tickets/:id/venta", async (req, res) => {
+    const id = Number(req.params.id);
+    const cycle = req.body?.cycle == null ? null : Number(req.body.cycle);
+    if (!Number.isInteger(id) || (cycle != null && !Number.isInteger(cycle))) {
+      return res.status(400).json({ ok: false, error: "id inválido" });
+    }
+    const r = await completarVenta(id, cycle, {
+      vendedor: req.usuario?.nombre ?? "Panel", factura: req.body?.factura, monto: req.body?.monto,
+    });
+    if (!r.ok) return res.status(r.status).json(r);
+    res.json(r);
+  });
+
+  // Lo que falta para que «ganado» sea venta: compras por confirmar («ya
+  // compré»), facturas pendientes y ganados viejos sin registrar.
+  router.get("/hub/ventas-pendientes", async (_req, res) => {
+    res.json({ ok: true, pendientes: await listarPendientes() });
   });
 
   router.post("/hub/tickets/:id/reopen", async (req, res) => {
@@ -1939,6 +1991,24 @@ export function createAdminRouter(): express.Router {
   // decisión comercial de Depot (cuándo empezar, con qué porcentaje), y tiene
   // que poder tomarse desde Ajustes el día de la capacitación de cajeros, sin
   // esperar un deploy. Nace apagado.
+  // Registro de ventas (`/venta`) visto desde el panel: el enlace de los
+  // vendedores (para el botón «Registrar venta» de la ficha) y el interruptor
+  // del negocio «ganado exige la venta registrada», que nace apagado.
+  router.get("/hub/registro-venta", async (_req, res) => {
+    const config = await getVentaRegistradaConfig();
+    res.json({ ok: true, enlace: `/venta?k=${encodeURIComponent(claveDelEnlace())}`, ...config });
+  });
+
+  router.put("/hub/registro-venta", async (req, res) => {
+    try {
+      const config = await saveVentaRegistradaConfig(req.body);
+      emitLiveEvent("settings");
+      res.json({ ok: true, enlace: `/venta?k=${encodeURIComponent(claveDelEnlace())}`, ...config });
+    } catch {
+      res.status(400).json({ ok: false, error: "Ajuste inválido" });
+    }
+  });
+
   router.get("/cupones", async (req, res) => {
     const dias = Math.min(365, Math.max(1, Number(req.query.dias ?? 30)));
     const [cfg, resumen] = await Promise.all([getCouponConfig(), resumenCupones(dias)]);

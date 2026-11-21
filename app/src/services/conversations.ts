@@ -518,6 +518,13 @@ export async function setStage(
       delete from sales_history
       where conversation_id = ${conversationId} and cycle = ${current.current_cycle}
     `;
+    // Y su registro de venta (factura y monto del cierre «ganado», o el de
+    // /venta) queda anulado: si no, el ticket reabierto seguiría diciendo
+    // «venta registrada». La fila queda, como todo registro anulado.
+    await sql`
+      update ventas_registradas set anulada_at = now()
+      where conversation_id = ${conversationId} and cycle = ${current.current_cycle} and anulada_at is null
+    `;
   }
   await cancelPendingFollowUps(
     conversationId,

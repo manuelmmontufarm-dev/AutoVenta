@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Atiende, BotAlert, BotPower, Cierre, EchoHealth, Etapa, FeedItem, FinalStage, FollowUpCard, HubMetrics, MesDisponible, Mensaje, PhaseFlags, Rol, TemplatePlanPreview, Ticket } from "./data/types";
+import type { Atiende, BotAlert, BotPower, DatosCierreGanado, RegistroVentaConfig, Cierre, EchoHealth, Etapa, FeedItem, FinalStage, FollowUpCard, HubMetrics, MesDisponible, Mensaje, PhaseFlags, Rol, TemplatePlanPreview, Ticket } from "./data/types";
 import { TODOS } from "./data/types";
 import { MockSource } from "./data/mock/mockSource";
 import { Simulator } from "./data/mock/simulator";
@@ -95,6 +95,12 @@ interface HubState {
    * acuerda es una venta perdida en silencio, y el aviso tiene que seguirte.
    */
   power: BotPower;
+  /**
+   * Registro de ventas (`/venta`): el enlace para «Registrar venta» y si
+   * «ganado» exige la venta registrada. null hasta que llega (o si falla): la
+   * ficha esconde el botón y el cierre no bloquea nada.
+   */
+  registroVenta: RegistroVentaConfig | null;
   /** ¿El hub está leyendo datos de verdad, o la clave/servidor falla? */
   conexion: EstadoConexion;
   /** Quién entró. null cuando se está usando la clave administrativa cruda. */
@@ -111,7 +117,8 @@ interface HubState {
   salir(): void;
   abrirTicket(id: number): Promise<void>;
   moverEtapa(id: number, etapa: Etapa): Promise<void>;
-  cerrar(id: number, cierre: Cierre, nota?: string): Promise<void>;
+  cerrar(id: number, cierre: Cierre, nota?: string, venta?: DatosCierreGanado): Promise<void>;
+  completarVenta(id: number, factura: string, monto: string, cycle?: number): Promise<void>;
   reabrir(id: number): Promise<void>;
   setAtiende(id: number, atiende: Atiende): Promise<void>;
   marcarParaDespues(id: number, enabled: boolean): Promise<void>;
@@ -125,6 +132,7 @@ interface HubState {
   toggleDemo(): void;
   quitarToast(id: number): void;
   cambiarPower(activo: boolean, motivo?: string, confirmarFaltantes?: boolean): Promise<void>;
+  cambiarExigirVentaRegistrada(exigir: boolean): Promise<void>;
 }
 
 let toastId = 1;
@@ -294,6 +302,7 @@ export const useHub = create<HubState>((set, get) => {
       source.listAlerts(),
       source.listPeriods(),
       mesesPasados(mes) ? source.listTickets(mes) : Promise.resolve(null),
+      source.getRegistroVenta(),
     ]);
     if (get().mes !== mes) return;
     const resto: Partial<HubState> = {};
@@ -304,6 +313,7 @@ export const useHub = create<HubState>((set, get) => {
     if (extras[4].status === "fulfilled") resto.alerts = extras[4].value;
     if (extras[5].status === "fulfilled") resto.mesesDisponibles = extras[5].value;
     if (extras[6].status === "fulfilled") resto.ticketsDelMes = extras[6].value && respetarLeidos(extras[6].value);
+    if (extras[7].status === "fulfilled") resto.registroVenta = extras[7].value;
     set(resto);
     guardarMes(mes);
     if (!precargado && resto.mesesDisponibles) {
@@ -486,6 +496,7 @@ export const useHub = create<HubState>((set, get) => {
     // Se asume encendido hasta saberlo: durante el medio segundo de carga es
     // preferible no gritar "apagado" en un bot que sí está trabajando.
     power: { activo: true, apagadoAt: null, motivo: "" },
+    registroVenta: null,
     conexion: "verificando",
     usuario: getSesion()?.user ?? null,
     permisos: getSesion()?.permisos ?? PERMISOS_ABIERTOS,
@@ -551,7 +562,14 @@ export const useHub = create<HubState>((set, get) => {
     },
 
     moverEtapa: (id, etapa) => source.moverEtapa(id, etapa),
-    cerrar: (id, cierre, nota) => source.cerrar(id, cierre, nota),
+    async cerrar(id, cierre, nota, venta) {
+      await source.cerrar(id, cierre, nota, venta);
+      await refrescar();
+    },
+    async completarVenta(id, factura, monto, cycle) {
+      await source.completarVenta(id, factura, monto, cycle);
+      await refrescar();
+    },
     reabrir: (id) => source.reabrir(id),
     /**
      * Optimista: el control cambia de cara en el acto. Antes esperaba al PUT y
@@ -607,6 +625,9 @@ export const useHub = create<HubState>((set, get) => {
      */
     async cambiarPower(activo, motivo = "", confirmarFaltantes = false) {
       set({ power: await source.setBotPower(activo, motivo, confirmarFaltantes) });
+    },
+    async cambiarExigirVentaRegistrada(exigir) {
+      set({ registroVenta: await source.setRegistroVenta(exigir) });
     },
 
     toggleDemo() {

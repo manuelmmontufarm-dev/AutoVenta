@@ -59,12 +59,17 @@ const CIERRE_COLOR: Record<Cierre, string> = {
   sin_respuesta: "var(--color-text2)",
 };
 
-export function CierreBadge({ cierre }: { cierre: Cierre }) {
+/**
+ * `detalle`: lo que le falta a un «ganado» para ser venta completa («factura
+ * pendiente», «sin registrar»). Se dice al lado, en gris: se nota sin gritar.
+ */
+export function CierreBadge({ cierre, detalle = null }: { cierre: Cierre; detalle?: string | null }) {
   const meta = CIERRE_META[cierre];
   return (
     <span className="inline-flex items-center gap-1.5 text-[13px] font-medium whitespace-nowrap" style={{ color: CIERRE_COLOR[cierre] }}>
       <CierreIcon cierre={cierre} size={13} />
       {meta.nombre}
+      {detalle && <span className="font-normal text-text2">· {detalle}</span>}
     </span>
   );
 }

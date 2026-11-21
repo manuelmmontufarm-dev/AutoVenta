@@ -548,6 +548,51 @@ export async function saveCouponConfig(input: unknown): Promise<CouponConfig> {
   return merged;
 }
 
+/**
+ * CIERRE «GANADO» CONFIRMADO (21-nov-2026, Manuel).
+ *
+ * «Ganado» = el asesor confirma que el cliente compró ACÁ. Encendido (por
+ * defecto), cerrar como ganado desde el panel pide «el cliente llegó y compró»
+ * más factura y monto —o «completar después», que deja la venta contada pero
+ * con la factura pendiente— y escribe en la misma tabla que `/venta`
+ * (`ventas_registradas`): ganado y venta registrada son una sola cosa. Apagado,
+ * se vuelve al cierre libre de antes; queda como salida de emergencia, no como
+ * modo normal. Es un ajuste del negocio (cada cliente tiene su base).
+ */
+export const VentaRegistradaConfigSchema = z.object({
+  confirmarGanado: z.boolean().default(true),
+});
+export type VentaRegistradaConfig = z.infer<typeof VentaRegistradaConfigSchema>;
+export const DEFAULT_VENTA_REGISTRADA_CONFIG: VentaRegistradaConfig = VentaRegistradaConfigSchema.parse({});
+
+let ventaRegistradaCache: { value: VentaRegistradaConfig; at: number } | null = null;
+
+export async function getVentaRegistradaConfig(): Promise<VentaRegistradaConfig> {
+  if (ventaRegistradaCache && Date.now() - ventaRegistradaCache.at < CACHE_TTL_MS) return ventaRegistradaCache.value;
+  try {
+    const [row] = await sql<{ value: unknown }[]>`select value from settings where key = 'venta_registrada_config'`;
+    const parsed = VentaRegistradaConfigSchema.safeParse(row?.value ?? {});
+    const value = parsed.success ? parsed.data : DEFAULT_VENTA_REGISTRADA_CONFIG;
+    ventaRegistradaCache = { value, at: Date.now() };
+    return value;
+  } catch {
+    // Sin poder leer el ajuste, el de fábrica (encendido): el servidor sigue
+    // pidiendo la confirmación aunque la base tarde.
+    return DEFAULT_VENTA_REGISTRADA_CONFIG;
+  }
+}
+
+export async function saveVentaRegistradaConfig(input: unknown): Promise<VentaRegistradaConfig> {
+  const merged = VentaRegistradaConfigSchema.parse({ ...(await getVentaRegistradaConfig()), ...(input as object) });
+  await sql`
+    insert into settings (key, value)
+    values ('venta_registrada_config', ${sql.json(merged)})
+    on conflict (key) do update set value = excluded.value, updated_at = now()
+  `;
+  ventaRegistradaCache = { value: merged, at: Date.now() };
+  return merged;
+}
+
 export async function savePiecesConfig(input: unknown): Promise<PiecesConfig> {
   const merged = PiecesConfigSchema.parse({ ...(await getPiecesConfig()), ...(input as object) });
   await sql`

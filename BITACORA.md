@@ -1,3 +1,66 @@
+## 21-nov-2026 · Venta · Deshacer un «Vendido» también anula su registro de venta (rama `feat/venta-registrada-en-panel`)
+
+- **Qué:** rebase sobre main con #84 (deshacer un cierre en la misma visita borra su `sales_history`). En ese mismo
+  punto de `setStage` ahora también se anula (`anulada_at`) el registro de venta de ese ciclo: si no, el ticket
+  reabierto seguía diciendo «venta registrada» con la factura del cierre deshecho.
+- **Por qué:** con el cierre «ganado» escribiendo en `ventas_registradas`, deshacer el «Vendido» de Eric Acosta
+  dejaba la venta viva en el panel aunque ya no contara en las métricas.
+- **Probado:** prueba nueva en `ventaRegistradaEnTicket.integration` (y `deshacerCierre` de #84 sigue verde).
+  Suite: solo `hashesPiezasDepot` y `unidadEnLaCantidad`, como en main. `tsc`, `sim:humo` y fidelidad ✅.
+- **Horas:** 0.5.
+
+## 21-nov-2026 · Venta · «Ganado» = venta confirmada (factura y monto, o completar después) y «ya compré» queda por confirmar (rama `feat/venta-registrada-en-panel`)
+
+- **Qué:** (1) Cerrar como ganado desde el panel (ficha, Pipeline, «Vendido» de Para cerrar) pide «El cliente llegó y
+  compró» + número de factura + monto, o «Completar después». Crea o completa el registro del ticket en
+  `ventas_registradas` (`origen = 'panel'`, columna `monto` nueva): ganado y venta registrada son una sola cosa.
+  Arrastrar la tarjeta a ganado da 409. `/venta` también pide el monto. (2) «Completar después» = ganado que cuenta
+  como venta con la factura pendiente; se completa desde la ficha o desde **Para cerrar → Por completar**, que también
+  lista los ganados viejos sin registrar (Manuel los completa con el mismo formulario; no mueve la etapa).
+  (3) **El bot nunca cierra como ganado**: «ya compré» (regla) o «ganado» del modelo dejan el ticket «por confirmar»
+  (`conversations.compra_por_confirmar_*`), cortan los seguimientos y aparecen en Por completar con «Compró acá» /
+  «Compró en otro lado». Vale para todos los negocios. (4) El ajuste `venta_registrada_config` pasa a
+  `confirmarGanado`, **encendido** por defecto; apagado = cierre libre de antes. (5) Métricas: `ganados` sin cambios,
+  partido en completa / factura pendiente / sin registrar, más `porConfirmar`.
+- **Por qué:** pedido de Manuel (21-nov) y la conv 293 de Competimotor: «Gracias ya compré.» se cerró como ganado sin
+  cotización firme; casi seguro compró en otro lado.
+- **Ojo Depot:** en producción, 8 de los 10 ganados de noviembre (6/8 oct, 5/15 sep, 13/27 ago) los puso el cliente
+  con «ya compré». Los viejos no se tocan; de acá en adelante esos quedan «por confirmar» y no cuentan como ganado
+  hasta que un asesor los confirme. El número de ganados va a bajar si nadie revisa Por completar.
+- **Probado:** `ventaRegistradaEnTicket.integration` (26) + `s5ClasificadorNoCierraConPedido` (3): 28 de 29 en rojo
+  contra main. Suite: solo `hashesPiezasDepot` y `unidadEnLaCantidad`, como en main. `tsc` app y hub ✅,
+  `sim:humo` ✅, fidelidad + perfil ajeno ✅. Panel compilado contra la API real en una base desechable: «ya compré»
+  sale en Por completar → «Compró acá» + completar después → factura pendiente → completada desde la lista; cierre
+  ganado con factura y monto desde la ficha; ganado viejo con su formulario; desglose en «Llegaron al final».
+  **No probado:** en producción.
+- **Horas:** 2.
+
+## 21-nov-2026 · Venta · Registrar la venta en `/venta` marca el ticket y el panel lo muestra (rama `feat/venta-registrada-en-panel`)
+
+- **Qué:** (1) Registrar en `/venta` un número que cruza con un chat pasa ese ticket (ciclo vigente) a «ganado» con
+  el motivo «Venta registrada por <vendedor>», por el `setStage` de siempre. Ya ganado → no se toca. Varios chats con
+  el mismo número → solo el que vio el vendedor (el más reciente donde el cliente escribió); marcarlos todos inflaría
+  los ganados con una sola venta. Sin chat → solo queda el registro. Un perdido también pasa a ganado.
+  (2) «Corregir el número» llama a `POST /venta/anular`: la fila queda anulada y el ticket vuelve a su etapa anterior
+  (borra el ganado de `sales_history` si estaba abierto; un perdido recupera su motivo), salvo que alguien lo haya
+  movido después o haya otro registro vivo. (3) Panel: sección «Venta» en la ficha (quién, cuándo, factura) o botón
+  «Registrar venta» que abre `/venta?k=…&tel=…` con el número puesto; «Ganado · sin registrar» en Inbox, cabecera
+  del chat (desde xl) y «Llegaron al final». (4) Interruptor por negocio `settings.venta_registrada_config`
+  (`exigirParaGanado`, APAGADO) en Ajustes → Negocio: encendido, `close`/`stage` a ganado sin venta registrada dan
+  409 y el cierre del panel deshabilita «Ganado». El ganado que declara el cliente («ya compré», clasificador) NO
+  pasa por el interruptor: queda como «sin registrar». (5) Métricas: `ganadosRegistrados` junto a `ganados` en el
+  resumen, `reachedFinal` y «Llegaron al final»; los números de siempre no cambian. (6) Migración 036: `cycle`,
+  `efecto_en_ticket`, `etapa_anterior`, `motivo_anterior`, `anulada_at`; los registros del 20-nov se vinculan a su
+  ciclo sin cambiar etapas.
+- **Por qué:** Manuel quiere que a futuro «ganado» exija la venta registrada; mientras el registro está en prueba se
+  sigue marcando a mano, pero el panel tiene que mostrar la diferencia.
+- **Probado:** `ventaRegistradaEnTicket.integration` (18, Postgres local): 17 en rojo contra main, 18 en verde acá.
+  `registroDeVentas.integration` sigue verde. Suite: solo `hashesPiezasDepot`, `unidadEnLaCantidad` y
+  `buscarPorAroCompleto`, que fallan igual en main. `tsc` app y hub ✅, `sim:humo` ✅, fidelidad + perfil ajeno ✅.
+  Panel compilado servido por la API real sobre una base desechable: registrar desde el botón de la ficha deja el
+  ticket ganado con vendedor y factura; ganado a mano sale «sin registrar»; con el interruptor encendido «Ganado»
+  queda deshabilitado. **No probado:** en producción.
+- **Horas:** 1.5.
 ## 21-nov-2026 · Bot · Deshacer un cierre en la misma visita borra su venta (rama `fix/asesor-de-verdad`)
 
 - **Qué:** `setStage` de `ganado`/`perdido` a una etapa abierta sin cambiar de ciclo borra la fila de
