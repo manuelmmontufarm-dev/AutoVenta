@@ -61,6 +61,7 @@ interface TicketRow {
   pending_discount: Record<string, unknown> | null;
   venta_registrada: { id: number; vendedor: string; registradaEn: string; factura: string | null; monto: number | null; origen: string } | null;
   compra_por_confirmar: { dijoEn: string; texto: string | null } | null;
+  facturas: Array<{ ventaId: number; factura: string; monto: number | null; vendedor: string; registradaEn: string; origen: string }> | null;
 }
 
 /**
@@ -148,6 +149,7 @@ async function consultarHubTickets(options: { id?: number; mes?: string | null }
       coalesce(h.history, '[]'::jsonb) as follow_up_history,
       d.offer as active_discount, pending_discount.rule as pending_discount,
       vr.venta as venta_registrada,
+      fv.facturas,
       case when c.compra_por_confirmar_cycle = c.current_cycle and c.stage not in ('ganado', 'perdido')
         then jsonb_build_object('dijoEn', c.compra_por_confirmar_at, 'texto', c.compra_por_confirmar_texto)
       end as compra_por_confirmar,
@@ -260,6 +262,18 @@ async function consultarHubTickets(options: { id?: number; mes?: string | null }
       where v.conversation_id = c.id and v.cycle = c.current_cycle and v.anulada_at is null
       order by (v.factura is not null and v.monto is not null) desc, (v.factura is not null) desc, v.created_at asc limit 1
     ) vr on true
+    -- Todas las facturas del ticket (el cliente puede comprar dos veces en la
+    -- misma visita). La misma factura una sola vez aunque la escriban dos.
+    left join lateral (
+      select jsonb_agg(jsonb_build_object('ventaId', u.id, 'factura', u.factura, 'monto', u.monto::float8,
+        'vendedor', u.vendedor, 'registradaEn', u.created_at, 'origen', u.origen) order by u.created_at) as facturas
+      from (
+        select distinct on (lower(regexp_replace(v.factura, '\\s+', '', 'g'))) v.id, v.factura, v.monto, v.vendedor, v.created_at, v.origen
+        from ventas_registradas v
+        where v.conversation_id = c.id and v.cycle = c.current_cycle and v.anulada_at is null and v.factura is not null
+        order by lower(regexp_replace(v.factura, '\\s+', '', 'g')), v.created_at
+      ) u
+    ) fv on true
     order by coalesce(m.created_at, c.updated_at) desc
   `;
 
@@ -312,6 +326,9 @@ async function consultarHubTickets(options: { id?: number; mes?: string | null }
     ventaRegistrada: row.venta_registrada ?? null,
     // El cliente dijo «ya compré» y el asesor todavía no decidió.
     compraPorConfirmar: row.compra_por_confirmar ?? null,
+    // Una o más facturas (dos compras = un ticket, dos facturas) y lo pagado en total.
+    facturas: row.facturas ?? [],
+    totalPagado: (row.facturas ?? []).reduce((suma, f) => suma + (f.monto ?? 0), 0),
     ventanaCierraEn: row.last_customer_message_at
       ? new Date(row.last_customer_message_at.getTime() + 24 * 60 * 60 * 1000).toISOString()
       : undefined,
@@ -449,7 +466,7 @@ export async function getHubMetrics(mes?: string | null) {
       quoted_count: number;
       won_count: number;
       won_registered_count: number;
-      won_pending_count: number;
+      invoiced_value: string | number;
       por_confirmar_count: number;
       pipeline_value: string | number;
       quoted_value: string | number;
@@ -481,9 +498,9 @@ export async function getHubMetrics(mes?: string | null) {
         select count(*)::int from sales_history
         where outcome = 'ganado' and closed_at >= ${desde} and closed_at < ${hasta}
       ) as won_count,
-      -- Desglose (21-nov-2026) de esos mismos ganados: con la venta completa
-      -- (factura y monto), con la factura pendiente, y el resto —ganados viejos
-      -- sin registrar—. No cambia won_count: solo lo parte.
+      -- Desglose (21-nov-2026) de esos mismos ganados: con al menos una
+      -- factura con monto, y el resto —ganados viejos sin factura—. No cambia
+      -- won_count: solo lo parte. (La «factura pendiente» se quitó el 21-nov.)
       (
         select count(*)::int from sales_history won_sh
         where won_sh.outcome = 'ganado' and won_sh.closed_at >= ${desde} and won_sh.closed_at < ${hasta}
@@ -491,15 +508,18 @@ export async function getHubMetrics(mes?: string | null) {
             where vr.conversation_id = won_sh.conversation_id and vr.cycle = won_sh.cycle
               and vr.anulada_at is null and vr.factura is not null and vr.monto is not null)
       ) as won_registered_count,
+      -- Lo facturado de esos ganados: la suma de sus facturas (un ticket con
+      -- dos compras suma las dos y sigue contando como UNA venta).
       (
-        select count(*)::int from sales_history won_sh
-        where won_sh.outcome = 'ganado' and won_sh.closed_at >= ${desde} and won_sh.closed_at < ${hasta}
-          and exists (select 1 from ventas_registradas vr
-            where vr.conversation_id = won_sh.conversation_id and vr.cycle = won_sh.cycle and vr.anulada_at is null)
-          and not exists (select 1 from ventas_registradas vr
-            where vr.conversation_id = won_sh.conversation_id and vr.cycle = won_sh.cycle
-              and vr.anulada_at is null and vr.factura is not null and vr.monto is not null)
-      ) as won_pending_count,
+        select coalesce(sum(f.monto), 0) from (
+          select distinct on (vr.conversation_id, vr.cycle, lower(regexp_replace(vr.factura, '\\s+', '', 'g'))) vr.monto
+          from ventas_registradas vr
+          join sales_history won_sh on won_sh.conversation_id = vr.conversation_id and won_sh.cycle = vr.cycle
+          where won_sh.outcome = 'ganado' and won_sh.closed_at >= ${desde} and won_sh.closed_at < ${hasta}
+            and vr.anulada_at is null and vr.factura is not null and vr.monto is not null
+          order by vr.conversation_id, vr.cycle, lower(regexp_replace(vr.factura, '\\s+', '', 'g')), vr.created_at
+        ) f
+      ) as invoiced_value,
       -- Hoy: clientes que dijeron «ya compré» y esperan que el asesor decida.
       (
         select count(*)::int from conversations pc
@@ -703,7 +723,7 @@ export async function getHubMetrics(mes?: string | null) {
   // ahora mismo, que el día 1 no desaparece porque el calendario cambió.
   const [reached] = await sql<{
     total: number; quoted: number; quoted_reached: number;
-    open_now: number; won: number; won_registered: number; won_pending: number; value: string | number;
+    open_now: number; won: number; won_registered: number; value: string | number;
   }[]>`
     with arrivals as (
       select conversation_id, cycle, min(created_at) as reached_at
@@ -743,15 +763,6 @@ export async function getHubMetrics(mes?: string | null) {
           and exists (select 1 from ventas_registradas vr
             where vr.conversation_id = l.conversation_id and vr.cycle = l.cycle
               and vr.anulada_at is null and vr.factura is not null and vr.monto is not null)) as won_registered,
-      (select count(*)::int from llegaron l
-        where exists (select 1 from sales_history s
-          where s.conversation_id = l.conversation_id and s.cycle = l.cycle
-            and s.outcome = 'ganado')
-          and exists (select 1 from ventas_registradas vr
-            where vr.conversation_id = l.conversation_id and vr.cycle = l.cycle and vr.anulada_at is null)
-          and not exists (select 1 from ventas_registradas vr
-            where vr.conversation_id = l.conversation_id and vr.cycle = l.cycle
-              and vr.anulada_at is null and vr.factura is not null and vr.monto is not null)) as won_pending,
       coalesce((
         select sum(q.total) from llegaron l
         left join lateral (
@@ -812,8 +823,8 @@ export async function getHubMetrics(mes?: string | null) {
       cotizaciones: Number(summary?.quoted_count ?? 0),
       ganados: Number(summary?.won_count ?? 0),
       ganadosRegistrados: Number(summary?.won_registered_count ?? 0),
-      ganadosFacturaPendiente: Number(summary?.won_pending_count ?? 0),
-      ganadosSinRegistrar: Math.max(0, Number(summary?.won_count ?? 0) - Number(summary?.won_registered_count ?? 0) - Number(summary?.won_pending_count ?? 0)),
+      ganadosSinRegistrar: Math.max(0, Number(summary?.won_count ?? 0) - Number(summary?.won_registered_count ?? 0)),
+      facturado: Number(summary?.invoiced_value ?? 0),
       porConfirmar: Number(summary?.por_confirmar_count ?? 0),
       vendido: Number(summary?.won_value ?? 0),
       primeraRespuestaSegundos:
@@ -852,7 +863,6 @@ export async function getHubMetrics(mes?: string | null) {
       abiertosAhora: Number(reached?.open_now ?? 0),
       ganados: Number(reached?.won ?? 0),
       ganadosRegistrados: Number(reached?.won_registered ?? 0),
-      ganadosFacturaPendiente: Number(reached?.won_pending ?? 0),
       valor: Number(reached?.value ?? 0),
     },
     replyHours: Array.from({ length: 24 }, (_, hour) => ({
@@ -927,7 +937,7 @@ interface FinalStageRow {
   status: "open" | "closed";
   outcome: string | null;
   quote_total: string | number | null;
-  venta: "completa" | "pendiente" | null;
+  venta: "completa" | null;
 }
 
 /**
@@ -987,8 +997,6 @@ export async function getFinalStageArrivals(mes?: string | null) {
         when exists (select 1 from ventas_registradas vr
           where vr.conversation_id = fa.conversation_id and vr.cycle = fa.cycle
             and vr.anulada_at is null and vr.factura is not null and vr.monto is not null) then 'completa'
-        when exists (select 1 from ventas_registradas vr
-          where vr.conversation_id = fa.conversation_id and vr.cycle = fa.cycle and vr.anulada_at is null) then 'pendiente'
       end as venta
     from first_arrival fa
     join conversations c on c.id = fa.conversation_id
@@ -1017,7 +1025,7 @@ export async function getFinalStageArrivals(mes?: string | null) {
       abierto: row.status === "open",
       cotizacion: row.quote_total == null ? null : Number(row.quote_total),
       llegoEn: row.reached_at.toISOString(),
-      // 'completa' | 'pendiente' (factura o monto por completar) | null (sin registrar)
+      // 'completa' (al menos una factura con monto) | null (sin factura)
       venta: row.venta,
     });
     days.set(row.day, grupo);
@@ -1027,7 +1035,6 @@ export async function getFinalStageArrivals(mes?: string | null) {
     total: rows.length,
     ganados: rows.filter((r) => r.outcome === "ganado").length,
     ganadosRegistrados: rows.filter((r) => r.outcome === "ganado" && r.venta === "completa").length,
-    ganadosFacturaPendiente: rows.filter((r) => r.outcome === "ganado" && r.venta === "pendiente").length,
     // Más reciente primero: lo de hoy es lo que se mira.
     days: [...days.values()].sort((a, b) => b.day.localeCompare(a.day)),
   };

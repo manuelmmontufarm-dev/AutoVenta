@@ -118,7 +118,7 @@ interface HubState {
   abrirTicket(id: number): Promise<void>;
   moverEtapa(id: number, etapa: Etapa): Promise<void>;
   cerrar(id: number, cierre: Cierre, nota?: string, venta?: DatosCierreGanado): Promise<void>;
-  completarVenta(id: number, factura: string, monto: string, cycle?: number): Promise<void>;
+  agregarFactura(id: number, factura: string, monto: string, cycle?: number): Promise<void>;
   reabrir(id: number): Promise<void>;
   deshacerVenta(id: number): Promise<void>;
   setAtiende(id: number, atiende: Atiende): Promise<void>;
@@ -567,8 +567,8 @@ export const useHub = create<HubState>((set, get) => {
       await source.cerrar(id, cierre, nota, venta);
       await refrescar();
     },
-    async completarVenta(id, factura, monto, cycle) {
-      await source.completarVenta(id, factura, monto, cycle);
+    async agregarFactura(id, factura, monto, cycle) {
+      await source.agregarFactura(id, factura, monto, cycle);
       await refrescar();
     },
     reabrir: (id) => source.reabrir(id),

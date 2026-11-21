@@ -39,8 +39,8 @@ export interface DataSource {
   moverEtapa(ticketId: number, etapa: Etapa): Promise<void>;
   /** `venta`: lo que pide el cierre «ganado» (confirmación + factura y monto, o completar después). */
   cerrar(ticketId: number, cierre: Cierre, nota?: string, venta?: DatosCierreGanado): Promise<void>;
-  /** Factura y monto de un ganado pendiente o viejo. `cycle` solo para un ganado de un ciclo anterior. */
-  completarVenta(ticketId: number, factura: string, monto: string, cycle?: number): Promise<void>;
+  /** Añade una factura a un ganado: la primera de uno viejo u otra compra más. `cycle` solo para un ciclo anterior. */
+  agregarFactura(ticketId: number, factura: string, monto: string, cycle?: number): Promise<void>;
   getVentasPendientes(): Promise<VentasPendientes>;
   reabrir(ticketId: number): Promise<void>;
   /** Deshace un «Vendido»: vuelve a la etapa de antes, en la misma visita, y la venta deja de contarse. */

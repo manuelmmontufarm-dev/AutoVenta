@@ -11,14 +11,16 @@
  *  - «Corregir el número» anula el registro y devuelve el ticket a donde estaba,
  *    salvo que alguien lo haya movido después;
  *  - el ticket del panel trae quién registró, cuándo, la factura y el monto;
- *  - «ganado» a mano (21-nov, Manuel) pide «el cliente llegó y compró» y
- *    factura + monto, o «completar después»; crea o completa el registro de
- *    venta del ticket (la misma tabla). Arrastrar a ganado no alcanza. Con el
- *    ajuste del negocio apagado, el cierre libre de antes;
- *  - la factura pendiente y los ganados viejos se completan con el mismo formulario;
+ *  - «ganado» a mano (21-nov, Manuel) pide SIEMPRE «el cliente llegó y compró»,
+ *    factura y monto (sin ellos se espera; «completar después» se quitó); escribe
+ *    la factura del ticket (la misma tabla). Arrastrar a ganado no alcanza. Con
+ *    el ajuste del negocio apagado, el cierre libre de antes;
+ *  - un ticket ganado puede tener varias facturas (dos compras): sigue siendo
+ *    UNA venta y lo pagado es la suma; desde el panel o desde /venta;
+ *  - los ganados viejos sin factura se completan con el mismo formulario;
  *  - «Gracias ya compré.» (conv 293) NO cierra como ganado: queda por confirmar;
  *  - las métricas no cambian sus números: solo agregan el desglose
- *    completa / factura pendiente / sin registrar.
+ *    con factura / sin factura y lo facturado.
  */
 import express from "express";
 import type { Server } from "node:http";
@@ -70,7 +72,7 @@ const registrar = (vendedor: string, telefono: string) => post("/venta/registrar
 const anular = (id: number, telefono: string) => post("/venta/anular", { id, telefono });
 const cerrarDesdeElPanel = (id: number, closure: string, venta: Record<string, unknown> = {}) =>
   post(`/api/hub/tickets/${id}/close`, { closure, ...venta }, true);
-const completar = (id: number, venta: Record<string, unknown>) => post(`/api/hub/tickets/${id}/venta`, venta, true);
+const completar = (id: number, venta: Record<string, unknown>) => post(`/api/hub/tickets/${id}/facturas`, venta, true);
 
 async function interruptor(confirmarGanado: boolean) {
   const r = await fetch(`${url}/api/hub/registro-venta`, {
@@ -264,7 +266,8 @@ describe("«ganado» a mano = el asesor confirma que compró ACÁ", () => {
     expect(revisarCierreGanado({ confirmado: true, factura: "F-1" }, false)).toMatchObject({ ok: false, code: "faltan_factura_y_monto" });
     expect(revisarCierreGanado({ confirmado: true, factura: "F-1", monto: "diez" }, false)).toMatchObject({ ok: false, code: "monto_invalido" });
     expect(revisarCierreGanado({ confirmado: true, factura: "F-1", monto: "230" }, false)).toEqual({ ok: true, factura: "F-1", monto: 230 });
-    expect(revisarCierreGanado({ confirmado: true, completarDespues: true }, false)).toEqual({ ok: true, factura: null, monto: null });
+    // «Completar después» ya no existe: sin factura y monto no se cierra.
+    expect(revisarCierreGanado({ confirmado: true, completarDespues: true }, false)).toMatchObject({ ok: false, code: "faltan_factura_y_monto" });
     // La venta ya la registró completa un vendedor: basta confirmar.
     expect(revisarCierreGanado({ confirmado: true }, true)).toMatchObject({ ok: true });
   });
@@ -298,19 +301,44 @@ describe("«ganado» a mano = el asesor confirma que compró ACÁ", () => {
     expect((await getHubTicket(id))?.ventaRegistrada).toMatchObject({ factura: "001-001-000900", monto: 450.75, origen: "panel" });
   });
 
-  it("«completar después»: cuenta como ganado con la factura pendiente, y se completa con el mismo formulario", async () => {
+  it("«completar después» ya no cierra: sin factura y monto, se espera", async () => {
     const id = await chat("593991110013", "Después");
-    expect((await cerrarDesdeElPanel(id, "ganado", { confirmado: true, completarDespues: true })).status).toBe(200);
-    expect((await estado(id)).stage).toBe("ganado");
-    expect((await getHubTicket(id))?.ventaRegistrada).toMatchObject({ factura: null, monto: null });
-    expect((await listarPendientes()).facturaPendiente.map((p) => p.conversationId)).toContain(id);
+    const r = await cerrarDesdeElPanel(id, "ganado", { confirmado: true, completarDespues: true });
+    expect(r.status).toBe(400);
+    expect(r.json.code).toBe("faltan_factura_y_monto");
+    expect((await estado(id)).stage).toBe("cotizacion_enviada");
+    expect(await sql`select 1 from ventas_registradas where conversation_id = ${id}`).toHaveLength(0);
+  });
 
-    // Sin los dos datos no se completa.
-    expect((await completar(id, { factura: "F-77" })).status).toBe(400);
-    const r = await completar(id, { factura: "F-77", monto: "199" });
-    expect(r.json).toMatchObject({ ok: true, venta: { factura: "F-77", monto: 199 } });
-    expect(await sql`select 1 from ventas_registradas where conversation_id = ${id}`).toHaveLength(1);
-    expect((await listarPendientes()).facturaPendiente.map((p) => p.conversationId)).not.toContain(id);
+  it("«añadir otra factura»: dos compras en el mismo ticket, una sola venta, lo pagado se suma", async () => {
+    const id = await chat("593991110022", "Dos compras");
+    await cerrarDesdeElPanel(id, "ganado", { confirmado: true, factura: "001-001-000100", monto: "400" });
+    const r = await completar(id, { factura: "001-001-000101", monto: "120.50" });
+    expect(r.status).toBe(200);
+    expect(r.json.facturas.map((f: { factura: string }) => f.factura)).toEqual(["001-001-000100", "001-001-000101"]);
+
+    const ticket = await getHubTicket(id);
+    expect(ticket?.facturas.map((f) => [f.factura, f.monto])).toEqual([["001-001-000100", 400], ["001-001-000101", 120.5]]);
+    expect(ticket?.totalPagado).toBe(520.5);
+    // La misma factura otra vez no se suma (escrita con espacios, igual es la misma).
+    const repetida = await completar(id, { factura: " 001-001-000101 ", monto: "120.50" });
+    expect(repetida.status).toBe(409);
+    expect(repetida.json.code).toBe("factura_repetida");
+    // Sigue siendo UNA venta ganada.
+    expect(await estado(id)).toMatchObject({ stage: "ganado", historia: [{ outcome: "ganado" }] });
+  });
+
+  it("/venta también suma una segunda factura al mismo comprador", async () => {
+    const id = await chat("593991110023", "Dos compras por /venta");
+    const v1 = await registrar("Luis Mora", "0991110023");
+    await post("/venta/factura", { id: v1.json.venta.id, telefono: "0991110023", factura: "F-23-A", monto: "200" });
+    const v2 = await registrar("Pedro", "0991110023");
+    expect(v2.json.venta.efectoEnTicket).toBe("ya_ganado");
+    await post("/venta/factura", { id: v2.json.venta.id, telefono: "0991110023", factura: "F-23-B", monto: "80" });
+    const ticket = await getHubTicket(id);
+    expect(ticket?.facturas.map((f) => f.factura)).toEqual(["F-23-A", "F-23-B"]);
+    expect(ticket?.totalPagado).toBe(280);
+    expect((await estado(id)).historia).toHaveLength(1);
   });
 
   it("un ticket con un registro de antes (20-nov, sin cerrar): el cierre completa ESE registro, no crea otro", async () => {
@@ -336,14 +364,23 @@ describe("«ganado» a mano = el asesor confirma que compró ACÁ", () => {
   it("un ganado viejo sin registrar se completa con el mismo formulario, sin moverle la etapa", async () => {
     const id = await chat("593991110015", "Ganado viejo");
     await setStage(id, "ganado", { actor: "owner", reason: "ganado" });
-    expect((await listarPendientes()).sinRegistrar.map((p) => p.conversationId)).toContain(id);
+    expect((await listarPendientes()).sinFactura.map((p) => p.conversationId)).toContain(id);
     const antes = await estado(id);
     const r = await completar(id, { factura: "F-OLD", monto: "300" });
-    expect(r.json).toMatchObject({ ok: true, venta: { factura: "F-OLD", monto: 300, origen: "panel" } });
+    expect(r.json).toMatchObject({ ok: true, facturas: [{ factura: "F-OLD", monto: 300, origen: "panel" }] });
     expect(await estado(id)).toEqual(antes);
     const [fila] = await sql`select efecto_en_ticket from ventas_registradas where conversation_id = ${id}`;
     expect(fila.efecto_en_ticket).toBe("ya_ganado");
-    expect((await listarPendientes()).sinRegistrar.map((p) => p.conversationId)).not.toContain(id);
+    expect((await listarPendientes()).sinFactura.map((p) => p.conversationId)).not.toContain(id);
+  });
+
+  it("un ganado de /venta que se quedó sin factura sale en «sin factura», y la factura llena ESE registro", async () => {
+    const id = await chat("593991110024", "Paso 1 nada más");
+    await registrar("Luis Mora", "0991110024");
+    expect((await listarPendientes()).sinFactura.map((p) => p.conversationId)).toContain(id);
+    await completar(id, { factura: "F-24", monto: "90" });
+    expect(await sql`select factura from ventas_registradas where conversation_id = ${id}`).toEqual([{ factura: "F-24" }]);
+    expect((await listarPendientes()).sinFactura.map((p) => p.conversationId)).not.toContain(id);
   });
 
   it("no se completa la venta de un ticket que no está ganado", async () => {
@@ -402,33 +439,35 @@ describe("«ya compré» queda por confirmar (conv 293)", () => {
 });
 
 describe("métricas", () => {
-  it("los ganados de siempre, más el desglose completa / factura pendiente / sin registrar", async () => {
+  it("los ganados de siempre, más el desglose con factura / sin factura, y lo facturado", async () => {
     const [{ ganados }] = await sql<{ ganados: number }[]>`
       select count(*)::int as ganados from sales_history where outcome = 'ganado'`;
-    const venta = (completa: boolean) => sql<{ n: number }[]>`
+    const [{ n: conFactura }] = await sql<{ n: number }[]>`
       select count(*)::int as n from sales_history s where outcome = 'ganado'
         and exists (select 1 from ventas_registradas v
-          where v.conversation_id = s.conversation_id and v.cycle = s.cycle and v.anulada_at is null)
-        and ${completa} = exists (select 1 from ventas_registradas v
           where v.conversation_id = s.conversation_id and v.cycle = s.cycle and v.anulada_at is null
             and v.factura is not null and v.monto is not null)`;
-    const [{ n: completas }] = await venta(true);
-    const [{ n: pendientes }] = await venta(false);
-    const sinRegistrar = ganados - completas - pendientes;
-    expect(completas).toBeGreaterThan(0);
-    expect(pendientes).toBeGreaterThan(0);
-    expect(sinRegistrar).toBeGreaterThan(0);
+    const sinFactura = ganados - conFactura;
+    expect(conFactura).toBeGreaterThan(0);
+    expect(sinFactura).toBeGreaterThan(0);
 
     const m = await getHubMetrics();
-    expect(m.summary).toMatchObject({
-      ganados, ganadosRegistrados: completas, ganadosFacturaPendiente: pendientes, ganadosSinRegistrar: sinRegistrar,
-    });
-    expect(m.reachedFinal).toMatchObject({ ganados, ganadosRegistrados: completas, ganadosFacturaPendiente: pendientes });
+    expect(m.summary).toMatchObject({ ganados, ganadosRegistrados: conFactura, ganadosSinRegistrar: sinFactura });
+    expect(m.summary).not.toHaveProperty("ganadosFacturaPendiente");
+    // El ticket con dos compras suma las dos (400 + 120.50) y la factura escrita dos veces cuenta una vez.
+    const [{ total }] = await sql<{ total: number }[]>`
+      select coalesce(sum(monto), 0)::float8 as total from (
+        select distinct on (v.conversation_id, v.cycle, lower(regexp_replace(v.factura, '\\s+', '', 'g'))) v.monto
+        from ventas_registradas v join sales_history s on s.conversation_id = v.conversation_id and s.cycle = v.cycle
+        where s.outcome = 'ganado' and v.anulada_at is null and v.factura is not null and v.monto is not null
+        order by v.conversation_id, v.cycle, lower(regexp_replace(v.factura, '\\s+', '', 'g')), v.created_at) f`;
+    expect(m.summary.facturado).toBeCloseTo(total, 2);
+    expect(m.reachedFinal).toMatchObject({ ganados, ganadosRegistrados: conFactura });
 
     const final = await getFinalStageArrivals();
-    expect(final).toMatchObject({ ganados, ganadosRegistrados: completas, ganadosFacturaPendiente: pendientes });
+    expect(final).toMatchObject({ ganados, ganadosRegistrados: conFactura });
     const tickets = final.days.flatMap((d) => d.tickets as { cierre: string; venta: string | null }[]);
-    expect(tickets.filter((t) => t.cierre === "ganado" && t.venta === null).length).toBe(sinRegistrar);
+    expect(tickets.filter((t) => t.cierre === "ganado" && t.venta === null).length).toBe(sinFactura);
   });
 });
 

@@ -178,7 +178,7 @@ export function paginaDeRegistro(nombreNegocio: string): string {
     if (v.vinoDeWhatsapp) dato(dl, "Cotización del bot", v.cotizaciones > 0 ? "Sí" : "No");
     $("guardado").textContent = "Número guardado a nombre de " + v.vendedor + "."
       + (v.efectoEnTicket === "marcado_ganado" ? " El chat quedó como venta ganada en el panel." : "")
-      + (v.efectoEnTicket === "ya_ganado" ? " El chat ya estaba como venta ganada en el panel." : "")
+      + (v.efectoEnTicket === "ya_ganado" ? " El chat ya estaba como venta ganada: esta factura se suma a ese ticket como otra compra." : "")
       + (r.yaRegistradaPor ? " Ojo: este número ya lo registró hoy " + r.yaRegistradaPor + "." : "");
     $("paso").textContent = "Paso 2 de 2 · Factura o referencia";
     $("factura").value = ""; $("monto").value = ""; error2.textContent = "";

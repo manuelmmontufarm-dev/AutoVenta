@@ -40,7 +40,7 @@ import { politica } from "../negocio/politica.js";
 import { informeGuardian } from "../services/guardian.js";
 import { canjearCupon, consultarCupon, resumenCupones } from "../services/coupons.js";
 import {
-  completarVenta, confirmaGanado, confirmarVentaEnElPanel, listarPendientes, revisarCierreGanado, ventaCompleta, ventaDelTicket,
+  agregarFactura, confirmaGanado, confirmarVentaEnElPanel, listarPendientes, revisarCierreGanado, ventaCompleta, ventaDelTicket,
 } from "../services/registroDeVentas.js";
 import {
   catalogStatus,
@@ -1329,9 +1329,8 @@ export function createAdminRouter(): express.Router {
       return res.status(400).json({ ok: false, error: "Cierre inválido" });
     }
     // «GANADO» = EL ASESOR CONFIRMA QUE COMPRÓ ACÁ (21-nov-2026, Manuel): «el
-    // cliente llegó y compró» + factura y monto, o «completar después». Eso
-    // crea o completa el registro de venta del ticket (la misma tabla que
-    // /venta) y lo cierra. Con el ajuste del negocio apagado, el cierre libre
+    // cliente llegó y compró» + factura y monto, siempre (sin ellos se espera).
+    // Eso escribe la factura del ticket (la misma tabla que /venta) y lo cierra. Con el ajuste del negocio apagado, el cierre libre
     // de antes. «Perdido» y «sin respuesta» no cambian.
     if (closure === "ganado") {
       const cuerpo = (req.body ?? {}) as Record<string, unknown>;
@@ -1356,16 +1355,18 @@ export function createAdminRouter(): express.Router {
     res.json({ ok: true });
   });
 
-  // Completar la venta de un ganado: la factura y el monto que quedaron
-  // pendientes, o un ganado viejo que nadie registró. No mueve la etapa.
-  // `cycle` solo para un ganado de un ciclo anterior (el cliente volvió).
-  router.post("/hub/tickets/:id/venta", async (req, res) => {
+  // Añadir una factura a un ticket ganado: la primera de un ganado viejo, u
+  // otra más si el cliente hizo dos compras (mismo ticket y ciclo; sigue siendo
+  // UNA venta, lo pagado se suma). No mueve la etapa. `cycle` solo para un
+  // ganado de un ciclo anterior (el cliente volvió). `/venta` queda como el
+  // nombre de antes de la misma ruta.
+  router.post(["/hub/tickets/:id/facturas", "/hub/tickets/:id/venta"], async (req, res) => {
     const id = Number(req.params.id);
     const cycle = req.body?.cycle == null ? null : Number(req.body.cycle);
     if (!Number.isInteger(id) || (cycle != null && !Number.isInteger(cycle))) {
       return res.status(400).json({ ok: false, error: "id inválido" });
     }
-    const r = await completarVenta(id, cycle, {
+    const r = await agregarFactura(id, cycle, {
       vendedor: req.usuario?.nombre ?? "Panel", factura: req.body?.factura, monto: req.body?.monto,
     });
     if (!r.ok) return res.status(r.status).json(r);

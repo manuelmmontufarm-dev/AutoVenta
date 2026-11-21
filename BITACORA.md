@@ -1,3 +1,20 @@
+## 21-nov-2026 · Venta · Sin «Completar después» y «Añadir otra factura» en un ticket ganado (rama `feat/ganado-varias-facturas`)
+
+- **Qué:** (1) El cierre «ganado» del panel exige SIEMPRE «el cliente llegó y compró» + factura + monto; sin ellos se
+  espera (400). Se quitó «Completar después», el grupo «Factura pendiente» de Por completar y `ganadosFacturaPendiente`
+  de las métricas: en producción no quedó ninguna (Depot 0 registros, Competimotor 0 pendientes). Por completar sigue
+  con «ya compré» por confirmar y «Ganados sin factura» (viejos, o un /venta que quedó en el paso 1).
+  (2) «Añadir otra factura» en un ticket ganado (`POST /hub/tickets/:id/facturas`; `/venta` queda como alias): dos
+  compras = un ticket, dos facturas; la ficha lista las facturas y el total pagado. Llena primero un registro sin
+  factura; la misma factura dos veces da 409. `/venta`: registrar otra vez al mismo comprador suma la segunda factura.
+  (3) Métricas: el ticket sigue contando como UNA venta ganada; `facturado` nuevo = suma de sus facturas.
+- **Por qué:** pedido de Manuel tras el #80 en producción.
+- **Probado:** `ventaRegistradaEnTicket.integration` (30): 8 en rojo contra main, todas verdes acá. Suite: solo
+  `hashesPiezasDepot` y `unidadEnLaCantidad` (como en main; `brandProfilesPorNegocio` falló una vez al cargar y pasa
+  sola). `tsc` app y hub ✅, `sim:humo` ✅, fidelidad ✅ (sin tablas ni columnas nuevas). Panel compilado contra la
+  API real: dos facturas, total $520,50 y «Añadir otra factura».
+- **Horas:** 1.
+
 ## 21-nov-2026 · Panel · «Deshacer venta»: un solo botón para un «Vendido» por error (rama `feat/deshacer-venta`)
 
 - **Qué:** `POST /api/hub/tickets/:id/deshacer-venta` (`deshacerVenta` en `services/conversations.ts`): un ganado del

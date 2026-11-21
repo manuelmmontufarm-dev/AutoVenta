@@ -1,7 +1,7 @@
 import { AnimatePresence } from "framer-motion";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { IconX } from "../components/icons";
-import { CamposCierreGanado, CompletarVenta, DATOS_VACIOS, faltaParaCerrar } from "../components/venta";
+import { AgregarFactura, CamposCierreGanado, DATOS_VACIOS, faltaParaCerrar } from "../components/venta";
 import { EmptyState, MarcaAsesor, MedidaChip, Modal, PageHeader, Segmented, SkeletonRows } from "../components/ui";
 import { useParaCerrar } from "../data/paraCerrar";
 import type { AccionParaCerrar, ClienteArchivado, ClienteEmpujando, ClienteParaCerrar, CurvaLlegada, DatosCierreGanado, Temperatura, VentasPendientes } from "../data/types";
@@ -74,7 +74,7 @@ export function ParaCerrar() {
   const subs: Record<Vista, string> = {
     cerrar: "Ya aceptaron precio y local, y el último mensaje es de ellos",
     empujando: "Ya les escribieron. Salen si compran, con la ✕ o a los 14 días",
-    porcompletar: "Dijeron «ya compré» o se cerraron como ganados sin factura: confirma y completa la venta",
+    porcompletar: "Dijeron «ya compré», o son ganados sin factura: confirma y completa la venta",
     archivo: "14 días sin texto. No salen en ninguna lista, pero aquí siguen",
   };
 
@@ -98,7 +98,7 @@ export function ParaCerrar() {
           { valor: "empujando", label: "Empujando", badge: datos?.empujando.length, tono: "neutral" },
           {
             valor: "porcompletar", label: "Por completar",
-            badge: pendientes ? pendientes.porConfirmar.length + pendientes.facturaPendiente.length : undefined, tono: "neutral",
+            badge: pendientes ? pendientes.porConfirmar.length : undefined, tono: "neutral",
           },
         ]}
       />
@@ -859,10 +859,9 @@ function opcionesPosponer(now: number): Array<{ label: string; hasta: Date }> {
 }
 
 /* ── Por completar: lo que falta para que «ganado» sea venta (Manuel, 21-nov) ──
-   Tres grupos: los que dijeron «ya compré» (el bot ya no los cierra solo: el
-   asesor decide acá o en otro lado), los ganados con la factura o el monto
-   pendiente, y los ganados viejos que nadie registró. Las mismas acciones
-   están en la ficha del ticket. */
+   Dos grupos: los que dijeron «ya compré» (el bot ya no los cierra solo: el
+   asesor decide acá o en otro lado) y los ganados sin factura (viejos, o un
+   /venta que se quedó en el paso 1). Las mismas acciones están en la ficha. */
 
 function VistaPorCompletar({ pendientes, now, onListo, onCompraAca, onCompraAfuera }: {
   pendientes: VentasPendientes | null;
@@ -873,7 +872,7 @@ function VistaPorCompletar({ pendientes, now, onListo, onCompraAca, onCompraAfue
 }) {
   const [verViejos, setVerViejos] = useState(false);
   if (!pendientes) return <SkeletonRows n={4} />;
-  const { porConfirmar, facturaPendiente, sinRegistrar } = pendientes;
+  const { porConfirmar, sinFactura } = pendientes;
   const titulo = (texto: string, n: number, detalle: string) => (
     <div className="mb-2 flex items-baseline justify-between gap-3 border-b border-line pb-2">
       <span className="text-[14px] font-semibold">{texto} <span className="tnum font-mono text-[12px] text-text2">{n}</span></span>
@@ -905,35 +904,19 @@ function VistaPorCompletar({ pendientes, now, onListo, onCompraAca, onCompraAfue
       </section>
 
       <section>
-        {titulo("Factura pendiente", facturaPendiente.length, "Cuentan como venta. Falta la factura o el monto")}
-        {facturaPendiente.length === 0 && <p className="py-3 text-[13px] text-text2">Todas las ventas están completas.</p>}
-        {facturaPendiente.map((p) => (
-          <div key={`${p.conversationId}-${p.cycle}`} className="flex flex-col gap-2 border-b border-line py-3 text-[13px]">
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              {nombre(p.conversationId, p.nombre, p.telefono)}
-              <span className="text-[12px] text-text2">
-                Ganado por {p.vendedor} · {relTime(p.registradaEn, now)}{p.cotizado != null ? ` · cotizado ${money(p.cotizado)}` : ""}
-              </span>
-            </div>
-            <CompletarVenta ticketId={p.conversationId} cycle={p.cycle} onListo={onListo} compacto />
-          </div>
-        ))}
-      </section>
-
-      <section>
-        {titulo("Ganados sin registrar", sinRegistrar.length, "De antes de que el cierre pidiera la venta. Se completan igual")}
+        {titulo("Ganados sin factura", sinFactura.length, "De antes de que el cierre pidiera la factura. Se completan igual")}
         {!verViejos ? (
-          <button className="btn-quiet h-9 rounded-[6px] px-3.5 text-[13px]" onClick={() => setVerViejos(true)} disabled={sinRegistrar.length === 0}>
-            {sinRegistrar.length === 0 ? "No hay ganados sin registrar" : `Ver los ${sinRegistrar.length} más recientes`}
+          <button className="btn-quiet h-9 rounded-[6px] px-3.5 text-[13px]" onClick={() => setVerViejos(true)} disabled={sinFactura.length === 0}>
+            {sinFactura.length === 0 ? "No hay ganados sin factura" : `Ver los ${sinFactura.length} más recientes`}
           </button>
         ) : (
-          sinRegistrar.map((p) => (
+          sinFactura.map((p) => (
             <div key={`${p.conversationId}-${p.cycle}`} className="flex flex-col gap-2 border-b border-line py-3 text-[13px]">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 {nombre(p.conversationId, p.nombre, p.telefono)}
                 <span className="text-[12px] text-text2">Ganado {relTime(p.cerradoEn, now)}{p.cotizado != null ? ` · cotizado ${money(p.cotizado)}` : ""}</span>
               </div>
-              <CompletarVenta ticketId={p.conversationId} cycle={p.cycle} onListo={onListo} compacto />
+              <AgregarFactura ticketId={p.conversationId} cycle={p.cycle} onListo={onListo} compacto />
             </div>
           ))
         )}

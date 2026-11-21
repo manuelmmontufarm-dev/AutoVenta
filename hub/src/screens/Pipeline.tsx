@@ -195,7 +195,7 @@ function PanelFinal({ data, now, onCerrar }: { data: FinalStage; now: number; on
         <span className="tnum text-[12px] text-text2">
           <b className="font-semibold text-ok">{data.ganados}</b> de {data.total} terminaron en venta
           {data.ganadosRegistrados != null && data.ganados > 0 && (
-            <> · {data.ganadosRegistrados} completas{data.ganadosFacturaPendiente ? ` · ${data.ganadosFacturaPendiente} con factura pendiente` : ""}</>
+            <> · {data.ganadosRegistrados} con factura</>
           )}
         </span>
       </div>
@@ -217,7 +217,7 @@ function PanelFinal({ data, now, onCerrar }: { data: FinalStage; now: number; on
                     <span className={t.cierre === "ganado" ? "font-medium text-ok" : t.cierre === "perdido" ? "font-medium text-signal" : "text-text2"}>
                       {t.cierre === "ganado" ? "Ganado" : t.cierre === "perdido" ? "Perdido" : "Sigue abierto"}
                       {t.cierre === "ganado" && t.venta !== undefined && t.venta !== "completa" && (
-                        <span className="font-normal text-text2"> · {t.venta === "pendiente" ? "factura pendiente" : "sin registrar"}</span>
+                        <span className="font-normal text-text2"> · sin factura</span>
                       )}
                     </span>
                     <span className="tnum font-mono text-[12px] text-text2">{t.cotizacion != null ? money(t.cotizacion) : "sin cotización"}</span>

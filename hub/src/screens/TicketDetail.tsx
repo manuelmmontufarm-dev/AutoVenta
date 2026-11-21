@@ -4,7 +4,7 @@ import { ChatBubble, Composer, CotizacionModal, TypingBubble } from "../componen
 import { IconBack, IconDoc, IconRefresh, IconX } from "../components/icons";
 import { BlockTitle, Campo, CierreBadge, CierreIcon, MedidaChip, Modal, Segmented } from "../components/ui";
 import { CIERRE_META, DETALLE_VENTA, ETAPA_META, enlaceRegistrarVenta, estadoDeLaVenta, ventaCompleta, type Cierre, type DatosCierreGanado, type Mensaje, type Ticket } from "../data/types";
-import { CamposCierreGanado, CompletarVenta, DATOS_VACIOS, faltaParaCerrar } from "../components/venta";
+import { AgregarFactura, CamposCierreGanado, DATOS_VACIOS, faltaParaCerrar } from "../components/venta";
 import { etiquetaVisita, money, relTime } from "../lib/format";
 import { navigate } from "../router";
 import { useHub, useNow } from "../store";
@@ -582,16 +582,21 @@ function Ficha({
 /**
  * Lo que se sabe de la venta del ticket (Manuel, 21-nov-2026):
  *  · el cliente dijo «ya compré» → el asesor decide: compró acá o en otro lado;
- *  · venta completa → quién, cuándo, factura y monto;
- *  · factura pendiente o ganado viejo sin registrar → el formulario para completarla;
+ *  · ganado con factura → la lista de facturas (dos compras = dos facturas) y
+ *    el total pagado, con «Añadir otra factura»;
+ *  · ganado sin factura (viejo) → el formulario para la primera;
  *  · abierto sin venta → el enlace a /venta con el número puesto, para el vendedor.
  */
 function SeccionVenta({ ticket, onCerrarComo }: { ticket: Ticket; onCerrarComo: (cierre: Cierre, nota?: string) => void }) {
   const { registroVenta } = useHub();
+  const [otraFactura, setOtraFactura] = useState(false);
   const venta = ticket.ventaRegistrada;
+  const facturas = ticket.facturas ?? [];
   const estado = estadoDeLaVenta(ticket);
   const mono = "tnum font-mono";
-  const aside = estado === "completa" ? "Completa" : estado === "pendiente" ? "Factura pendiente" : estado === "sin_registrar" ? "Sin registrar" : venta ? "Registrada" : undefined;
+  const fecha = (iso: string) =>
+    new Date(iso).toLocaleString("es-EC", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "America/Guayaquil" });
+  const aside = estado === "completa" ? (facturas.length > 1 ? `${facturas.length} facturas` : "Con factura") : estado === "sin_factura" ? "Sin factura" : venta ? "Registrada" : undefined;
   return (
     <Seccion titulo="Venta" aside={aside}>
       {ticket.compraPorConfirmar && ticket.estado === "abierto" && (
@@ -607,25 +612,46 @@ function SeccionVenta({ ticket, onCerrarComo }: { ticket: Ticket; onCerrarComo: 
           </div>
         </div>
       )}
-      {venta && (
+      {facturas.length > 0 && (
+        <>
+          <ul className="flex flex-col">
+            {facturas.map((f) => (
+              <li key={f.ventaId} className="flex items-baseline justify-between gap-3 border-b border-line py-2 text-[13px] last:border-b-0">
+                <span className="min-w-0">
+                  <span className={`${mono} block truncate`}>{f.factura}</span>
+                  <span className="text-[12px] text-text2">{f.vendedor} · {fecha(f.registradaEn)}</span>
+                </span>
+                <span className={`${mono} shrink-0`}>{f.monto != null ? money(f.monto) : <span className="text-text2">sin monto</span>}</span>
+              </li>
+            ))}
+          </ul>
+          <Campos>
+            <Campo etiqueta="Total pagado"><span className={`${mono} font-bold`}>{money(ticket.totalPagado ?? 0)}</span></Campo>
+          </Campos>
+        </>
+      )}
+      {facturas.length === 0 && venta && (
         <Campos>
-          <Campo etiqueta="Registró">{venta.vendedor}{venta.origen === "panel" && venta.vendedor !== "Panel" && <span className="text-text2"> · panel</span>}</Campo>
-          <Campo etiqueta="Cuándo">
-            {new Date(venta.registradaEn).toLocaleString("es-EC", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "America/Guayaquil" })}
-          </Campo>
-          <Campo etiqueta="Factura">{venta.factura ? <span className={mono}>{venta.factura}</span> : <span className="font-medium text-signal">Pendiente</span>}</Campo>
-          <Campo etiqueta="Monto">{venta.monto != null ? <span className={mono}>{money(venta.monto)}</span> : <span className="font-medium text-signal">Pendiente</span>}</Campo>
+          <Campo etiqueta="Registró">{venta.vendedor}</Campo>
+          <Campo etiqueta="Cuándo">{fecha(venta.registradaEn)}</Campo>
         </Campos>
       )}
-      {(estado === "pendiente" || estado === "sin_registrar") && (
+      {estado === "sin_factura" && (
         <>
-          <p className="text-[13px] leading-relaxed text-text2">
-            {estado === "pendiente"
-              ? "Cuenta como venta. Falta la factura y el monto para que quede completa."
-              : "Ganado de antes de que el cierre pidiera la venta: completa la factura y el monto."}
-          </p>
-          <CompletarVenta ticketId={ticket.id} />
+          <p className="text-[13px] leading-relaxed text-text2">Ganado sin factura: escribe la factura y el monto.</p>
+          <AgregarFactura ticketId={ticket.id} />
         </>
+      )}
+      {estado === "completa" && (
+        otraFactura ? (
+          <>
+            <p className="text-[12px] text-text2">Otra compra del mismo cliente: el ticket sigue siendo una venta y lo pagado se suma.</p>
+            <AgregarFactura ticketId={ticket.id} etiqueta="Añadir factura" onListo={() => setOtraFactura(false)} />
+            <button onClick={() => setOtraFactura(false)} className="text-[12px] text-text2 hover:text-text">Cancelar</button>
+          </>
+        ) : (
+          <button onClick={() => setOtraFactura(true)} className="btn-quiet h-9 rounded-[6px] text-[13px]">Añadir otra factura</button>
+        )
       )}
       {!venta && ticket.estado === "abierto" && !ticket.compraPorConfirmar && (
         <>

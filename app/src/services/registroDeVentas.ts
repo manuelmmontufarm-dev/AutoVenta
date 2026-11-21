@@ -397,12 +397,13 @@ export type ErrorDeVenta = { ok: false; status: number; code: string; error: str
 
 /**
  * Pura: lo que el cierre «ganado» del panel exige con la confirmación
- * encendida. «El cliente llegó y compró» siempre; y factura + monto, o
- * «completar después» (la venta cuenta pero queda con factura pendiente). Si el
- * ticket ya tiene la venta completa (la registró un vendedor), basta confirmar.
+ * encendida (Manuel, 21-nov): «el cliente llegó y compró», el número de factura
+ * y el monto, SIEMPRE. Sin factura y monto no se cierra: se espera a tenerlos.
+ * («Completar después» existió unas horas y se quitó.) Si el ticket ya tiene
+ * una factura completa (la registró un vendedor en /venta), basta confirmar.
  */
 export function revisarCierreGanado(
-  cuerpo: { confirmado?: unknown; factura?: unknown; monto?: unknown; completarDespues?: unknown },
+  cuerpo: { confirmado?: unknown; factura?: unknown; monto?: unknown },
   yaCompleta: boolean,
 ): { ok: true; factura: string | null; monto: number | null } | ErrorDeVenta {
   if (cuerpo.confirmado !== true) {
@@ -414,11 +415,11 @@ export function revisarCierreGanado(
   if (montoEscrito && monto == null) {
     return { ok: false, status: 400, code: "monto_invalido", error: "Revisa el monto: escribe solo el número, por ejemplo 230.50." };
   }
-  if (yaCompleta || cuerpo.completarDespues === true) return { ok: true, factura, monto };
+  if (yaCompleta && !factura && monto == null) return { ok: true, factura: null, monto: null };
   if (!factura || monto == null) {
     return {
       ok: false, status: 400, code: "faltan_factura_y_monto",
-      error: "Escribe el número de factura y el monto pagado, o marca «Completar después».",
+      error: "Escribe el número de factura y el monto pagado. Sin los dos no se puede cerrar como ganado.",
     };
   }
   return { ok: true, factura, monto };
@@ -429,10 +430,9 @@ const motivoDelPanel = (vendedor: string) => `Venta confirmada en el panel por $
 /**
  * EL CIERRE «GANADO» DEL PANEL ESCRIBE LA VENTA (21-nov-2026, Manuel).
  *
- * Crea —o completa, si un vendedor ya la registró— el registro de venta del
- * ticket en `ventas_registradas`, y después lo cierra como ganado con el
- * `setStage` de siempre. Sin factura o sin monto el registro queda igual, con
- * lo que falte en null: eso es «factura pendiente».
+ * Escribe la factura del ticket en `ventas_registradas` —completando el
+ * registro sin factura que haya dejado /venta, o como una fila nueva— y
+ * después lo cierra como ganado con el `setStage` de siempre.
  */
 export async function confirmarVentaEnElPanel(
   conversationId: number,
@@ -442,15 +442,8 @@ export async function confirmarVentaEnElPanel(
     select stage, current_cycle, closed_reason, phone, name from conversations where id = ${conversationId}
   `;
   if (!chat) return null;
-  const existente = await ventaDelTicket(conversationId);
-  if (existente) {
-    await sql`
-      update ventas_registradas
-      set factura = coalesce(${datos.factura}, factura), monto = coalesce(${datos.monto}, monto)
-      where id = ${existente.id}
-    `;
-  } else {
-    await insertarVentaDelPanel(conversationId, chat.current_cycle, chat, datos, {
+  if (datos.factura && datos.monto != null) {
+    await escribirFactura(conversationId, chat.current_cycle, chat, { vendedor: datos.vendedor, factura: datos.factura, monto: datos.monto }, {
       efecto: chat.stage === "ganado" ? "ya_ganado" : "marcado_ganado",
       etapaAnterior: chat.stage,
       motivoAnterior: chat.closed_reason,
@@ -492,20 +485,51 @@ async function insertarVentaDelPanel(
   `;
 }
 
+/** La misma factura escrita distinto («001-001-123» / « 001-001-123 »). */
+const mismaFactura = (a: string, b: string) => a.replace(/\s+/g, "").toLowerCase() === b.replace(/\s+/g, "").toLowerCase();
+
 /**
- * COMPLETAR UNA VENTA: la factura y el monto de un ticket ganado que quedó
- * «factura pendiente», o de un ganado viejo que nadie registró (Manuel los
- * completa a mano con este mismo formulario). No mueve la etapa. Escribe sobre
- * el registro que ya tiene el ticket; si no tiene, crea uno.
+ * Escribe UNA factura en el ticket (conversación + ciclo): llena el registro
+ * vivo que todavía no tiene factura (el paso 1 de /venta, o uno del 20-nov), y
+ * si no hay ninguno, agrega una fila. Así «añadir otra factura» y el cierre
+ * usan la misma regla. Devuelve false si esa factura ya estaba en el ticket.
+ */
+async function escribirFactura(
+  conversationId: number,
+  cycle: number,
+  chat: { phone: string; name: string | null },
+  datos: { vendedor: string; factura: string; monto: number },
+  marca: { efecto: EfectoEnTicket; etapaAnterior: string | null; motivoAnterior: string | null },
+): Promise<boolean> {
+  const vivas = await sql<{ id: number; factura: string | null }[]>`
+    select id, factura from ventas_registradas
+    where conversation_id = ${conversationId} and cycle = ${cycle} and anulada_at is null
+    order by created_at asc
+  `;
+  if (vivas.some((v) => v.factura && mismaFactura(v.factura, datos.factura))) return false;
+  const vacia = vivas.find((v) => !v.factura);
+  if (vacia) {
+    await sql`update ventas_registradas set factura = ${datos.factura}, monto = ${datos.monto} where id = ${vacia.id}`;
+  } else {
+    await insertarVentaDelPanel(conversationId, cycle, chat, datos, marca);
+  }
+  return true;
+}
+
+/**
+ * AÑADIR UNA FACTURA a un ticket ganado (Manuel, 21-nov): la primera de un
+ * ganado viejo que nadie registró, o OTRA más cuando el cliente hizo dos
+ * compras en la misma visita. Mismo ticket y ciclo; el ticket sigue contando
+ * como UNA venta ganada y lo pagado es la suma. No mueve la etapa.
  *
  * `cycle`: el de la venta (un ganado viejo puede ser de un ciclo anterior al
  * vigente si el cliente volvió a escribir). Sin él, el vigente.
  */
-export async function completarVenta(
+export async function agregarFactura(
   conversationId: number,
   cycle: number | null,
   datos: DatosDeLaVenta,
-): Promise<{ ok: true; venta: VentaDelTicket } | ErrorDeVenta> {
+): Promise<{ ok: true; facturas: FacturaDelTicket[] } | ErrorDeVenta> {
   const factura = limpiar(datos.factura, 40) || null;
   const monto = leerMonto(datos.monto);
   if (!factura || monto == null) {
@@ -522,17 +546,44 @@ export async function completarVenta(
     return { ok: false, status: 409, code: "no_ganado", error: "Ese ticket no está ganado: ciérralo como ganado desde el ticket." };
   }
   const ciclo = cycle ?? chat.current_cycle;
-  const existente = await ventaDelTicket(conversationId, ciclo);
-  if (existente) {
-    await sql`update ventas_registradas set factura = ${factura}, monto = ${monto} where id = ${existente.id}`;
-  } else {
-    await insertarVentaDelPanel(conversationId, ciclo, chat, { vendedor: datos.vendedor, factura, monto }, {
-      efecto: "ya_ganado", etapaAnterior: null, motivoAnterior: null,
+  const nueva = await escribirFactura(conversationId, ciclo, chat, { vendedor: datos.vendedor, factura, monto }, {
+    efecto: "ya_ganado", etapaAnterior: null, motivoAnterior: null,
+  });
+  if (!nueva) return { ok: false, status: 409, code: "factura_repetida", error: `La factura ${factura} ya está en este ticket.` };
+  emitLiveEvent("sync", conversationId);
+  return { ok: true, facturas: await facturasDelTicket(conversationId, ciclo) };
+}
+
+export interface FacturaDelTicket {
+  ventaId: number;
+  factura: string;
+  monto: number | null;
+  vendedor: string;
+  registradaEn: Date;
+  origen: OrigenDeLaVenta;
+}
+
+/**
+ * Las facturas del ticket (registros vivos con factura), la misma factura una
+ * sola vez aunque dos vendedores la hayan escrito. En el orden en que entraron.
+ */
+export async function facturasDelTicket(conversationId: number, cycle: number | null = null): Promise<FacturaDelTicket[]> {
+  const filas = await sql<{ id: number; factura: string; monto: string | null; vendedor: string; created_at: Date; origen: OrigenDeLaVenta }[]>`
+    select v.id, v.factura, v.monto, v.vendedor, v.created_at, v.origen
+    from ventas_registradas v join conversations c on c.id = v.conversation_id
+    where v.conversation_id = ${conversationId} and v.anulada_at is null and v.factura is not null
+      and v.cycle = coalesce(${cycle}::int, c.current_cycle)
+    order by v.created_at asc
+  `;
+  const unicas: FacturaDelTicket[] = [];
+  for (const f of filas) {
+    if (unicas.some((u) => mismaFactura(u.factura, f.factura))) continue;
+    unicas.push({
+      ventaId: Number(f.id), factura: f.factura, monto: f.monto == null ? null : Number(f.monto),
+      vendedor: f.vendedor, registradaEn: f.created_at, origen: f.origen,
     });
   }
-  emitLiveEvent("sync", conversationId);
-  const venta = await ventaDelTicket(conversationId, ciclo);
-  return { ok: true, venta: venta! };
+  return unicas;
 }
 
 /**
@@ -574,14 +625,15 @@ export async function marcarCompraPorConfirmar(conversationId: number, texto: st
 export interface Pendientes {
   /** El cliente dijo «ya compré»: el asesor decide si compró acá o en otro lado. */
   porConfirmar: Array<{ conversationId: number; nombre: string | null; telefono: string; texto: string | null; dijoEn: Date; cotizado: number | null }>;
-  /** Ganados que cuentan como venta pero sin factura o sin monto. */
-  facturaPendiente: Array<{ conversationId: number; cycle: number; ventaId: number; nombre: string | null; telefono: string; vendedor: string; registradaEn: Date; factura: string | null; monto: number | null; cotizado: number | null }>;
-  /** Ganados de antes de este cambio (o con el interruptor apagado) sin registro de venta. Los 200 más recientes. */
-  sinRegistrar: Array<{ conversationId: number; cycle: number; nombre: string | null; telefono: string; cerradoEn: Date; cotizado: number | null }>;
+  /**
+   * Ganados sin una factura con monto: los de antes de que el cierre las pidiera,
+   * o un registro de /venta que se quedó en el paso 1. Los 200 más recientes.
+   */
+  sinFactura: Array<{ conversationId: number; cycle: number; nombre: string | null; telefono: string; cerradoEn: Date; cotizado: number | null }>;
 }
 
 export async function listarPendientes(): Promise<Pendientes> {
-  const [porConfirmar, facturaPendiente, sinRegistrar] = await Promise.all([
+  const [porConfirmar, sinFactura] = await Promise.all([
     sql<{ id: number; name: string | null; phone: string; texto: string | null; at: Date; total: string | null }[]>`
       select c.id, c.name, c.phone, c.compra_por_confirmar_texto as texto, c.compra_por_confirmar_at as at,
         (select total from quotes q where q.conversation_id = c.id and q.cycle = c.current_cycle
@@ -590,27 +642,14 @@ export async function listarPendientes(): Promise<Pendientes> {
       where c.compra_por_confirmar_cycle = c.current_cycle and c.stage not in ('ganado', 'perdido')
       order by c.compra_por_confirmar_at desc
     `,
-    sql<{ conversation_id: number; cycle: number; id: number; name: string | null; phone: string; vendedor: string; created_at: Date; factura: string | null; monto: string | null; total: string | null }[]>`
-      select distinct on (v.conversation_id, v.cycle)
-        v.conversation_id, v.cycle, v.id, c.name, c.phone, v.vendedor, v.created_at, v.factura, v.monto,
-        (select total from quotes q where q.conversation_id = v.conversation_id and q.cycle = v.cycle
-          order by q.created_at desc limit 1) as total
-      from ventas_registradas v
-      join conversations c on c.id = v.conversation_id
-      join sales_history s on s.conversation_id = v.conversation_id and s.cycle = v.cycle and s.outcome = 'ganado'
-      where v.anulada_at is null
-        and not exists (select 1 from ventas_registradas o
-          where o.conversation_id = v.conversation_id and o.cycle = v.cycle and o.anulada_at is null
-            and o.factura is not null and o.monto is not null)
-      order by v.conversation_id, v.cycle, ${ORDEN_DE_LA_VENTA}
-    `,
     sql<{ conversation_id: number; cycle: number; name: string | null; phone: string; closed_at: Date; total: string | null }[]>`
       select s.conversation_id, s.cycle, c.name, c.phone, s.closed_at, s.total
       from sales_history s
       join conversations c on c.id = s.conversation_id
       where s.outcome = 'ganado'
         and not exists (select 1 from ventas_registradas v
-          where v.conversation_id = s.conversation_id and v.cycle = s.cycle and v.anulada_at is null)
+          where v.conversation_id = s.conversation_id and v.cycle = s.cycle and v.anulada_at is null
+            and v.factura is not null and v.monto is not null)
       order by s.closed_at desc
       limit 200
     `,
@@ -620,13 +659,7 @@ export async function listarPendientes(): Promise<Pendientes> {
     porConfirmar: porConfirmar.map((f) => ({
       conversationId: Number(f.id), nombre: f.name, telefono: f.phone, texto: f.texto, dijoEn: f.at, cotizado: num(f.total),
     })),
-    facturaPendiente: facturaPendiente
-      .sort((a, b) => b.created_at.getTime() - a.created_at.getTime())
-      .map((f) => ({
-        conversationId: Number(f.conversation_id), cycle: f.cycle, ventaId: Number(f.id), nombre: f.name, telefono: f.phone,
-        vendedor: f.vendedor, registradaEn: f.created_at, factura: f.factura, monto: num(f.monto), cotizado: num(f.total),
-      })),
-    sinRegistrar: sinRegistrar.map((f) => ({
+    sinFactura: sinFactura.map((f) => ({
       conversationId: Number(f.conversation_id), cycle: f.cycle, nombre: f.name, telefono: f.phone, cerradoEn: f.closed_at, cotizado: num(f.total),
     })),
   };
