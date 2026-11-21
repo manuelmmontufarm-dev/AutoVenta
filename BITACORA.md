@@ -1,3 +1,15 @@
+## 21-nov-2026 · Panel · «Asesor» = contesta una persona (la regla del bot), no `assigned_to` a secas (rama `fix/asesor-de-verdad`)
+
+- **Qué:** la marca y el orden de «lo atiende un asesor» (PR #81) salen de `atiendeUnaPersona`
+  (`domain/turnoDelHumano.ts`), que es `quienContesta`: si el cliente escribe ahora, ¿contesta una persona? Lo usan
+  `hubData` (Inbox, Pipeline, ficha) y Para cerrar; cada consulta trae, solo para los chats en `'human'`, el autor
+  del último saliente y la última vez que escribió una persona.
+- **Por qué:** Manuel (21-nov): «salen demasiados con lo de asesor». `assigned_to='human'` casi nunca se limpia: en
+  Depot eran 4.201 de 4.608 abiertos — 1.819 con pausa infinita de antes del 28-sep, 2.303 con la pausa vencida, 78
+  de la revisión automática de 24 h (nadie humano en el chat; contesta el bot) y 1 de verdad. Con esta regla: 2.
+- **Probado:** `atiendeUnaPersona.test.ts` 7/7 (cada caso de arriba), `paraCerrar` y `turnoDelHumano` en verde,
+  `tsc` ✅. La consulta nueva en producción (solo lectura, 500 chats): 12 ms.
+- **Horas:** 0,3.
 ## 21-nov-2026 · Reporte del día · Nombres invisibles → teléfono (rama `fix/reporte-nombre-invisible`)
 
 - **Qué:** `nombreVisible` quita los caracteres invisibles (`\p{Default_Ignorable_Code_Point}`, «ㅤ», braille en

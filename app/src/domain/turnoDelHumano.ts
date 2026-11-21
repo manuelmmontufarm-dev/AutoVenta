@@ -133,6 +133,37 @@ export function quienContesta(input: {
   return { contesta: "bot" };
 }
 
+/** Lo que el panel lee de un chat para saber quién lo atiende (columnas de la base). */
+export interface FilaDeTurno {
+  assigned_to: string | null;
+  bot_paused_until: Date | string | null;
+  bot_paused_reason: string | null;
+  /** `author_kind` del último saliente del hilo; solo hace falta si `assigned_to='human'`. */
+  autor_ultimo_saliente: string | null;
+  ultimo_saliente_humano_en: Date | string | null;
+}
+
+/**
+ * «Lo atiende un asesor» en el panel (marca y orden de Inbox, Pipeline y Para
+ * cerrar) = si el cliente escribe ahora, contesta una persona y no el bot.
+ * Es `quienContesta`, no `assigned_to` a secas: esa marca casi nunca se limpia
+ * (pausas infinitas de antes del 28-sep, pausas vencidas, la revisión
+ * automática de 24 h en la que nadie humano entró). El 21-nov el panel marcó
+ * así 4.201 de 4.608 chats abiertos de Depot; con esta regla, 2.
+ */
+export function atiendeUnaPersona(fila: FilaDeTurno, horasDelTurnoHumano = HORAS_DEL_TURNO_HUMANO, ahora = new Date()): boolean {
+  if (fila.assigned_to !== "human") return false;
+  return quienContesta({
+    asignadoA: fila.assigned_to,
+    pausaHasta: fila.bot_paused_until,
+    motivoDeLaPausa: fila.bot_paused_reason,
+    autorDelUltimoSaliente: fila.autor_ultimo_saliente,
+    ultimoSalienteHumanoEn: fila.ultimo_saliente_humano_en,
+    horasDelTurnoHumano,
+    ahora,
+  }).contesta === "humano";
+}
+
 /**
  * ¿Puede salir la bienvenida de primer contacto («Soy Martín… ¿Qué medida
  * usa?»)? No si lo último que leyó el cliente lo escribió una persona: para él

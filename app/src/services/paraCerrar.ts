@@ -14,6 +14,7 @@ import { LOCAL_ELEGIDO } from "./conversations.js";
 import { business } from "../config.js";
 import { hayQueElegirLocal } from "../domain/storeSelection.js";
 import { cruceVigente, ultimaSyncFacturas } from "./ventasConfirmadas.js";
+import { atiendeUnaPersona } from "./hubData.js";
 
 /** Más atrás que esto el archivo ya no sirve para nada y la consulta crece sin límite. */
 const ARCHIVO_DIAS = 90;
@@ -37,7 +38,9 @@ interface FilaSql {
   ultimo_asesor: Date | null; asesor_antes_del_cliente: boolean;
   cerrar_descartado_at: Date | null; cerrar_pospuesto_hasta: Date | null;
   cerrar_pospuesto_en: Date | null; cerrar_revivido_at: Date | null;
-  assigned_to: string;
+  assigned_to: "bot" | "human";
+  bot_paused_until: Date | null; bot_paused_reason: string | null;
+  autor_ultimo_saliente: string | null; ultimo_saliente_humano_en: Date | null;
 }
 
 /* ── La curva de llegada, medida con las ventas reales ──────────────────────
@@ -110,7 +113,8 @@ export async function leerParaCerrar(
           and m.created_at < c.last_customer_message_at
       ) as asesor_antes_del_cliente,
       c.cerrar_descartado_at, c.cerrar_pospuesto_hasta, c.cerrar_pospuesto_en, c.cerrar_revivido_at,
-      c.assigned_to
+      c.assigned_to, c.bot_paused_until, c.bot_paused_reason,
+      turno.autor_ultimo_saliente, turno.ultimo_saliente_humano_en
     from conversations c
     join lateral (
       select items, total, created_at from quotes
@@ -122,6 +126,15 @@ export async function leerParaCerrar(
       where m.conversation_id = c.id and m.cycle = c.current_cycle
         and m.role = 'assistant' and m.author_kind is distinct from 'bot'
     ) a on true
+    left join lateral (
+      select
+        (select author_kind from messages
+          where conversation_id = c.id and direction = 'outbound' and type <> 'note'
+          order by created_at desc, id desc limit 1) as autor_ultimo_saliente,
+        (select max(created_at) from messages
+          where conversation_id = c.id and direction = 'outbound' and type <> 'note'
+            and author_kind in ('owner', 'advisor')) as ultimo_saliente_humano_en
+    ) turno on c.assigned_to = 'human'
     where c.status = 'open'
       and (
         ${localUnico}::text is not null
@@ -159,7 +172,8 @@ export async function leerParaCerrar(
       pospuestoEn: f.cerrar_pospuesto_en,
       revividoAt: f.cerrar_revivido_at,
       compro: Boolean(compra && compra >= diaDeGuayaquil(f.cotizado_at)),
-      atiendeAsesor: f.assigned_to === "human",
+      // La misma regla que el resto del panel: contesta una persona, no el bot.
+      atiendeAsesor: atiendeUnaPersona(f, ahora),
     };
   }), ahora, est);
   resultado.archivo = resultado.archivo.slice(0, ARCHIVO_MAX);

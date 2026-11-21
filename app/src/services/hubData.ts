@@ -1,4 +1,6 @@
+import { config } from "../config.js";
 import { sql } from "../db/client.js";
+import { atiendeUnaPersona as atiendeUnaPersonaDominio, type FilaDeTurno } from "../domain/turnoDelHumano.js";
 import { resolverPeriodo } from "./periodoMensual.js";
 import type { Stage } from "../domain/pipeline.js";
 
@@ -21,6 +23,11 @@ interface TicketRow {
   stage: Stage;
   status: "open" | "closed";
   assigned_to: "bot" | "human";
+  bot_paused_until: Date | null;
+  bot_paused_reason: string | null;
+  /** Solo si `assigned_to='human'`: lo que `quienContesta` necesita del hilo. */
+  autor_ultimo_saliente: string | null;
+  ultimo_saliente_humano_en: Date | null;
   unread_count: number;
   tire_size: string | null;
   vehicle: string | null;
@@ -119,6 +126,8 @@ async function consultarHubTickets(options: { id?: number; mes?: string | null }
       c.pickup_date,
       c.visit_date, c.offer_expires_at, c.nearest_store, c.review_later_at, c.last_customer_message_at,
       m.content as last_message, m.created_at as last_at,
+      c.bot_paused_until, c.bot_paused_reason,
+      turno.autor_ultimo_saliente, turno.ultimo_saliente_humano_en,
       case when q.id is null then null else jsonb_build_object(
         'id', q.id, 'items', q.items, 'subtotal', q.subtotal, 'tax', q.tax, 'total', q.total,
         'original_total', q.original_total, 'discount_amount', q.discount_amount,
@@ -166,6 +175,17 @@ async function consultarHubTickets(options: { id?: number; mes?: string | null }
       order by created_at desc
       limit 1
     ) m on true
+    -- Quién contesta si el cliente escribe ahora: solo hace falta mirarlo en
+    -- los chats marcados 'human' (los demás los contesta el bot sí o sí).
+    left join lateral (
+      select
+        (select author_kind from messages
+          where conversation_id = c.id and direction = 'outbound' and type <> 'note'
+          order by created_at desc, id desc limit 1) as autor_ultimo_saliente,
+        (select max(created_at) from messages
+          where conversation_id = c.id and direction = 'outbound' and type <> 'note'
+            and author_kind in ('owner', 'advisor')) as ultimo_saliente_humano_en
+    ) turno on c.assigned_to = 'human'
     left join lateral (
       select id, items, subtotal, tax, total, original_total, discount_amount,
         discount_reason, discount_condition
@@ -243,7 +263,7 @@ async function consultarHubTickets(options: { id?: number; mes?: string | null }
             : "perdido"
           : undefined,
     cerradoEn: row.closed_at?.toISOString(),
-    atiende: row.assigned_to === "human" ? "humano" : "bot",
+    atiende: atiendeUnaPersona(row) ? "humano" : "bot",
     medida: row.tire_size ?? undefined,
     vehiculo: row.vehicle ?? undefined,
     cotizacion: row.quote ? publicQuote(row.quote) : undefined,
@@ -282,6 +302,11 @@ async function consultarHubTickets(options: { id?: number; mes?: string | null }
 /** Un solo ticket, aunque no esté entre los 500 últimos. */
 export async function getHubTicket(id: number) {
   return (await listHubTickets({ id }))[0] ?? null;
+}
+
+/** Ver `domain/turnoDelHumano.ts#atiendeUnaPersona`; aquí solo se le pasa el plazo configurado. */
+export function atiendeUnaPersona(row: FilaDeTurno, ahora = new Date()): boolean {
+  return atiendeUnaPersonaDominio(row, config.pipeline.humanTurnHours, ahora);
 }
 
 function commercialAttentionReason(row: TicketRow): string | undefined {
