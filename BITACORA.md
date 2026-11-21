@@ -1,3 +1,12 @@
+## 21-nov-2026 · Panel · Todo cambio del panel queda con nombre (rama `fix/auditar-todo`)
+
+- **Qué:** middleware `registrarCambioDelPanel` después del login: todo POST/PUT/PATCH/DELETE de `/api` (incluidas
+  las rutas futuras) guarda en `audit_events` quién (usuario o «clave admin»), la ruta, el cuerpo sin claves ni
+  tokens y el código de respuesta. Las acciones de ticket siguen guardando además su foto antes/después.
+- **Por qué:** Manuel: «literal todo lo que podría algún día ser preocupante se tiene que guardar quién fue».
+- **Probado:** `bitacoraDelPanel.test.ts` (2), `ventaRegistradaEnTicket.integration` y bot-power 39/39; `tsc` ✅.
+- **Horas:** 0.3.
+
 ## 21-nov-2026 · Panel · Quién prendió o apagó el bot (rama `fix/auditar-bot-power`)
 
 - **Qué:** `PUT /bot-power` guarda en `audit_events` (entity_type `bot`, acción `encender_bot` / `apagar_bot`)

@@ -21,3 +21,9 @@ sin `metadata->>'autor'`) no dice quién fue: es un solo número. Solo se sabe s
 ```sql
 select created_at at time zone 'America/Guayaquil' as hora, actor, action, after_value->>'motivo' as motivo from audit_events where entity_type = 'bot' order by created_at desc limit 20;
 ```
+
+## Todo lo que se cambió desde el panel (últimas 50)
+
+```sql
+select created_at at time zone 'America/Guayaquil' as hora, actor, action, after_value->>'status' as resultado from audit_events where entity_type = 'panel' order by created_at desc limit 50;
+```

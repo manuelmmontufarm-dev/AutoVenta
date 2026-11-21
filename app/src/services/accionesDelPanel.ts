@@ -102,3 +102,44 @@ export async function historialDelTicket(conversationId: number, limite = 30): P
   `;
   return filas.map((f) => ({ accion: f.action, quien: f.actor, at: f.created_at, detalle: f.after_value ?? {} }));
 }
+
+/** Claves que nunca se guardan tal cual en la bitácora. */
+const SECRETO = /clave|key|token|password|contrase|secret|pin|hash|authorization/i;
+
+export function cuerpoSinSecretos(valor: unknown, profundidad = 0): unknown {
+  if (valor == null || typeof valor !== "object") {
+    return typeof valor === "string" && valor.length > 500 ? `${valor.slice(0, 500)}…` : valor;
+  }
+  if (Buffer.isBuffer(valor)) return `[archivo de ${valor.length} bytes]`;
+  if (profundidad > 4) return "…";
+  if (Array.isArray(valor)) {
+    const lista = valor.slice(0, 50).map((v) => cuerpoSinSecretos(v, profundidad + 1));
+    return valor.length > 50 ? [...lista, `… ${valor.length - 50} más`] : lista;
+  }
+  return Object.fromEntries(
+    Object.entries(valor as Record<string, unknown>).map(([k, v]) => [k, SECRETO.test(k) ? "[oculto]" : cuerpoSinSecretos(v, profundidad + 1)]),
+  );
+}
+
+/**
+ * Middleware: todo cambio hecho desde el panel queda en `audit_events` con el
+ * usuario (o «clave admin»), la ruta, el cuerpo sin secretos y el código de
+ * respuesta. Nunca frena ni rompe la respuesta.
+ */
+export function registrarCambioDelPanel(req: express.Request, res: express.Response, next: express.NextFunction): void {
+  if (req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS") {
+    next();
+    return;
+  }
+  const actor = quienEnElPanel(req);
+  const ruta = req.originalUrl.split("?")[0].slice(0, 300);
+  const cuerpo = cuerpoSinSecretos(req.body ?? null);
+  res.on("finish", () => {
+    void sql`
+      insert into audit_events (actor, action, entity_type, entity_id, before_value, after_value)
+      values (${actor}, ${`${req.method} ${ruta}`}, 'panel', ${ruta},
+        ${sql.json((cuerpo ?? null) as never)}, ${sql.json({ status: res.statusCode })})
+    `.catch((e) => console.warn("⚠️ No se guardó la bitácora del panel:", e));
+  });
+  next();
+}
