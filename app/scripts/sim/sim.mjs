@@ -863,7 +863,30 @@ async function levantarUI({ registroBot }) {
       }
 
       if (url.pathname === "/api/enviar" && req.method === "POST") {
-        const { texto, adjunto, ubicacion, boton, sticker, anuncio } = await cuerpoJson(req);
+        const cuerpoEnviar = await cuerpoJson(req);
+        const { texto, adjunto, ubicacion, sticker, anuncio } = cuerpoEnviar;
+        let { boton } = cuerpoEnviar;
+        // `{"boton":{"tocar":2}}`: el 2.º botón del último mensaje con botones
+        // (para los escenarios escritos, que no saben el id ni el ciclo).
+        if (boton?.tocar && !boton.id) {
+          // Los botones del último mensaje del bot EN ESTA conversación, leídos
+          // de la base (lo que el bot guardó). No de la Graph: la de un carril
+          // de la flota recuerda los envíos de corridas anteriores, y tocaba el
+          // «El lunes» de otra conversación (simulador, 20-nov).
+          const [fila] = await sql`
+            select m.wa_message_id, m.metadata->'botones' as botones from messages m
+            join conversations c on c.id = m.conversation_id
+            where c.phone = ${TELEFONO_CLIENTE} and m.direction = 'outbound' and m.metadata ? 'botones'
+            order by m.id desc limit 1`;
+          let b = Array.isArray(fila?.botones) ? fila.botones[Number(boton.tocar) - 1] : null;
+          let citado = fila?.wa_message_id ?? null;
+          if (!fila) {
+            b = graph.ultimosBotones(TELEFONO_CLIENTE)?.[Number(boton.tocar) - 1];
+            citado = b ? graph.wamidDelBoton(b.id) : null;
+          }
+          if (!b?.id) return json(res, 400, { error: `no hay botón ${boton.tocar} en el último mensaje con botones` });
+          boton = { id: b.id, titulo: b.titulo, citado };
+        }
         if (!String(texto ?? "").trim() && !adjunto && !ubicacion && !boton?.id && !sticker) {
           return json(res, 400, { error: "no hay nada que mandar" });
         }
@@ -903,6 +926,13 @@ async function levantarUI({ registroBot }) {
         const { codigo, cantidad } = await cuerpoJson(req);
         contifico.forzarStock(String(codigo), cantidad === null || cantidad === "" ? null : Number(cantidad));
         return json(res, 200, { ok: true, forzados: contifico.forzados(), aviso: "el bot lo toma en ≤8 s (resync del catálogo)" });
+      }
+
+      // Para probar el respaldo a texto: {"rechazarBotones": true} hace que la
+      // Graph de mentira rechace los mensajes con botones, como Meta.
+      if (url.pathname === "/api/graph" && req.method === "POST") {
+        const { rechazarBotones } = await cuerpoJson(req);
+        return json(res, 200, { rechazarBotones: graph.rechazarBotones(rechazarBotones) });
       }
 
       if (url.pathname === "/api/reiniciar" && req.method === "POST") {
@@ -962,6 +992,11 @@ function payloadEntrante({ texto, adjunto, ubicacion, boton, sticker, anuncio })
   // nunca y el error aparecería recién en el teléfono del cliente.
   if (boton?.id) {
     delete mensaje.text;
+    // Meta manda el toque CITANDO el mensaje que tenía los botones
+    // (`context.id`): el bot lo usa para saber, sin adivinar, a qué pregunta
+    // contestó. Sin esto el simulador probaba un toque que Meta nunca manda.
+    const citado = boton.citado ?? graph.wamidDelBoton(String(boton.id));
+    if (citado) mensaje.context = { from: PHONE_ID, id: citado };
     mensaje.type = "interactive";
     mensaje.interactive = {
       type: "button_reply",

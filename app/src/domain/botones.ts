@@ -27,11 +27,15 @@ import { ETIQUETA_DEL_ESCALON, type Preferencia } from "./salesIntent.js";
 import { preguntaElLocal } from "./storeSelection.js";
 import { preguntaElDia } from "./customerCommitment.js";
 import { negocio } from "../negocio/index.js";
+import { politica } from "../negocio/politica.js";
+import { esLaListaNumerada } from "./salesIntent.js";
 
 /** Tope duro de la Cloud API: tres botones de respuesta por mensaje. */
 export const MAX_BOTONES = 3;
 /** Tope duro de la Cloud API: 20 caracteres por título de botón. */
 export const MAX_TITULO = 20;
+/** Tope duro de la Cloud API: 1024 caracteres en el cuerpo de un mensaje con botones. */
+export const MAX_CUERPO = 1024;
 
 export interface Boton {
   /** `escalera:premium:c9`. El ciclo detecta el toque a un mensaje viejo. */
@@ -128,6 +132,29 @@ export interface OpcionesDeBotones {
   bloquesAnteriores?: readonly string[];
   /** ¿El local atiende ese día? Sin predicado se asume que sí. */
   estaAbierto?: (fecha: Date) => boolean;
+  /**
+   * ¿La lista numerada lleva botones? Por defecto lo dice la política del
+   * cliente (`politica.botonesDeOpciones`); las pruebas lo fijan a mano.
+   */
+  botonesDeOpciones?: boolean;
+}
+
+/**
+ * Las posiciones que la pregunta de la lista ofrece: «¿Le cotizo la 1 o la 2?»
+ * → [1, 2]. Se leen de la PREGUNTA, no de la lista: es lo que el cliente puede
+ * contestar, y la repregunta («¿Cuál le cotizo, la 1, la 2 o la 3?») no trae
+ * las líneas de la lista.
+ */
+function posicionesDeLaPregunta(bloque: string): number[] {
+  const pregunta = bloque.split("\n").reverse().find((l) => esLaListaNumerada(l)) ?? "";
+  return [...new Set([...pregunta.matchAll(/\bla\s+([1-3])\b/gi)].map((m) => Number(m[1])))].sort();
+}
+
+/** «1 · KENDA KR29 — $95.00 c/u · 4 = $380.00» → «KENDA KR29», si el bloque trae la línea. */
+function nombreDeLaLinea(bloque: string, n: number): string | null {
+  const linea = bloque.split("\n").find((l) => new RegExp(`^\\s*\\*?${n}\\s*[·.)]`).test(l));
+  const nombre = linea?.replace(/^\s*\*?\d\s*[·.)]\s*/, "").split(/\s+—\s+/)[0]?.replace(/\*/g, "").trim();
+  return nombre || null;
 }
 
 /**
@@ -222,6 +249,27 @@ export function botonesParaBloque(
     };
   }
 
+  // 4 · La lista numerada con precios (Competimotor, 20-nov-2026). Detrás de la
+  // perilla `politica.botonesDeOpciones`: Depot la tiene apagada. No es la
+  // escalera de arriba (esa decisión de Manuel sigue): esto es la pregunta de
+  // CIERRE, cuando el cliente ya vio la lámina y los precios y solo le queda
+  // elegir cuál. El cuerpo es el bloque entero —la lista con sus precios va
+  // escrita—; los botones solo reemplazan el tener que escribir «la 2».
+  if ((opciones.botonesDeOpciones ?? politica.botonesDeOpciones === true) && esLaListaNumerada(bloque)) {
+    const posiciones = posicionesDeLaPregunta(bloque);
+    if (posiciones.length < 2 || posiciones.length > MAX_BOTONES || bloque.length > MAX_CUERPO) return null;
+    return {
+      cuerpo: bloque,
+      botones: posiciones.map((n) => {
+        // La lista suele salir en el bloque ANTERIOR (Competimotor, simulador
+        // 20-nov: «1 · TOWNHALL TH161 — …» y después «¿Le cotizo la 1…?» solo).
+        const nombre = [bloque, ...[...(opciones.bloquesAnteriores ?? [])].reverse()]
+          .map((b) => nombreDeLaLinea(b, n)).find(Boolean) ?? null;
+        return { id: `opcion:${n}${sufijo}`, titulo: nombre ? `${n} · ${nombre}` : `Opción ${n}` };
+      }),
+    };
+  }
+
   // 3 · El día de la visita. Dos días concretos y la salida a texto libre.
   if (preguntaElDia(bloque)) {
     // SI ACABA DE TOCAR «OTRO DÍA», LA REPREGUNTA VA SIN BOTONES.
@@ -294,6 +342,12 @@ export function textoDeBoton(id: string, titulo: string, ciclo: number, ahora = 
     // el toque entra como si el cliente hubiera escrito «Cumbayá».
     const local = negocio.locales.find((l) => l.slug === valor);
     if (local) return local.nombreCorto;
+  }
+  if (familia === "opcion" && /^[1-3]$/.test(valor ?? "")) {
+    // «la 2» es la forma seca que entienden todos los lectores de la elección
+    // (`posicionElegida`, `escalonContestado`, el candado de la cantidad): el
+    // toque elige la opción 2, nunca dos llantas.
+    return `la ${valor}`;
   }
   if (familia === "dia") {
     if (valor === "otro") return TEXTO_OTRO_DIA;

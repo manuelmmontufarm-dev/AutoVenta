@@ -80,7 +80,7 @@ export function normalizarTurno(item) {
   throw new Error(`turno con forma desconocida: ${JSON.stringify(item)}`);
 }
 
-const etiquetaParte = (p) => p.texto ?? (p.boton ? `[botón ${p.boton.titulo ?? p.boton.id}]` : p.ubicacion ? "[ubicación]" : p.adjunto ? "[adjunto]" : p.sticker ? "[sticker]" : "[?]");
+const etiquetaParte = (p) => p.graph ? `[graph ${JSON.stringify(p.graph)}]` : p.texto ?? (p.boton ? `[botón ${p.boton.titulo ?? p.boton.id ?? p.boton.tocar}]` : p.ubicacion ? "[ubicación]" : p.adjunto ? "[adjunto]" : p.sticker ? "[sticker]" : "[?]");
 
 export class Carril {
   /**
@@ -160,7 +160,7 @@ export class Carril {
     const [conv] = await sql`select * from conversations order by id desc limit 1`;
     if (!conv) return { conv: null, mensajes: [], runs: [], guardian: [], quotes: [], alertas: [], avisos: [], seguimientos: [] };
     const [mensajes, runs, guardian, quotes, alertas, avisos, seguimientos] = await Promise.all([
-      sql`select id, direction, author_kind, content, type, cycle, wa_message_id, created_at from messages where conversation_id=${conv.id} order by id`,
+      sql`select id, direction, author_kind, content, type, cycle, wa_message_id, metadata, created_at from messages where conversation_id=${conv.id} order by id`,
       sql`select id, stage, model, route, call_type, tools, error, latency_ms, input_tokens, output_tokens,
                  cached_input_tokens, reasoning_tokens, iterations, created_at
           from ai_runs where conversation_id=${conv.id} order by id`,
@@ -187,6 +187,14 @@ export class Carril {
   }
 
   async enviar(parte) {
+    // `{ graph: { rechazarBotones: true } }`: no es un mensaje del cliente, es
+    // un interruptor de la Graph de mentira (prueba del respaldo a texto).
+    if (parte.graph) {
+      await this.json(`${this.ui}/api/graph`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(parte.graph),
+      });
+      return;
+    }
     const r = await this.json(`${this.ui}/api/enviar`, {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(parte),
     });
@@ -277,7 +285,7 @@ export class Carril {
         // k=0: pausa tras el cierre del turno anterior; k>0: desde el envío anterior.
         if (tiempo && turno.pausaAntesMs) await pausa(turno.pausaAntesMs);
         await this.mandarPartes(tiempo ? turno : { ...turno, pausaEntreMs: null }, this.gapMs);
-        partes += turno.partes.length;
+        partes += turno.partes.filter((p) => !p.graph).length;
       }
       const { foto, cierre, ms, agotado } = await this.esperarCierre({ nEntrantesEsperados: nEntrantes + partes });
       const nuevos = foto.mensajes.filter((m) => Number(m.id) > maxMsg);
@@ -285,7 +293,8 @@ export class Carril {
       const tools = runs.flatMap((r) => (Array.isArray(r.tools) ? r.tools : [])).map(String);
       turnos.push({
         cliente: grupo.flatMap((g) => g.partes.map(etiquetaParte)).join(" ⧸ "),
-        bot: nuevos.filter((m) => m.direction === "outbound").map((m) => ({ texto: m.content, tipo: m.type, autor: m.author_kind })),
+        bot: nuevos.filter((m) => m.direction === "outbound").map((m) => ({ texto: m.content, tipo: m.type, autor: m.author_kind, ...(m.metadata?.botones ? { botones: m.metadata.botones } : {}) })),
+        clienteGuardado: nuevos.filter((m) => m.direction === "inbound").map((m) => ({ texto: m.content, ...(m.metadata?.boton ? { boton: m.metadata.boton } : {}) })),
         fase: tools.filter((t) => t.startsWith("fase_operativa:")).map((t) => t.slice(15)),
         herramientas: tools.filter((t) => !t.startsWith("fase_operativa:") && !t.startsWith("escalado_a_cerebro")),
         modelos: [...new Set(runs.map((r) => r.model))],
@@ -317,6 +326,12 @@ export class Carril {
       avisos_asesor: f.avisos.length,
       seguimientos: (f.seguimientos ?? []).map((j) => ({ tipo: j.type, estado: j.status, motivo: j.cancel_reason, cycle: j.cycle })),
       sin_revision: f.guardian.filter((g) => g.verdict === "sin_revision").length,
+      // El último texto del bot (y sus botones): para verificar que un prefijo
+      // dejó la pregunta que el escenario necesita («¿Le cotizo la 1…?»).
+      ultimo_del_bot: (() => {
+        const m = [...f.mensajes].reverse().find((x) => x.direction === "outbound" && x.type === "text");
+        return m ? { texto: m.content, botones: m.metadata?.botones ?? null } : null;
+      })(),
       guardian: f.guardian.map((g) => ({ verdict: g.verdict, findings: g.findings })),
       conversacion: Object.fromEntries(Object.entries(c).filter(([k]) => !/phone|name/.test(k))),
     };

@@ -70,6 +70,7 @@ import { anotarMedidasEscritas, medidasDelPedido } from "../services/medidasDelP
 import {
   autorizaCotizacionEnEsteTurno, escalonContestado, esRespuestaDelMenuDePreferencia, ETIQUETA_DEL_ESCALON, cantidadDelTexto,
   extractVehicleYear, respuestaDePreferencia, type Escalones,
+  esLaListaNumerada,
 } from "../domain/salesIntent.js";
 import { findByCode, searchByText } from "../services/catalog.js";
 import { preguntaDeEquivalente } from "../domain/equivalentePendiente.js";
@@ -613,7 +614,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   // un escalón: `opcionPorPosicion` es el dueño único (con dos opciones la 2 es
   // la premium; el escalón del medio no existe).
   const posicionElegidaDeLaLista = posicionElegida(userText);
-  const citoLaLista = /¿le cotizo la 1/i.test(ctx.mensajeCitado ?? "");
+  const citoLaLista = esLaListaNumerada(ctx.mensajeCitado);
   const escalonPorReply =
     esRespuestaDelMenuDePreferencia(userText, null, ctx.mensajeCitado ?? null)
       ? (citoLaLista && posicionElegidaDeLaLista !== null
@@ -639,7 +640,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
       ? escalonContestado(userText, textoUltimoDelBot, null, { huboMenu: opcionesEnLaLamina >= 2 })
       : null;
   const opcionPorLista = escalonSinReply && posicionElegidaDeLaLista !== null
-    && /¿le cotizo la 1/i.test(textoUltimoDelBot ?? "")
+    && esLaListaNumerada(textoUltimoDelBot)
     ? opcionPorPosicion({ escalones: salesFacts.escalones }, posicionElegidaDeLaLista)
     : null;
   if (escalonSinReply) ctx.aceptoCotizacion = true;

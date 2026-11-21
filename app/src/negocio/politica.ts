@@ -122,6 +122,18 @@ export interface PoliticaComercial {
    */
   precioDeCotizacion?: "tarjeta";
   /**
+   * OPCIONAL: la pregunta de la lista numerada («¿Le cotizo la 1, la 2 o la
+   * 3?», y su repregunta «¿Cuál le cotizo, la 1…?») sale como mensaje de
+   * WhatsApp con botones «1 · KENDA KR29», «2 · …», «3 · …». Tocar uno entra
+   * como si el cliente hubiera escrito «la 2» (`domain/botones.ts`).
+   * Competimotor, 20-nov-2026 (capacitación: Carlos vio a clientes contestar
+   * «uno» y Manuel pidió los botones). Sin el campo (Depot): la pregunta sale
+   * como texto, igual que siempre; se puede prender acá cuando Depot quiera.
+   * Solo en la respuesta del turno (dentro de la ventana de 24 h): nunca en
+   * plantillas ni seguimientos.
+   */
+  botonesDeOpciones?: boolean;
+  /**
    * OPCIONAL: precios de promoción POR CÓDIGO, con un vencimiento exacto
    * (Black Friday de Competimotor, 20-nov-2026). Rebajan el precio de hoy de
    * esas llantas; el de siempre queda como el tachado. Las cuentas viven en

@@ -32,6 +32,9 @@ export const POLITICA_MUNDILLANTAS: PoliticaComercial = {
   // con B (las 6 cuotas también) y el C se ofrece si paga en efectivo o por
   // transferencia, o si pide descuento. El A no se usa en ningún lado.
   precioDeCotizacion: "tarjeta",
+  // Manuel, 20-nov-2026 (capacitación con Carlos): la lista de 2 o 3 opciones
+  // cierra con botones 1 / 2 / 3 para tocar, en vez de escribir el número.
+  botonesDeOpciones: true,
   // Black Friday (lista de Carlos, 20-nov). Manuel: rige desde ya hasta el
   // lunes 30-nov-2026 a las 23:59 de Ecuador, las dos secciones de la lista
   // («jueves a lunes» y «todo el mes»), y después se apaga solo. El precio de

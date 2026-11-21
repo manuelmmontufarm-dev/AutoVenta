@@ -1,3 +1,29 @@
+## 20-nov-2026 · Bot · «uno», «la dos», «opción tres» eligen la opción, y la lista de Competimotor cierra con botones 1 / 2 / 3 (rama `fix/opciones-con-letras-y-botones`)
+
+- **Qué:** (1) `domain/opcionEnLetras.ts` traduce la posición escrita con letras a dígito («la dos» → «la 2»;
+  «uno» pelado solo con la lista arriba) ANTES de que la lean los de siempre: entrada del turno (`index.ts`),
+  `respuestaDePreferencia`, `escalonContestado`, `esRespuestaDelMenuDePreferencia`, `eligePosicionDelMenu`,
+  `posicionElegida`, `soloAcuseOCantidad`, el candado de cantidad de `generar_cotizacion`, los seguimientos y
+  `cantidadDelCliente`. La repregunta «¿Cuál le cotizo, la 1…?» ahora cuenta como menú (`traeMarcaDelMenu`).
+  «mejor solo uno» / «solo dos» frente a la lista son cantidad (se pregunta cuál y se guarda la cantidad).
+  (2) Perilla `politica.botonesDeOpciones` (Competimotor sí, Depot no): la pregunta de la lista sale como mensaje
+  interactivo con botones «1 · TOWNHALL TH161»…; el toque entra como «la N»; si Meta rechaza los botones sale el
+  mismo texto (`enviarBloque`, vale también para los botones de local y día). El hub pinta los botones enviados
+  y «Tocó el botón «…»» en la respuesta. Simulador: `{boton:{tocar:N}}`, `context.id` en el toque y
+  `POST /api/graph {rechazarBotones}`.
+- **Por qué:** capacitación con Competimotor (Carlos): el cliente contestó «uno» y el bot repitió la pregunta
+  (`soloAcuseOCantidad` leía «la dos» como cantidad y el Guardián marcaba menú sin elegir). Manuel pidió además los
+  botones. En el simulador salieron dos más de la misma familia: «uno» cotizaba **1 llanta** (Depot y Competimotor:
+  `cantidadDelCliente` no reconocía «1» y «uno» como el mismo mensaje) y «mejor solo uno» dejaba el texto en
+  «1 llanta» con la cotización por 4 (también en main).
+- **Probado:** `opcionEnLetras` (69) y `botonesDeOpciones` (13) en rojo contra main y en verde acá; +4 en
+  `cantidadesAuditoria9nov.integration`. Suite: solo `hashesPiezasDepot` y `unidadEnLaCantidad`, como en main.
+  `tsc` app y hub ✅, `sim:humo` ✅, fidelidad + perfil ajeno ✅, humo `ejemplo` ✅. Simulador Competimotor con
+  INV_NOV.XLS (20-nov): 13 escenarios × 3 = **39/39** (`scripts/sim/escenarios-opcion-letras-botones.mjs`);
+  CM01/CM35 3/3, CM02/CM09 cumplen cantidad y fallan solo su chequeo viejo de «precio A». Depot × 3: la lista
+  sale sin botones y «uno» cotiza la 1 por 4. **No probado:** botones en un WhatsApp real (Meta).
+- **Horas:** 1.
+
 ## 20-nov-2026 · Reporte · El reporte del día pasa a un modelo simple de página y media (rama `feat/reporte-diario-simple`)
 
 - **Qué:** PDF nuevo (`render/reporteSimplePdf.ts`) con tres bloques: **quién viene** (agenda de 7 días + lista por día

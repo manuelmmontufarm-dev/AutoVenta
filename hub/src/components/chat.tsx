@@ -23,6 +23,7 @@ export function ChatBubble({ msg, nombreCliente = "Cliente", onVerPdf }: { msg: 
         ) : (
           <p className="m-0 whitespace-pre-wrap">{msg.contenido}</p>
         )}
+        <BotonesDelMensaje msg={msg} />
         {saliente && msg.estado === "failed" && msg.tipo !== "imagen" && (
           <p className="mt-2 mb-0 rounded-[6px] px-2.5 py-1.5 text-[12px]" style={{ background: "var(--color-signal-tint)", color: "var(--color-signal)" }}>
             <b>No le llegó al cliente.</b>
@@ -36,6 +37,39 @@ export function ChatBubble({ msg, nombreCliente = "Cliente", onVerPdf }: { msg: 
       </span>
     </div>
   );
+}
+
+/**
+ * Los botones de WhatsApp, como los vio el cliente.
+ *
+ * El bot guarda en `metadata.botones` los que de verdad salieron (si Meta los
+ * rechazó, salió texto y no hay nada que pintar), y el toque del cliente
+ * llega guardado como su traducción («la 2») con `metadata.boton` = lo que
+ * tocó. Sin esto el asesor leía «la 2» sin saber que fue un toque, y el
+ * mensaje del bot sin los botones que el cliente tenía en pantalla.
+ */
+function BotonesDelMensaje({ msg }: { msg: Mensaje }) {
+  const meta = msg.metadata as { botones?: { id?: string; titulo?: string }[]; boton?: { titulo?: string } } | undefined;
+  const botones = (meta?.botones ?? []).filter((b) => b?.titulo);
+  if (botones.length) {
+    return (
+      <div className="mt-2 flex flex-col gap-1" aria-label="Botones enviados">
+        {botones.map((b) => (
+          <span
+            key={b.id ?? b.titulo}
+            className="block rounded-[6px] px-2.5 py-1 text-center text-[12.5px] font-medium"
+            style={{ border: "1px solid var(--color-line)", background: "var(--color-surface)", color: "var(--color-text)" }}
+          >
+            {b.titulo}
+          </span>
+        ))}
+      </div>
+    );
+  }
+  if (meta?.boton?.titulo) {
+    return <p className="mt-1 mb-0 text-[11px] opacity-75">Tocó el botón «{meta.boton.titulo}»</p>;
+  }
+  return null;
 }
 
 /**

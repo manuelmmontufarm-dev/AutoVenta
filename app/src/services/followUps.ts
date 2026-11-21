@@ -29,6 +29,7 @@ import { catalogStatus, findByCode, searchBySize } from "./catalog.js";
 import { lineaDeLista, listaDeLaPieza } from "../domain/listaDeOpciones.js";
 import { cantidadValidaDeLaFicha } from "../domain/cantidadGrande.js";
 import { listaVigenteDeLaPieza } from "./listaVigente.js";
+import { opcionEnDigitos } from "../domain/opcionEnLetras.js";
 import { asesoresActivos, notifyAdvisor } from "./advisorNotifications.js";
 
 export type FollowUpJobStatus =
@@ -277,6 +278,12 @@ const nombresDeLocales = () => business.stores.map((store) => store.name);
 const RESPUESTA_AL_MENU =
   /^(?:la\s+|el\s+|opci[oó]n\s+)?(?:[123]|1ra|2da|3ra|primera|segunda|tercera|costo|equilibrio|premium|la\s+m[aá]s\s+(?:barata|econ[oó]mica|cara|conveniente)|econ[oó]mica|barata|intermedia)\W*$/i;
 
+/** ¿Esta respuesta del cliente, posterior a la pieza de opciones, contestó el menú? */
+export function respondioElMenu(texto: string | null | undefined): boolean {
+  // Lo que se revisa es posterior a la pieza de opciones: el menú estaba arriba.
+  return RESPUESTA_AL_MENU.test(opcionEnDigitos(texto ?? "", { menuAbierto: true }).trim());
+}
+
 /**
  * Cuántas llantas trajo la última pieza de opciones del ciclo y si el cliente
  * ya contestó el menú después de verla. La plantilla del seguimiento decía
@@ -303,7 +310,7 @@ async function contextoDeOpciones(
       and direction = 'inbound'
       ${pieza ? sql`and created_at > ${pieza.created_at}` : sql``}
   `;
-  const preferenceAnswered = respuestas.some((r) => RESPUESTA_AL_MENU.test((r.content ?? "").trim()));
+  const preferenceAnswered = respuestas.some((r) => respondioElMenu(r.content));
   const customerHasNoTireSize = respuestas.some((r) =>
     /\b(?:no\s+(?:la\s+)?(?:tengo|se|s[eé])|sin)\b[^.\n]{0,45}\b(?:medida|numeraci[oó]n|n[uú]mero)\b|\b(?:medida|numeraci[oó]n)\b[^.\n]{0,35}\bno\s+(?:la\s+)?(?:tengo|se|s[eé])\b/i
       .test(r.content ?? "")

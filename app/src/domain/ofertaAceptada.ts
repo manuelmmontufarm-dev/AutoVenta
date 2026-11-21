@@ -24,6 +24,7 @@
 
 import { ES_PRESENTACION_DEL_NEGOCIO } from "./saludo.js";
 import { ofrecioCotizarLaUnica } from "./cotizarLaUnica.js";
+import { opcionEnDigitos } from "./opcionEnLetras.js";
 import { eligePosicionDelMenu, pidioPrecioOCotizacion, respuestaDePreferencia } from "./salesIntent.js";
 
 const normalizar = (texto: string) =>
@@ -450,7 +451,11 @@ function siConPedidoDeCotizar(mensajeDelCliente: string): boolean {
 const PALABRAS_DE_CANTIDAD = new Set([
   "la", "las", "el", "los", "de", "llanta", "llantas", "unidad", "unidades", "juego", "completo",
   "quiero", "necesito", "deme", "dame", "seria", "serian", "son", "nomas", "solo",
-  "1", "2", "3", "4", "5", "6", "7", "8", "una", "dos", "tres", "cuatro", "cinco", "seis",
+  "1", "2", "3", "4", "5", "6", "7", "8", "uno", "una", "dos", "tres", "cuatro", "cinco", "seis",
+  // «mejor solo uno», «entonces solo dos x ahora» (simulador Competimotor, 20-nov): el
+  // «mejor» no elige nada, cambia cuántas. Sin estas el mensaje no era «solo cantidad»,
+  // iba al modelo, el texto decía «1 llanta» y la cotización salía por 4.
+  "mejor", "entonces", "bueno", "x", "ahora", "ahorita", "solamente", "unicamente",
 ].map(colapsar));
 
 /**
@@ -461,10 +466,14 @@ const PALABRAS_DE_CANTIDAD = new Set([
  */
 export function soloAcuseOCantidad(mensajeDelCliente: string): boolean {
   if (esAcuseSimple(mensajeDelCliente)) return true;
+  // «la dos», «uno»: con el menú abierto (es lo único que pregunta esta función)
+  // son la posición, no dos llantas. Sin esto «la dos» calzaba entera en
+  // PALABRAS_DE_CANTIDAD y el Guardián repreguntaba cuál (Competimotor, 20-nov).
+  mensajeDelCliente = opcionEnDigitos(mensajeDelCliente, { menuAbierto: true });
   const n = normalizar(mensajeDelCliente);
   if (/\b(?:la|el|opcion|numero)\s+[1-3]\b|^\s*[1-3]\s*$|\b(?:primera|segunda|tercera)\b/.test(n)) return false;
   const palabras = palabrasDelAcuse(mensajeDelCliente);
-  return palabras.some((p) => /^[1-8]$|^(?:una|dos|tres|cuatro|cinco|seis)$|^juego$/.test(p))
+  return palabras.some((p) => /^[1-8]$|^(?:uno|una|dos|tres|cuatro|cinco|seis)$|^juego$/.test(p))
     && palabras.every((p) => PALABRAS_DE_CANTIDAD.has(p) || PALABRAS_DE_ACUSE.has(p));
 }
 

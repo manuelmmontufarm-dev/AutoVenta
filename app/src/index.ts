@@ -64,7 +64,9 @@ import { medidaEscritaEnElMensaje } from "./domain/medidaDelCliente.js";
 import {
   extractVehicleYear,
   esRespuestaDelMenuDePreferencia,
+  traeMarcaDelMenu,
 } from "./domain/salesIntent.js";
+import { opcionEnDigitos } from "./domain/opcionEnLetras.js";
 import { getHubMetrics } from "./services/hubData.js";
 import {
   cancelPendingFollowUps,
@@ -177,6 +179,11 @@ async function atenderTurno(
   // nada, cuando citó un mensaje suyo o cuando lo citado es de otro ciclo:
   // en los tres casos se sigue con la heurística de `previousOutbound`.
   const mensajeCitado = await outboundTextByWaMessageId(conversation.id, quotedWaMessageId);
+  // «UNO», «LA DOS», «OPCIÓN TRES» (Competimotor, 20-nov-2026): la posición
+  // escrita con letras se pasa a dígito ANTES de que la lean los de siempre
+  // (agente, `generar_cotizacion`, rutas directas). La palabra pelada solo con
+  // el menú arriba, igual que el «2» pelado. Ver `domain/opcionEnLetras.ts`.
+  text = opcionEnDigitos(text, { menuAbierto: traeMarcaDelMenu(mensajeCitado ?? previousOutbound) });
   // El último mensaje del cliente que este turno está contestando. Si mientras
   // redactamos entra otro, el cierre de ESTE turno ya no corresponde.
   const [ultimoEntranteDelTurno] = await sql<{ id: number }[]>`
@@ -650,15 +657,18 @@ async function atenderTurno(
       // Se GUARDA el bloque completo, no el cuerpo recortado: los detectores
       // del dominio leen los últimos salientes para entender la respuesta del
       // cliente, y tienen que ver la misma pregunta que se hizo.
-      const sentId = botones
-        ? await sendCustomerButtons(conversation.id, from, botones.cuerpo, botones.botones)
-        : await sendCustomerText(conversation.id, from, bloque);
+      const { sentId, conBotones: salieronBotones } = await enviarBloque(conversation.id, from, bloque, botones);
+      const metadataDelBloque = indice === indiceDeLaOferta ? metadatoDeOferta : { oferta: null };
       await appendMessage(conversation.id, "assistant", bloque, sentId, {
         authorKind: "bot",
         status: "sent",
         // Todos los bloques llevan la clave (el hecho, en el de la oferta): una
         // fila del bot sin ella se lee como anterior al deploy (ver ofertaVigente).
-        metadata: indice === indiceDeLaOferta ? metadatoDeOferta : { oferta: null },
+        // Los botones que de verdad salieron quedan anotados para que el hub
+        // los pinte debajo del texto (el asesor ve lo mismo que el cliente).
+        metadata: salieronBotones
+          ? { ...metadataDelBloque, botones: salieronBotones.botones.map((b) => ({ id: b.id, titulo: b.titulo })) }
+          : metadataDelBloque,
       });
     } catch (sendError) {
       console.error(`❌ No se pudo enviar la respuesta a ${from}:`, sendError);
@@ -809,6 +819,29 @@ async function botonesDelUltimoBloque(
 }
 
 /**
+ * Manda un bloque del turno: con botones si los hay, y si Meta los rechaza,
+ * el MISMO texto plano de siempre. Un botón es un atajo; el cliente nunca se
+ * puede quedar sin la pregunta porque el atajo falló (formato, título largo,
+ * cuenta sin interactivos…). Si el texto también falla, el error sube como
+ * antes y el bloque queda «failed» en el hub.
+ */
+async function enviarBloque(
+  conversationId: number,
+  telefono: string,
+  bloque: string,
+  botones: BloqueConBotones | null,
+): Promise<{ sentId: string | undefined; conBotones: BloqueConBotones | null }> {
+  if (botones) {
+    try {
+      return { sentId: await sendCustomerButtons(conversationId, telefono, botones.cuerpo, botones.botones), conBotones: botones };
+    } catch (error) {
+      console.warn(`⚠️ Meta rechazó los botones en la conv ${conversationId}; sale como texto:`, error);
+    }
+  }
+  return { sentId: await sendCustomerText(conversationId, telefono, bloque), conBotones: null };
+}
+
+/**
  * Los botones de las plantillas de visita, como los habría escrito el cliente
  * (19-nov-2026). «Cambiar día» a secas, en el simulador, el bot lo leyó como
  * «sí, el día de siempre» y confirmó la misma fecha: la frase completa dice lo
@@ -838,6 +871,11 @@ async function recibirMensaje(
   quotedWaMessageId: string | null = null,
   /** El anuncio desde el que se abrió el chat, si Meta lo mandó. Ver `domain/anuncio.ts`. */
   anuncio: Anuncio | null = null,
+  /**
+   * El botón que tocó, si fue un toque: el texto guardado es la traducción
+   * («la 2») y el hub muestra además lo que el cliente vio («2 · KENDA KR29»).
+   */
+  boton: { id: string; titulo: string } | null = null,
 ): Promise<void> {
   // Si escribe un asesor, su ventana de 24 h se reabre. No lo desvía del
   // pipeline a propósito: un asesor probando el bot tiene que ver que contesta.
@@ -861,9 +899,10 @@ async function recibirMensaje(
   // archiva — y para que el silencio se mida contra el mensaje anterior, no
   // contra este. Ver `reiniciarSiLaMemoriaVencio`.
   const conversation = await reiniciarSiLaMemoriaVencio(creada, receivedAt);
+  const metadataEntrante = { ...(anuncio ? { anuncio } : {}), ...(boton ? { boton } : {}) };
   const esNuevo = await appendMessage(conversation.id, "user", texto, waMessageId, {
     occurredAt: receivedAt,
-    ...(anuncio ? { metadata: { anuncio } } : {}),
+    ...(Object.keys(metadataEntrante).length ? { metadata: metadataEntrante } : {}),
   });
   if (!esNuevo) return; // reentrega de Meta: ya estaba guardado
   emitLiveEvent("message", conversation.id);
@@ -976,6 +1015,8 @@ setWaHandlers({
           message.id,
           receivedAt,
           citado,
+          null,
+          { id: respuesta.id, titulo: respuesta.title },
         );
         break;
       }

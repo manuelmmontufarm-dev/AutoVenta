@@ -17,6 +17,7 @@ import { productosDelCatalogoMencionados } from "./catalog.js";
 import { politica } from "../negocio/politica.js";
 import { cantidadValidaDeLaFicha } from "../domain/cantidadGrande.js";
 import { cantidadDelTexto } from "../domain/salesIntent.js";
+import { opcionEnDigitos } from "../domain/opcionEnLetras.js";
 import type { LineaConPromo, RespaldoDelCatalogo } from "../domain/sinPrecioPorLlantaConPromo.js";
 
 export interface LineaDeCotizacion {
@@ -146,7 +147,12 @@ export async function cantidadDelCliente(
   // precedió (NO contra el saliente más nuevo: para cuando corre el candado, `generar_cotizacion` ya
   // guardó «Cotización … enviada»). Si todavía no está guardado, lo anterior es lo último que se dijo.
   const ultimo = filas.findIndex(esDelCliente);
-  const previoDelTurno = ultimo >= 0 && (filas[ultimo].content ?? "").trim() === (textoDelTurno ?? "").trim()
+  // El turno ya trae la posición en dígitos («uno» → «1», `opcionEnDigitos`) y la base guarda lo
+  // que escribió el cliente: se comparan traducidos, o «1» no se reconoce como el mismo mensaje, se
+  // lee sin la pregunta delante y cotiza 1 llanta (simulador Depot y Competimotor, 20-nov).
+  const mismoMensaje = (a: string | null | undefined, b: string | null | undefined) =>
+    opcionEnDigitos(a ?? "", { menuAbierto: true }).trim() === opcionEnDigitos(b ?? "", { menuAbierto: true }).trim();
+  const previoDelTurno = ultimo >= 0 && mismoMensaje(filas[ultimo].content, textoDelTurno)
     ? previoDe(ultimo)
     : previoDe(-1);
   // Contestar el menú es elegir, no pedir llantas: lo dice el HECHO guardado en el saliente
@@ -155,7 +161,11 @@ export async function cantidadDelCliente(
   // también mira el mensaje que el cliente citó, si lo hay.
   const leer = (texto: string | null | undefined, previo: { content: string | null; menu: boolean }, citado: string | null = null): number | null => {
     if (!texto) return null;
-    if (previo.menu && !/\b(?:llantas?|unidad(?:es)?)\b/i.test(texto)) return null;
+    // «solo uno», «mejor solo dos»: con «solo» delante el número es cuántas, nunca la posición
+    // («solo la dos» trae el artículo y no calza). Simulador Competimotor, 20-nov.
+    const soloN = /(?:^|\s)(?:solo|solamente|unicamente|nomas|no\s+mas)\s+(?:[1-8]|un|uno|una|dos|tres|cuatro|cinco|seis|siete|ocho)\b/i
+      .test(texto.normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
+    if (previo.menu && !soloN && !/\b(?:llantas?|unidad(?:es)?)\b/i.test(texto)) return null;
     return cantidadDelTexto(texto, previo.content, citado);
   };
   // Lo último que dijo el cliente manda siempre (su mensaje de este turno o, si el llamador no lo

@@ -37,6 +37,11 @@ export async function levantarGraphSim({ puerto, dirPiezas }) {
   /** media_id → { bytes, mime } — lo que el cliente manda (fotos, audios). */
   const entrantes = new Map();
   let contador = 0;
+  // Para probar el respaldo: los próximos N mensajes con botones se rechazan
+  // como lo haría Meta (400 con su error) y el bot tiene que mandar el mismo
+  // texto plano. Se cuenta y se apaga solo, para que un escenario no deje
+  // rechazando al siguiente. Se prende desde la pantalla: POST /api/graph.
+  let rechazarBotones = 0;
 
   const server = createServer(async (req, res) => {
     const url = new URL(req.url ?? "/", `http://127.0.0.1:${puerto}`);
@@ -132,6 +137,13 @@ export async function levantarGraphSim({ puerto, dirPiezas }) {
     // --- Envío de mensajes ------------------------------------------------
     const crudo = await leerCuerpo(req);
     const cuerpo = (() => { try { return JSON.parse(crudo.toString("utf8")); } catch { return {}; } })();
+    if (rechazarBotones > 0 && cuerpo.type === "interactive") {
+      rechazarBotones -= 1;
+      return json(res, 400, {
+        error: { message: "(#131009) Parameter value is not valid", type: "OAuthException", code: 131009,
+          error_data: { details: "simulador: botones rechazados a propósito (POST /api/graph)" } },
+      });
+    }
     contador += 1;
     const wamid = `wamid.SIM_${contador}`;
     // El «escribiendo…» y el acuse de lectura salen por la misma ruta que un
@@ -188,6 +200,12 @@ export async function levantarGraphSim({ puerto, dirPiezas }) {
       return id;
     },
     reset: () => { enviados.length = 0; },
+    /** Prende o apaga el rechazo de los mensajes con botones (prueba del respaldo a texto). */
+    rechazarBotones: (n) => { rechazarBotones = n === true ? 1 : Math.max(0, Number(n) || 0); return rechazarBotones; },
+    /** Los botones del último mensaje con botones que se le mandó a `para`. */
+    ultimosBotones: (para) => [...enviados].reverse().find((e) => e.para === para && (e.botones ?? []).length)?.botones ?? null,
+    /** El wamid del último mensaje que ofreció ese botón: es el `context.id` que Meta manda al tocarlo. */
+    wamidDelBoton: (id) => [...enviados].reverse().find((e) => (e.botones ?? []).some((b) => b.id === id))?.wamid ?? null,
     cerrar: () => new Promise((ok) => server.close(ok)),
   };
 }
