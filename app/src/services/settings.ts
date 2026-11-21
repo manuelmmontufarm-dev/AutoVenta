@@ -549,15 +549,18 @@ export async function saveCouponConfig(input: unknown): Promise<CouponConfig> {
 }
 
 /**
- * VENTA REGISTRADA (21-nov-2026): si «ganado» exige que la venta esté
- * registrada en `/venta`. Nace APAGADO: mientras el registro está en prueba el
- * asesor sigue pudiendo marcar «ganado» a mano, y el panel solo marca esos
- * tickets como «sin registrar». Encendido, el panel no deja cerrar como ganado
- * un ticket sin venta registrada en su ciclo. Es un ajuste del negocio (cada
- * cliente tiene su base), no una variable de entorno: se prende desde Ajustes.
+ * CIERRE «GANADO» CONFIRMADO (21-nov-2026, Manuel).
+ *
+ * «Ganado» = el asesor confirma que el cliente compró ACÁ. Encendido (por
+ * defecto), cerrar como ganado desde el panel pide «el cliente llegó y compró»
+ * más factura y monto —o «completar después», que deja la venta contada pero
+ * con la factura pendiente— y escribe en la misma tabla que `/venta`
+ * (`ventas_registradas`): ganado y venta registrada son una sola cosa. Apagado,
+ * se vuelve al cierre libre de antes; queda como salida de emergencia, no como
+ * modo normal. Es un ajuste del negocio (cada cliente tiene su base).
  */
 export const VentaRegistradaConfigSchema = z.object({
-  exigirParaGanado: z.boolean().default(false),
+  confirmarGanado: z.boolean().default(true),
 });
 export type VentaRegistradaConfig = z.infer<typeof VentaRegistradaConfigSchema>;
 export const DEFAULT_VENTA_REGISTRADA_CONFIG: VentaRegistradaConfig = VentaRegistradaConfigSchema.parse({});
@@ -573,7 +576,8 @@ export async function getVentaRegistradaConfig(): Promise<VentaRegistradaConfig>
     ventaRegistradaCache = { value, at: Date.now() };
     return value;
   } catch {
-    // Sin poder leer el ajuste, apagado: no se le bloquea el cierre a nadie.
+    // Sin poder leer el ajuste, el de fábrica (encendido): el servidor sigue
+    // pidiendo la confirmación aunque la base tarde.
     return DEFAULT_VENTA_REGISTRADA_CONFIG;
   }
 }

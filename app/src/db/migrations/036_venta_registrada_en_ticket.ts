@@ -17,6 +17,16 @@ export const VENTA_EN_TICKET_MIGRATION_ID = "036_venta_registrada_en_ticket";
  *    de este cambio, que no tocó el ticket.
  *  - `etapa_anterior` / `motivo_anterior`: para devolver el ticket a donde
  *    estaba si el vendedor corrige el número (`anulada_at`).
+ *  - `monto`: lo que pagó el cliente. Con `factura`, completa la venta; sin
+ *    alguno de los dos la venta cuenta, pero queda «factura pendiente».
+ *  - `origen`: 'vendedor' (página /venta) o 'panel' (el asesor cerró como
+ *    ganado, o completó un ganado viejo). «Ganado» a mano y venta registrada
+ *    son ahora una sola cosa: el cierre del panel escribe en esta misma tabla.
+ *
+ * Y en `conversations`, la COMPRA POR CONFIRMAR: el cliente escribió «ya
+ * compré» y el bot ya no lo cierra como ganado solo (conv 293 de Competimotor,
+ * 21-nov: casi seguro compró en otro lado). Queda a la espera de que el asesor
+ * diga si compró acá (ganado) o en otro lado (perdido). Por ciclo.
  *
  * Los registros del 20-nov se vinculan a su ciclo (el que estaba vivo cuando se
  * registraron) para que el panel los muestre, pero NO se les cambia la etapa:
@@ -30,6 +40,12 @@ export async function runVentaEnTicketMigration(sql: Sql): Promise<void> {
       alter table ventas_registradas add column if not exists etapa_anterior text;
       alter table ventas_registradas add column if not exists motivo_anterior text;
       alter table ventas_registradas add column if not exists anulada_at timestamptz;
+      alter table ventas_registradas add column if not exists monto numeric(12,2);
+      alter table ventas_registradas add column if not exists origen text not null default 'vendedor';
+
+      alter table conversations add column if not exists compra_por_confirmar_at timestamptz;
+      alter table conversations add column if not exists compra_por_confirmar_cycle integer;
+      alter table conversations add column if not exists compra_por_confirmar_texto text;
 
       update ventas_registradas v
       set cycle = coalesce(

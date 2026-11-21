@@ -11,7 +11,7 @@ import { negocio } from "../negocio/index.js";
 import { nombreDelResponsable } from "./privacidad.js";
 import { tel9 } from "../services/fuentes/contifico.js";
 import {
-  anularRegistro, claveDeRegistrosValida, claveValida, efectoEnPalabras, guardarFactura, listarVentasRegistradas,
+  anularRegistro, claveDeRegistrosValida, claveValida, efectoEnPalabras, guardarFactura, leerMonto, listarVentasRegistradas,
   registrarVenta, validarEntrada, ventasACsv, type VentaRegistrada,
 } from "../services/registroDeVentas.js";
 
@@ -117,6 +117,8 @@ export function paginaDeRegistro(nombreNegocio: string): string {
     <form id="f2" novalidate>
       <label for="factura">Número de factura o referencia</label>
       <input id="factura" name="factura" maxlength="40" autocomplete="off">
+      <label for="monto">Monto pagado <small>(en dólares)</small></label>
+      <input id="monto" name="monto" inputmode="decimal" placeholder="230.50" maxlength="14" autocomplete="off">
       <p class="error" id="error2" role="alert"></p>
       <button id="enviar2" type="submit">Guardar factura</button>
     </form>
@@ -179,7 +181,7 @@ export function paginaDeRegistro(nombreNegocio: string): string {
       + (v.efectoEnTicket === "ya_ganado" ? " El chat ya estaba como venta ganada en el panel." : "")
       + (r.yaRegistradaPor ? " Ojo: este número ya lo registró hoy " + r.yaRegistradaPor + "." : "");
     $("paso").textContent = "Paso 2 de 2 · Factura o referencia";
-    $("factura").value = ""; error2.textContent = "";
+    $("factura").value = ""; $("monto").value = ""; error2.textContent = "";
     f2.style.display = "block"; $("listo").hidden = true; $("corregir").hidden = false;
     f.style.display = "none"; res.style.display = "block";
     $("factura").focus();
@@ -217,11 +219,13 @@ export function paginaDeRegistro(nombreNegocio: string): string {
     e.preventDefault();
     if (!actual) return;
     if (!$("factura").value.trim()) { error2.textContent = "Escribe el número de factura o la referencia."; $("factura").focus(); return; }
-    enviar("/venta/factura", { id: actual.id, telefono: actual.telefono, factura: $("factura").value },
+    if (!$("monto").value.trim()) { error2.textContent = "Escribe el monto que pagó el cliente."; $("monto").focus(); return; }
+    enviar("/venta/factura", { id: actual.id, telefono: actual.telefono, factura: $("factura").value, monto: $("monto").value },
       $("enviar2"), "Guardar factura", error2, function (j) {
         f2.style.display = "none"; $("corregir").hidden = true;
         $("listo").hidden = false;
-        $("listo").textContent = "Listo. Factura o referencia guardada: " + j.venta.factura;
+        $("listo").textContent = "Listo. Factura " + j.venta.factura
+          + (j.venta.monto != null ? " por $" + Number(j.venta.monto).toFixed(2) : "") + " guardada.";
         $("paso").textContent = "Venta registrada";
       });
   });
@@ -257,6 +261,7 @@ export function paginaDeRegistros(nombreNegocio: string, ventas: VentaRegistrada
     <td>${escapar(soloFecha(v.ultimoMensajeAt))}</td>
     <td>${v.vinoDeWhatsapp ? (v.cotizaciones > 0 ? "Sí" : "No") : ""}</td>
     <td class="num">${v.factura ? escapar(v.factura) : '<span class="falta">sin factura</span>'}</td>
+    <td class="num">${v.monto != null ? `$${v.monto.toFixed(2)}` : '<span class="falta">sin monto</span>'}</td>
     <td>${v.anuladaAt ? `<span class="falta">${escapar(efectoEnPalabras(v))}</span>` : escapar(efectoEnPalabras(v))}</td>
   </tr>`).join("");
   const negocioHtml = escapar(nombreNegocio);
@@ -275,7 +280,7 @@ export function paginaDeRegistros(nombreNegocio: string, ventas: VentaRegistrada
   .dato b { font-size: 20px; margin-right: 6px; font-variant-numeric: tabular-nums; }
   a.boton { margin-left:auto; background:#14171c; color:#fff; text-decoration:none; font-weight:700; padding:10px 16px; border-radius:10px; }
   .tabla { background:#fff; border:1px solid #d5d9e0; border-radius:12px; overflow-x:auto; }
-  table { border-collapse: collapse; width:100%; min-width: 940px; }
+  table { border-collapse: collapse; width:100%; min-width: 1020px; }
   th, td { text-align:left; padding:10px 12px; border-bottom:1px solid #eceef2; white-space:nowrap; }
   th { font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:#5d6673; background:#fafbfc; }
   tr:last-child td { border-bottom:0; }
@@ -295,7 +300,7 @@ export function paginaDeRegistros(nombreNegocio: string, ventas: VentaRegistrada
     <a class="boton" href="/venta/registros.csv?k=${encodeURIComponent(clave)}">Descargar Excel</a>
   </div>
   <div class="tabla">${ventas.length ? `<table>
-    <thead><tr><th>Registrado</th><th>Vendedor</th><th>Número</th><th>WhatsApp</th><th>Nombre en el chat</th><th>Último mensaje</th><th>Cotizó el bot</th><th>Factura o referencia</th><th>Ticket</th></tr></thead>
+    <thead><tr><th>Registrado</th><th>Vendedor</th><th>Número</th><th>WhatsApp</th><th>Nombre en el chat</th><th>Último mensaje</th><th>Cotizó el bot</th><th>Factura o referencia</th><th>Monto</th><th>Ticket</th></tr></thead>
     <tbody>${filas}</tbody></table>` : '<p class="vacio">Todavía no hay ventas registradas.</p>'}</div>
 </main></body></html>`;
 }
@@ -372,8 +377,14 @@ export function createRegistroVentaRouter(): express.Router {
       res.status(400).json({ ok: false, error: "Escribe el número de factura o la referencia." });
       return;
     }
+    // El monto es opcional para la API (los enlaces viejos solo mandan la
+    // factura); la página lo pide. Sin él la venta queda «factura pendiente».
+    if (String(cuerpo.monto ?? "").trim() && leerMonto(cuerpo.monto) == null) {
+      res.status(400).json({ ok: false, campo: "monto", error: "Revisa el monto: escribe solo el número, por ejemplo 230.50." });
+      return;
+    }
     try {
-      const venta = await guardarFactura(cuerpo.id as number, llave, cuerpo.factura);
+      const venta = await guardarFactura(cuerpo.id as number, llave, cuerpo.factura, cuerpo.monto);
       if (!venta) {
         res.status(404).json({ ok: false, error: "No se encontró ese registro. Vuelve a validar el número." });
         return;

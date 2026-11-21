@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Atiende, BotAlert, BotPower, RegistroVentaConfig, Cierre, EchoHealth, Etapa, FeedItem, FinalStage, FollowUpCard, HubMetrics, MesDisponible, Mensaje, PhaseFlags, Rol, TemplatePlanPreview, Ticket } from "./data/types";
+import type { Atiende, BotAlert, BotPower, DatosCierreGanado, RegistroVentaConfig, Cierre, EchoHealth, Etapa, FeedItem, FinalStage, FollowUpCard, HubMetrics, MesDisponible, Mensaje, PhaseFlags, Rol, TemplatePlanPreview, Ticket } from "./data/types";
 import { TODOS } from "./data/types";
 import { MockSource } from "./data/mock/mockSource";
 import { Simulator } from "./data/mock/simulator";
@@ -117,7 +117,8 @@ interface HubState {
   salir(): void;
   abrirTicket(id: number): Promise<void>;
   moverEtapa(id: number, etapa: Etapa): Promise<void>;
-  cerrar(id: number, cierre: Cierre, nota?: string): Promise<void>;
+  cerrar(id: number, cierre: Cierre, nota?: string, venta?: DatosCierreGanado): Promise<void>;
+  completarVenta(id: number, factura: string, monto: string, cycle?: number): Promise<void>;
   reabrir(id: number): Promise<void>;
   setAtiende(id: number, atiende: Atiende): Promise<void>;
   marcarParaDespues(id: number, enabled: boolean): Promise<void>;
@@ -561,7 +562,14 @@ export const useHub = create<HubState>((set, get) => {
     },
 
     moverEtapa: (id, etapa) => source.moverEtapa(id, etapa),
-    cerrar: (id, cierre, nota) => source.cerrar(id, cierre, nota),
+    async cerrar(id, cierre, nota, venta) {
+      await source.cerrar(id, cierre, nota, venta);
+      await refrescar();
+    },
+    async completarVenta(id, factura, monto, cycle) {
+      await source.completarVenta(id, factura, monto, cycle);
+      await refrescar();
+    },
     reabrir: (id) => source.reabrir(id),
     /**
      * Optimista: el control cambia de cara en el acto. Antes esperaba al PUT y

@@ -16,7 +16,9 @@ import type {
   FollowUpCard,
   BotAlert,
   BotPower,
+  DatosCierreGanado,
   RegistroVentaConfig,
+  VentasPendientes,
 } from "./types";
 
 const ADMIN_KEY_STORAGE = "autoventa_admin_key";
@@ -372,11 +374,22 @@ export class RealSource implements DataSource {
     });
   }
 
-  async cerrar(ticketId: number, cierre: Cierre, nota?: string): Promise<void> {
+  async cerrar(ticketId: number, cierre: Cierre, nota?: string, venta?: DatosCierreGanado): Promise<void> {
     await this.request(`/api/hub/tickets/${ticketId}/close`, {
       method: "POST",
-      body: JSON.stringify({ closure: cierre, note: nota }),
+      body: JSON.stringify({ closure: cierre, note: nota, ...(venta ?? {}) }),
     });
+  }
+
+  async completarVenta(ticketId: number, factura: string, monto: string, cycle?: number): Promise<void> {
+    await this.request(`/api/hub/tickets/${ticketId}/venta`, {
+      method: "POST",
+      body: JSON.stringify({ factura, monto, cycle }),
+    });
+  }
+
+  async getVentasPendientes(): Promise<VentasPendientes> {
+    return (await this.request<{ pendientes: VentasPendientes }>("/api/hub/ventas-pendientes")).pendientes;
   }
 
   async reabrir(ticketId: number): Promise<void> {
@@ -443,15 +456,15 @@ export class RealSource implements DataSource {
 
   async getRegistroVenta(): Promise<RegistroVentaConfig> {
     const r = await this.request<RegistroVentaConfig & { ok: true }>("/api/hub/registro-venta");
-    return { enlace: r.enlace, exigirParaGanado: r.exigirParaGanado };
+    return { enlace: r.enlace, confirmarGanado: r.confirmarGanado };
   }
 
-  async setRegistroVenta(exigirParaGanado: boolean): Promise<RegistroVentaConfig> {
+  async setRegistroVenta(confirmarGanado: boolean): Promise<RegistroVentaConfig> {
     const r = await this.request<RegistroVentaConfig & { ok: true }>("/api/hub/registro-venta", {
       method: "PUT",
-      body: JSON.stringify({ exigirParaGanado }),
+      body: JSON.stringify({ confirmarGanado }),
     });
-    return { enlace: r.enlace, exigirParaGanado: r.exigirParaGanado };
+    return { enlace: r.enlace, confirmarGanado: r.confirmarGanado };
   }
 
   async getBotPower(): Promise<BotPower> {

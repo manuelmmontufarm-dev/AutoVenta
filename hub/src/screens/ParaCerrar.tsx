@@ -1,12 +1,13 @@
 import { AnimatePresence } from "framer-motion";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { IconX } from "../components/icons";
+import { CamposCierreGanado, CompletarVenta, DATOS_VACIOS, faltaParaCerrar } from "../components/venta";
 import { EmptyState, MarcaAsesor, MedidaChip, Modal, PageHeader, Segmented, SkeletonRows } from "../components/ui";
 import { useParaCerrar } from "../data/paraCerrar";
-import type { AccionParaCerrar, ClienteArchivado, ClienteEmpujando, ClienteParaCerrar, CurvaLlegada, Temperatura } from "../data/types";
+import type { AccionParaCerrar, ClienteArchivado, ClienteEmpujando, ClienteParaCerrar, CurvaLlegada, DatosCierreGanado, Temperatura, VentasPendientes } from "../data/types";
 import { money, relTime } from "../lib/format";
 import { navigate } from "../router";
-import { useHub, useNow } from "../store";
+import { source, useHub, useNow } from "../store";
 
 /**
  * PARA CERRAR — a quién empujar hoy para llegar a la venta (Manuel, 24-oct).
@@ -17,7 +18,10 @@ import { useHub, useNow } from "../store";
  * escribieron; se puede ignorar) y el Archivo (14 días sin texto) son listas. Las reglas viven en app/src/domain/paraCerrar.ts.
  */
 
-type Vista = "cerrar" | "empujando" | "archivo";
+type Vista = "cerrar" | "empujando" | "porcompletar" | "archivo";
+
+/** A quién se está por cerrar como ganado: un cliente de la lista o uno que dijo «ya compré». */
+interface PorVender { ticketId: number; nombre: string | null; telefono: string; detalle: string }
 
 const MOTIVOS = ["Precio", "Compró en otro lado", "No contestó", "Ya no necesita", "Otro"];
 
@@ -25,15 +29,23 @@ interface Deshacer { texto: string; accion?: () => Promise<void> }
 
 export function ParaCerrar() {
   const { datos, error, cargar, decidir } = useParaCerrar();
-  const { dataMode, cerrar } = useHub();
+  const { dataMode, cerrar, registroVenta } = useHub();
   const now = useNow();
   const [vista, setVista] = useState<Vista>("cerrar");
-  const [vendiendo, setVendiendo] = useState<ClienteParaCerrar | null>(null);
+  const [vendiendo, setVendiendo] = useState<PorVender | null>(null);
+  const [ventaVendido, setVentaVendido] = useState<DatosCierreGanado>(DATOS_VACIOS);
+  const [pendientes, setPendientes] = useState<VentasPendientes | null>(null);
+  const cargarPendientes = useCallback(async () => {
+    try { setPendientes(await source.getVentasPendientes()); } catch { /* la pestaña dice «Cargando…» y se reintenta al volver */ }
+  }, []);
+  const pideVenta = registroVenta?.confirmarGanado ?? true;
+  const venderA = (v: PorVender) => { setVentaVendido(DATOS_VACIOS); setVendiendo(v); };
   const [perdiendo, setPerdiendo] = useState<ClienteParaCerrar | null>(null);
   const [posponiendo, setPosponiendo] = useState<ClienteParaCerrar | null>(null);
   const [aviso, setAviso] = useState<Deshacer | null>(null);
 
   useEffect(() => { if (dataMode === "real") void cargar(); }, [dataMode, cargar]);
+  useEffect(() => { if (dataMode === "real") void cargarPendientes(); }, [dataMode, cargarPendientes]);
   useEffect(() => {
     if (!aviso) return;
     const t = setTimeout(() => setAviso(null), 8000);
@@ -49,11 +61,15 @@ export function ParaCerrar() {
     }
   };
   const accion = (id: number, a: AccionParaCerrar) => () => decidir(id, a);
-  const cerrarYRecargar = (id: number, cierre: "ganado" | "perdido", nota?: string) => async () => { await cerrar(id, cierre, nota); await cargar(); };
+  const cerrarYRecargar = (id: number, cierre: "ganado" | "perdido", nota?: string, venta?: DatosCierreGanado) => async () => {
+    await cerrar(id, cierre, nota, venta);
+    await Promise.all([cargar(), cargarPendientes()]);
+  };
 
   const subs: Record<Vista, string> = {
     cerrar: "Ya aceptaron precio y local, y el último mensaje es de ellos",
     empujando: "Ya les escribieron. Salen si compran, con la ✕ o a los 14 días",
+    porcompletar: "Dijeron «ya compré» o se cerraron como ganados sin factura: confirma y completa la venta",
     archivo: "14 días sin texto. No salen en ninguna lista, pero aquí siguen",
   };
 
@@ -75,6 +91,10 @@ export function ParaCerrar() {
         opciones={[
           { valor: "cerrar", label: "Para cerrar", badge: datos?.paraCerrar.length, tono: "neutral" },
           { valor: "empujando", label: "Empujando", badge: datos?.empujando.length, tono: "neutral" },
+          {
+            valor: "porcompletar", label: "Por completar",
+            badge: pendientes ? pendientes.porConfirmar.length + pendientes.facturaPendiente.length : undefined, tono: "neutral",
+          },
         ]}
       />
       <button
@@ -109,7 +129,7 @@ export function ParaCerrar() {
             compraron={datos.compraron}
             now={now}
             onSacar={(c) => void hacer(`${c.nombre ?? "Cliente"} salió de Empujando`, accion(c.ticketId, { accion: "sacar" }), accion(c.ticketId, { accion: "devolver" }))}
-            onVendido={setVendiendo}
+            onVendido={(c) => venderA({ ticketId: c.ticketId, nombre: c.nombre, telefono: c.telefono, detalle: `${money(c.total)} · ${c.llantas}` })}
             onPerdido={setPerdiendo}
             onPosponer={setPosponiendo}
           />
@@ -120,6 +140,15 @@ export function ParaCerrar() {
             compraron={datos.compraron}
             now={now}
             onSacar={(c) => void hacer(`${c.nombre ?? "Cliente"} salió de Empujando`, accion(c.ticketId, { accion: "sacar" }), accion(c.ticketId, { accion: "devolver" }))}
+          />
+        )}
+        {vista === "porcompletar" && (
+          <VistaPorCompletar
+            pendientes={pendientes}
+            now={now}
+            onListo={() => void Promise.all([cargar(), cargarPendientes()])}
+            onCompraAca={(p) => venderA({ ticketId: p.conversationId, nombre: p.nombre, telefono: p.telefono, detalle: p.texto ? `Dijo: «${p.texto}»` : "Dijo que ya compró" })}
+            onCompraAfuera={(p) => void hacer(`Perdido · ${p.nombre ?? p.telefono} · compró en otro lado`, cerrarYRecargar(p.conversationId, "perdido", "Compró en otro lado"))}
           />
         )}
         {datos && vista === "archivo" && (
@@ -136,12 +165,14 @@ export function ParaCerrar() {
             nueva sin la cotización ni el día. Por eso se confirma antes. */}
         {vendiendo && (
           <Modal onClose={() => setVendiendo(null)}>
-            <Hoja titulo={`¿Vendido a ${vendiendo.nombre ?? "este cliente"}?`} detalle={`${money(vendiendo.total)} · ${vendiendo.llantas}. El ticket se cierra como ganado.`} onCerrar={() => setVendiendo(null)}>
+            <Hoja titulo={`¿Vendido a ${vendiendo.nombre ?? "este cliente"}?`} detalle={`${vendiendo.detalle} — el ticket se cierra como ganado.`} onCerrar={() => setVendiendo(null)}>
+              {pideVenta && <div className="-mt-3"><CamposCierreGanado datos={ventaVendido} onChange={setVentaVendido} yaCompleta={false} /></div>}
+              {pideVenta && faltaParaCerrar(ventaVendido, false) && <p className="-mt-2 text-[12px] text-text2">{faltaParaCerrar(ventaVendido, false)}</p>}
               <div className="flex justify-end gap-2">
                 <button className="btn-quiet h-9 rounded-[6px] px-3.5 text-[13px]" onClick={() => setVendiendo(null)}>Cancelar</button>
-                <button className="btn-signal h-9 rounded-[6px] px-3.5 text-[13px]" onClick={() => {
+                <button className="btn-signal h-9 rounded-[6px] px-3.5 text-[13px]" disabled={pideVenta && Boolean(faltaParaCerrar(ventaVendido, false))} onClick={() => {
                   const c = vendiendo; setVendiendo(null);
-                  void hacer(`Vendido · ${c.nombre ?? c.telefono} · ${money(c.total)}`, cerrarYRecargar(c.ticketId, "ganado"));
+                  void hacer(`Vendido · ${c.nombre ?? c.telefono}`, cerrarYRecargar(c.ticketId, "ganado", undefined, pideVenta ? ventaVendido : undefined));
                 }}>Sí, vendido</button>
               </div>
             </Hoja>
@@ -819,4 +850,88 @@ function opcionesPosponer(now: number): Array<{ label: string; hasta: Date }> {
     { label: hoy.getDate() < 15 ? "La quincena (15)" : `Fin de mes (${finDeMes.getDate()})`, hasta: quincena },
   ];
   return opciones.filter((o) => o.hasta.getTime() > now);
+}
+
+/* ── Por completar: lo que falta para que «ganado» sea venta (Manuel, 21-nov) ──
+   Tres grupos: los que dijeron «ya compré» (el bot ya no los cierra solo: el
+   asesor decide acá o en otro lado), los ganados con la factura o el monto
+   pendiente, y los ganados viejos que nadie registró. Las mismas acciones
+   están en la ficha del ticket. */
+
+function VistaPorCompletar({ pendientes, now, onListo, onCompraAca, onCompraAfuera }: {
+  pendientes: VentasPendientes | null;
+  now: number;
+  onListo: () => void;
+  onCompraAca: (p: VentasPendientes["porConfirmar"][number]) => void;
+  onCompraAfuera: (p: VentasPendientes["porConfirmar"][number]) => void;
+}) {
+  const [verViejos, setVerViejos] = useState(false);
+  if (!pendientes) return <SkeletonRows n={4} />;
+  const { porConfirmar, facturaPendiente, sinRegistrar } = pendientes;
+  const titulo = (texto: string, n: number, detalle: string) => (
+    <div className="mb-2 flex items-baseline justify-between gap-3 border-b border-line pb-2">
+      <span className="text-[14px] font-semibold">{texto} <span className="tnum font-mono text-[12px] text-text2">{n}</span></span>
+      <span className="text-right text-[12px] text-text2">{detalle}</span>
+    </div>
+  );
+  const nombre = (id: number, n: string | null, tel: string) => (
+    <button className="truncate text-left font-medium hover:underline" onClick={() => navigate(`ticket/${id}`)}>{n ?? tel}</button>
+  );
+  return (
+    <div className="flex max-w-[860px] flex-col gap-8 pt-2">
+      <section>
+        {titulo("Dicen que ya compraron", porConfirmar.length, "El bot no los cierra: ¿compró acá o en otro lado?")}
+        {porConfirmar.length === 0 && <p className="py-3 text-[13px] text-text2">Nadie por confirmar.</p>}
+        {porConfirmar.map((p) => (
+          <div key={p.conversationId} className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line py-3 text-[13px]">
+            <div className="flex min-w-[220px] flex-1 flex-col">
+              {nombre(p.conversationId, p.nombre, p.telefono)}
+              <span className="text-[12px] text-text2">
+                {p.texto ? `«${p.texto}»` : "Dijo que ya compró"} · {relTime(p.dijoEn, now)}{p.cotizado != null ? ` · cotizado ${money(p.cotizado)}` : ""}
+              </span>
+            </div>
+            <div className="flex gap-2">
+              <button className="btn-signal h-9 rounded-[6px] px-3.5 text-[13px]" onClick={() => onCompraAca(p)}>Compró acá</button>
+              <button className="btn-quiet h-9 rounded-[6px] px-3.5 text-[13px]" onClick={() => onCompraAfuera(p)}>Compró en otro lado</button>
+            </div>
+          </div>
+        ))}
+      </section>
+
+      <section>
+        {titulo("Factura pendiente", facturaPendiente.length, "Cuentan como venta. Falta la factura o el monto")}
+        {facturaPendiente.length === 0 && <p className="py-3 text-[13px] text-text2">Todas las ventas están completas.</p>}
+        {facturaPendiente.map((p) => (
+          <div key={`${p.conversationId}-${p.cycle}`} className="flex flex-col gap-2 border-b border-line py-3 text-[13px]">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              {nombre(p.conversationId, p.nombre, p.telefono)}
+              <span className="text-[12px] text-text2">
+                Ganado por {p.vendedor} · {relTime(p.registradaEn, now)}{p.cotizado != null ? ` · cotizado ${money(p.cotizado)}` : ""}
+              </span>
+            </div>
+            <CompletarVenta ticketId={p.conversationId} cycle={p.cycle} onListo={onListo} compacto />
+          </div>
+        ))}
+      </section>
+
+      <section>
+        {titulo("Ganados sin registrar", sinRegistrar.length, "De antes de que el cierre pidiera la venta. Se completan igual")}
+        {!verViejos ? (
+          <button className="btn-quiet h-9 rounded-[6px] px-3.5 text-[13px]" onClick={() => setVerViejos(true)} disabled={sinRegistrar.length === 0}>
+            {sinRegistrar.length === 0 ? "No hay ganados sin registrar" : `Ver los ${sinRegistrar.length} más recientes`}
+          </button>
+        ) : (
+          sinRegistrar.map((p) => (
+            <div key={`${p.conversationId}-${p.cycle}`} className="flex flex-col gap-2 border-b border-line py-3 text-[13px]">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                {nombre(p.conversationId, p.nombre, p.telefono)}
+                <span className="text-[12px] text-text2">Ganado {relTime(p.cerradoEn, now)}{p.cotizado != null ? ` · cotizado ${money(p.cotizado)}` : ""}</span>
+              </div>
+              <CompletarVenta ticketId={p.conversationId} cycle={p.cycle} onListo={onListo} compacto />
+            </div>
+          ))
+        )}
+      </section>
+    </div>
+  );
 }

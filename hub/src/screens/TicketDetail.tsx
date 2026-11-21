@@ -3,7 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import { ChatBubble, Composer, CotizacionModal, TypingBubble } from "../components/chat";
 import { IconBack, IconDoc, IconRefresh, IconX } from "../components/icons";
 import { BlockTitle, Campo, CierreBadge, CierreIcon, MedidaChip, Modal, Segmented } from "../components/ui";
-import { CIERRE_META, ETAPA_META, enlaceRegistrarVenta, ganadoSinRegistrar, type Cierre, type Mensaje, type Ticket } from "../data/types";
+import { CIERRE_META, DETALLE_VENTA, ETAPA_META, enlaceRegistrarVenta, estadoDeLaVenta, ventaCompleta, type Cierre, type DatosCierreGanado, type Mensaje, type Ticket } from "../data/types";
+import { CamposCierreGanado, CompletarVenta, DATOS_VACIOS, faltaParaCerrar } from "../components/venta";
 import { etiquetaVisita, money, relTime } from "../lib/format";
 import { navigate } from "../router";
 import { useHub, useNow } from "../store";
@@ -23,7 +24,8 @@ export function TicketDetail({ id }: { id: number }) {
   const now = useNow();
 
   const [verCotizacion, setVerCotizacion] = useState(false);
-  const [cerrando, setCerrando] = useState(false);
+  // Abierto con un cierre ya elegido cuando viene de «Compró acá / en otro lado».
+  const [cerrando, setCerrando] = useState<false | { cierre?: Cierre; nota?: string }>(false);
   const [fichaMovil, setFichaMovil] = useState(false);
   const [verDescuento, setVerDescuento] = useState(false);
   const [cargandoTicket, setCargandoTicket] = useState(!ticket);
@@ -124,6 +126,10 @@ export function TicketDetail({ id }: { id: number }) {
       }}
       onReabrir={() => void reabrir(ticket.id)}
       onNota={(texto) => void agregarNota(ticket.id, texto)}
+      onCerrarComo={(cierre, nota) => {
+        setFichaMovil(false);
+        setCerrando({ cierre, nota });
+      }}
     />
   );
 
@@ -151,7 +157,7 @@ export function TicketDetail({ id }: { id: number }) {
           {abierto && (
             <>
               <button onClick={abrirDescuento} className="btn-quiet hidden h-9 rounded-[6px] px-3.5 text-[13px] md:inline-flex md:items-center">Ofrecer descuento</button>
-              <button onClick={() => setCerrando(true)} className="btn-quiet hidden h-9 rounded-[6px] px-3.5 text-[13px] md:inline-flex md:items-center">Cerrar ticket</button>
+              <button onClick={() => setCerrando({})} className="btn-quiet hidden h-9 rounded-[6px] px-3.5 text-[13px] md:inline-flex md:items-center">Cerrar ticket</button>
             </>
           )}
           <button onClick={() => setFichaMovil(true)} className="btn-quiet h-9 rounded-[6px] px-3 text-[13px] lg:hidden">Ficha</button>
@@ -178,7 +184,10 @@ export function TicketDetail({ id }: { id: number }) {
               <span className="flex items-center gap-3">
                 <CierreBadge cierre={ticket.cierre} />
                 {/* Aquí el espacio es corto: con la ficha al lado no entra antes de xl. La sección «Venta» de la ficha lo dice siempre. */}
-                {ganadoSinRegistrar(ticket) && <span className="-ml-2 hidden text-[13px] whitespace-nowrap text-text2 xl:inline">· sin registrar</span>}
+                {(() => {
+                  const detalle = DETALLE_VENTA[estadoDeLaVenta(ticket) ?? "completa"];
+                  return detalle && <span className="-ml-2 hidden text-[13px] whitespace-nowrap text-text2 xl:inline">· {detalle}</span>;
+                })()}
                 <button onClick={() => void reabrir(ticket.id)} className="btn-quiet flex h-8 items-center gap-1.5 rounded-[6px] px-3 text-[12px]">
                   <IconRefresh size={13} /> Reabrir
                 </button>
@@ -234,7 +243,7 @@ export function TicketDetail({ id }: { id: number }) {
             {ficha}
             {abierto && (
               <div className="flex gap-2 border-t border-line p-4">
-                <button onClick={() => { setFichaMovil(false); setCerrando(true); }} className="btn-quiet h-10 flex-1 rounded-[6px] text-[13px]">Cerrar ticket</button>
+                <button onClick={() => { setFichaMovil(false); setCerrando({}); }} className="btn-quiet h-10 flex-1 rounded-[6px] text-[13px]">Cerrar ticket</button>
               </div>
             )}
           </Modal>
@@ -250,8 +259,10 @@ export function TicketDetail({ id }: { id: number }) {
         {cerrando && (
           <CerrarSheet
             ticket={ticket}
-            onCerrar={(cierre, nota) => {
-              void cerrar(ticket.id, cierre, nota);
+            cierreInicial={cerrando.cierre}
+            notaInicial={cerrando.nota}
+            onCerrar={async (cierre, nota, venta) => {
+              await cerrar(ticket.id, cierre, nota, venta);
               setCerrando(false);
             }}
             onCancelar={() => setCerrando(false)}
@@ -342,6 +353,7 @@ function Ficha({
   onVerCotizacion,
   onReabrir,
   onNota,
+  onCerrarComo,
 }: {
   ticket: Ticket;
   now: number;
@@ -350,6 +362,7 @@ function Ficha({
   onVerCotizacion: () => void;
   onReabrir: () => void;
   onNota: (texto: string) => void;
+  onCerrarComo: (cierre: Cierre, nota?: string) => void;
 }) {
   const { crearDescuento } = useHub();
   const [nota, setNota] = useState("");
@@ -457,7 +470,7 @@ function Ficha({
         )}
       </Seccion>
 
-      <SeccionVenta ticket={ticket} />
+      <SeccionVenta ticket={ticket} onCerrarComo={onCerrarComo} />
 
       <section ref={descuentoRef} className="flex flex-col gap-3.5 border-b border-line px-5 pt-5 pb-[18px]">
         <BlockTitle aside={abierto ? <button onClick={onToggleDescuento} className="font-medium text-signal">{verDescuento ? "Cancelar" : ticket.descuentoActivo ? "Ajustar" : "Ofrecer"}</button> : undefined}>Descuento</BlockTitle>
@@ -534,33 +547,60 @@ function Ficha({
   );
 }
 
-/* ── Venta registrada: lo que el vendedor anotó en /venta para este ticket ── */
+/* ── La venta del ticket: «ganado» = el asesor confirma que compró acá ── */
 
 /**
- * Si la venta está registrada: quién, cuándo y la factura. Si no, el botón que
- * abre `/venta` con el número del cliente ya puesto. Un «ganado» sin registro
- * lo dice: lo marcó alguien a mano.
+ * Lo que se sabe de la venta del ticket (Manuel, 21-nov-2026):
+ *  · el cliente dijo «ya compré» → el asesor decide: compró acá o en otro lado;
+ *  · venta completa → quién, cuándo, factura y monto;
+ *  · factura pendiente o ganado viejo sin registrar → el formulario para completarla;
+ *  · abierto sin venta → el enlace a /venta con el número puesto, para el vendedor.
  */
-function SeccionVenta({ ticket }: { ticket: Ticket }) {
+function SeccionVenta({ ticket, onCerrarComo }: { ticket: Ticket; onCerrarComo: (cierre: Cierre, nota?: string) => void }) {
   const { registroVenta } = useHub();
   const venta = ticket.ventaRegistrada;
+  const estado = estadoDeLaVenta(ticket);
   const mono = "tnum font-mono";
+  const aside = estado === "completa" ? "Completa" : estado === "pendiente" ? "Factura pendiente" : estado === "sin_registrar" ? "Sin registrar" : venta ? "Registrada" : undefined;
   return (
-    <Seccion titulo="Venta" aside={venta ? "Registrada" : "Sin registrar"}>
-      {venta ? (
+    <Seccion titulo="Venta" aside={aside}>
+      {ticket.compraPorConfirmar && ticket.estado === "abierto" && (
+        <div className="flex flex-col gap-2.5 rounded-[8px] border border-[rgba(168,115,31,.45)] bg-[rgba(168,115,31,.07)] px-3.5 py-3">
+          <p className="text-[13px] leading-relaxed">
+            <span className="font-semibold">El cliente dice que ya compró.</span>
+            {ticket.compraPorConfirmar.texto && <span className="text-text2"> «{ticket.compraPorConfirmar.texto}»</span>}
+          </p>
+          <p className="text-[12px] text-text2">El bot ya no lo cierra solo: confirma si compró acá o en otro lado.</p>
+          <div className="flex gap-2">
+            <button onClick={() => onCerrarComo("ganado")} className="btn-signal h-9 flex-1 rounded-[6px] text-[13px]">Compró acá</button>
+            <button onClick={() => onCerrarComo("perdido", "Compró en otro lado")} className="btn-quiet h-9 flex-1 rounded-[6px] text-[13px]">Compró en otro lado</button>
+          </div>
+        </div>
+      )}
+      {venta && (
         <Campos>
-          <Campo etiqueta="Registró">{venta.vendedor}</Campo>
+          <Campo etiqueta="Registró">{venta.vendedor}{venta.origen === "panel" && venta.vendedor !== "Panel" && <span className="text-text2"> · panel</span>}</Campo>
           <Campo etiqueta="Cuándo">
             {new Date(venta.registradaEn).toLocaleString("es-EC", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "America/Guayaquil" })}
           </Campo>
-          <Campo etiqueta="Factura">{venta.factura ? <span className={mono}>{venta.factura}</span> : <span className="text-text2">Sin factura todavía</span>}</Campo>
+          <Campo etiqueta="Factura">{venta.factura ? <span className={mono}>{venta.factura}</span> : <span className="font-medium text-signal">Pendiente</span>}</Campo>
+          <Campo etiqueta="Monto">{venta.monto != null ? <span className={mono}>{money(venta.monto)}</span> : <span className="font-medium text-signal">Pendiente</span>}</Campo>
         </Campos>
-      ) : (
+      )}
+      {(estado === "pendiente" || estado === "sin_registrar") && (
         <>
           <p className="text-[13px] leading-relaxed text-text2">
-            {ganadoSinRegistrar(ticket)
-              ? "Marcado como ganado a mano: ningún vendedor registró esta venta."
-              : "Cuando el cliente compre, el vendedor registra la venta y el ticket queda como ganado."}
+            {estado === "pendiente"
+              ? "Cuenta como venta. Falta la factura y el monto para que quede completa."
+              : "Ganado de antes de que el cierre pidiera la venta: completa la factura y el monto."}
+          </p>
+          <CompletarVenta ticketId={ticket.id} />
+        </>
+      )}
+      {!venta && ticket.estado === "abierto" && !ticket.compraPorConfirmar && (
+        <>
+          <p className="text-[13px] leading-relaxed text-text2">
+            Cuando el cliente compre, ciérralo como ganado con la factura y el monto, o que el vendedor registre la venta.
           </p>
           {registroVenta && (
             <a
@@ -574,6 +614,9 @@ function SeccionVenta({ ticket }: { ticket: Ticket }) {
           )}
         </>
       )}
+      {!venta && ticket.estado === "cerrado" && ticket.cierre !== "ganado" && (
+        <p className="text-[13px] text-text2">Sin venta.</p>
+      )}
     </Seccion>
   );
 }
@@ -584,24 +627,48 @@ export function CerrarSheet({
   ticket,
   onCerrar,
   onCancelar,
+  cierreInicial,
+  notaInicial,
 }: {
   ticket: Ticket;
-  onCerrar: (cierre: Cierre, nota?: string) => void;
+  /** Si falla (el servidor rechaza el cierre), el error se muestra en la hoja y no se cierra. */
+  onCerrar: (cierre: Cierre, nota?: string, venta?: DatosCierreGanado) => Promise<void> | void;
   onCancelar: () => void;
+  cierreInicial?: Cierre;
+  notaInicial?: string;
 }) {
-  const [cierre, setCierre] = useState<Cierre | null>(null);
-  const [nota, setNota] = useState("");
-  // Interruptor del negocio (Ajustes): encendido, «ganado» exige la venta registrada.
+  const [cierre, setCierre] = useState<Cierre | null>(cierreInicial ?? null);
+  const [nota, setNota] = useState(notaInicial ?? "");
+  const [venta, setVenta] = useState<DatosCierreGanado>(DATOS_VACIOS);
+  const [enviando, setEnviando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // «Ganado» = el asesor confirma que compró acá (ajuste del negocio, encendido
+  // por defecto; mientras carga se asume encendido, como en el servidor).
   const { registroVenta } = useHub();
-  const ganadoBloqueado = Boolean(registroVenta?.exigirParaGanado && !ticket.ventaRegistrada);
+  const pideVenta = cierre === "ganado" && (registroVenta?.confirmarGanado ?? true);
+  const yaCompleta = ventaCompleta(ticket.ventaRegistrada);
+  const falta = pideVenta ? faltaParaCerrar(venta, yaCompleta) : null;
   const explicacion: Record<Cierre, string> = {
-    ganado: "Vino y compró",
+    ganado: "El cliente compró acá",
     perdido: "No compró — anota por qué",
     sin_respuesta: "Se enfrió, dejó de contestar",
   };
 
+  const confirmar = async () => {
+    if (!cierre || falta) return;
+    setEnviando(true);
+    setError(null);
+    try {
+      await onCerrar(cierre, nota.trim() || undefined, pideVenta ? venta : undefined);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudo cerrar el ticket.");
+    } finally {
+      setEnviando(false);
+    }
+  };
+
   return (
-    <Modal onClose={onCancelar} ancho={420}>
+    <Modal onClose={onCancelar} ancho={440}>
       <div className="p-6">
         <div className="mb-1 flex items-start justify-between">
           <h3 className="text-[18px] font-semibold tracking-[-0.01em]">Cerrar ticket</h3>
@@ -617,44 +684,42 @@ export function CerrarSheet({
           {(Object.keys(CIERRE_META) as Cierre[]).map((c) => {
             const meta = CIERRE_META[c];
             const activo = cierre === c;
-            const bloqueado = c === "ganado" && ganadoBloqueado;
             return (
               <button
                 key={c}
                 role="radio"
                 aria-checked={activo}
-                disabled={bloqueado}
                 onClick={() => setCierre(c)}
-                className={`flex items-center gap-3 rounded-[8px] border px-4 py-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${activo ? "border-signal bg-signal-tint" : "border-line bg-surface hover:bg-bg"}`}
+                className={`flex items-center gap-3 rounded-[8px] border px-4 py-3 text-left transition-colors ${activo ? "border-signal bg-signal-tint" : "border-line bg-surface hover:bg-bg"}`}
               >
                 <CierreIcon cierre={c} size={18} />
                 <span>
                   <span className={`block text-[14px] ${activo ? "font-semibold" : "font-medium"}`}>{meta.nombre}</span>
-                  <span className="text-[12px] text-text2">{bloqueado ? "Primero registra la venta" : explicacion[c]}</span>
+                  <span className="text-[12px] text-text2">{explicacion[c]}</span>
                 </span>
               </button>
             );
           })}
         </div>
-        {ganadoBloqueado && registroVenta && (
-          <a href={enlaceRegistrarVenta(registroVenta, ticket.telefono)} target="_blank" rel="noreferrer" className="mt-2 block text-[12px] font-medium text-signal underline underline-offset-[3px]">
-            Registrar venta
-          </a>
-        )}
+        {pideVenta && <CamposCierreGanado datos={venta} onChange={setVenta} yaCompleta={yaCompleta} />}
         <input
           value={nota}
           onChange={(e) => setNota(e.target.value)}
           placeholder={cierre === "perdido" ? "¿Por qué se perdió? (ej: precio)" : "Nota opcional…"}
           className="gp-field mt-3 text-[13px]"
         />
+        {(error || (pideVenta && falta)) && (
+          <p className={`mt-2 text-[12px] ${error ? "text-signal" : "text-text2"}`} role={error ? "alert" : undefined}>{error ?? falta}</p>
+        )}
         <button
-          disabled={!cierre}
-          onClick={() => cierre && onCerrar(cierre, nota.trim() || undefined)}
+          disabled={!cierre || Boolean(falta) || enviando}
+          onClick={() => void confirmar()}
           className="btn-signal mt-4 h-11 w-full rounded-[6px] text-[14px]"
         >
-          Confirmar cierre
+          {enviando ? "Cerrando…" : "Confirmar cierre"}
         </button>
       </div>
     </Modal>
   );
 }
+

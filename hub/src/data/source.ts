@@ -1,4 +1,4 @@
-import type { Atiende, Billing, RegistroVentaConfig, BotAlert, BotPower, Cierre, EchoHealth, Etapa, FeedItem, FinalStage, FollowUpCard, HubMetrics, MesDisponible, Mensaje, PhaseFlags, Rol, TemplatePlanPreview, Ticket } from "./types";
+import type { Atiende, Billing, DatosCierreGanado, RegistroVentaConfig, VentasPendientes, BotAlert, BotPower, Cierre, EchoHealth, Etapa, FeedItem, FinalStage, FollowUpCard, HubMetrics, MesDisponible, Mensaje, PhaseFlags, Rol, TemplatePlanPreview, Ticket } from "./types";
 
 /**
  * El contrato entre la UI y los datos. Parte 1: MockSource (fixtures + simulador).
@@ -37,7 +37,11 @@ export interface DataSource {
   followUpAction(id: number, action: "send" | "cancel" | "edit" | "generate", preview?: string): Promise<void>;
   alertAction(id: number, action: "resolve" | "snooze" | "take"): Promise<void>;
   moverEtapa(ticketId: number, etapa: Etapa): Promise<void>;
-  cerrar(ticketId: number, cierre: Cierre, nota?: string): Promise<void>;
+  /** `venta`: lo que pide el cierre «ganado» (confirmación + factura y monto, o completar después). */
+  cerrar(ticketId: number, cierre: Cierre, nota?: string, venta?: DatosCierreGanado): Promise<void>;
+  /** Factura y monto de un ganado pendiente o viejo. `cycle` solo para un ganado de un ciclo anterior. */
+  completarVenta(ticketId: number, factura: string, monto: string, cycle?: number): Promise<void>;
+  getVentasPendientes(): Promise<VentasPendientes>;
   reabrir(ticketId: number): Promise<void>;
   setAtiende(ticketId: number, atiende: Atiende): Promise<void>;
   /** Pin "para después" del modo revisión: prioridad visible en Oportunidades. */
@@ -55,6 +59,6 @@ export interface DataSource {
   setBotPower(activo: boolean, motivo?: string, confirmarFaltantes?: boolean): Promise<BotPower>;
   /** Enlace de `/venta` para «Registrar venta» y el interruptor «ganado exige la venta registrada». */
   getRegistroVenta(): Promise<RegistroVentaConfig>;
-  setRegistroVenta(exigirParaGanado: boolean): Promise<RegistroVentaConfig>;
+  setRegistroVenta(confirmarGanado: boolean): Promise<RegistroVentaConfig>;
   subscribe(listener: (ev: SourceEvent) => void): () => void;
 }

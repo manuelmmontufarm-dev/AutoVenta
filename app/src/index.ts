@@ -705,9 +705,9 @@ async function atenderTurno(
   // perdida ni borrar el historial. También cancela lo ya agendado: respetar
   // el no solo durante treinta segundos y escribirle mañana sería insistir.
   if (cierreDelTurno) {
-    // Una compra explícitamente terminada sí es evidencia de funnel y debe
-    // quedar en ventas. El clasificador resuelve este caso de forma
-    // determinística (sin llamada de IA) antes de cortar los seguimientos.
+    // Una compra explícitamente terminada («ya compré») queda POR CONFIRMAR:
+    // el clasificador la marca (sin llamada de IA) y el asesor decide si fue
+    // acá (ganado, con factura) o en otro lado (perdido). Nunca ganado solo.
     // La etapa que deja cada cierre tiene una sola fuente:
     // `etapaDelCierreDelTurno` (domain/cierreTurno.ts). «No gracias» + «ya
     // compré» compró en OTRO lado (CM30) y es perdida; el «no gracias» solo

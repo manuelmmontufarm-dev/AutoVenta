@@ -542,6 +542,12 @@ export async function scheduleConversationFollowUps(
   // guardado) en el que el cliente todavía no tiene mensajes no tiene plan que
   // armar. No se compara por hora: el mensaje que reabre lleva la hora de Meta,
   // anterior a la reapertura misma.
+  // El cliente dijo «ya compré»: hasta que el asesor confirme si fue acá o en
+  // otro lado no se le insiste (services/registroDeVentas.ts).
+  const [porConfirmar] = await sql<{ si: boolean }[]>`
+    select (compra_por_confirmar_cycle = current_cycle) as si from conversations where id = ${conversationId}
+  `;
+  if (porConfirmar?.si) return;
   const [cicloSinCliente] = await sql<{ vacio: boolean }[]>`
     select exists (
       select 1 from stage_transitions t

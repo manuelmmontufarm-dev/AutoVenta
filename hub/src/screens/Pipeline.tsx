@@ -194,7 +194,9 @@ function PanelFinal({ data, now, onCerrar }: { data: FinalStage; now: number; on
         <span className="text-[15px] font-semibold">Llegaron al final del tablero</span>
         <span className="tnum text-[12px] text-text2">
           <b className="font-semibold text-ok">{data.ganados}</b> de {data.total} terminaron en venta
-          {data.ganadosRegistrados != null && data.ganados > 0 && <> · {data.ganadosRegistrados} con venta registrada</>}
+          {data.ganadosRegistrados != null && data.ganados > 0 && (
+            <> · {data.ganadosRegistrados} completas{data.ganadosFacturaPendiente ? ` · ${data.ganadosFacturaPendiente} con factura pendiente` : ""}</>
+          )}
         </span>
       </div>
       <div className="max-h-[60vh] overflow-y-auto px-5 py-4">
@@ -214,7 +216,9 @@ function PanelFinal({ data, now, onCerrar }: { data: FinalStage; now: number; on
                     <span className="truncate font-medium">{t.nombre ?? t.telefono}{t.medida && <span className="ml-2 font-mono text-[12px] text-text2">{t.medida}</span>}</span>
                     <span className={t.cierre === "ganado" ? "font-medium text-ok" : t.cierre === "perdido" ? "font-medium text-signal" : "text-text2"}>
                       {t.cierre === "ganado" ? "Ganado" : t.cierre === "perdido" ? "Perdido" : "Sigue abierto"}
-                      {t.cierre === "ganado" && t.ventaRegistrada === false && <span className="font-normal text-text2"> · sin registrar</span>}
+                      {t.cierre === "ganado" && t.venta !== undefined && t.venta !== "completa" && (
+                        <span className="font-normal text-text2"> · {t.venta === "pendiente" ? "factura pendiente" : "sin registrar"}</span>
+                      )}
                     </span>
                     <span className="tnum font-mono text-[12px] text-text2">{t.cotizacion != null ? money(t.cotizacion) : "sin cotización"}</span>
                     <span className="tnum font-mono text-[11px] text-text2">{relTime(t.llegoEn, now)}</span>
@@ -543,7 +547,7 @@ export function Pipeline() {
         {cerrando && (
           <CerrarSheet
             ticket={cerrando}
-            onCerrar={(cierre, nota) => { void cerrar(cerrando.id, cierre, nota); setCerrando(null); }}
+            onCerrar={async (cierre, nota, venta) => { await cerrar(cerrando.id, cierre, nota, venta); setCerrando(null); }}
             onCancelar={() => setCerrando(null)}
           />
         )}

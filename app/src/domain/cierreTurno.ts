@@ -113,7 +113,8 @@ export function tipoDeCierreDelTurno(
 
 /**
  * QUÉ ETAPA DEJA EL CIERRE DEL TURNO (fuente única; la usa `index.ts`).
- *  · compra_terminada → «clasificar»: el clasificador lo cierra como ganado.
+ *  · compra_terminada → «clasificar»: el clasificador lo deja «por confirmar»
+ *                       (21-nov: el bot ya no cierra como ganado solo).
  *  · compra_ajena     → perdido (CM30: «no gracias» y después «ya compré»).
  *  · lo demás         → la etapa no se mueve. El «no gracias» NO es venta
  *                       perdida en ningún negocio (Manuel, 20-nov).

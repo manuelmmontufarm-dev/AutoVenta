@@ -71,9 +71,21 @@ describe.sequential("«ya compré X, ahora necesito Y» no es ganado", () => {
     expect((await estado(fila.id))[0]).toEqual({ stage: "seguimiento_venta", status: "open" });
   });
 
-  it("caso sano: «ya compré, gracias» cierra como ganado", async () => {
+  // Desde el 21-nov «ya compré» ya no cierra como ganado: queda POR CONFIRMAR
+  // para el asesor (conv 293 de Competimotor). Ver ventaRegistradaEnTicket.
+  it("caso sano: «ya compré, gracias» queda por confirmar, sin cerrar", async () => {
     const fila = await conversacion("593900000463");
     await classifyStage(fila as never, "ya compré, gracias", "¡Gracias por su compra!");
-    expect((await estado(fila.id))[0]).toEqual({ stage: "ganado", status: "closed" });
+    expect((await estado(fila.id))[0]).toEqual({ stage: "seguimiento_venta", status: "open" });
+    const [c] = await sql`select compra_por_confirmar_cycle from conversations where id = ${fila.id}`;
+    expect(c.compra_por_confirmar_cycle).toBe(5);
+  });
+
+  it("el modelo diciendo «ganado» tampoco cierra: queda por confirmar", async () => {
+    const fila = await conversacion("593900000464");
+    await classifyStage(fila as never, "ya las tengo puestas, muy buenas", "¡Qué bueno!");
+    expect((await estado(fila.id))[0]).toEqual({ stage: "seguimiento_venta", status: "open" });
+    const [c] = await sql`select compra_por_confirmar_texto from conversations where id = ${fila.id}`;
+    expect(c.compra_por_confirmar_texto).toBe("ya las tengo puestas, muy buenas");
   });
 });

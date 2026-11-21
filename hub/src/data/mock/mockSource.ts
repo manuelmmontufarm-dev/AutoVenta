@@ -16,7 +16,9 @@ import {
   type LocalAsignado,
   type Mensaje,
   type PhaseFlags,
+  type DatosCierreGanado,
   type RegistroVentaConfig,
+  type VentasPendientes,
   type Rol,
   type Ticket,
   type TipoMensaje,
@@ -73,15 +75,28 @@ export class MockSource implements DataSource {
     return { ...this.power };
   }
 
-  private registroVenta: RegistroVentaConfig = { enlace: "/venta?k=demo", exigirParaGanado: false };
+  private registroVenta: RegistroVentaConfig = { enlace: "/venta?k=demo", confirmarGanado: true };
 
   async getRegistroVenta(): Promise<RegistroVentaConfig> {
     return { ...this.registroVenta };
   }
 
-  async setRegistroVenta(exigirParaGanado: boolean): Promise<RegistroVentaConfig> {
-    this.registroVenta = { ...this.registroVenta, exigirParaGanado };
+  async setRegistroVenta(confirmarGanado: boolean): Promise<RegistroVentaConfig> {
+    this.registroVenta = { ...this.registroVenta, confirmarGanado };
     return { ...this.registroVenta };
+  }
+
+  async completarVenta(ticketId: number, factura: string, monto: string): Promise<void> {
+    const t = this.tickets.get(ticketId);
+    if (!t) return;
+    t.ventaRegistrada = {
+      ...(t.ventaRegistrada ?? { id: ticketId, vendedor: "Demo", registradaEn: new Date().toISOString(), origen: "panel" as const }),
+      factura, monto: Number(monto.replace(",", ".")) || null,
+    };
+  }
+
+  async getVentasPendientes(): Promise<VentasPendientes> {
+    return { porConfirmar: [], facturaPendiente: [], sinRegistrar: [] };
   }
 
   async listTickets(mes?: string | null): Promise<Ticket[]> {
@@ -342,9 +357,17 @@ export class MockSource implements DataSource {
     this.emit({ tipo: "sync" });
   }
 
-  async cerrar(ticketId: number, cierre: Cierre, nota?: string): Promise<void> {
+  async cerrar(ticketId: number, cierre: Cierre, nota?: string, venta?: DatosCierreGanado): Promise<void> {
     const t = this.tickets.get(ticketId);
     if (!t) return;
+    // El demo imita el cierre real: «ganado» deja la venta (completa o pendiente).
+    if (cierre === "ganado" && venta?.confirmado) {
+      const monto = Number(venta.monto.replace(",", "."));
+      t.ventaRegistrada = {
+        id: ticketId, vendedor: "Demo", registradaEn: new Date().toISOString(),
+        factura: venta.factura.trim() || null, monto: Number.isFinite(monto) && monto > 0 ? monto : null, origen: "panel",
+      };
+    }
     t.estado = "cerrado";
     t.cierre = cierre;
     t.etapa = cierre === "ganado" ? "ganado" : "perdido";

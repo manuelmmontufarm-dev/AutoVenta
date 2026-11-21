@@ -11,6 +11,7 @@ import { sql } from "../db/client.js";
 import { puedeCerrarComoPerdido } from "../domain/cierrePerdido.js";
 import { STAGE_ORDER, isStage, type Stage } from "../domain/pipeline.js";
 import { isExplicitPurchaseConfirmation, traePedidoNuevo } from "../domain/salesIntent.js";
+import { marcarCompraPorConfirmar } from "../services/registroDeVentas.js";
 
 const openai = nuevoClienteOpenAI();
 
@@ -21,11 +22,14 @@ export async function classifyStage(
 ): Promise<void> {
   const startedAt = Date.now();
   if (conversation.stage === "ganado" || conversation.stage === "perdido") return;
+  // «YA COMPRÉ» NO ES «GANADO» (21-nov-2026, conv 293 de Competimotor:
+  // «Gracias ya compré.» sin una cotización firme; casi seguro compró en otro
+  // lado). «Ganado» es el asesor confirmando que compró ACÁ, con factura y
+  // monto. El bot solo deja el ticket «por confirmar» en la lista de
+  // pendientes y el asesor decide ganado o perdido. Ni la regla ni el modelo
+  // cierran como ganado solos.
   if (isExplicitPurchaseConfirmation(userText)) {
-    await setStage(conversation.id, "ganado", {
-      actor: "customer",
-      reason: "Cliente confirmó explícitamente que la compra fue realizada",
-    });
+    await marcarCompraPorConfirmar(conversation.id, userText);
     return;
   }
   // Conv 11818, 27-ago-2026: «Ya Ise el pedido aquí en Ibarra gracias» es una
@@ -58,7 +62,7 @@ Etapas:
 - seguimiento_venta: visita, ubicación, reserva, handoff o seguimiento comercial hasta concretar la venta.
 - perdido: el cliente rechazó explícitamente continuar («no me interesa», «ya compré en otro lado», «no me escriba más»). QUEJARSE DEL PRECIO NO ES PERDIDO: «está carísimo», «uf qué caro», «no me alcanza» son la objeción más común de la venta y la conversación sigue viva. Pedir tiempo para pensarlo tampoco cierra nada.
 
-Usa "ganado" únicamente si el cliente afirma en pasado que ya compró o pagó.
+Usa "ganado" únicamente si el cliente afirma en pasado que ya compró o pagó (no cierra el ticket: queda por confirmar para el asesor).
 El mensaje del bot nunca mueve la etapa por sí solo. Clasifica únicamente evidencia del mensaje del cliente; si no hay evidencia nueva, conserva la etapa actual.
 
 Devuelve únicamente JSON válido con esta forma: {"stage":"una_etapa"}.
@@ -122,6 +126,11 @@ Bot: ${assistantText}`,
       console.log(
         `🛟 Cierre como ganado frenado en la conv ${conversation.id}: «${userText.slice(0, 60)}» trae un pedido nuevo`,
       );
+      return;
+    }
+    // El modelo tampoco cierra como ganado: queda por confirmar (ver arriba).
+    if (stage === "ganado") {
+      await marcarCompraPorConfirmar(conversation.id, userText);
       return;
     }
     // «COTIZACIÓN ENVIADA» ES UN HECHO, NO UNA LECTURA (simulador Competimotor,

@@ -622,7 +622,7 @@ interface CuponesEstado {
 function SeccionVentaRegistrada({ onError }: { onError: (v: string) => void }) {
   const { registroVenta, cambiarExigirVentaRegistrada } = useHub();
   const [cambiando, setCambiando] = useState(false);
-  const exige = registroVenta?.exigirParaGanado ?? false;
+  const exige = registroVenta?.confirmarGanado ?? true;
   const cambiar = async () => {
     setCambiando(true);
     try {
@@ -632,8 +632,8 @@ function SeccionVentaRegistrada({ onError }: { onError: (v: string) => void }) {
     finally { setCambiando(false); }
   };
   return <Tarjeta
-    titulo="Ganado solo con venta registrada"
-    sub="Cuando un vendedor registra una venta en /venta y el número coincide con un chat, ese ticket queda como ganado. Encendido, el panel ya no deja marcar «ganado» a mano: primero hay que registrar la venta. APAGADO mientras el registro está en prueba; los ganados a mano se ven como «sin registrar»."
+    titulo="Ganado = venta confirmada"
+    sub="Encendido (lo normal), cerrar un ticket como ganado pide «El cliente llegó y compró» más el número de factura y el monto, o «Completar después» (cuenta como venta y queda en Para cerrar → Por completar). Así ganado y venta registrada son lo mismo. El bot nunca cierra como ganado: si el cliente dice «ya compré», queda por confirmar. Apagarlo vuelve al cierre libre de antes: solo para una emergencia."
     extra={registroVenta
       ? <button
           onClick={() => void cambiar()}

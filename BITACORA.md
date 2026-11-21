@@ -1,3 +1,29 @@
+## 21-nov-2026 · Venta · «Ganado» = venta confirmada (factura y monto, o completar después) y «ya compré» queda por confirmar (rama `feat/venta-registrada-en-panel`)
+
+- **Qué:** (1) Cerrar como ganado desde el panel (ficha, Pipeline, «Vendido» de Para cerrar) pide «El cliente llegó y
+  compró» + número de factura + monto, o «Completar después». Crea o completa el registro del ticket en
+  `ventas_registradas` (`origen = 'panel'`, columna `monto` nueva): ganado y venta registrada son una sola cosa.
+  Arrastrar la tarjeta a ganado da 409. `/venta` también pide el monto. (2) «Completar después» = ganado que cuenta
+  como venta con la factura pendiente; se completa desde la ficha o desde **Para cerrar → Por completar**, que también
+  lista los ganados viejos sin registrar (Manuel los completa con el mismo formulario; no mueve la etapa).
+  (3) **El bot nunca cierra como ganado**: «ya compré» (regla) o «ganado» del modelo dejan el ticket «por confirmar»
+  (`conversations.compra_por_confirmar_*`), cortan los seguimientos y aparecen en Por completar con «Compró acá» /
+  «Compró en otro lado». Vale para todos los negocios. (4) El ajuste `venta_registrada_config` pasa a
+  `confirmarGanado`, **encendido** por defecto; apagado = cierre libre de antes. (5) Métricas: `ganados` sin cambios,
+  partido en completa / factura pendiente / sin registrar, más `porConfirmar`.
+- **Por qué:** pedido de Manuel (21-nov) y la conv 293 de Competimotor: «Gracias ya compré.» se cerró como ganado sin
+  cotización firme; casi seguro compró en otro lado.
+- **Ojo Depot:** en producción, 8 de los 10 ganados de noviembre (6/8 oct, 5/15 sep, 13/27 ago) los puso el cliente
+  con «ya compré». Los viejos no se tocan; de acá en adelante esos quedan «por confirmar» y no cuentan como ganado
+  hasta que un asesor los confirme. El número de ganados va a bajar si nadie revisa Por completar.
+- **Probado:** `ventaRegistradaEnTicket.integration` (26) + `s5ClasificadorNoCierraConPedido` (3): 28 de 29 en rojo
+  contra main. Suite: solo `hashesPiezasDepot` y `unidadEnLaCantidad`, como en main. `tsc` app y hub ✅,
+  `sim:humo` ✅, fidelidad + perfil ajeno ✅. Panel compilado contra la API real en una base desechable: «ya compré»
+  sale en Por completar → «Compró acá» + completar después → factura pendiente → completada desde la lista; cierre
+  ganado con factura y monto desde la ficha; ganado viejo con su formulario; desglose en «Llegaron al final».
+  **No probado:** en producción.
+- **Horas:** 2.
+
 ## 21-nov-2026 · Venta · Registrar la venta en `/venta` marca el ticket y el panel lo muestra (rama `feat/venta-registrada-en-panel`)
 
 - **Qué:** (1) Registrar en `/venta` un número que cruza con un chat pasa ese ticket (ciclo vigente) a «ganado» con
