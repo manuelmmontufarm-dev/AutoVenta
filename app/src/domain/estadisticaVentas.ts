@@ -124,7 +124,10 @@ export function curvaAcumulada<C extends number>(rezagos: number[], cortes: C[])
  */
 export function grupoDeAtencion(mensajesAsesor: number, mensajesBot: number): GrupoAtencion {
   if (mensajesAsesor <= 1) return "bot";
-  if (mensajesAsesor > mensajesBot) return "asesor";
+  // «Asesor» es solo cuando el bot no escribió nada. Si escribieron los dos,
+  // la venta es de los dos aunque el asesor haya escrito más (Manuel, 21-nov:
+  // conv 469, asesor 23 y bot 20 salía «Asesor»).
+  if (mensajesBot === 0) return "asesor";
   return "bot_y_asesor";
 }
 

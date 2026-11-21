@@ -481,7 +481,7 @@ export type Franja = "madrugada" | "manana" | "mediodia" | "tarde" | "noche";
 // madrugada [00,06) · manana [06,11) · mediodia [11,14) · tarde [14,18) · noche [18,24), hora de Guayaquil
 
 export type GrupoAtencion = "bot" | "bot_y_asesor" | "asesor";
-// bot: el asesor escribió 0 o 1 mensajes · asesor: el asesor escribió más que el bot · bot_y_asesor: el resto
+// bot: el asesor escribió 0 o 1 mensajes · asesor: el bot no escribió nada · bot_y_asesor: el resto
 
 export interface MetricasComprobables {
   disponible: boolean;               // false: no hay Contífico o todavía no se leyó
@@ -574,6 +574,8 @@ export interface VentaConfirmada {
   dia: string;
   llantas: string;
   atendio: "bot" | "asesor";
+  /** Bot solo / bot + asesor / solo asesor (el bot no escribió nada). */
+  grupo?: GrupoAtencion;
   cotizado: boolean;
 }
 

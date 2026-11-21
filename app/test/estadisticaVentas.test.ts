@@ -111,8 +111,11 @@ describe("grupo de atención", () => {
     expect(grupoDeAtencion(1, 12)).toBe("bot");
     expect(grupoDeAtencion(1, 0)).toBe("bot");
   });
-  it("el asesor escribió más que el bot = asesor", () => {
-    expect(grupoDeAtencion(9, 4)).toBe("asesor");
+  it("solo el asesor = asesor; si escribieron los dos, bot + asesor", () => {
+    expect(grupoDeAtencion(9, 0)).toBe("asesor");
+    expect(grupoDeAtencion(9, 1)).toBe("bot_y_asesor");
+    expect(grupoDeAtencion(9, 4)).toBe("bot_y_asesor");
+    expect(grupoDeAtencion(23, 20)).toBe("bot_y_asesor");
   });
   it("el resto = bot y asesor", () => {
     expect(grupoDeAtencion(3, 10)).toBe("bot_y_asesor");

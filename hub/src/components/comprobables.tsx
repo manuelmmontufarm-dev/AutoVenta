@@ -145,7 +145,7 @@ const MOTIVO: Record<NonNullable<VentasConfirmadas["descartes"]>[number]["motivo
 const GRUPOS = [
   { clave: "bot", nombre: "Bot solo", nota: "el asesor no escribió, o escribió una sola vez", tinta: "rgba(180,69,58,1)" },
   { clave: "bot_y_asesor", nombre: "Bot + asesor", nota: "escribieron los dos", tinta: "rgba(180,69,58,.55)" },
-  { clave: "asesor", nombre: "Asesor", nota: "el asesor escribió más que el bot", tinta: "rgba(180,69,58,.25)" },
+  { clave: "asesor", nombre: "Asesor", nota: "solo escribió el asesor, el bot nada", tinta: "rgba(180,69,58,.25)" },
 ] as const;
 
 /**
@@ -217,7 +217,7 @@ export function VentasComprobadasBloque({ c, vc, estado, enElPeriodo, now }: {
             <div className="mt-2 overflow-x-auto">
               <table className="w-full min-w-[640px] text-left text-[13px]">
                 <thead className="text-[12px] font-medium text-text2">
-                  <tr><th className="py-2">Cliente</th><th>Factura</th><th>Llantas</th><th>Local</th><th>Atendió</th><th className="text-right">Monto</th></tr>
+                  <tr><th className="py-2">Cliente</th><th>Factura</th><th className="pr-4 text-right">Monto</th><th>Llantas</th><th>Local</th><th>Atendió</th></tr>
                 </thead>
                 <tbody>
                   {detalle.map((v) => (
@@ -229,10 +229,10 @@ export function VentasComprobadasBloque({ c, vc, estado, enElPeriodo, now }: {
                       <td className={`${mono} pr-3 text-[12px] whitespace-nowrap`}>
                         {v.facturas.map((f) => <div key={f.documento}>{f.documento.slice(-6).replace(/^0+/, "")} · {diaCorto(f.dia)}</div>)}
                       </td>
+                      <td className={`${mono} pr-4 text-right whitespace-nowrap`}>{money(v.total)}</td>
                       <td className="max-w-[260px] truncate pr-3 text-text2" title={v.llantas}>{v.llantas}</td>
                       <td className="pr-3 whitespace-nowrap">{[...new Set(v.facturas.map((f) => f.local))].join(" · ")}</td>
-                      <td className="pr-3">{v.atendio === "bot" ? "Bot" : "Asesor"}{!v.cotizado && <span className="text-text2"> · sin cotización</span>}</td>
-                      <td className={`${mono} text-right`}>{money(v.total)}</td>
+                      <td className="pr-3 whitespace-nowrap">{GRUPOS.find((g) => g.clave === v.grupo)?.nombre ?? (v.atendio === "bot" ? "Bot" : "Asesor")}{!v.cotizado && <span className="text-text2"> · sin cotización</span>}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -301,7 +301,7 @@ function VentasRegistradasBloque({ c, enElPeriodo, now }: { c: MetricasComprobab
           <div className="mt-2 overflow-x-auto">
             <table className="w-full min-w-[520px] text-left text-[13px]">
               <thead className="text-[12px] font-medium text-text2">
-                <tr><th className="py-2">Cliente</th><th>Factura</th><th>Registró</th><th>Atendió</th><th className="text-right">Monto</th></tr>
+                <tr><th className="py-2">Cliente</th><th>Factura</th><th className="pr-4 text-right">Monto</th><th>Registró</th><th>Atendió</th></tr>
               </thead>
               <tbody>
                 {detalle.map((r) => (
@@ -310,9 +310,9 @@ function VentasRegistradasBloque({ c, enElPeriodo, now }: { c: MetricasComprobab
                     <td className={`${mono} pr-3 text-[12px] whitespace-nowrap`}>
                       {r.facturas.map((f) => <div key={f.numero}>{f.numero} · {diaCorto(f.dia)}</div>)}
                     </td>
+                    <td className={`${mono} pr-4 text-right whitespace-nowrap`}>{money(r.total)}</td>
                     <td className="pr-3 whitespace-nowrap">{[...new Set(r.facturas.map((f) => f.vendedor))].join(" · ")}</td>
                     <td className="pr-3">{GRUPOS.find((g) => g.clave === r.grupo)?.nombre ?? "Bot"}</td>
-                    <td className={`${mono} text-right`}>{money(r.total)}</td>
                   </tr>
                 ))}
               </tbody>
