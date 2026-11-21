@@ -11,6 +11,10 @@ describe("reporte simple — detalles con datos reales", () => {
     expect(nombreVisible("   ", "593998412776")).toBe("0998 412 776");
     expect(nombreVisible(null, "593998412776")).toBe("0998 412 776");
     expect(nombreVisible(" Tony ", "593998412776")).toBe("Tony");
+    expect(nombreVisible("\u3164", "593998412776")).toBe("0998 412 776");
+    expect(nombreVisible("\u200b\u200b", "593998412776")).toBe("0998 412 776");
+    expect(nombreVisible("🚗🔥", "593998412776")).toBe("0998 412 776");
+    expect(nombreVisible("José 🚗", "593998412776")).toBe("José 🚗");
     expect(nombreVisible(null, "+1 555")).toBe("+1 555");
   });
 
