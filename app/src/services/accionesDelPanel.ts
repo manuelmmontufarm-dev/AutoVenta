@@ -4,9 +4,14 @@
  * Cada acción del panel sobre un ticket —cerrar, añadir factura, reabrir,
  * tomar o devolver al bot, deshacer venta, descuentos, mover de etapa, mandar
  * un mensaje— deja una fila en `audit_events` (la tabla que ya existía; no se
- * inventó otra) con el usuario logueado. Si la llamada entra con la clave
- * administrativa sin usuario, queda «clave admin». Las ventas de `/venta`
- * quedan con el nombre que escribe el vendedor.
+ * inventó otra): `actor` = el usuario logueado («clave admin» si la llamada
+ * entra con la clave sin usuario), `action`, `entity_id` = el ticket, y en
+ * `before_value` / `after_value` la foto del ticket antes y después (etapa,
+ * estado, quién atiende, ciclo) más el detalle. Las ventas de `/venta` quedan
+ * con el nombre que escribe el vendedor.
+ *
+ * SOLO SE GUARDA, no se muestra en el panel (Manuel, 21-nov): cuando hace falta
+ * se pregunta. La consulta está en docs/QUIEN-HIZO-QUE.md.
  *
  * Límite: lo que contestan desde el WhatsApp del teléfono (los ecos de Meta,
  * `author_kind = 'owner'`) no dice quién fue — es un solo número para todos.
@@ -38,17 +43,42 @@ export type AccionDelPanel =
   | "registrar_venta"
   | "anular_registro";
 
-/** Guarda una acción. Nunca tumba la acción misma si la base de auditoría falla. */
+export interface FotoDelTicket {
+  etapa: string;
+  estado: string;
+  atiende: string;
+  ciclo: number;
+}
+
+/** Cómo está el ticket ahora: se toma antes de la acción para guardar el «antes». */
+export async function fotoDelTicket(conversationId: number): Promise<FotoDelTicket | null> {
+  try {
+    const [c] = await sql<{ stage: string; status: string; assigned_to: string; current_cycle: number }[]>`
+      select stage, status, assigned_to, current_cycle from conversations where id = ${conversationId}
+    `;
+    return c ? { etapa: c.stage, estado: c.status, atiende: c.assigned_to, ciclo: c.current_cycle } : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Guarda una acción con el ticket antes (lo que se pasa) y después (se lee
+ * acá) más el detalle. Nunca tumba la acción misma si la auditoría falla.
+ */
 export async function registrarAccion(
   conversationId: number,
   accion: AccionDelPanel,
   quien: string,
   detalle: Record<string, unknown> = {},
+  antes: FotoDelTicket | null = null,
 ): Promise<void> {
   try {
+    const despues = await fotoDelTicket(conversationId);
     await sql`
-      insert into audit_events (actor, action, entity_type, entity_id, after_value)
-      values (${quien.slice(0, 80)}, ${accion}, 'conversation', ${String(conversationId)}, ${sql.json(detalle as never)})
+      insert into audit_events (actor, action, entity_type, entity_id, before_value, after_value)
+      values (${quien.slice(0, 80)}, ${accion}, 'conversation', ${String(conversationId)},
+        ${antes ? sql.json(antes as never) : null}, ${sql.json({ ...(despues ?? {}), ...detalle } as never)})
     `;
   } catch (error) {
     console.error(`⚠️ No se pudo guardar «${accion}» de ${quien} en la conv ${conversationId}:`, error);

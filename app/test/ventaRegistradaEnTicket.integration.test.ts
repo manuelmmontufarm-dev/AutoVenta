@@ -517,6 +517,14 @@ describe("quién hizo qué (21-nov, Manuel: «para saber a quién escribirle»)"
     expect(h.every((a) => a.quien === "clave admin")).toBe(true);
     expect(h.find((a) => a.accion === "cerrar_ganado")?.detalle).toMatchObject({ factura: "860", monto: 300 });
     expect(h.find((a) => a.accion === "cerrar_perdido")?.detalle).toMatchObject({ nota: "Compró en otro lado" });
+    // Con el ticket, el ciclo y el antes/después: lo que responde «¿quién hizo qué?».
+    const [fila] = await sql`select actor, entity_id, before_value, after_value from audit_events
+      where entity_type = 'conversation' and entity_id = ${String(id)} and action = 'cerrar_ganado'`;
+    expect(fila).toMatchObject({
+      actor: "clave admin", entity_id: String(id),
+      before_value: { etapa: "cotizacion_enviada", estado: "open", ciclo: 1 },
+      after_value: { etapa: "ganado", estado: "closed", ciclo: 1, factura: "860" },
+    });
   });
 
   it("en /venta queda el nombre que escribe el vendedor", async () => {
@@ -527,14 +535,15 @@ describe("quién hizo qué (21-nov, Manuel: «para saber a quién escribirle»)"
     expect(h.map((a) => [a.accion, a.quien])).toEqual([["agregar_factura", "Rosa Pérez"], ["registrar_venta", "Rosa Pérez"]]);
   });
 
-  it("un mensaje escrito desde el panel trae el nombre de quien lo escribió; un eco del teléfono no", async () => {
+  it("quién escribió un mensaje del panel se GUARDA (metadata.autor) pero el panel no lo muestra", async () => {
     const { appendMessage } = await import("../src/services/conversations.js");
     const { getHubMessages } = await import("../src/services/hubData.js");
     const id = await chat("593991110032", "Mensajes");
     await appendMessage(id, "assistant", "Hola, soy Carlos", "wamid.panel", { authorKind: "owner", status: "sent", metadata: { autor: "Carlos Romero" } });
     await appendMessage(id, "assistant", "desde el celular", "wamid.eco", { authorKind: "owner", status: "sent" });
+    const [guardado] = await sql`select metadata from messages where wa_message_id = 'wamid.panel'`;
+    expect(guardado.metadata).toMatchObject({ autor: "Carlos Romero" });
     const mensajes = await getHubMessages(id);
-    expect(mensajes.find((m) => m.contenido === "Hola, soy Carlos")?.autor).toBe("Carlos Romero");
-    expect(mensajes.find((m) => m.contenido === "desde el celular")?.autor).toBeUndefined();
+    expect(mensajes.find((m) => m.contenido === "Hola, soy Carlos")).not.toHaveProperty("autor");
   });
 });

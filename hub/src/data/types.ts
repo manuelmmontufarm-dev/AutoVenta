@@ -331,8 +331,6 @@ export interface Mensaje {
   rol: Rol;
   tipo: TipoMensaje;
   contenido: string;
-  /** Quién lo escribió desde el panel. Los ecos del WhatsApp del teléfono no lo traen. */
-  autor?: string;
   estado?: string;
   metadata?: Record<string, unknown>;
   hora: string;

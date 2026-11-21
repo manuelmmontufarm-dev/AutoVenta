@@ -409,8 +409,6 @@ export async function getHubMessages(conversationId: number) {
       : row.type === "location" ? "ubicacion"
       : "texto",
     contenido: row.content,
-    // Quién lo escribió desde el panel. Los ecos del WhatsApp del teléfono no lo traen.
-    autor: row.author_kind === "owner" && typeof row.metadata?.autor === "string" ? row.metadata.autor : undefined,
     estado: row.status ?? undefined,
     metadata: row.metadata ?? {},
     hora: row.created_at.toISOString(),

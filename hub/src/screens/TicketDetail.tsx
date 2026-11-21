@@ -555,8 +555,6 @@ function Ficha({
         {estadoDescuento && <p className="text-[12px] text-text2">{estadoDescuento}</p>}
       </section>
 
-      <SeccionHistorial historial={historial} />
-
       <Seccion titulo="Notas internas" ultima>
         {ticket.notas.length > 0 && (
           <ul className="flex flex-col gap-1.5">
@@ -698,60 +696,10 @@ function SeccionVenta({ ticket, historial, onCerrarComo }: { ticket: Ticket; his
   );
 }
 
-/* ── Historial: quién hizo qué en este ticket ── */
-
-const NOMBRE_ACCION: Record<string, string> = {
-  cerrar_ganado: "Marcó ganado",
-  cerrar_perdido: "Marcó perdido",
-  cerrar_sin_respuesta: "Cerró sin respuesta",
-  agregar_factura: "Añadió factura",
-  deshacer_venta: "Deshizo la venta",
-  reabrir: "Reabrió",
-  tomar: "Tomó la conversación",
-  devolver_al_bot: "Se la devolvió al bot",
-  descuento: "Ofreció descuento",
-  mover_etapa: "Movió de etapa",
-  mensaje: "Escribió",
-  registrar_venta: "Registró la venta en /venta",
-  anular_registro: "Corrigió el número en /venta",
-};
+/* ── «Marcado ganado por…»: lo único del registro de acciones que se muestra ── */
 
 function horaCorta(iso: string): string {
   return new Date(iso).toLocaleString("es-EC", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "America/Guayaquil" });
-}
-
-function detalleCorto(a: AccionDelHistorial): string {
-  const d = a.detalle;
-  if (typeof d.factura === "string") return `factura ${d.factura}${typeof d.monto === "number" ? ` · ${money(d.monto)}` : ""}`;
-  if (typeof d.nota === "string" && d.nota) return d.nota;
-  if (typeof d.a === "string") return ETAPA_META[d.a as keyof typeof ETAPA_META]?.nombre ?? d.a;
-  if (typeof d.texto === "string") return `«${d.texto}»`;
-  if (typeof d.indicacion === "string") return d.indicacion;
-  return "";
-}
-
-/**
- * Quién hizo qué, para saber a quién escribirle (Manuel, 21-nov). Solo lo que
- * pasa por el panel o por /venta: lo que contestan desde el WhatsApp del
- * teléfono no trae quién fue.
- */
-function SeccionHistorial({ historial }: { historial: AccionDelHistorial[] }) {
-  const [todo, setTodo] = useState(false);
-  if (historial.length === 0) return null;
-  const visibles = todo ? historial : historial.slice(0, 6);
-  return (
-    <Seccion titulo="Historial" aside={historial.length > 6 ? <button onClick={() => setTodo((v) => !v)} className="font-medium text-signal">{todo ? "Menos" : `Ver ${historial.length}`}</button> : undefined}>
-      <ul className="flex flex-col gap-2">
-        {visibles.map((a, i) => (
-          <li key={i} className="text-[13px] leading-snug">
-            <span className="font-semibold">{a.quien}</span> {(NOMBRE_ACCION[a.accion] ?? a.accion).toLowerCase()}
-            {detalleCorto(a) && <span className="text-text2"> · {detalleCorto(a)}</span>}
-            <span className="block text-[12px] text-text2">{horaCorta(a.at)}</span>
-          </li>
-        ))}
-      </ul>
-    </Seccion>
-  );
 }
 
 /* ── Cierre con motivo: el motivo alimenta las métricas del embudo ── */

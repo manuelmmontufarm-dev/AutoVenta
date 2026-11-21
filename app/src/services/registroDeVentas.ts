@@ -16,7 +16,7 @@ import { tel9 } from "./fuentes/contifico.js";
 import { setStage } from "./conversations.js";
 import { cancelPendingFollowUps } from "./followUps.js";
 import { emitLiveEvent } from "./liveEvents.js";
-import { registrarAccion } from "./accionesDelPanel.js";
+import { fotoDelTicket, registrarAccion } from "./accionesDelPanel.js";
 import { getVentaRegistradaConfig } from "./settings.js";
 
 // ── La clave del enlace ──────────────────────────────────────────────────────
@@ -200,8 +200,9 @@ export async function registrarVenta(entrada: EntradaDeVenta, llave: string): Pr
     `;
     return { venta: aVenta(nueva), yaRegistradaPor: previa?.vendedor ?? null };
   });
+  const antes = chat ? await fotoDelTicket(chat.conversationId) : null;
   const efecto = await marcarTicketPorLaVenta(venta.id, chat?.conversationId ?? null, venta.vendedor);
-  if (chat) await registrarAccion(chat.conversationId, "registrar_venta", venta.vendedor, { efecto, venta: venta.id, origen: "/venta" });
+  if (chat) await registrarAccion(chat.conversationId, "registrar_venta", venta.vendedor, { efecto, venta: venta.id, origen: "/venta" }, antes);
   return { venta: { ...venta, efectoEnTicket: efecto }, yaRegistradaPor };
 }
 

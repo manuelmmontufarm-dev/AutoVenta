@@ -1,3 +1,15 @@
+## 21-nov-2026 · Panel · «Quién hizo qué» solo se guarda, no se muestra (rama `feat/ganado-varias-facturas`)
+
+- **Qué:** simplificación de Manuel: cada acción del panel sigue guardando el usuario en `audit_events` (actor,
+  acción, ticket), ahora con la foto del ticket antes y después (etapa, estado, quién atiende, ciclo) más el detalle.
+  Se quitaron el historial de la ficha y el nombre en los mensajes del chat (el nombre queda guardado en
+  `metadata.autor`). Queda solo «Marcado ganado por X · hora · factura N» en la venta. Consulta de una línea para
+  «¿quién hizo qué en el ticket N?» en `docs/QUIEN-HIZO-QUE.md` (probada contra Postgres).
+- **Por qué:** Manuel lo pregunta cuando lo necesita; no hace falta UI.
+- **Probado:** `ventaRegistradaEnTicket.integration` (34) con antes/después y ciclo; suite: solo `hashesPiezasDepot`
+  y `unidadEnLaCantidad`, como en main. `tsc` app y hub ✅.
+- **Horas:** 0.5.
+
 ## 21-nov-2026 · Panel · Quién hizo qué: cada acción del panel guarda el usuario (rama `feat/ganado-varias-facturas`)
 
 - **Qué:** las acciones del panel sobre un ticket (cerrar ganado/perdido/sin respuesta —incluye «compró acá / en otro
