@@ -252,7 +252,7 @@ function cifras(r: ReporteSimple, e: Estilo) {
     columns: [
       cifra(e, {
         etiqueta: "VIENEN", numero: String(r.vienen.total), unidad: r.vienen.total === 1 ? "persona" : "personas",
-        pie: r.vienen.total ? `dieron fecha · ${montoEntero(r.vienen.monto)}` : "nadie dio fecha todavía",
+        pie: r.vienen.total ? `con fecha en los próximos 7 días · ${montoEntero(r.vienen.monto)}` : "nadie tiene fecha esta semana",
         filo: e.tinta, fondo: e.tinta, tinta: BLANCO, sub: SOBRE_TINTA,
       }),
       cifra(e, {
@@ -283,7 +283,7 @@ function embudo(r: ReporteSimple, e: Estilo): string {
   const pasos = [
     { valor: r.embudo.escribieron, rotulo: "escribieron", color: mezclar(e.tinta, BLANCO, 0.58) },
     { valor: r.embudo.cotizados, rotulo: "con cotización", color: mezclar(e.tinta, BLANCO, 0.36) },
-    { valor: r.embudo.dieronFecha, rotulo: "dieron fecha", color: e.tinta },
+    { valor: r.embudo.dieronFecha, rotulo: "dieron fecha hoy", color: e.tinta },
     ...(r.embudo.compraron > 0 ? [{ valor: r.embudo.compraron, rotulo: "compraron", color: VERDE }] : []),
   ];
   const W = ANCHO, H = 40, punta = 9, hueco = 4;

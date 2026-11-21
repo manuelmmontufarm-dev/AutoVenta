@@ -1,3 +1,15 @@
+## 21-nov-2026 · Reporte del día · Cinco arreglos tras verlo con datos reales (rama `fix/reporte-simple-detalles`)
+
+- **Qué:** (1) «Tenían fecha y ya pasó» mira hoy, ayer y anteayer, no 14 días (Depot salía con 56). (2) La cifra
+  «Vienen» cuenta sólo los 7 días que dibuja la agenda y dice «con fecha en los próximos 7 días»; el embudo dice
+  «dieron fecha hoy» (25 contra 9 confundía). (3) Nombre vacío → teléfono legible (`nombreVisible`; Competimotor
+  tenía una fila en blanco). (4) Las llantas sin la palabra «Llanta» y la hora sólo si ubica al cliente
+  (`horaVisible`: fuera «(fin de semana)», «algún ratito»). (5) El pie cuenta chats distintos con error y sin las
+  correcciones del Guardián (`contarChatsConError`): decía 156 un día de 130 clientes porque sumaba alertas.
+- **Por qué:** Manuel (21-nov) vio el primer reporte real de Depot y Competimotor y pidió arreglarlo antes del
+  envío de las 20:00.
+- **Horas:** 0,5
+
 ## 21-nov-2026 · Panel · Los chats que atiende un asesor van arriba, con su marca, en Inbox, Pipeline y Para cerrar (rama `feat/asesor-arriba`)
 
 - **Qué:** una sola marca para «lo atiende un asesor» (`MarcaAsesor`: cápsula de tinta con audífonos,

@@ -16,10 +16,14 @@
  *    en el local sin volver al sistema; lo único que se sabe es que la fecha
  *    pasó, el chat sigue abierto y no hay factura cruzada. Por eso el rótulo
  *    pide confirmar, no rescatar.
+ *  · **«Ya pasó» mira sólo tres días.** Con dos semanas la lista llegaba a
+ *    56 personas y nadie confirma 56 visitas; lo que sirve es hoy, ayer y
+ *    anteayer, cuando el asesor todavía se acuerda de quién entró al local.
  *  · **Lo cotizado se cuenta por persona.** Quien pidió tres cotizaciones hoy
  *    es una fila con la última, no tres: la lista es de gente a quien escribir.
  */
 import { config } from "../config.js";
+import { clasificarAlerta } from "./alertTaxonomy.js";
 import { sql } from "../db/client.js";
 import { buildDailyReport, type ReporteDiario } from "./dailyReport.js";
 import { cruceVigente, sincronizarFacturas, ultimaSyncFacturas, type VentaConfirmada } from "./ventasConfirmadas.js";
@@ -29,8 +33,10 @@ import type {
 
 /** Cuántos días hacia adelante dibuja la agenda. */
 const DIAS_AGENDA = 7;
-/** Una fecha vencida hace más de esto ya no es tarea de nadie. */
-const DIAS_VENCIDA = 14;
+/** «Tenían fecha y ya pasó»: hoy, ayer y anteayer. Más atrás ya nadie lo confirma. */
+const DIAS_PASADA = 3;
+/** Una factura de hasta hace tanto todavía cierra una fecha pasada. */
+const DIAS_FACTURA = 14;
 /** Cuánto se espera a la fuente de facturas si este proceso aún no la leyó. */
 const ESPERA_FACTURAS_MS = 45_000;
 
@@ -57,13 +63,42 @@ function partesDelDia(dia: string) {
  * Los ítems son JSON libre que escribió el bot, así que se lee a la defensiva:
  * si no hay nada reconocible queda la medida del chat, y si tampoco, null.
  */
+/**
+ * El nombre que se ve en el reporte. Un nombre vacío o de puros espacios cuenta
+ * como sin nombre (pasó en Competimotor: la fila salía en blanco), y entonces
+ * va el número, en la forma en que el asesor lo marcaría: 0998 412 776.
+ */
+export function nombreVisible(nombre: string | null | undefined, telefono: string): string {
+  const limpio = nombre?.trim();
+  if (limpio) return limpio;
+  const digitos = telefono.replace(/\D/g, "");
+  const local = digitos.startsWith("593") && digitos.length === 12 ? `0${digitos.slice(3)}` : digitos;
+  return local.length === 10 ? `${local.slice(0, 4)} ${local.slice(4, 7)} ${local.slice(7)}` : telefono;
+}
+
+/**
+ * La hora que dijo el cliente, si dice algo que sirva para esperarlo.
+ *
+ * `visit_time_label` es texto libre: junto a «a las 6 pm» o «en la tarde» llegan
+ * «(fin de semana)», «algún ratito» o «en eso estoy», que no ubican a nadie en
+ * el día. Se queda lo que tiene un número o una parte del día; lo demás se
+ * muestra como «en el día», igual que si no hubiera dicho nada.
+ */
+export function horaVisible(etiqueta: string | null | undefined): string | null {
+  const limpio = etiqueta?.replace(/[()]/g, "").replace(/\s+/g, " ").trim();
+  if (!limpio) return null;
+  if (/\d/.test(limpio)) return limpio;
+  return /^(en la|por la|a la|al|de) ?(mañana|tarde|noche|mediod[ií]a)$/i.test(limpio) ? limpio : null;
+}
+
 export function llantasDe(items: unknown, medida: string | null): string | null {
   const lista = Array.isArray(items) ? items as Array<Record<string, unknown>> : [];
   const primero = lista[0];
   const nombre = primero && [primero.descripcion, primero.description, primero.nombre].find((v) => typeof v === "string" && v.trim()) as string | undefined;
   if (!nombre) return medida;
   const cantidad = Number(primero.cantidad ?? primero.quantity ?? 0);
-  const texto = `${cantidad > 0 ? `${cantidad} × ` : ""}${nombre.trim()}`;
+  // «Llanta FALKEN ZIEX…»: en un reporte de llantas la palabra no dice nada.
+  const texto = `${cantidad > 0 ? `${cantidad} × ` : ""}${nombre.trim().replace(/^llantas?\s+/i, "")}`;
   const corto = texto.length > 58 ? `${texto.slice(0, 57).trimEnd()}…` : texto;
   return lista.length > 1 ? `${corto} + ${lista.length - 1} más` : corto;
 }
@@ -88,21 +123,27 @@ export function armarReporteSimple(input: {
   visitas: FilaVisita[];
   cotizadas: FilaCotizada[];
   ventas: VentaConfirmada[];
+  /** Chats distintos con un error que el cliente pudo ver; sin el dato, el del reporte base. */
+  chatsConError?: number;
 }): ReporteSimple {
   const { base } = input;
   const hoy = base.diaClave;
-  const conFactura = new Set(input.ventas.filter((v) => v.dia >= sumarDias(hoy, -DIAS_VENCIDA)).map((v) => v.ticketId));
+  const conFactura = new Set(input.ventas.filter((v) => v.dia >= sumarDias(hoy, -DIAS_FACTURA)).map((v) => v.ticketId));
 
   const persona = (v: FilaVisita): PersonaConFecha => ({
-    nombre: v.name ?? v.phone,
+    nombre: nombreVisible(v.name, v.phone),
     link: linkTicket(Number(v.id)),
-    hora: v.visit_time_label?.trim() || null,
+    hora: horaVisible(v.visit_time_label),
     llantas: llantasDe(v.items, v.tire_size),
     local: v.nearest_store,
     monto: v.total == null ? null : Number(v.total),
   });
 
-  const futuras = input.visitas.filter((v) => v.dia > hoy);
+  // Sólo los días que dibuja la agenda: si la cifra cuenta a alguien que viene
+  // dentro de tres semanas, los puntos de los recuadros no suman lo que dice arriba.
+  const ultimoDia = sumarDias(hoy, DIAS_AGENDA);
+  const futuras = input.visitas.filter((v) => v.dia > hoy && v.dia <= ultimoDia);
+  const piso = sumarDias(hoy, -(DIAS_PASADA - 1));
   const dias: DiaDeVisitas[] = Array.from({ length: DIAS_AGENDA }, (_, i) => {
     const clave = sumarDias(hoy, i + 1);
     const p = partesDelDia(clave);
@@ -112,14 +153,14 @@ export function armarReporteSimple(input: {
       titulo: `${i === 0 ? "Mañana · " : ""}${p.largo} ${p.numero}`,
       // Primero quien dio hora: es a quien se espera en un momento concreto.
       personas: futuras.filter((v) => v.dia === clave)
-        .sort((a, b) => Number(Boolean(b.visit_time_label)) - Number(Boolean(a.visit_time_label)) || Number(b.total ?? 0) - Number(a.total ?? 0))
+        .sort((a, b) => Number(Boolean(horaVisible(b.visit_time_label))) - Number(Boolean(horaVisible(a.visit_time_label))) || Number(b.total ?? 0) - Number(a.total ?? 0))
         .map(persona),
     };
   });
 
   const ayer = sumarDias(hoy, -1);
   const noVinieron: NoVino[] = input.visitas
-    .filter((v) => v.dia <= hoy && !conFactura.has(Number(v.id)))
+    .filter((v) => v.dia <= hoy && v.dia >= piso && !conFactura.has(Number(v.id)))
     .sort((a, b) => (a.dia < b.dia ? 1 : a.dia > b.dia ? -1 : Number(b.total ?? 0) - Number(a.total ?? 0)))
     .map((v) => {
       const p = partesDelDia(v.dia);
@@ -138,7 +179,7 @@ export function armarReporteSimple(input: {
       const estado = estadoDe(c);
       const p = c.dia_visita ? partesDelDia(c.dia_visita) : null;
       return {
-        nombre: c.name ?? c.phone,
+        nombre: nombreVisible(c.name, c.phone),
         link: linkTicket(Number(c.id)),
         llantas: llantasDe(c.items, c.tire_size),
         monto: Number(c.total),
@@ -153,7 +194,7 @@ export function armarReporteSimple(input: {
     const factura = v.facturas.find((f) => f.dia === hoy) ?? v.facturas[0];
     const llantas = v.llantas.length > 70 ? `${v.llantas.slice(0, 69).trimEnd()}…` : v.llantas;
     return {
-      nombre: v.nombre ?? v.cliente ?? v.telefono,
+      nombre: v.nombre?.trim() || v.cliente?.trim() || nombreVisible(null, v.telefono),
       link: linkTicket(v.ticketId),
       llantas,
       factura: factura?.documento ?? "—",
@@ -190,7 +231,7 @@ export function armarReporteSimple(input: {
       semana: base.semana.dias.map((d) => ({ etiqueta: d.etiqueta, monto: d.monto })),
     },
     vendido: { total: vendidas.length, monto: suma(vendidas.map((v) => v.total)), filas: vendidas },
-    enElPanel: { pidenAsesor: base.pidenAsesor.total, errores: base.errores.total },
+    enElPanel: { pidenAsesor: base.pidenAsesor.total, errores: input.chatsConError ?? base.errores.total },
   };
 }
 
@@ -219,7 +260,7 @@ export async function buildReporteSimple(ahora = new Date(), baseYaArmada?: Repo
   const base = baseYaArmada ?? await buildDailyReport(ahora);
   const desde = new Date(base.desde);
   const hasta = new Date(base.hasta);
-  const piso = sumarDias(base.diaClave, -DIAS_VENCIDA);
+  const piso = sumarDias(base.diaClave, -(DIAS_PASADA - 1));
 
   const DIA_VISITA = sql`to_char(coalesce(c.visit_date at time zone 'America/Guayaquil', c.pickup_date::timestamp), 'YYYY-MM-DD')`;
 
@@ -247,7 +288,26 @@ export async function buildReporteSimple(ahora = new Date(), baseYaArmada?: Repo
     order by q.conversation_id, q.created_at desc
   `;
 
-  return armarReporteSimple({ base, visitas: [...visitas], cotizadas: [...cotizadas], ventas: await ventasConFactura() });
+  // El pie decía «156 chats con error» un día de 130 clientes: contaba alertas,
+  // no chats (un chat corregido cinco veces sumaba cinco), y contaba las
+  // correcciones del Guardián, que frenó el mensaje antes de que saliera — el
+  // cliente nunca vio ese error. Aquí: chats distintos, sin esas correcciones.
+  const alertas = await sql<{ type: string; conversation_id: number }[]>`
+    select distinct a.type, a.conversation_id from bot_alerts a
+    where a.status in ('open', 'snoozed')
+      and (a.snoozed_until is null or a.snoozed_until <= now())
+      and a.created_at >= ${desde} and a.created_at < ${hasta}
+  `;
+  const chatsConError = contarChatsConError(alertas);
+
+  return armarReporteSimple({ base, visitas: [...visitas], cotizadas: [...cotizadas], ventas: await ventasConFactura(), chatsConError });
+}
+
+/** Chats distintos con un error de conversación que llegó al cliente. */
+export function contarChatsConError(alertas: Array<{ type: string; conversation_id: number }>): number {
+  return new Set(alertas
+    .filter((a) => clasificarAlerta(a.type) === "conversacion" && !a.type.startsWith("guardian_correccion"))
+    .map((a) => Number(a.conversation_id))).size;
 }
 
 /**
