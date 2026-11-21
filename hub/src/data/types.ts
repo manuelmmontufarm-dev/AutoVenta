@@ -622,6 +622,8 @@ export interface EstadisticaLlegada {
 
 export interface ClienteParaCerrar {
   ticketId: number;
+  /** Lo atiende un asesor: va primero y con la marca. */
+  atiendeAsesor?: boolean;
   nombre: string | null;
   telefono: string;
   medida: string | null;
@@ -645,6 +647,7 @@ export interface ClienteParaCerrar {
 
 export interface ClienteEmpujando {
   ticketId: number;
+  atiendeAsesor?: boolean;
   nombre: string | null;
   medida: string | null;
   llantas: string;

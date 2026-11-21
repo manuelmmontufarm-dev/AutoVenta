@@ -13,7 +13,7 @@ import { AnimatePresence } from "framer-motion";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { IconBandera, IconX } from "../components/icons";
 import { SelectorDeMes, etiquetaDeMes } from "../components/mes";
-import { BlockTitle, MedidaChip, Modal, PageHeader } from "../components/ui";
+import { BlockTitle, MarcaAsesor, MedidaChip, Modal, PageHeader } from "../components/ui";
 import { authHeaders } from "../data/realSource";
 import { ETAPAS, ETAPA_META, TODOS, type Etapa, type FinalStage, type Ticket } from "../data/types";
 import { horaLista, money, relTime } from "../lib/format";
@@ -41,16 +41,20 @@ function useEsMovil(): boolean {
 
 function Tarjeta({ ticket, now, arrastrando = false, onMover }: { ticket: Ticket; now: number; arrastrando?: boolean; onMover?: () => void }) {
   const espera = ticket.sinLeer > 0;
+  const asesor = ticket.atiende === "humano";
   return (
     <div
-      className={`flex w-full flex-col gap-2 rounded-[8px] border bg-surface px-3.5 py-3 text-left ${espera ? "border-signal/40" : "border-line"} ${arrastrando ? "shadow-pop" : ""}`}
+      className={`flex w-full flex-col gap-2 rounded-[8px] border bg-surface px-3.5 py-3 text-left ${espera ? "border-signal/40" : "border-line"} ${asesor && !arrastrando ? "shadow-[inset_3px_0_0_var(--color-text)]" : ""} ${arrastrando ? "shadow-pop" : ""}`}
       style={{ cursor: arrastrando ? "grabbing" : "pointer" }}
     >
       <div className="flex items-baseline justify-between gap-2.5">
         <span className={`truncate text-[14px] md:text-[14px] ${espera ? "font-semibold" : "font-medium"}`}>{ticket.nombre ?? ticket.telefono}</span>
         <span className={`tnum shrink-0 font-mono text-[11px] ${espera ? "font-bold text-signal" : "font-medium text-text2"}`}>{horaLista(ticket.ultimaActividad, now)}</span>
       </div>
-      {ticket.medida ? <MedidaChip medida={ticket.medida} /> : <span className="text-[13px] text-text2">Sin medida</span>}
+      <div className="flex items-center justify-between gap-2">
+        {ticket.medida ? <MedidaChip medida={ticket.medida} /> : <span className="text-[13px] text-text2">Sin medida</span>}
+        {asesor && <MarcaAsesor />}
+      </div>
       <span className={`truncate text-[12px] leading-[1.4] ${espera ? "text-text" : "text-text2"}`}>{ticket.ultimoMensaje}</span>
       {(ticket.cotizacion || onMover) && (
         <div className="flex items-baseline justify-between gap-3">
@@ -428,8 +432,10 @@ export function Pipeline() {
   const agrupar = (lista: Ticket[]) => {
     const mapa = Object.fromEntries(ETAPAS.map((e) => [e, [] as Ticket[]])) as Record<Etapa, Ticket[]>;
     for (const t of lista) mapa[t.etapa].push(t);
-    // Dentro de cada carril, quien espera respuesta va primero.
-    for (const e of ETAPAS) mapa[e].sort((a, b) => (b.sinLeer > 0 ? 1 : 0) - (a.sinLeer > 0 ? 1 : 0));
+    // Dentro de cada carril: primero lo que atiende un asesor (que no se pierda
+    // entre las del bot), y en cada grupo, quien espera respuesta.
+    const peso = (t: Ticket) => (t.atiende === "humano" ? 2 : 0) + (t.sinLeer > 0 ? 1 : 0);
+    for (const e of ETAPAS) mapa[e].sort((a, b) => peso(b) - peso(a));
     return mapa;
   };
   const porEtapaEnVentana = useMemo(() => agrupar(enVentana), [enVentana]);

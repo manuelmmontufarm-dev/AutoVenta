@@ -1,3 +1,20 @@
+## 21-nov-2026 · Panel · Los chats que atiende un asesor van arriba, con su marca, en Inbox, Pipeline y Para cerrar (rama `feat/asesor-arriba`)
+
+- **Qué:** una sola marca para «lo atiende un asesor» (`MarcaAsesor`: cápsula de tinta con audífonos,
+  `IconAsesor`) y un solo criterio de orden: primero los de asesor. **Inbox:** dos grupos con cabecera pegada
+  («Los atiende un asesor · N» arriba, «Los atiende el bot» abajo), franja de tinta a la izquierda y la marca en
+  la columna Atiende; buscando, los abiertos de asesor también primero. **Pipeline:** en cada carril, asesor
+  primero y después quien espera respuesta; la tarjeta lleva la marca y la franja. **Para cerrar:** el servidor
+  manda `atiendeAsesor` (`conversations.assigned_to = 'human'`) y ordena Para cerrar y Empujando con ellos
+  arriba; el calendario los pone primero en cada día con el ícono, y la tarjeta y la tabla de Empujando llevan
+  la marca.
+- **Por qué:** Manuel (21-nov): que los tickets que responde el asesor no se les pierdan entre los del bot, y que
+  se vea de un vistazo quién está atendiendo. Tinta y no un color nuevo: la señal sigue siendo una (DESIGN.md §4).
+- **Probado:** `paraCerrar.test.ts` 23/23 (+3: asesor primero en Para cerrar y Empujando, y sin el dato nadie
+  queda marcado); `tsc` app y hub ✅. Panel local contra una base de prueba con 3 chats tomados: Inbox, Pipeline,
+  Para cerrar (calendario, «Vienen hoy», Empujando) en escritorio y teléfono.
+- **Horas:** 0,5.
+
 ## 20-nov-2026 · Panel · `app/site/demo-showroom-gp` con los botones en el chat (rama `fix/opciones-con-letras-y-botones`)
 
 - **Qué:** la segunda copia del build del hub (la del showroom), recompilada con el cambio del commit anterior

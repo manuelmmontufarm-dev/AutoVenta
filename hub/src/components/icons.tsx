@@ -69,6 +69,10 @@ export const IconBot = (p: P) =>
 export const IconUser = (p: P) =>
   base(p, <><circle cx="12" cy="8" r="3.6" /><path d="M5 20c1.2-3.4 3.9-5 7-5s5.8 1.6 7 5" /></>);
 
+/** Audífonos con micrófono: una persona del negocio está atendiendo el chat. */
+export const IconAsesor = (p: P) =>
+  base(p, <><path d="M4.5 13.5v-1.8a7.5 7.5 0 0 1 15 0v1.8" /><rect x="3.5" y="12.5" width="3.6" height="5.8" rx="1.4" /><rect x="16.9" y="12.5" width="3.6" height="5.8" rx="1.4" /><path d="M18.7 18.3v.4a2.6 2.6 0 0 1-2.6 2.6H13" /></>);
+
 export const IconClock = (p: P) => base(p, <><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5V12l3 2" /></>);
 
 export const IconX = (p: P) => base(p, <><path d="m6 6 12 12" /><path d="M18 6 6 18" /></>);

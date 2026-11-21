@@ -37,6 +37,7 @@ interface FilaSql {
   ultimo_asesor: Date | null; asesor_antes_del_cliente: boolean;
   cerrar_descartado_at: Date | null; cerrar_pospuesto_hasta: Date | null;
   cerrar_pospuesto_en: Date | null; cerrar_revivido_at: Date | null;
+  assigned_to: string;
 }
 
 /* ── La curva de llegada, medida con las ventas reales ──────────────────────
@@ -108,7 +109,8 @@ export async function leerParaCerrar(
           and m.role = 'assistant' and m.author_kind is distinct from 'bot'
           and m.created_at < c.last_customer_message_at
       ) as asesor_antes_del_cliente,
-      c.cerrar_descartado_at, c.cerrar_pospuesto_hasta, c.cerrar_pospuesto_en, c.cerrar_revivido_at
+      c.cerrar_descartado_at, c.cerrar_pospuesto_hasta, c.cerrar_pospuesto_en, c.cerrar_revivido_at,
+      c.assigned_to
     from conversations c
     join lateral (
       select items, total, created_at from quotes
@@ -157,6 +159,7 @@ export async function leerParaCerrar(
       pospuestoEn: f.cerrar_pospuesto_en,
       revividoAt: f.cerrar_revivido_at,
       compro: Boolean(compra && compra >= diaDeGuayaquil(f.cotizado_at)),
+      atiendeAsesor: f.assigned_to === "human",
     };
   }), ahora, est);
   resultado.archivo = resultado.archivo.slice(0, ARCHIVO_MAX);
