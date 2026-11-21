@@ -28,6 +28,7 @@ import { eleccionDeLaVitrina, type OpcionDeVitrina } from "../domain/eleccionDeV
 import { mencionaVehiculo } from "../domain/vehiculoEnTexto.js";
 import {
   cantidadDelTexto, escalonContestado, esReferenciaPluralAlMenu, pideVariasOpciones,
+  esLaListaNumerada,
 } from "../domain/salesIntent.js";
 import { confirmacionDeLaOpcion, opcionPorPosicion, posicionElegida } from "../domain/listaDeOpciones.js";
 import { decirPrecioDeLaLinea, precioDeLaOpcionGuardada, precioDelProducto, type SegundaLlanta } from "../domain/promocionDeTemporada.js";
@@ -137,7 +138,7 @@ export function loQueEligio(
     // esa lista (`opcionPorPosicion`, dueño único), no un escalón: con dos
     // opciones no existe el del medio. Con el menú viejo sigue mandando el escalón.
     const n = posicionElegida(texto);
-    const enLista = n !== null && /¿le cotizo la 1/i.test(mensajeCitado ?? previousOutbound ?? "");
+    const enLista = n !== null && esLaListaNumerada(mensajeCitado ?? previousOutbound);
     const porPosicion = enLista ? opcionPorPosicion({ escalones }, n) : null;
     // Con el menú viejo de dos opciones («1) Costo 2) Premium») el «2» pelado
     // también es la premium, no el escalón del medio que no existe.

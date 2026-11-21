@@ -19,6 +19,7 @@
  * escribe el cliente coincide con Costo / Equilibrio / Premium, que es lo que
  * `respuestaDePreferencia` ya entiende por «1», «2» y «3».
  */
+import { opcionEnDigitos } from "./opcionEnLetras.js";
 import { cuentaConRotulo, type SegundaLlanta } from "./promocionDeTemporada.js";
 
 export interface OpcionConPrecio {
@@ -178,7 +179,8 @@ export function hechoDeLaLista(lista: readonly LineaDeLista[], cantidad: number,
 
 /** «2», «la 3», «opción 1»: el número pelado con que se contesta la lista. */
 export function posicionElegida(texto: string | null | undefined): number | null {
-  const m = (texto ?? "").trim().match(/^(?:la\s+|el\s+|opci[oó]n\s+)?([123])\)?\.?$/i);
+  // «la dos», «opción tres», «uno»: el que llama ya sabe que hay lista (o lo comprueba aparte).
+  const m = opcionEnDigitos(texto ?? "", { menuAbierto: true }).trim().match(/^(?:la\s+|el\s+|opci[oó]n\s+)?([123])\)?\.?$/i);
   return m ? Number(m[1]) : null;
 }
 

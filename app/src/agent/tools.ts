@@ -106,7 +106,7 @@ import { traeMarcaDelMenu, autorizaCotizacionEnEsteTurno, canGenerateFinalQuote,
 import { equivalenteSinConsentimiento, preguntaDeEquivalente } from "../domain/equivalentePendiente.js";
 import { aroDadoPorElCliente, medidaParaElSello, medidaNoDada, medidasDelAro } from "../domain/medidaConfirmada.js";
 import { eleccionDeLaVitrina } from "../domain/eleccionDeVitrina.js";
-import { pideVerOpciones } from "../domain/salesIntent.js";
+import { esLaListaNumerada, pideVerOpciones } from "../domain/salesIntent.js";
 import { getTirePatternProfile } from "../domain/tireKnowledge.js";
 import {
   catalogoDeTipos, escalonDeMarca, infoTipo, normalizarTipo, ordenDeMarca, tipoDeProducto, usoDelModelo,
@@ -2391,7 +2391,7 @@ export function buildTools(ctx: AgentContext) {
         // (`opcionPorPosicion`, dueño único) y se confirma como «La opción N».
         const posicionDeLista = posicionElegida(ctx.currentUserText);
         const ultimoNuestro = posicionDeLista !== null ? await lastOutboundText(ctx.conversation.id) : null;
-        const porLista = posicionDeLista !== null && /¿le cotizo la 1/i.test(ctx.mensajeCitado ?? ultimoNuestro ?? "")
+        const porLista = posicionDeLista !== null && esLaListaNumerada(ctx.mensajeCitado ?? ultimoNuestro)
           ? opcionPorPosicion({ escalones: escalonesPrevios }, posicionDeLista)
           : null;
         const codigoDelEscalon = porLista?.codigo ?? escalonesPrevios?.[nivel]?.codigo ?? null;
@@ -3165,7 +3165,9 @@ export function buildTools(ctx: AgentContext) {
       `;
       // La ficha tiene siete filas sucias (anchos de medida leídos como cantidad): solo vale 1..100.
       const cantidadDeLaFichaValida = cantidadValidaDeLaFicha(facts?.selected_quantity);
-      const eleccionDeMenu = (ctx.currentUserText ?? "").trim().match(/^(?:la\s+|el\s+|opci[oó]n\s+)?([123])\)?\.?$/i);
+      // «la dos», «uno» con letras cuentan igual que «la 2» (`posicionElegida` los traduce).
+      const posicionDelMenu = posicionElegida(ctx.currentUserText);
+      const eleccionDeMenu = posicionDelMenu !== null ? [String(posicionDelMenu), String(posicionDelMenu)] as const : null;
       // El candado SOLO corrige cuando el «1/2/3» que trae el modelo es el número del menú y
       // no una cantidad declarada: si la ficha ya dice esa misma cantidad, el cliente la pidió
       // («Una 235/75» → menú para 1 → «La 1» = la opción 1 de UNA llanta) y cotizar 4 cambiaría

@@ -154,6 +154,20 @@ Probado: una foto del costado con «185/70R14 KENDA KR203» entró como
 el bot cotizó desde ahí. El 📍 comparte una ubicación, para el camino de
 «local más cercano».
 
+## Botones de WhatsApp
+
+Los mensajes con botones (local, día y, con `politica.botonesDeOpciones`, la
+lista «¿Le cotizo la 1, la 2 o la 3?») se pintan en la pantalla y se pueden
+tocar: el simulador manda el `interactive.button_reply` que manda Meta, con el
+`context.id` del mensaje que tenía los botones. Desde un escenario de la flota:
+`{ boton: { tocar: 2 } }` toca el 2.º botón del último mensaje con botones (no
+hace falta saber el id ni el ciclo).
+
+Para probar el respaldo a texto: `POST /api/graph {"rechazarBotones": N}`
+(`true` = 1) hace que la Graph de mentira rechace los próximos N mensajes con
+botones con el error 131009 de Meta y se apague sola; el bot tiene que mandar
+el mismo texto plano. En un escenario: la parte `{ graph: { rechazarBotones: true } }`.
+
 ## Qué NO prueba
 
 - **La entrega real de WhatsApp** (plantillas aprobadas, ventana de 24 h del

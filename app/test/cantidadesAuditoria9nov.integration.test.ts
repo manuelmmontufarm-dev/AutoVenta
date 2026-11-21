@@ -276,6 +276,30 @@ describe.sequential("el lector de Sprint 1 (`cantidadDelCliente`) hereda los arr
     expect(q.cantidad).toBeNull();
   });
 
+  it.each([["uno", "1"], ["la dos", "la 2"], ["opción tres", "la 3"]])(
+    "«%s» guardado y «%s» en el turno (ya traducido) eligen la opción: no son cantidad (Competimotor, 20-nov)",
+    async (guardado, delTurno) => {
+      // El turno lee el texto con la posición en dígitos (`opcionEnDigitos`) y la base guarda lo que
+      // escribió el cliente. Si no se reconocen como el MISMO mensaje, el «1» se lee sin la pregunta
+      // delante y cotiza 1 llanta (simulador Depot y Competimotor, 20-nov: «uno» → 1 × KENDA KR203).
+      const { cantidadDelCliente } = await import("../src/services/lineasConPromo.js");
+      const h = await hilo({ guardada: 4, cantidadDelMenu: 4, pedido: "precio de 4 llantas 235/75R15" });
+      await sql`insert into messages (conversation_id, cycle, role, direction, author_kind, type, content)
+                values (${h.fila.id}, 1, 'user', 'inbound', 'customer', 'text', ${guardado})`;
+      const q = await cantidadDelCliente(h.fila.id, delTurno);
+      expect(q.turno).toBeNull();
+      expect(q.cantidad).toBe(4);
+    },
+  );
+
+  it("«mejor solo uno» a la lista sí es cantidad: 1", async () => {
+    const { cantidadDelCliente } = await import("../src/services/lineasConPromo.js");
+    const h = await hilo({ guardada: 4, cantidadDelMenu: 4, pedido: "precio de 4 llantas 235/75R15" });
+    await sql`insert into messages (conversation_id, cycle, role, direction, author_kind, type, content)
+              values (${h.fila.id}, 1, 'user', 'inbound', 'customer', 'text', 'mejor solo uno')`;
+    expect((await cantidadDelCliente(h.fila.id, "mejor solo uno")).cantidad).toBe(1);
+  });
+
   it("lo sano: ficha 4 sigue siendo 4, y «tres llantas» sigue siendo 3", async () => {
     const { cantidadDelCliente } = await import("../src/services/lineasConPromo.js");
     const sana = await hilo({ guardada: 4, cantidadDelMenu: 4, pedido: "Necesito 4 llantas 225/70R16" });

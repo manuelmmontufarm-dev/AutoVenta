@@ -1,3 +1,4 @@
+import { opcionEnDigitos } from "./opcionEnLetras.js";
 import type { SegundaLlanta } from "./promocionDeTemporada.js";
 import { cantidadValidaDeLaFicha, cantidadGrandePedida } from "./cantidadGrande.js";
 import { comproEnOtroLugar } from "./cierrePerdido.js";
@@ -229,6 +230,9 @@ export function escalonContestado(
   mensajeCitado?: string | null,
   contexto: { huboMenu?: boolean } = {},
 ): Preferencia | null {
+  // «uno», «la dos»: la palabra pelada solo elige con el menú arriba, y eso lo
+  // decide `esRespuestaDelMenuDePreferencia` igual que con el dígito.
+  text = opcionEnDigitos(text, { menuAbierto: true });
   const preferencia = respuestaDePreferencia(text);
   if (!preferencia) return null;
   if (/^(?:la\s+|el\s+|opci[oó]n\s+)?[123]\)?\.?$/i.test(text.trim())) {
@@ -247,7 +251,7 @@ export function escalonContestado(
  * siga autorizando.
  */
 export function eligePosicionDelMenu(text: string): boolean {
-  const n = normalize(text);
+  const n = normalize(opcionEnDigitos(text));
   return /\b(?:la|el)\s+(?:opcion\s+|numero\s+)?[1-3]\b(?!\s*(?:llantas?|unidades?))|\bopcion\s+[1-3]\b|\b(?:la|el)\s+(?:primera|segunda|tercera|primero|segundo|tercero)\b/.test(n);
 }
 
@@ -264,6 +268,9 @@ function preguntaOPideOtra(normalized: string): boolean {
 }
 
 export function respuestaDePreferencia(text: string): Preferencia | null {
+  // «la dos», «opción tres» → «la 2», «la 3». Sin menú a la vista la palabra
+  // pelada («dos») NO se traduce: acá no se sabe si es la opción o cuántas.
+  text = opcionEnDigitos(text);
   const normalized = normalize(text);
   if (pideAlternativaMasBarata(text)) return null;
   // El menú de Joaquín es numerado (1 Costo / 2 Equilibrio / 3 Premium), así
@@ -404,10 +411,24 @@ export const MARCA_DEL_MENU = "¿qué prioriza usted?";
  */
 export const MARCA_DE_LA_LISTA = "¿le cotizo la 1";
 
+/**
+ * La repregunta cuando el cliente contestó la lista sin elegir
+ * (`preguntaCualLeCotizo`: «¿Cuál le cotizo, la 1, la 2 o la 3?»). Es el mismo
+ * menú: hasta el 20-nov no se la reconocía como tal, y el «2» pelado que la
+ * contestaba no elegía — el bot volvía a preguntar lo mismo.
+ */
+export const MARCA_DE_LA_REPREGUNTA = "¿cuál le cotizo, la 1";
+
 /** ¿Este texto nuestro dejó al cliente elegir por número (menú o lista con precios)? */
 export function traeMarcaDelMenu(texto: string | null | undefined): boolean {
   const t = (texto ?? "").toLowerCase();
-  return t.includes(MARCA_DEL_MENU) || t.includes(MARCA_DE_LA_LISTA);
+  return t.includes(MARCA_DEL_MENU) || t.includes(MARCA_DE_LA_LISTA) || t.includes(MARCA_DE_LA_REPREGUNTA);
+}
+
+/** ¿Este texto es la lista numerada con precios (o su repregunta)? Ahí «2» es la posición 2. */
+export function esLaListaNumerada(texto: string | null | undefined): boolean {
+  const t = (texto ?? "").toLowerCase();
+  return t.includes(MARCA_DE_LA_LISTA) || t.includes(MARCA_DE_LA_REPREGUNTA);
 }
 
 const PEDIDO_PLURAL_DE_OPCIONES =
@@ -475,6 +496,7 @@ export function esRespuestaDelMenuDePreferencia(
   ultimoMensajeNuestro: string | null | undefined,
   mensajeCitado?: string | null,
 ): boolean {
+  text = opcionEnDigitos(text, { menuAbierto: true });
   if (!/^(?:la\s+|el\s+|opci[oó]n\s+)?([123])\)?\.?$/i.test(text.trim())) return false;
   // EL REPLY MANDA. Cuando WhatsApp dice a qué mensaje contestó el cliente, ese
   // mensaje es la pregunta —no hay que adivinarla— y decide en las DOS
