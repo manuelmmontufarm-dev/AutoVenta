@@ -94,6 +94,10 @@ export class MockSource implements DataSource {
     t.totalPagado = t.facturas.reduce((suma, f) => suma + (f.monto ?? 0), 0);
   }
 
+  async getHistorial(): Promise<never[]> {
+    return [];
+  }
+
   async getVentasPendientes(): Promise<VentasPendientes> {
     return { porConfirmar: [], sinFactura: [] };
   }

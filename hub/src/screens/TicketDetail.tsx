@@ -3,11 +3,11 @@ import { useEffect, useRef, useState } from "react";
 import { ChatBubble, Composer, CotizacionModal, TypingBubble } from "../components/chat";
 import { IconBack, IconDoc, IconRefresh, IconX } from "../components/icons";
 import { BlockTitle, Campo, CierreBadge, CierreIcon, MedidaChip, Modal, Segmented } from "../components/ui";
-import { CIERRE_META, DETALLE_VENTA, ETAPA_META, enlaceRegistrarVenta, estadoDeLaVenta, ventaCompleta, type Cierre, type DatosCierreGanado, type Mensaje, type Ticket } from "../data/types";
+import { CIERRE_META, DETALLE_VENTA, ETAPA_META, enlaceRegistrarVenta, estadoDeLaVenta, ventaCompleta, type AccionDelHistorial, type Cierre, type DatosCierreGanado, type Mensaje, type Ticket } from "../data/types";
 import { AgregarFactura, CamposCierreGanado, DATOS_VACIOS, faltaParaCerrar } from "../components/venta";
 import { etiquetaVisita, money, relTime } from "../lib/format";
 import { navigate } from "../router";
-import { useHub, useNow } from "../store";
+import { source, useHub, useNow } from "../store";
 
 /** El nombre de pila del cliente, para el compositor y la firma de sus mensajes. */
 function nombreCorto(ticket: Ticket): string {
@@ -402,6 +402,14 @@ function Ficha({
   const [guardandoDescuento, setGuardandoDescuento] = useState(false);
   const descuentoRef = useRef<HTMLElement>(null);
   const abierto = ticket.estado === "abierto";
+  // Quién hizo qué: se vuelve a pedir cuando el ticket cambia (cierre, factura, etapa, quién atiende).
+  const [historial, setHistorial] = useState<AccionDelHistorial[]>([]);
+  const huella = `${ticket.id}|${ticket.estado}|${ticket.etapa}|${ticket.atiende}|${ticket.facturas?.length ?? 0}|${ticket.ultimaActividad}`;
+  useEffect(() => {
+    let vivo = true;
+    source.getHistorial(ticket.id).then((h) => { if (vivo) setHistorial(h); }).catch(() => undefined);
+    return () => { vivo = false; };
+  }, [huella, ticket.id]);
   const cot = ticket.cotizacion;
 
   // Al abrir el editor desde la cabecera, la sección tiene que quedar a la vista.
@@ -500,7 +508,7 @@ function Ficha({
         )}
       </Seccion>
 
-      <SeccionVenta ticket={ticket} onCerrarComo={onCerrarComo} />
+      <SeccionVenta ticket={ticket} historial={historial} onCerrarComo={onCerrarComo} />
 
       <section ref={descuentoRef} className="flex flex-col gap-3.5 border-b border-line px-5 pt-5 pb-[18px]">
         <BlockTitle aside={abierto ? <button onClick={onToggleDescuento} className="font-medium text-signal">{verDescuento ? "Cancelar" : ticket.descuentoActivo ? "Ajustar" : "Ofrecer"}</button> : undefined}>Descuento</BlockTitle>
@@ -547,6 +555,8 @@ function Ficha({
         {estadoDescuento && <p className="text-[12px] text-text2">{estadoDescuento}</p>}
       </section>
 
+      <SeccionHistorial historial={historial} />
+
       <Seccion titulo="Notas internas" ultima>
         {ticket.notas.length > 0 && (
           <ul className="flex flex-col gap-1.5">
@@ -587,7 +597,7 @@ function Ficha({
  *  · ganado sin factura (viejo) → el formulario para la primera;
  *  · abierto sin venta → el enlace a /venta con el número puesto, para el vendedor.
  */
-function SeccionVenta({ ticket, onCerrarComo }: { ticket: Ticket; onCerrarComo: (cierre: Cierre, nota?: string) => void }) {
+function SeccionVenta({ ticket, historial, onCerrarComo }: { ticket: Ticket; historial: AccionDelHistorial[]; onCerrarComo: (cierre: Cierre, nota?: string) => void }) {
   const { registroVenta } = useHub();
   const [otraFactura, setOtraFactura] = useState(false);
   const venta = ticket.ventaRegistrada;
@@ -597,8 +607,19 @@ function SeccionVenta({ ticket, onCerrarComo }: { ticket: Ticket; onCerrarComo: 
   const fecha = (iso: string) =>
     new Date(iso).toLocaleString("es-EC", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "America/Guayaquil" });
   const aside = estado === "completa" ? (facturas.length > 1 ? `${facturas.length} facturas` : "Con factura") : estado === "sin_factura" ? "Sin factura" : venta ? "Registrada" : undefined;
+  // «Marcado ganado por Carlos Romero · 11:46 · factura 860»: el cierre más reciente.
+  const cierre = ticket.cierre === "ganado"
+    ? historial.find((a) => a.accion === "cerrar_ganado" || a.accion === "registrar_venta")
+    : undefined;
   return (
     <Seccion titulo="Venta" aside={aside}>
+      {cierre && (
+        <p className="text-[13px]">
+          {cierre.accion === "registrar_venta" ? "Registrada en /venta por " : "Marcado ganado por "}
+          <span className="font-semibold">{cierre.quien}</span>
+          <span className="text-text2"> · {horaCorta(cierre.at)}{typeof cierre.detalle.factura === "string" ? ` · factura ${cierre.detalle.factura}` : ""}</span>
+        </p>
+      )}
       {ticket.compraPorConfirmar && ticket.estado === "abierto" && (
         <div className="flex flex-col gap-2.5 rounded-[8px] border border-[rgba(168,115,31,.45)] bg-[rgba(168,115,31,.07)] px-3.5 py-3">
           <p className="text-[13px] leading-relaxed">
@@ -673,6 +694,62 @@ function SeccionVenta({ ticket, onCerrarComo }: { ticket: Ticket; onCerrarComo: 
       {!venta && ticket.estado === "cerrado" && ticket.cierre !== "ganado" && (
         <p className="text-[13px] text-text2">Sin venta.</p>
       )}
+    </Seccion>
+  );
+}
+
+/* ── Historial: quién hizo qué en este ticket ── */
+
+const NOMBRE_ACCION: Record<string, string> = {
+  cerrar_ganado: "Marcó ganado",
+  cerrar_perdido: "Marcó perdido",
+  cerrar_sin_respuesta: "Cerró sin respuesta",
+  agregar_factura: "Añadió factura",
+  deshacer_venta: "Deshizo la venta",
+  reabrir: "Reabrió",
+  tomar: "Tomó la conversación",
+  devolver_al_bot: "Se la devolvió al bot",
+  descuento: "Ofreció descuento",
+  mover_etapa: "Movió de etapa",
+  mensaje: "Escribió",
+  registrar_venta: "Registró la venta en /venta",
+  anular_registro: "Corrigió el número en /venta",
+};
+
+function horaCorta(iso: string): string {
+  return new Date(iso).toLocaleString("es-EC", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "America/Guayaquil" });
+}
+
+function detalleCorto(a: AccionDelHistorial): string {
+  const d = a.detalle;
+  if (typeof d.factura === "string") return `factura ${d.factura}${typeof d.monto === "number" ? ` · ${money(d.monto)}` : ""}`;
+  if (typeof d.nota === "string" && d.nota) return d.nota;
+  if (typeof d.a === "string") return ETAPA_META[d.a as keyof typeof ETAPA_META]?.nombre ?? d.a;
+  if (typeof d.texto === "string") return `«${d.texto}»`;
+  if (typeof d.indicacion === "string") return d.indicacion;
+  return "";
+}
+
+/**
+ * Quién hizo qué, para saber a quién escribirle (Manuel, 21-nov). Solo lo que
+ * pasa por el panel o por /venta: lo que contestan desde el WhatsApp del
+ * teléfono no trae quién fue.
+ */
+function SeccionHistorial({ historial }: { historial: AccionDelHistorial[] }) {
+  const [todo, setTodo] = useState(false);
+  if (historial.length === 0) return null;
+  const visibles = todo ? historial : historial.slice(0, 6);
+  return (
+    <Seccion titulo="Historial" aside={historial.length > 6 ? <button onClick={() => setTodo((v) => !v)} className="font-medium text-signal">{todo ? "Menos" : `Ver ${historial.length}`}</button> : undefined}>
+      <ul className="flex flex-col gap-2">
+        {visibles.map((a, i) => (
+          <li key={i} className="text-[13px] leading-snug">
+            <span className="font-semibold">{a.quien}</span> {(NOMBRE_ACCION[a.accion] ?? a.accion).toLowerCase()}
+            {detalleCorto(a) && <span className="text-text2"> · {detalleCorto(a)}</span>}
+            <span className="block text-[12px] text-text2">{horaCorta(a.at)}</span>
+          </li>
+        ))}
+      </ul>
     </Seccion>
   );
 }

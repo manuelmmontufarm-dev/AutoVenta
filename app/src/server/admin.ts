@@ -39,6 +39,7 @@ import { comoVistaPrevia } from "../services/temporadaDelTurno.js";
 import { politica } from "../negocio/politica.js";
 import { informeGuardian } from "../services/guardian.js";
 import { canjearCupon, consultarCupon, resumenCupones } from "../services/coupons.js";
+import { historialDelTicket, quienEnElPanel, registrarAccion } from "../services/accionesDelPanel.js";
 import {
   agregarFactura, confirmaGanado, confirmarVentaEnElPanel, listarPendientes, revisarCierreGanado, ventaCompleta, ventaDelTicket,
 } from "../services/registroDeVentas.js";
@@ -1094,6 +1095,7 @@ export function createAdminRouter(): express.Router {
       const created = await createDiscountFromPrompt(
         id, input.prompt, "admin_prompt", null, input.deliveryMode,
       );
+      await registrarAccion(id, "descuento", quienEnElPanel(req), { indicacion: input.prompt, entrega: input.deliveryMode });
       const message = created.status === "pending"
         ? pendingDiscountNoticeMessage(created.pending)
         : discountOfferMessage(created.offer);
@@ -1318,6 +1320,7 @@ export function createAdminRouter(): express.Router {
       actor: "owner",
       reason: String(req.body?.reason ?? "Movimiento manual desde Kanban").slice(0, 300),
     });
+    await registrarAccion(id, "mover_etapa", quienEnElPanel(req), { a: stage });
     emitLiveEvent("sync", id);
     res.json({ ok: true });
   });
@@ -1334,22 +1337,27 @@ export function createAdminRouter(): express.Router {
     // de antes. «Perdido» y «sin respuesta» no cambian.
     if (closure === "ganado") {
       const cuerpo = (req.body ?? {}) as Record<string, unknown>;
-      const vendedor = req.usuario?.nombre ?? "Panel";
+      const vendedor = quienEnElPanel(req);
       const nota = typeof cuerpo.note === "string" ? cuerpo.note : null;
       if (await confirmaGanado()) {
         const revision = revisarCierreGanado(cuerpo, ventaCompleta(await ventaDelTicket(id)));
         if (!revision.ok) return res.status(revision.status).json(revision);
         const venta = await confirmarVentaEnElPanel(id, { vendedor, factura: revision.factura, monto: revision.monto, nota });
         if (!venta) return res.status(404).json({ ok: false, error: "Conversación no encontrada" });
+        await registrarAccion(id, "cerrar_ganado", vendedor, { factura: revision.factura, monto: revision.monto, nota });
         return res.json({ ok: true, venta });
       }
       await setStage(id, "ganado", { actor: "owner", reason: String(nota ?? closure) });
+      await registrarAccion(id, "cerrar_ganado", vendedor, { nota });
       emitLiveEvent("sync", id);
       return res.json({ ok: true });
     }
     await setStage(id, "perdido", {
       actor: "owner",
       reason: closure === "sin_respuesta" ? "sin_respuesta" : String(req.body?.note ?? closure),
+    });
+    await registrarAccion(id, closure === "sin_respuesta" ? "cerrar_sin_respuesta" : "cerrar_perdido", quienEnElPanel(req), {
+      nota: typeof req.body?.note === "string" ? req.body.note : null,
     });
     emitLiveEvent("sync", id);
     res.json({ ok: true });
@@ -1366,15 +1374,23 @@ export function createAdminRouter(): express.Router {
     if (!Number.isInteger(id) || (cycle != null && !Number.isInteger(cycle))) {
       return res.status(400).json({ ok: false, error: "id inválido" });
     }
-    const r = await agregarFactura(id, cycle, {
-      vendedor: req.usuario?.nombre ?? "Panel", factura: req.body?.factura, monto: req.body?.monto,
-    });
+    const quien = quienEnElPanel(req);
+    const r = await agregarFactura(id, cycle, { vendedor: quien, factura: req.body?.factura, monto: req.body?.monto });
     if (!r.ok) return res.status(r.status).json(r);
+    const ultima = r.facturas[r.facturas.length - 1];
+    await registrarAccion(id, "agregar_factura", quien, { factura: ultima?.factura ?? null, monto: ultima?.monto ?? null });
     res.json(r);
   });
 
   // Lo que falta para que «ganado» sea venta: compras por confirmar («ya
   // compré»), facturas pendientes y ganados viejos sin registrar.
+  // Quién hizo qué en este ticket (services/accionesDelPanel.ts).
+  router.get("/hub/tickets/:id/historial", async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return res.status(400).json({ ok: false, error: "id inválido" });
+    res.json({ ok: true, historial: await historialDelTicket(id) });
+  });
+
   router.get("/hub/ventas-pendientes", async (_req, res) => {
     res.json({ ok: true, pendientes: await listarPendientes() });
   });
@@ -1388,6 +1404,7 @@ export function createAdminRouter(): express.Router {
     }
     const etapa = await deshacerVenta(id);
     if (!etapa) return res.status(409).json({ ok: false, error: "Este ticket no está cerrado como venta" });
+    await registrarAccion(id, "deshacer_venta", quienEnElPanel(req), { etapa });
     emitLiveEvent("sync", id);
     res.json({ ok: true, etapa });
   });
@@ -1404,6 +1421,7 @@ export function createAdminRouter(): express.Router {
     await reopenConversation(id, "owner", "Conversación reabierta manualmente", {
       conservarFichaSiEsMismaVisita: true,
     });
+    await registrarAccion(id, "reabrir", quienEnElPanel(req));
     emitLiveEvent("sync", id);
     res.json({ ok: true });
   });
@@ -1415,6 +1433,7 @@ export function createAdminRouter(): express.Router {
       return res.status(400).json({ ok: false, error: "Asignación inválida" });
     }
     await setConversationAssignee(id, assignedTo as "bot" | "human");
+    await registrarAccion(id, assignedTo === "bot" ? "devolver_al_bot" : "tomar", quienEnElPanel(req));
     const resumed = assignedTo === "bot" ? await resumeBotIfUnanswered(id) : null;
     emitLiveEvent("sync", id);
     res.json({ ok: true, resumed });
@@ -1883,10 +1902,14 @@ export function createAdminRouter(): express.Router {
     const sent = await sendTextDetailed(conversation.phone, text);
     if (!sent.ok) return res.status(sent.status).json(sent);
 
+    // Quién escribió (el WhatsApp del teléfono no lo dice: solo el panel lo sabe).
+    const autor = quienEnElPanel(req);
     await appendMessage(id, "assistant", text, sent.id, {
       authorKind: "owner",
       status: "sent",
+      metadata: { autor },
     });
+    await registrarAccion(id, "mensaje", autor, { texto: text.slice(0, 120) });
     await captureManualDiscount(id, text, sent.id);
     await pauseBot(id, undefined, "persona_escribio");
     await setConversationAssignee(id, "human", "persona_escribio");
@@ -1907,6 +1930,7 @@ export function createAdminRouter(): express.Router {
     } else {
       await setConversationAssignee(id, "bot");
     }
+    await registrarAccion(id, accion === "pausar" ? "tomar" : "devolver_al_bot", quienEnElPanel(req));
     emitLiveEvent("sync", id);
     res.json({ ok: true });
   });

@@ -12,7 +12,9 @@ import { Modal } from "./ui";
 
 export function ChatBubble({ msg, nombreCliente = "Cliente", onVerPdf }: { msg: Mensaje; nombreCliente?: string; onVerPdf?: () => void }) {
   const saliente = msg.rol !== "cliente";
-  const quien = msg.rol === "cliente" ? nombreCliente : msg.rol === "bot" ? "Bot" : "Asesor";
+  // Desde el panel se sabe quién escribió; lo que contestan desde el WhatsApp
+  // del teléfono llega sin nombre (un solo número para todos): «Asesor».
+  const quien = msg.rol === "cliente" ? nombreCliente : msg.rol === "bot" ? "Bot" : (msg.autor ?? "Asesor");
   return (
     <div className={`flex max-w-[78%] flex-col gap-1 md:max-w-[62%] ${saliente ? "self-end items-end" : "self-start items-start"}`}>
       <div className={`bubble ${saliente ? "bubble-out" : "bubble-in"}`} style={{ maxWidth: "100%" }}>

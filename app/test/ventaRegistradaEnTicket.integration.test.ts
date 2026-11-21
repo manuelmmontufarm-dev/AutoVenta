@@ -295,7 +295,7 @@ describe("«ganado» a mano = el asesor confirma que compró ACÁ", () => {
     const [fila] = await sql`select vendedor, factura, monto::float8 as monto, origen, cycle, efecto_en_ticket, etapa_anterior, telefono
       from ventas_registradas where conversation_id = ${id}`;
     expect(fila).toMatchObject({
-      vendedor: "Panel", factura: "001-001-000900", monto: 450.75, origen: "panel", cycle: 1,
+      vendedor: "clave admin", factura: "001-001-000900", monto: 450.75, origen: "panel", cycle: 1,
       efecto_en_ticket: "marcado_ganado", etapa_anterior: "cotizacion_enviada", telefono: "593991110012",
     });
     expect((await getHubTicket(id))?.ventaRegistrada).toMatchObject({ factura: "001-001-000900", monto: 450.75, origen: "panel" });
@@ -483,5 +483,58 @@ describe("los registros de antes de este cambio", () => {
     expect(fila).toMatchObject({ cycle: 1, efecto_en_ticket: null });
     expect((await estado(id)).stage).toBe("cotizacion_enviada");
     expect((await getHubTicket(id))?.ventaRegistrada).toMatchObject({ vendedor: "Luis Mora" });
+  });
+});
+
+describe("quién hizo qué (21-nov, Manuel: «para saber a quién escribirle»)", () => {
+  const historial = async (id: number) => {
+    const r = await fetch(`${url}/api/hub/tickets/${id}/historial`, { headers: { "x-admin-key": ADMIN_KEY } });
+    return ((await r.json()) as { historial: { accion: string; quien: string; detalle: Record<string, unknown> }[] }).historial;
+  };
+
+  it("el nombre es el del usuario logueado; con la clave admin sin usuario queda «clave admin», no «Panel»", async () => {
+    const { quienEnElPanel, CLAVE_ADMIN } = await import("../src/services/accionesDelPanel.js");
+    expect(quienEnElPanel({ usuario: { nombre: "Carlos Romero" } } as never)).toBe("Carlos Romero");
+    expect(quienEnElPanel({} as never)).toBe(CLAVE_ADMIN);
+    expect(CLAVE_ADMIN).toBe("clave admin");
+  });
+
+  it("cerrar ganado, añadir factura, deshacer y cerrar perdido quedan con quién y qué", async () => {
+    const id = await chat("593991110030", "Historial");
+    await cerrarDesdeElPanel(id, "ganado", { confirmado: true, factura: "860", monto: "300" });
+    const [venta] = await sql`select vendedor from ventas_registradas where conversation_id = ${id}`;
+    expect(venta.vendedor).toBe("clave admin");
+    await completar(id, { factura: "861", monto: "40" });
+    await post(`/api/hub/tickets/${id}/deshacer-venta`, {}, true);
+    await cerrarDesdeElPanel(id, "perdido", { note: "Compró en otro lado" });
+    await post(`/api/hub/tickets/${id}/reopen`, {}, true);
+    await fetch(`${url}/api/hub/tickets/${id}/assignee`, {
+      method: "PATCH", headers: { "content-type": "application/json", "x-admin-key": ADMIN_KEY }, body: JSON.stringify({ assignedTo: "human" }),
+    });
+
+    const h = await historial(id);
+    expect(h.map((a) => a.accion)).toEqual(["tomar", "reabrir", "cerrar_perdido", "deshacer_venta", "agregar_factura", "cerrar_ganado"]);
+    expect(h.every((a) => a.quien === "clave admin")).toBe(true);
+    expect(h.find((a) => a.accion === "cerrar_ganado")?.detalle).toMatchObject({ factura: "860", monto: 300 });
+    expect(h.find((a) => a.accion === "cerrar_perdido")?.detalle).toMatchObject({ nota: "Compró en otro lado" });
+  });
+
+  it("en /venta queda el nombre que escribe el vendedor", async () => {
+    const id = await chat("593991110031", "Por /venta");
+    const r = await registrar("Rosa Pérez", "0991110031");
+    await post("/venta/factura", { id: r.json.venta.id, telefono: "0991110031", factura: "F-31", monto: "75" });
+    const h = await historial(id);
+    expect(h.map((a) => [a.accion, a.quien])).toEqual([["agregar_factura", "Rosa Pérez"], ["registrar_venta", "Rosa Pérez"]]);
+  });
+
+  it("un mensaje escrito desde el panel trae el nombre de quien lo escribió; un eco del teléfono no", async () => {
+    const { appendMessage } = await import("../src/services/conversations.js");
+    const { getHubMessages } = await import("../src/services/hubData.js");
+    const id = await chat("593991110032", "Mensajes");
+    await appendMessage(id, "assistant", "Hola, soy Carlos", "wamid.panel", { authorKind: "owner", status: "sent", metadata: { autor: "Carlos Romero" } });
+    await appendMessage(id, "assistant", "desde el celular", "wamid.eco", { authorKind: "owner", status: "sent" });
+    const mensajes = await getHubMessages(id);
+    expect(mensajes.find((m) => m.contenido === "Hola, soy Carlos")?.autor).toBe("Carlos Romero");
+    expect(mensajes.find((m) => m.contenido === "desde el celular")?.autor).toBeUndefined();
   });
 });

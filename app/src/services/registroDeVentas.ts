@@ -16,6 +16,7 @@ import { tel9 } from "./fuentes/contifico.js";
 import { setStage } from "./conversations.js";
 import { cancelPendingFollowUps } from "./followUps.js";
 import { emitLiveEvent } from "./liveEvents.js";
+import { registrarAccion } from "./accionesDelPanel.js";
 import { getVentaRegistradaConfig } from "./settings.js";
 
 // ── La clave del enlace ──────────────────────────────────────────────────────
@@ -200,6 +201,7 @@ export async function registrarVenta(entrada: EntradaDeVenta, llave: string): Pr
     return { venta: aVenta(nueva), yaRegistradaPor: previa?.vendedor ?? null };
   });
   const efecto = await marcarTicketPorLaVenta(venta.id, chat?.conversationId ?? null, venta.vendedor);
+  if (chat) await registrarAccion(chat.conversationId, "registrar_venta", venta.vendedor, { efecto, venta: venta.id, origen: "/venta" });
   return { venta: { ...venta, efectoEnTicket: efecto }, yaRegistradaPor };
 }
 
@@ -282,6 +284,9 @@ export async function anularRegistro(id: number, llave: string): Promise<Resulta
   `;
   if (!fila) return null;
   const venta = aVenta(fila);
+  if (fila.conversation_id != null) {
+    await registrarAccion(Number(fila.conversation_id), "anular_registro", fila.vendedor, { venta: venta.id, origen: "/venta" });
+  }
   if (fila.efecto_en_ticket !== "marcado_ganado" || fila.conversation_id == null || fila.cycle == null) {
     return { venta, ticketDevuelto: false };
   }
@@ -679,7 +684,12 @@ export async function guardarFactura(id: number, llave: string, factura: unknown
     where id = ${id} and tel9 = ${llave} and anulada_at is null and created_at > now() - interval '24 hours'
     returning ${COLUMNAS}
   `;
-  if (fila?.conversation_id != null) emitLiveEvent("sync", Number(fila.conversation_id));
+  if (fila?.conversation_id != null) {
+    await registrarAccion(Number(fila.conversation_id), "agregar_factura", fila.vendedor, {
+      factura: fila.factura, monto: fila.monto == null ? null : Number(fila.monto), origen: "/venta",
+    });
+    emitLiveEvent("sync", Number(fila.conversation_id));
+  }
   return fila ? aVenta(fila) : null;
 }
 

@@ -331,9 +331,21 @@ export interface Mensaje {
   rol: Rol;
   tipo: TipoMensaje;
   contenido: string;
+  /** Quién lo escribió desde el panel. Los ecos del WhatsApp del teléfono no lo traen. */
+  autor?: string;
   estado?: string;
   metadata?: Record<string, unknown>;
   hora: string;
+}
+
+/** Una acción del panel sobre el ticket y quién la hizo (`/api/hub/tickets/:id/historial`). */
+export interface AccionDelHistorial {
+  accion: string;
+  /** El usuario del panel, el vendedor de /venta, o «clave admin». */
+  quien: string;
+  /** ISO. */
+  at: string;
+  detalle: Record<string, unknown>;
 }
 
 /**
