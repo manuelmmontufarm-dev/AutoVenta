@@ -29,10 +29,10 @@ describe("simulador · perfiles (R-36)", () => {
     expect(perfil.catalogo).toBe("archivo");
   });
 
-  it("mundillantas copia su servicio de Railway (creado el 5-nov) y su catálogo es por archivo", () => {
+  it("mundillantas copia su servicio de Railway (creado el 5-nov, renombrado «Competimotors» el 17-nov) y su catálogo es por archivo", () => {
     expect(perfilDeSimulacion("mundillantas")).toEqual({
       entorno: "Depot_Tire",
-      servicio: "Mundillantas",
+      servicio: "Competimotors",
       catalogo: "archivo",
     });
   });

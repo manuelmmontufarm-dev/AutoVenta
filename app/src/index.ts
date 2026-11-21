@@ -104,6 +104,7 @@ import { firstContactReply, isGenericFirstContact, pedidoDeMedidaDelPrimerContac
 import { despedidaQueCorresponde } from "./domain/cierrePerdido.js";
 import { botonesParaBloque, recortarTitulo, textoDeBoton, type BloqueConBotones } from "./domain/botones.js";
 import { esComandoDeReinicio, MENSAJE_DE_REINICIO } from "./domain/reinicio.js";
+import { leerFichaDelCicloAnterior } from "./services/fichaDelCicloAnterior.js";
 import { esClienteQueVuelve } from "./domain/clienteQueVuelve.js";
 import { esSoloPregunta } from "./domain/preguntaSola.js";
 import { sql } from "./db/client.js";
@@ -415,7 +416,12 @@ async function atenderTurno(
   // EL CLIENTE QUE VUELVE NO RECIBE LA PRESENTACIÓN OTRA VEZ (CM31, simulador
   // Competimotor 18-nov): un ciclo nuevo tras una compra cerrada no es «abrirse
   // la conversación». Su «hola» lo contesta el agente, que tiene el contexto.
-  const clienteQueVuelve = esClienteQueVuelve(await ultimoSalienteDeOtroCiclo(conversation.id));
+  // Y QUIEN YA COMPRÓ TAMPOCO (conv 469, Competimotor, 21-nov): con una venta
+  // ganada en la ficha del ciclo anterior, la bienvenida y la guía de medida
+  // del primer contacto le pedirían la medida de lo que ya compró. Su mensaje
+  // lo contesta el agente, con la ficha (domain/fichaDelCicloAnterior.ts).
+  const yaComproAntes = (await leerFichaDelCicloAnterior(conversation.id).catch(() => null))?.resultado === "ganado";
+  const clienteQueVuelve = yaComproAntes || esClienteQueVuelve(await ultimoSalienteDeOtroCiclo(conversation.id));
   const isFirstGenericMessage = conversation.stage === "nuevo"
     && !clienteQueVuelve
     && (previousOutbound === null || previousOutbound === MENSAJE_DE_REINICIO)

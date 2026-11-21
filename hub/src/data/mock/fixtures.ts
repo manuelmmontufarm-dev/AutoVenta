@@ -571,6 +571,8 @@ export function comprobablesDemo(clave: string, todos: boolean): MetricasComprob
   const p = todos ? COMPROBABLES_TODOS : COMPROBABLES_POR_MES[clave] ?? COMPROBABLES_VACIO;
   return {
     disponible: true,
+    fuente: "facturas",
+    registradas: [],
     ultimaSync: new Date(Date.now() - 4 * 60_000).toISOString(),
     periodo: { clave, todos },
     ventas: p.ventas,

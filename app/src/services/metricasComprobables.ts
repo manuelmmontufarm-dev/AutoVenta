@@ -27,6 +27,9 @@ import {
   type FacturaContifico,
   type VentaConfirmada,
 } from "./ventasConfirmadas.js";
+import { fuenteDeFacturas } from "./fuentes/index.js";
+import { leerVentasRegistradas } from "./ventasRegistradasMetricas.js";
+import { negocio } from "../negocio/index.js";
 import {
   FRANJAS,
   curvaAcumulada,
@@ -51,6 +54,23 @@ export type GrupoAtencion = "bot" | "bot_y_asesor" | "asesor";
 
 export interface MetricasComprobables {
   disponible: boolean;               // false: no hay Contífico o todavía no se leyó
+  /**
+   * De dónde salen las ventas. «facturas»: el cruce chat ↔ factura de la fuente
+   * contable (Contífico o archivo). «registro»: el negocio no tiene sistema
+   * contable conectado y las ventas son las de `ventas_registradas` con factura
+   * y monto (`/venta` o el ganado del panel); sin detalle de la factura, la
+   * parte de la tienda y las facturas de la tienda quedan en cero.
+   */
+  fuente: "facturas" | "registro";
+  /** Solo con fuente «registro»: las ventas DEL PERÍODO, para el detalle plegado. Con «facturas», vacío. */
+  registradas: Array<{
+    ticketId: number;
+    nombre: string | null;
+    facturas: Array<{ numero: string; dia: string; monto: number; vendedor: string }>;
+    total: number;
+    dia: string;                     // "YYYY-MM-DD" del primer registro con factura
+    grupo: GrupoAtencion;
+  }>;
   ultimaSync: string | null;         // ISO
   /** Período del selector (mes o «todos»). */
   periodo: { clave: string; todos: boolean };
@@ -155,6 +175,10 @@ export function armarComprobables(o: {
   chats: readonly ChatParaMetricas[];
   /** Día del primer mensaje con `metadata.anuncio` en la base (desde el 19-sep). Antes, no hay dato. */
   primerDiaConAnuncio: string | null;
+  /** «facturas» si no se dice. */
+  fuente?: MetricasComprobables["fuente"];
+  /** Con fuente «registro»: el detalle de TODAS las ventas; acá se recorta al período. */
+  registradas?: MetricasComprobables["registradas"];
 }): MetricasComprobables {
   const enPeriodo = (dia: string) => o.periodo.todos || dia.startsWith(o.periodo.clave);
   const llantasTienda = o.facturas.filter(tieneLlantaDeVenta);
@@ -236,6 +260,8 @@ export function armarComprobables(o: {
 
   return {
     disponible: o.disponible,
+    fuente: o.fuente ?? "facturas",
+    registradas: (o.registradas ?? []).filter((r) => enPeriodo(r.dia)),
     ultimaSync: o.ultimaSync,
     periodo: { clave: o.periodo.clave, todos: o.periodo.todos },
     ventas: {
@@ -363,6 +389,10 @@ async function chatsVigentes() {
 /** `metrics.comprobables` del mes que mira el panel (o «todos»). */
 export async function resumenComprobables(mes?: string | null): Promise<MetricasComprobables> {
   const periodo = await resolverPeriodo(mes);
+  // Sin sistema contable conectado (Competimotor con Fénix, 21-nov): las ventas
+  // son las registradas con factura y monto. Con Contífico o facturas por
+  // archivo, todo sigue igual que siempre.
+  if (!(await fuenteDeFacturas())) return resumenDesdeElRegistro(periodo);
   const sync = ultimaSyncFacturas();
   // Sin la primera bajada no hay ventas que dar, venga la fuente que venga
   // (Contífico o facturas importadas por archivo, R-26): `ultimaSyncFacturas`
@@ -380,5 +410,30 @@ export async function resumenComprobables(mes?: string | null): Promise<Metricas
     ventas,
     chats,
     primerDiaConAnuncio,
+  });
+}
+
+/**
+ * Métricas → Ventas de un negocio sin sistema contable: las mismas tarjetas,
+ * con las ventas de `ventas_registradas` (`ventasRegistradasMetricas.ts`). No
+ * hay facturas de la tienda: la parte del bot y la columna «tienda» quedan en
+ * cero y el panel dice que se habilitan con el conector.
+ */
+async function resumenDesdeElRegistro(periodo: { clave: string; todos: boolean }): Promise<MetricasComprobables> {
+  const [{ ventas, detalle }, { chats, primerDiaConAnuncio }] = await Promise.all([
+    leerVentasRegistradas(negocio.iva),
+    chatsVigentes(),
+  ]);
+  return armarComprobables({
+    periodo,
+    hoy: diaDeGuayaquil(new Date()),
+    disponible: true,
+    ultimaSync: new Date().toISOString(),
+    facturas: [],
+    ventas,
+    chats,
+    primerDiaConAnuncio,
+    fuente: "registro",
+    registradas: detalle,
   });
 }

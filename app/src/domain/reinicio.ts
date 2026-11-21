@@ -31,3 +31,6 @@ export function esComandoDeReinicio(texto: string): boolean {
 export const MENSAJE_DE_REINICIO =
   "🔄 Listo, empezamos de cero. Olvidé la medida, la cotización, el local y la fecha de esta conversación.\n\n" +
   "Dígame qué medida busca o de qué vehículo es y arrancamos.";
+
+/** El `closed_reason` del `/restart`: la ficha del ciclo anterior no cruza un reinicio a propósito. */
+export const MOTIVO_DEL_RESTART = "Reinicio manual (/restart)";
