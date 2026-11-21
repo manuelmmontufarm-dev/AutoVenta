@@ -1,3 +1,21 @@
+## 20-nov-2026 · Reporte · El reporte del día pasa a un modelo simple de página y media (rama `feat/reporte-diario-simple`)
+
+- **Qué:** PDF nuevo (`render/reporteSimplePdf.ts`) con tres bloques: **quién viene** (agenda de 7 días + lista por día
+  con la franja que dijo el cliente, llantas, local y monto; aparte «tenían fecha y ya pasó»), **cotizado hoy** (por
+  persona; ya dio fecha / respondió sin fecha / no respondió; la lista solo trae a quien aún no da fecha) y **vendido
+  confirmado** (solo si hubo factura ese día, mismo cruce que Métricas). Los datos los arma `services/reporteSimple.ts`
+  sobre la ventana y cifras de `buildDailyReport`. El envío de las 20:00 manda este PDF y un texto corto con las mismas
+  cifras; si armarlo falla, sale el reporte completo de antes. `/hub/reporte-diario.pdf` muestra el nuevo y el anterior
+  queda en `/hub/reporte-diario-completo.pdf`.
+- **Por qué:** Manuel, 20-nov: más resumido, más gráfico, enfocado en quién dio fecha, lo cotizado y lo vendido
+  confirmado; máximo página y media. Y «no me gusta el tomate de colores»: negro y grises, el color de la marca solo
+  señala a quién escribirle y el verde lo cobrado.
+- **Decisiones:** la hora es `visit_time_label` o «en el día» (la de `visit_date` es relleno); «ya pasó» no afirma que
+  no vinieron (la venta se cierra en el local); lo cotizado cuenta la última cotización de cada persona.
+- **Probado:** `reporteSimple.integration.test.ts` (4) contra Postgres local, incluido el peor día (todas las listas
+  sobre su tope) sin pasar de 2 hojas. `tsc` ✅. Suite: fallan `hashesPiezasDepot` y `unidadEnLaCantidad`, igual que en
+  main (y `buscarPorAroCompleto` por el catálogo del simulador ausente en el worktree). No probado contra datos de prod.
+- **Horas:** 1,5.
 ## 18-nov-2026 · Docs · guía única para dar de alta un cliente nuevo (rama `docs/guia-cliente-nuevo`)
 
 - **Qué:** carpeta `docs/cliente-nuevo/` como único punto de entrada: `README.md` (12 pasos en orden, del sí del
