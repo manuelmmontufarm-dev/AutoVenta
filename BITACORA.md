@@ -1,3 +1,14 @@
+## 21-nov-2026 · Bot · «325/30R21» es métrica, no flotación sin ancho (rama `fix/medida-metrica-no-es-flotacion`)
+
+- **Qué:** `flotacionIncompleta` (`domain/tireSize.ts`) ya no toma «30 R21» como diámetro de flotación cuando
+  delante hay un ancho métrico de tres dígitos (125–445): «325/30R21», «325/30 R21», «275/35R20» dejan de pedir el
+  ancho. «30 R15» suelto lo sigue pidiendo; «30x9.5R15», «31x10.50R15», «35X12.5R20», «33 12.5 20» siguen siendo
+  flotación y «23575r15» (PR #75) sigue leyéndose 235/75R15.
+- **Por qué:** en el simulador de Competimotor «Tienen 325/30R21?» terminó con la ruta directa pidiendo el ancho.
+- **Probado:** `test/medidaMetricaNoEsFlotacion.test.ts` (13, 4 en rojo antes del arreglo) + 23 archivos de medida
+  (284 pruebas) ✅; `tsc` ✅; `simuladorFidelidad` ✅; simulador mundillantas con «Tienen 325/30R21?».
+- **Horas:** 0.5.
+
 ## 21-nov-2026 · Panel · «Quién hizo qué» solo se guarda, no se muestra (rama `feat/ganado-varias-facturas`)
 
 - **Qué:** simplificación de Manuel: cada acción del panel sigue guardando el usuario en `audit_events` (actor,

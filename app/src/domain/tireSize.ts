@@ -500,6 +500,11 @@ export function flotacionIncompleta(text: string): { diameter: number; rim: numb
   const n = text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
   const m = n.match(/(?<!\d)(\d{2}(?:[.,]\d)?)\s*(?:[-/\s]\s*)?(?:r|rin|aro|ron|rim)\s*(\d{2})(?!\d)/i);
   if (!m) return null;
+  // «325/30R21» (simulador mundillantas, 21-nov): el «30 R21» tiene delante un
+  // ancho métrico de tres dígitos, así que es el perfil de una métrica, no el
+  // diámetro de una flotación a la que le falta el ancho.
+  const antes = n.slice(0, m.index).match(/(?<!\d)(\d{3})\s*[/.,\-x×*\s]\s*$/i);
+  if (antes && Number(antes[1]) >= WIDTH_MIN && Number(antes[1]) <= WIDTH_MAX) return null;
   const diameter = Number(m[1].replace(",", "."));
   const rim = Number(m[2]);
   // Un diámetro entero de dos dígitos puede ser cualquier cosa («son 30 r15»
