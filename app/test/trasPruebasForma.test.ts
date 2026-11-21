@@ -18,7 +18,7 @@ const { estructurarTurno } = await import("../src/domain/estructuraDelTurno.js")
 const { BENEFICIO_DE_REDES, preguntaPorBeneficios } = await import("../src/domain/beneficioDeRedes.js");
 const { mencionaDescuentoEnEfectivo, politicaDePagos, respondeElPago, sinPagoSinRespuesta } = await import("../src/domain/datosDelNegocio.js");
 const { ahorroDeLaCotizacion, hablaDelDescuento, respondeElDescuento, respuestaDelDescuento } = await import("../src/domain/ahorro.js");
-const { PASOS, correrPasos } = await import("../src/services/prepararSalida.js");
+const { PASOS, correrPasos, pasosPara } = await import("../src/services/prepararSalida.js");
 
 const bloques = (t: string) => t.split(/\n\s*-{3,}\s*\n/).map((b) => b.trim());
 
@@ -93,7 +93,11 @@ describe("después de separar la pregunta, solo se quita o se reordena", () => {
   it("el beneficio automático ya no está en la cadena, y lo último es la red de frases colgando", () => {
     const nombres = PASOS.map((p) => p.nombre);
     expect(nombres).not.toContain("beneficio_de_redes_tras_cotizar");
-    expect(nombres[nombres.length - 1]).toBe("sin_frase_colgando");
+    // En el turno, la red de frases colgando es lo último. Detrás de ella, en la
+    // lista, solo van dos pasos de seguimiento que quitan (s12, 20-nov).
+    expect(pasosPara("respuesta").at(-1)?.nombre).toBe("sin_frase_colgando");
+    expect(nombres.slice(nombres.indexOf("sin_frase_colgando") + 1))
+      .toEqual(["sin_precio_viejo_de_la_cotizacion", "seguimiento_en_un_solo_mensaje"]);
   });
 });
 

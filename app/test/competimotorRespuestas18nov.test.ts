@@ -41,14 +41,23 @@ describe("garantías por marca (hoja Garantías)", () => {
   const casos = [
     { marca: "KENDA", seguro: 12, fabrica: "1 año" },
     { marca: "FALKEN", seguro: 18, fabrica: "18 meses" }, // 1,5 años
-    { marca: "WINRUN", seguro: 6, fabrica: "6 meses" }, // 0,5 años
-    { marca: "MAXXIS", seguro: 12, fabrica: "1 año" },
   ];
   for (const { marca, seguro, fabrica } of casos) {
     it(`${marca}: ${seguro} meses de seguro contra impacto y ${fabrica} de fábrica`, () => {
       const g = warrantyForBrand(marca);
       expect(g.roadHazardMonths).toBe(seguro);
       expect(g.roadHazard).toBe(`${seguro} meses de seguro contra impacto`);
+      expect(g.factory).toBe(`${fabrica} garantía de fábrica contra defectos de fabricación`);
+    });
+  }
+
+  // Carlos, 20-nov-2026: «Las únicas marcas que manejamos con seguro son KENDA
+  // y FALKEN». Winrun y Maxxis conservan la garantía de fábrica de la hoja.
+  for (const { marca, fabrica } of [{ marca: "WINRUN", fabrica: "6 meses" }, { marca: "MAXXIS", fabrica: "1 año" }]) {
+    it(`${marca}: sin seguro contra impacto (20-nov) y ${fabrica} de fábrica`, () => {
+      const g = warrantyForBrand(marca);
+      expect(g.roadHazardMonths).toBeNull();
+      expect(g.roadHazard).toBeNull();
       expect(g.factory).toBe(`${fabrica} garantía de fábrica contra defectos de fabricación`);
     });
   }
@@ -61,7 +70,7 @@ describe("garantías por marca (hoja Garantías)", () => {
 
   it("el seguro no promete lo que Depot cubre: «golpes», «estalladuras», «cualquier daño»", () => {
     for (const marca of ["KENDA", "FALKEN", "WINRUN", "MAXXIS"]) {
-      expect(warrantyForBrand(marca).roadHazard).not.toMatch(/golpes|estallad|cualquier/i);
+      expect(warrantyForBrand(marca).roadHazard ?? "").not.toMatch(/golpes|estallad|cualquier/i);
     }
   });
 
@@ -117,9 +126,13 @@ describe("conocimiento de marcas: origen, km y tecnología", () => {
     expect(respaldoDeMarca("MAXXIS")!.kmPromedio).toBe(60000);
   });
 
-  it("el seguro se hace válido con la factura, solo en las cuatro marcas", () => {
-    for (const marca of ["KENDA", "FALKEN", "WINRUN", "MAXXIS"]) {
+  it("el seguro se hace válido con la factura, solo en Kenda y Falken (Carlos, 20-nov)", () => {
+    for (const marca of ["KENDA", "FALKEN"]) {
       expect(respaldoDeMarca(marca)!.seguroFrase).toMatch(/factura/i);
+    }
+    for (const marca of ["WINRUN", "MAXXIS"]) {
+      expect(respaldoDeMarca(marca)!.seguroMeses).toBe(0);
+      expect(respaldoDeMarca(marca)!.seguroFrase).toMatch(/no lleva seguro/i);
     }
   });
 });

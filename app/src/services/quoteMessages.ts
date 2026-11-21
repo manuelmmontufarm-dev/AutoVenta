@@ -1,4 +1,5 @@
 import { business } from "../config.js";
+import { lineaDePromocionDePrecio } from "../domain/preciosEspeciales.js";
 import { negocio, plazoDeFabricaEnTexto, sinPendiente, textosDelSeguro } from "../negocio/index.js";
 import { CIERRE_COTIZAR } from "../domain/preguntasProhibidas.js";
 import { fraseDeAhorro, type AhorroDeLaCotizacion } from "../domain/ahorro.js";
@@ -718,6 +719,11 @@ export function buildSingleQuoteMessageDetallado(
     ...(segunda ? [
       `🖤 ${segunda.nombre}: −${segunda.porcentaje} % en su ${paresEnPalabras(segunda.unidades)} llanta → ${cuentaDeSegundaLlanta(quantity, segunda)} (${money(segunda.ahorroConIva)} menos)`,
     ] : []),
+    // Precio especial por código (Black Friday de Competimotor): el precio de
+    // arriba ya es el de la promo; acá va su nombre y hasta cuándo rige.
+    ...(!segunda && rebaja > 0 && lineaDePromocionDePrecio(product.promocionDePrecio)
+      ? [lineaDePromocionDePrecio(product.promocionDePrecio)!]
+      : []),
     `🛞 ${quantity} llanta${quantity === 1 ? "" : "s"}: ${money(total)}`,
     ...(offerDiscount ? [
       `1️⃣ Descuento base ${business.name}: de ${money(lista)} a ${money(hoy)} c/u (${sello}).`,

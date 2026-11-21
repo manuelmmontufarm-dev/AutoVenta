@@ -109,6 +109,41 @@ export interface PoliticaComercial {
    * cuentas viven en `domain/promocionDeTemporada.ts`; acá solo los datos.
    */
   promocionDeTemporada?: PromocionDeTemporada;
+  /**
+   * OPCIONAL: con qué lista se COTIZA cuando el catálogo trae precio por forma
+   * de pago (Fénix: Precio B con tarjeta, C en efectivo o transferencia).
+   * `"tarjeta"` (Competimotor, Carlos Romero, 20-nov-2026: «dar precio 2 y
+   * cotizar en P2 y P3»): la cotización, la pieza, las cuotas y todo lo que lee
+   * el precio del catálogo salen del Precio B; el Precio A no se usa nunca, y
+   * una llanta sin B válido no se cotiza (se lista como descartada). En
+   * efectivo, transferencia o si pide descuento se ofrece el C
+   * (`services/preciosPorPago.ts`). Sin el campo (Depot): el precio del
+   * catálogo de siempre.
+   */
+  precioDeCotizacion?: "tarjeta";
+  /**
+   * OPCIONAL: precios de promoción POR CÓDIGO, con un vencimiento exacto
+   * (Black Friday de Competimotor, 20-nov-2026). Rebajan el precio de hoy de
+   * esas llantas; el de siempre queda como el tachado. Las cuentas viven en
+   * `domain/preciosEspeciales.ts`. Sin el campo, o vencido, no existe.
+   */
+  preciosEspeciales?: PreciosEspeciales | null;
+}
+
+/** Una lista de precios de promoción por código, con su fin. */
+export interface PreciosEspeciales {
+  /** «Black Friday»: como se nombra en la pieza, el texto y los hechos. */
+  nombre: string;
+  /** El primer instante vigente (ISO con zona: «2026-11-20T00:00:00-05:00»). */
+  desde: string;
+  /** El ÚLTIMO instante vigente (ISO con zona: «2026-11-30T23:59:59-05:00»). Pasado, se apaga solo. */
+  hasta: string;
+  /** «hasta el lunes 30 de noviembre»: para la franja de la pieza. */
+  vigenciaLarga: string;
+  /** «hasta el lunes 30-nov»: para el texto y los hechos del vendedor. */
+  vigenciaCorta: string;
+  /** Cada llanta: su código de catálogo, su medida (candado) y el precio final por llanta con IVA. */
+  llantas: ReadonlyArray<{ codigo: string; medida: string; precioConIva: number }>;
 }
 
 /** Las marcas de la casa primero, más las de mayor inventario; «qué más tiene» con tope. */

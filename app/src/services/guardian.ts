@@ -341,14 +341,23 @@ export function hechoDelNegocio(): string | null {
   // «18 meses… hasta 100.000 km… reforzada» y el revisor lo tachó por no verlo.
   const porMarca = respaldoCompleto().marcas.map((m) => [
     `${m.marca}:`,
-    m.seguroMeses ? `hasta ${m.seguroMeses} meses de seguro;` : null,
+    // 0 = el negocio dijo que esa marca NO lleva seguro (Competimotor: Winrun y
+    // Maxxis, 20-nov); null = sin dato, y de eso no se dice nada.
+    m.seguroMeses ? `hasta ${m.seguroMeses} meses de seguro;` : m.seguroMeses === 0 ? "SIN seguro contra impacto (prometerlo es hecho_comercial_inventado);" : null,
     m.garantiaFabricaAnios ? `${plazoDeFabricaEnTexto(m.garantiaFabricaAnios)} de garantía de fábrica;` : null,
     m.kmPromedio ? `hasta ${m.kmPromedio.toLocaleString("es-EC")} km aproximados;` : null,
     m.origen.pais && m.origen.pais !== "POR CONFIRMAR" ? `país de origen ${m.origen.pais};` : "país de origen sin confirmar;",
     m.origen.fraseDeVenta ?? null,
   ].filter(Boolean).join(" "));
+  // La tabla del negocio le gana al 3 % de la rúbrica (Competimotor, conv 469,
+  // 20-nov): la 30X9.5R15 ES su 235/75R15 en pulgadas. Sin este dato el revisor
+  // tachaba «equivalente» y dejaba la M/T en la lámina sin explicar por qué.
+  const enPulgadas = (negocio.equivalenciasEnPulgadas ?? []).map((par) => `${par.pulgadas} = ${par.metrica}`);
   return `Datos confirmados del negocio (el bot PUEDE afirmarlos tal cual; agregarles plazos, precios o condiciones es **hecho_comercial_inventado**): ${hechos.join(" ")}`
-    + (porMarca.length ? ` Respaldo por marca: ${porMarca.join(" · ")}` : "");
+    + (porMarca.length ? ` Respaldo por marca: ${porMarca.join(" · ")}` : "")
+    + (enPulgadas.length
+      ? ` Medidas en pulgadas que el negocio vende COMO la métrica (son equivalentes aunque pasen el 3 % de diámetro; llamarlas «equivalente» o «la misma en pulgadas» NO es medida_incorrecta): ${enPulgadas.join("; ")}.`
+      : "");
 }
 
 /**
@@ -515,7 +524,7 @@ async function catalogoParaElGuardian(pedidas: readonly string[], cantidadDelCli
         // El tipo (A/T, H/T…) viene de la base del cliente, no de Contífico.
         // Sin él, el revisor no puede juzgar un «no hay A/T»: el 1-sep tenía
         // la KR28 con 89 unidades en la lista y no sabía que era A/T.
-        const tipo = tipoDeProducto(p.code, p.design);
+        const tipo = tipoDeProducto(p.code, p.design, p.name);
         // Black Friday: el precio de la fila es el de catálogo (−25 %), NO lo que
         // paga el cliente. Si la marca entra en la promo, la fila lo dice y trae
         // la cuenta del juego — sin eso el revisor copiaba este «c/u» como si
@@ -530,8 +539,18 @@ async function catalogoParaElGuardian(pedidas: readonly string[], cantidadDelCli
           : marcaConSegundaLlanta(politica.promocionDeTemporada, p.brand)
             ? `hoy $${p.minimumPriceWithTax.toFixed(2)} c/u con IVA — para ${n} llantas Black Friday NO aplica: este ES el precio`
             : `hoy $${p.minimumPriceWithTax.toFixed(2)} c/u con IVA`;
+        // Precio especial por código (Black Friday de Competimotor, 20-nov): el
+        // de hoy ya es el de la promo; el tachado es el de siempre. Y si el
+        // negocio cotiza con tarjeta, el precio en efectivo o transferencia
+        // (Precio C, nunca más caro que el de hoy) también es real y se puede decir.
+        const especial = p.promocionDePrecio
+          ? ` (${p.promocionDePrecio.nombre} ${p.promocionDePrecio.vigenciaCorta}; antes $${p.customerPriceWithTax.toFixed(2)}: decir «${p.promocionDePrecio.nombre}», el precio de antes tachado o el ahorro NO es error)`
+          : "";
+        const efectivo = politica.precioDeCotizacion === "tarjeta" && p.preciosPorPago
+          ? ` · con tarjeta de crédito $${p.minimumPriceWithTax.toFixed(2)}; en efectivo o transferencia $${Math.min(p.preciosPorPago.efectivoConIva, p.minimumPriceWithTax).toFixed(2)} c/u`
+          : "";
         filas.push(
-          `· ${p.brand} ${p.design} ${p.sizeLabel} ${tipo ? `[${tipo}]` : "[tipo sin clasificar]"} — ${precio} · ` +
+          `· ${p.brand} ${p.design} ${p.sizeLabel} ${tipo ? `[${tipo}]` : "[tipo sin clasificar]"} — ${precio}${especial}${efectivo} · ` +
           `stock hoy: ${p.stock}${estado}`,
         );
       }

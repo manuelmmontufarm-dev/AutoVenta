@@ -123,19 +123,57 @@ export function normalizarTipo(entrada: string): string {
     HIGHWAY: "H/T", ALLTERRAIN: "A/T", RUGGEDTERRAIN: "R/T", MUDTERRAIN: "M/T",
     TURISMO: "TURISMO", TURISMOSUV: "TURISMO SUV", TURISMOUHP: "TURISMO UHP",
     UHP: "TURISMO UHP", SUV: "TURISMO SUV", COMERCIAL: "COMERCIAL",
+    // Así le dicen en Santo Domingo a la M/T (Carlos, Competimotor, 20-nov).
+    PANTANERA: "M/T", PANTANERAS: "M/T", PANTANERO: "M/T", PANTANEROS: "M/T",
   };
   return directos[limpio] ?? (limpio.includes("/") ? entrada.trim().toUpperCase() : "");
 }
 
 const normalizarModelo = (m: string) => m.trim().toUpperCase().replace(/\s+/g, " ");
 
-/** Tipo de un producto del catálogo, por código y con respaldo por modelo. */
-export function tipoDeProducto(codigo: string, modelo?: string): string | null {
+/**
+ * EL TIPO ESCRITO EN EL NOMBRE: «TH-MT802», «WILDPEAK M/T», «KR601 RT»,
+ * «AT771», «FORCE ATII».
+ *
+ * Conv 469 de Competimotor (20-nov-2026): pidió 235/75R15 «tipo pantaneras» y
+ * el bot dijo que no había M/T, con KENDA KR29, TOWNHALL TH-MT802 y —en
+ * pulgadas— FALKEN WILDPEAK M/T y KENDA KR628 en stock. La base de tipos de
+ * Competimotor está vacía (el Excel de Fénix no trae el tipo y sus códigos no
+ * son los de Depot), así que para el bot NINGUNA llanta tenía tipo y todo
+ * filtro por tipo daba cero.
+ *
+ * Solo se lee del nombre cuando el cliente NO tiene una base clasificada por
+ * código (`skus` vacío): la de Depot, entregada a mano, sigue mandando sola y
+ * su comportamiento no cambia. El orden importa: M/T antes que R/T y A/T. Un
+ * token suelto pegado a otras letras («MAT1», «91HTL») no cuenta.
+ */
+const TIPO_EN_EL_NOMBRE: Array<[RegExp, string]> = [
+  [/(?:^|[\s\-/(])(?:M\/T|MT\d*|MUD(?:\s*-?\s*TERRAIN)?)(?=$|[\s\-/),])/, "M/T"],
+  [/(?:^|[\s\-/(])(?:R\/T|RT\d*|RUGGED(?:\s*-?\s*TERRAIN)?)(?=$|[\s\-/),])/, "R/T"],
+  [/(?:^|[\s\-/(])(?:A\/T\d*W?|AT\d*W?|ATII|ALL\s*-?\s*TERRAIN)(?=$|[\s\-/),])/, "A/T"],
+  [/(?:^|[\s\-/(])(?:H\/T|HT\d*|HIGHWAY)(?=$|[\s\-/),])/, "H/T"],
+];
+
+export function tipoEnElNombre(...textos: Array<string | null | undefined>): string | null {
+  for (const texto of textos) {
+    const t = (texto ?? "").toUpperCase();
+    if (!t.trim()) continue;
+    for (const [patron, tipo] of TIPO_EN_EL_NOMBRE) if (patron.test(t)) return tipo;
+  }
+  return null;
+}
+
+/**
+ * Tipo de un producto del catálogo, por código y con respaldo por modelo. Sin
+ * base por código (cliente nuevo, catálogo por archivo), lo que diga el nombre.
+ */
+export function tipoDeProducto(codigo: string, modelo?: string, nombre?: string): string | null {
   const b = cargar();
   const porCodigo = b.porCodigo.get(String(codigo).trim());
   if (porCodigo) return porCodigo.tipo;
-  if (modelo) return b.porModelo.get(normalizarModelo(modelo)) ?? null;
-  return null;
+  const porModelo = modelo ? b.porModelo.get(normalizarModelo(modelo)) ?? null : null;
+  if (porModelo || b.porCodigo.size > 0) return porModelo;
+  return tipoEnElNombre(modelo, nombre);
 }
 
 export function infoTipo(tipo: string): TipoLlanta | null {

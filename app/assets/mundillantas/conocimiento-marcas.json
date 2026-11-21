@@ -1,7 +1,7 @@
 {
  "version": "1",
  "generado": "2026-11-18",
- "proposito": "Origen, tecnología, garantía, seguro y rendimiento por marca, tal como Jenny los devolvió el 18-nov-2026 (docs/clientes/Preguntas-Competimotor-Mundillantas-respondido-18nov.xlsx, hojas Preguntas y Garantías). El país de origen llegó esa noche: dónde se hace cada una y de qué tecnología es. Los km son los que ella escribió con «hasta»: se dicen como máximo aproximado.",
+ "proposito": "Origen, tecnología, garantía, seguro y rendimiento por marca, tal como Jenny los devolvió el 18-nov-2026 (docs/clientes/Preguntas-Competimotor-Mundillantas-respondido-18nov.xlsx, hojas Preguntas y Garantías). 20-nov-2026: Carlos corrigió que el seguro contra impacto es SOLO de Kenda y Falken; Winrun y Maxxis quedan con seguro 0 (= no tienen) y su garantía de fábrica. El país de origen llegó esa noche: dónde se hace cada una y de qué tecnología es. Los km son los que ella escribió con «hasta»: se dicen como máximo aproximado.",
  "marcas": {
   "KENDA": {
    "origen": {
@@ -51,8 +51,8 @@
     "cubre": "Defectos de fabricación."
    },
    "seguro": {
-    "meses": 6,
-    "frase_de_venta": "Hasta 6 meses de seguro contra impacto. Se hace válido con la factura de su compra."
+    "meses": 0,
+    "frase_de_venta": "Winrun no lleva seguro contra impacto: el seguro solo aplica en Kenda y Falken. Tiene garantía de fábrica de 6 meses contra defectos."
    },
    "rendimiento": {
     "km_promedio": 50000,
@@ -70,8 +70,8 @@
     "cubre": "Defectos de fabricación."
    },
    "seguro": {
-    "meses": 12,
-    "frase_de_venta": "Hasta 12 meses de seguro contra impacto. Se hace válido con la factura de su compra."
+    "meses": 0,
+    "frase_de_venta": "Maxxis no lleva seguro contra impacto: el seguro solo aplica en Kenda y Falken. Tiene garantía de fábrica de 1 año contra defectos."
    },
    "rendimiento": {
     "km_promedio": 60000,
@@ -88,7 +88,7 @@
  },
  "argumento_para_subir_de_nivel": [],
  "reglas_de_uso": [
-  "El seguro contra impacto se hace válido solo con la factura de la compra y solo en Kenda, Falken, Winrun y Maxxis.",
+  "El seguro contra impacto se hace válido solo con la factura de la compra y solo en Kenda y Falken (Carlos, 20-nov-2026: «las únicas marcas que manejamos con seguro son KENDA y FALKEN»). Winrun, Maxxis y las demás marcas NO llevan seguro: solo garantía de fábrica.",
   "Los km son los que dio el negocio como «hasta»: dilos así, como máximo aproximado según el uso."
  ],
  "ejemplos_de_respuesta": {}

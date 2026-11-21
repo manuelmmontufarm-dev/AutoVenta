@@ -506,8 +506,10 @@ const NEGRO_BF = "#0b0b0d";
  */
 function franjaTemporadaDiaNoche(line: PosterLine): SatoriNode | null {
   const bf = line.segundaLlanta;
-  if (!bf) return null;
   const tempo = line.temporada;
+  // Precio especial por código: la llanta entera va rebajada (no la 2.ª).
+  const especial = !bf && tempo?.precioEspecial ? porcentaje(line) : null;
+  if (!bf && especial === null) return null;
   return el({
     position: "relative", overflow: "hidden", alignItems: "center", justifyContent: "space-between", marginTop: 14,
     padding: "11px 16px 11px 14px", borderRadius: 12, backgroundColor: NEGRO_BF, border: `1px solid ${ORO}`,
@@ -521,13 +523,14 @@ function franjaTemporadaDiaNoche(line: PosterLine): SatoriNode | null {
         el({ width: 4, height: 22, backgroundColor: ORO, transform: "skewX(-22deg)" }),
       ),
       text({ ...ANCHO(900), fontSize: 22, lineHeight: 1, letterSpacing: -0.3, color: "#ffffff", whiteSpace: "nowrap" },
-        (tempo?.nombre ?? bf.nombre).toUpperCase()),
+        (tempo?.nombre ?? bf?.nombre ?? "").toUpperCase()),
       tempo?.bajada
         ? text({ ...ANCHO(800), fontSize: 13, lineHeight: 1, color: ORO, whiteSpace: "nowrap" }, `· ${tempo.bajada}`)
         : null,
     ),
     el({ flexDirection: "column", alignItems: "flex-end", gap: 3 },
-      text({ ...ANCHO(900), fontSize: 12.5, lineHeight: 1, color: ORO, whiteSpace: "nowrap" }, `−${bf.porcentaje}% EN CADA 2.ª LLANTA`),
+      text({ ...ANCHO(900), fontSize: 12.5, lineHeight: 1, color: ORO, whiteSpace: "nowrap" },
+        bf ? `−${bf.porcentaje}% EN CADA 2.ª LLANTA` : `PRECIO ESPECIAL · −${especial}%`),
       tempo?.hasta
         ? text({ ...BARLOW(500), fontSize: 8.5, lineHeight: 1, color: "#c9c9cf", whiteSpace: "nowrap" }, `Válido hasta el ${tempo.hasta}`)
         : null,
@@ -591,6 +594,24 @@ function panelSegundaLlanta(line: PosterLine, t: Tokens): SatoriNode[] {
   ];
 }
 
+/**
+ * Lo que dice la bajada de la lámina de opciones sobre el juego.
+ *
+ * El «seguro» solo si TODAS las opciones lo llevan. Competimotor, 20-nov-2026
+ * (Carlos): en 265/65R17 la lámina de una TOURADOR FORCE AT II decía «con IVA,
+ * instalación, seguro y mantenimiento ya incluidos», y esa marca no tiene seguro
+ * («las únicas marcas que manejamos con seguro son KENDA y FALKEN»). La frase
+ * era fija; ahora la decide `golpesMeses` de cada opción, que sale de
+ * `garantias` del perfil. Con una sola opción sin seguro la frase no lo
+ * nombra: el chip «N meses de seguro» de cada tarjeta dice cuáles sí.
+ */
+export function loIncluidoEnElJuego(lines: readonly Pick<PosterLine, "golpesMeses">[]): string {
+  const todasConSeguro = lines.length > 0 && lines.every((l) => (l.golpesMeses ?? 0) > 0);
+  return todasConSeguro
+    ? "con IVA, instalación, seguro y mantenimiento ya incluidos."
+    : "con IVA, instalación y mantenimiento ya incluidos.";
+}
+
 /** Hasta seis tarjetas: es el tope de `preparar_opciones`. */
 const MAX_OPCIONES = 6;
 
@@ -632,7 +653,7 @@ export function optionsPosterDiaNoche(data: OptionsDiaNocheData, modo: ModoPieza
       : [
           { texto: "El precio grande es el" },
           { texto: `juego completo de ${n} llantas,`, negrita: true },
-          { texto: beneficios.length ? "con IVA, instalación, seguro y mantenimiento ya incluidos." : "con IVA incluido." },
+          { texto: beneficios.length ? loIncluidoEnElJuego(lines) : "con IVA incluido." },
         ],
     11, t.sub, t.txt, pcts.length ? 420 : 560,
   );
@@ -644,6 +665,22 @@ export function optionsPosterDiaNoche(data: OptionsDiaNocheData, modo: ModoPieza
   // 4» y la insignia volvía a «−25% DESCUENTO HOY» (producción, 26-oct 16:26).
   // La lámina de opciones es siempre el juego de 4.
   const todas3x4 = lines.length > 0 && lines.every((line) => es3x4(line));
+  // CONV 469 (Competimotor, 20-nov): KR29 sin rebaja + Falken M/T con Black
+  // Friday salía «−21% DESCUENTO HOY en las 2 opciones». «Iguales» se contaba
+  // solo entre las que TIENEN descuento y el texto nombraba todas: ahora, si
+  // alguna no lo tiene, la insignia nombra las que sí (por marca, o marca y
+  // modelo si la marca se repite en la lámina).
+  const conDescuento = lines.filter((l) => porcentaje(l) !== null);
+  const todasConDescuento = conDescuento.length === opciones;
+  const nombreCorto = (l: PosterLine) => {
+    const cap = (s: string) => s.trim().split(/\s+/).map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ");
+    const marcaRepetida = lines.filter((o) => o.brand.trim().toUpperCase() === l.brand.trim().toUpperCase()).length > 1;
+    return marcaRepetida ? `${cap(l.brand)} ${l.design.trim()}` : cap(l.brand);
+  };
+  // Precio especial por código (Black Friday de Competimotor): la insignia lo dice.
+  const temporadaDeLaInsignia = conDescuento.length && conDescuento.every((l) => l.temporada?.precioEspecial)
+    ? conDescuento[0].temporada!.nombre.toUpperCase()
+    : null;
   const insignia = pcts.length
     ? (() => {
         const iguales = todas3x4 || pcts.every((p) => p === pcts[0]);
@@ -660,15 +697,17 @@ export function optionsPosterDiaNoche(data: OptionsDiaNocheData, modo: ModoPieza
           }),
           text({ ...ANCHO(900), fontSize: 38, lineHeight: 1, letterSpacing: -1, color: TINTA_ORO }, todas3x4 ? "4x3" : `−${pct}%`),
           el({ flexDirection: "column" },
-            renglon(todas3x4 ? "4 LLANTAS POR" : iguales ? "DESCUENTO" : "HASTA"),
-            renglon(todas3x4 ? "EL PRECIO DE 3" : iguales ? "HOY" : "DE DESCUENTO"),
+            renglon(todas3x4 ? "4 LLANTAS POR" : temporadaDeLaInsignia ?? (iguales ? "DESCUENTO" : "HASTA")),
+            renglon(todas3x4 ? "EL PRECIO DE 3" : temporadaDeLaInsignia ? (iguales ? "DESCUENTO HOY" : "DESCUENTO MÁX.") : iguales ? "HOY" : "DE DESCUENTO"),
             text({ ...BARLOW(700), fontSize: 10, color: "#5c430e", marginTop: 2 },
               // Con Black Friday, Falken/Kenda ya no llevan el −25 % (lo reemplaza
               // el 60 %): la insignia nombra las marcas que sí lo llevan.
               lines.some((l) => l.vitrinaSegundaLlanta) && pcts.length < opciones
                 ? `en ${[...new Set(lines.filter((l) => porcentaje(l) !== null).map((l) => l.brand.trim()))]
                     .map((m) => m.charAt(0).toUpperCase() + m.slice(1).toLowerCase()).join(" y ")}`
-                : iguales ? (opciones === 1 ? "en esta opción" : `en las ${opciones} opciones`) : "según la opción"),
+                : !todasConDescuento
+                  ? `en ${[...new Set(conDescuento.map(nombreCorto))].join(" y ")}`
+                  : iguales ? (opciones === 1 ? "en esta opción" : `en las ${opciones} opciones`) : "según la opción"),
           ),
         );
       })()
@@ -1025,7 +1064,7 @@ export function quotePosterDiaNoche(data: QuoteDiaNocheData, modo: ModoPieza): S
       ),
     ),
 
-    bf ? franjaTemporadaDiaNoche(line) : null,
+    bf || line.temporada?.precioEspecial ? franjaTemporadaDiaNoche(line) : null,
 
     // Héroe
     el({
@@ -1126,7 +1165,14 @@ export function quotePosterDiaNoche(data: QuoteDiaNocheData, modo: ModoPieza): S
           text({ ...CHAKRA(700), fontSize: 10.5, letterSpacing: 1.7, color: "rgba(255,255,255,0.9)" }, "TOTAL"),
           pildoraCantidad(17, 10, { backgroundColor: "#ffffff", padding: "2px 11px 2px 9px" }, "#c81e24"),
         ),
-        text({ ...ANCHO(800), fontSize: cuerpoQueCabe(total, 48, 278), lineHeight: 1, marginTop: 10, letterSpacing: -0.5, color: "#ffffff" }, total),
+        // Precio especial por código: el juego a precio normal, tachado, sobre el total.
+        !bf && line.temporada?.precioEspecial && pct !== null && line.pvpConIva
+          ? el({ alignItems: "center", gap: 7, marginTop: 8 },
+              text({ ...CHAKRA(700), fontSize: 8, letterSpacing: 1.6, color: "rgba(255,255,255,0.8)" }, "ANTES"),
+              text({ ...ARCHIVO, fontSize: 15, color: "rgba(255,255,255,0.85)", textDecoration: "line-through" }, dinero(line.pvpConIva * n)),
+            )
+          : null,
+        text({ ...ANCHO(800), fontSize: cuerpoQueCabe(total, 48, 278), lineHeight: 1, marginTop: !bf && line.temporada?.precioEspecial && pct !== null ? 4 : 10, letterSpacing: -0.5, color: "#ffffff" }, total),
         bf
           ? text({ ...BARLOW(700), fontSize: 10, marginTop: 8, color: "#ffffff" },
               `Ahorra ${dinero(ahorro)} en ${n === 1 ? "su llanta" : "el juego completo"}`)

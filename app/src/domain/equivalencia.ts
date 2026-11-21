@@ -39,7 +39,8 @@
  * `equivaleAAlguna`, y la dirección que pidió el cliente («más ancha», «más
  * alta») también vive aquí (`direccionPedida`, `respetaDireccion`).
  */
-import { extractFlotationSizes, extractTireSizes } from "./tireSize.js";
+import { negocio } from "../negocio/index.js";
+import { extractFlotationSizes, extractTireSizes, formatFlotationSize } from "./tireSize.js";
 
 /** Una pulgada, en milímetros. El aro se dice en pulgadas y el resto en mm. */
 const PULGADA_MM = 25.4;
@@ -137,12 +138,50 @@ export function cercaniaDeMedida(
   // Sin ancho comparable (una de pulgadas contra una métrica rara) manda el
   // diámetro, como siempre; con ancho, tiene que caber en el mismo rin.
   const anchoQueMonta = !Number.isFinite(deltaAncho) || deltaAncho <= ANCHO_MAXIMO_MM;
-  const aceptable = mismoAro && deltaDiametro <= TOLERANCIA_DIAMETRO && anchoQueMonta;
+  const aceptable = mismoAro && anchoQueMonta
+    && (deltaDiametro <= TOLERANCIA_DIAMETRO || equivalenciaEnPulgadas(pedida, candidata));
   // El diámetro pesa 100 veces más que el ancho: es el que decide si monta.
   // El ancho desempata entre las que ya montan.
   const puntaje = -(deltaDiametro * 10_000) - (Number.isFinite(deltaAncho) ? deltaAncho : 1_000);
 
   return { aceptable, mismoAncho, deltaDiametro, deltaAncho, puntaje };
+}
+
+/** «235/75R15» y «LT235/75R15» son la misma métrica para la tabla del negocio. */
+function metricaCanonica(etiqueta: string | null | undefined): string | null {
+  const m = extractTireSizes(etiqueta ?? "")[0];
+  return m && m.aspect !== null ? `${m.width}/${m.aspect}R${m.rim}` : null;
+}
+
+function flotacionCanonica(etiqueta: string | null | undefined): string | null {
+  const f = extractFlotationSizes(etiqueta ?? "")[0];
+  return f ? formatFlotationSize(f) : null;
+}
+
+/**
+ * ¿El negocio vende esta en pulgadas COMO esa métrica (o al revés)? Es la
+ * tabla `equivalenciasEnPulgadas` del perfil: un acuerdo comercial del
+ * cliente, no una cuenta. Sin tabla (Depot) siempre es no.
+ */
+export function equivalenciaEnPulgadas(a: string | null | undefined, b: string | null | undefined): boolean {
+  const tabla = negocio.equivalenciasEnPulgadas;
+  if (!tabla?.length) return false;
+  const [ma, mb, fa, fb] = [metricaCanonica(a), metricaCanonica(b), flotacionCanonica(a), flotacionCanonica(b)];
+  return tabla.some((par) => {
+    const metrica = metricaCanonica(par.metrica);
+    const pulgadas = flotacionCanonica(par.pulgadas);
+    return (ma === metrica && fb === pulgadas) || (mb === metrica && fa === pulgadas);
+  });
+}
+
+/** Las medidas en pulgadas que el negocio vende como esta métrica. */
+export function pulgadasEquivalentes(medida: string | null | undefined): string[] {
+  const m = metricaCanonica(medida);
+  if (!m) return [];
+  return (negocio.equivalenciasEnPulgadas ?? [])
+    .filter((par) => metricaCanonica(par.metrica) === m)
+    .map((par) => flotacionCanonica(par.pulgadas))
+    .filter((f): f is string => Boolean(f));
 }
 
 /**

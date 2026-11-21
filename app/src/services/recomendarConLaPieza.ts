@@ -65,7 +65,7 @@ export async function tryRecomendarConLaPieza(
           const item = findByCode(codigo);
           return {
             codigo,
-            tipo: item ? tipoDeProducto(item.code, item.design) : null,
+            tipo: item ? tipoDeProducto(item.code, item.design, item.name) : null,
             precioConIva: item?.minimumPriceWithTax ?? null,
           };
         }),

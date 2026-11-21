@@ -90,7 +90,7 @@ import {
 } from "../domain/medidaDelCliente.js";
 import { localPorLaZonaDicha, nearestStore, resolveSector, ubicacionDadaPorElCliente } from "../domain/locations.js";
 import {
-  cargaAlcanza, direccionPedida, direccionVigente, equivaleAAlguna, esEquivalente, ordenarPorCercania, porQueNoEquivale,
+  cargaAlcanza, direccionPedida, direccionVigente, equivaleAAlguna, equivalenciaEnPulgadas, esEquivalente, ordenarPorCercania, porQueNoEquivale, pulgadasEquivalentes,
   requisitoDeCarga, respetaDireccion,
 } from "../domain/equivalencia.js";
 import { avisoDeMedidaEnOpciones, LINEA_SIN_STOCK_EXACTO, siguientePasoPorMedidaDistinta } from "../domain/equivalenciaEnTexto.js";
@@ -449,11 +449,11 @@ function tresOpciones<T extends { brand: string; design: string; minimumPriceWit
  * Sin uso declarado equivale a `tresOpciones`. NO oculta tipos de lo que ve el
  * modelo: eso es `recorteConEscalera`, que no se toca.
  */
-function escaleraPorUso<T extends { code: string; brand: string; design: string; minimumPriceWithTax: number; availability: string; stock: number }>(
+function escaleraPorUso<T extends { code: string; brand: string; design: string; name?: string; minimumPriceWithTax: number; availability: string; stock: number }>(
   productos: readonly T[],
   uso: UsoDeclarado | null,
 ): { opciones: T[]; avisoTipo: string | null } {
-  const separado = separarPorUso(productos, uso, (p) => normalizarTipo(tipoDeProducto(p.code, p.design) ?? ""));
+  const separado = separarPorUso(productos, uso, (p) => normalizarTipo(tipoDeProducto(p.code, p.design, p.name) ?? ""));
   // Con escalón por precio, los escalones se cuentan sobre lo que se va a
   // mostrar: los compatibles si alcanzan solos, o todos si hay relleno. Así
   // compatibles y relleno nunca repiten escalón entre sí.
@@ -492,7 +492,7 @@ function escaleraPorUso<T extends { code: string; brand: string; design: string;
  * práctica devuelve más, porque `tresOpciones` mira la lista COMPLETA y no
  * solo los ocho primeros.
  */
-function recorteConEscalera<T extends { code: string; brand: string; design: string; minimumPriceWithTax: number; availability: string; stock: number }>(
+function recorteConEscalera<T extends { code: string; brand: string; design: string; name?: string; minimumPriceWithTax: number; availability: string; stock: number }>(
   productos: readonly T[],
   tope: number,
 ): T[] {
@@ -514,7 +514,7 @@ function recorteConEscalera<T extends { code: string; brand: string; design: str
   // dimensión y se garantiza aparte: de cada tipo con stock para el juego
   // presente en la lista COMPLETA entra su mejor representante (el más
   // barato entre los que alcanzan para el juego).
-  const tipoDe = (p: T) => normalizarTipo(tipoDeProducto(p.code, p.design) ?? "");
+  const tipoDe = (p: T) => normalizarTipo(tipoDeProducto(p.code, p.design, p.name) ?? "");
   const cubiertos = new Set(
     elegidos.filter((p) => p.stock >= JUEGO_COMPLETO).map(tipoDe).filter(Boolean),
   );
@@ -599,15 +599,18 @@ function opcionesEnAro(aro: number, tipo: string | null, medidaConfirmada?: stri
   // 28:14): «235 rin 15» mostraba 205/65, 185/65 y 195/55 — las económicas del
   // aro entero. Con ancho, solo las de ese ancho entran al menú; quien llama
   // decide qué decir si no queda ninguna (los anchos cercanos que sí hay).
+  // La medida en pulgadas que el negocio vende como la suya (Competimotor:
+  // 30X9.5R15 = 235/75R15, `equivalenciasEnPulgadas`) no tiene ancho en mm y
+  // el filtro la sacaba: entra igual, y la escalera la trata como equivalente.
   const enElAro = ancho === null
     ? searchByRim(aro)
-    : searchByRim(aro).filter((item) => item.size?.width === ancho);
+    : searchByRim(aro).filter((item) => item.size?.width === ancho || equivalenciaEnPulgadas(medidaConfirmada, item.sizeLabel));
   // Sin tipo pedido pero con una camioneta sobre la mesa, el aro se filtra a
   // lo que una camioneta monta. Ver `domain/claseDeVehiculo.ts`.
   const delTipo = pedido
-    ? enElAro.filter((item) => normalizarTipo(tipoDeProducto(item.code, item.design) ?? "") === pedido)
+    ? enElAro.filter((item) => normalizarTipo(tipoDeProducto(item.code, item.design, item.name) ?? "") === pedido)
     : soloDeCamioneta
-    ? enElAro.filter((item) => TIPOS_DE_CAMIONETA.includes(normalizarTipo(tipoDeProducto(item.code, item.design) ?? "")))
+    ? enElAro.filter((item) => TIPOS_DE_CAMIONETA.includes(normalizarTipo(tipoDeProducto(item.code, item.design, item.name) ?? "")))
     : enElAro;
   // Su medida le gana al aro (25-ago). El aro se compara aparte y a propósito:
   // si el cliente CAMBIÓ de rines —el caso que esta misma herramienta invita a
@@ -618,7 +621,13 @@ function opcionesEnAro(aro: number, tipo: string | null, medidaConfirmada?: stri
   // TODO está agotado, quedarse ahí dejaría al cliente con una sola opción
   // incotizable (generar_cotizacion bloquea agotadas) y le esconderíamos las
   // equivalentes vendibles del aro. Agotado en su medida = como si no hubiera.
-  const enSuMedida = conStock(enLaMedidaConfirmada(delTipo, suMedida));
+  // Su medida en pulgadas (Competimotor: 30X9.5R15 para 235/75R15) cuenta como
+  // la suya: es la misma llanta escrita de otra forma para el negocio. Conv
+  // 469: la M/T con 8 unidades estaba ahí y la métrica solo tenía 4 y 2.
+  const enSuMedida = conStock([
+    ...enLaMedidaConfirmada(delTipo, suMedida),
+    ...(suMedida ? delTipo.filter((item) => equivalenciaEnPulgadas(suMedida, item.sizeLabel)) : []),
+  ]);
   // CUANDO LA SELECCIÓN SALE DEL ARO Y NO DE SU MEDIDA, ES UNA EQUIVALENTE Y
   // TIENE QUE MONTAR.
   //
@@ -1044,7 +1053,7 @@ export function buildTools(ctx: AgentContext) {
   /** Con uso declarado, solo los tipos que le sirven (si hay alguno); si no, todos. */
   const delUsoSiHay = (productos: readonly CatalogItem[], uso: UsoDeclarado | null): CatalogItem[] => {
     if (!uso) return [...productos];
-    const { compatibles } = separarPorUso(productos, uso, (p) => normalizarTipo(tipoDeProducto(p.code, p.design) ?? ""));
+    const { compatibles } = separarPorUso(productos, uso, (p) => normalizarTipo(tipoDeProducto(p.code, p.design, p.name) ?? ""));
     return compatibles.length ? compatibles : [...productos];
   };
   /** Lo que se le dice al modelo cuando la lámina ya la eligió el código. */
@@ -1209,7 +1218,7 @@ export function buildTools(ctx: AgentContext) {
           : {}),
         resultados: (porMarca ? porMarca.opciones : recorteConEscalera(exact, 5)).map((p) => ({
           ...toolItem(p, cantidadFicha),
-          ...(sirvenAlUso ? { le_sirve_a_su_uso: sirvenAlUso.includes(normalizarTipo(tipoDeProducto(p.code, p.design) ?? "")) } : {}),
+          ...(sirvenAlUso ? { le_sirve_a_su_uso: sirvenAlUso.includes(normalizarTipo(tipoDeProducto(p.code, p.design, p.name) ?? "")) } : {}),
         })),
         alternativas_mismo_aro: recorteConEscalera(alternatives, 3).map(toolItemDe(cantidadFicha)),
         ...(direccion
@@ -1521,7 +1530,7 @@ export function buildTools(ctx: AgentContext) {
           tipo_pedido: pedido || null,
           hay_en_el_aro: enElAro.length,
           tipos_disponibles_en_ese_aro: [
-            ...new Set(enElAro.map((i) => tipoDeProducto(i.code, i.design)).filter(Boolean)),
+            ...new Set(enElAro.map((i) => tipoDeProducto(i.code, i.design, i.name)).filter(Boolean)),
           ],
           regla:
             "No hay stock de ese tipo en ese aro. Dile qué tipos SÍ hay en ese aro y pregunta el uso; no inventes que llegará ni ofrezcas otro tipo como si fuera el pedido.",
@@ -2126,7 +2135,7 @@ export function buildTools(ctx: AgentContext) {
       let candidatos = poolDeLaMedida?.length ? poolDeLaMedida : coherentes;
       if (tipoPedido) {
         const coinciden = coherentes.filter(
-          (p) => tipoDeProducto(p.code, p.design) === tipoPedido,
+          (p) => tipoDeProducto(p.code, p.design, p.name) === tipoPedido,
         );
         const resto = coherentes.filter((p) => !coinciden.includes(p));
         if (coinciden.length >= 2) candidatos = coinciden;
@@ -2192,15 +2201,20 @@ export function buildTools(ctx: AgentContext) {
       const usoDelCliente = tipoPedido
         ? null
         : usoDeLosTextos([ctx.currentUserText, ...mensajesDeLaVisitaActual(inbound).map((m) => m.content)]);
-      const tipoDe = (p: { code: string; design: string }) => normalizarTipo(tipoDeProducto(p.code, p.design) ?? "");
+      const tipoDe = (p: { code: string; design: string; name?: string }) => normalizarTipo(tipoDeProducto(p.code, p.design, p.name) ?? "");
       let porUso = separarPorUso(vendibles, usoDelCliente, tipoDe);
       // El modelo pudo mandar UNA sola (la KR29 M/T para «lodo, pantanero») aunque
       // en esa misma medida hay compatibles vendibles que no eligió (una R/T).
       // Se completa desde el catálogo, con la misma medida y lo que alcanza.
       if (porUso.avisoTipo && usoDelCliente && vendibles[0]?.size) {
         const yaEstan = new Set(vendibles.map((p) => p.code));
+        // Y su medida en pulgadas, si el negocio la vende como la suya
+        // (Competimotor, conv 469: 235/75R15 «tipo pantaneras» → FALKEN
+        // WILDPEAK M/T 30X9.5R15). Antes de rellenar con otro tipo.
+        const enPulgadas = pulgadasEquivalentes(vendibles[0].sizeLabel).flatMap((etiqueta) =>
+          searchByText(etiqueta.replace(/R\d+$/, ""), 40).filter((item) => item.sizeLabel === etiqueta));
         const extras = opcionesQueAlcanzan(
-          conStock(searchBySize(vendibles[0].size)).filter((p) => !yaEstan.has(p.code)),
+          conStock([...searchBySize(vendibles[0].size), ...enPulgadas]).filter((p) => !yaEstan.has(p.code)),
           cantidadResuelta.cantidad,
         );
         if (extras.length) {
@@ -4711,10 +4725,12 @@ export function toolItem(item: {
   minimumPriceWithTax?: number;
   stock: number;
   availability?: string;
+  promocionDePrecio?: { nombre: string; vigenciaCorta: string } | null;
+  preciosPorPago?: { tarjetaConIva: number; efectivoConIva: number };
 }, cantidad: number = politica.juegoCompleto) {
   // El tipo (H/T, A/T, R/T…) no viene de Contífico: sale de la base que entregó
   // el cliente. Es lo que permite responder "quiero una R17 A/T".
-  const tipo = tipoDeProducto(item.code, item.design);
+  const tipo = tipoDeProducto(item.code, item.design, item.name);
   // BLACK FRIDAY: en Falken/Kenda con la promo aplicada NO existe un precio por
   // llanta (impares a lista, pares a lista × 0,4). Antes el vendedor recibía
   // `precio_hoy_con_iva` (el −25 %) y lo repetía como «$X c/u» (convs 39615 y
@@ -4747,6 +4763,17 @@ export function toolItem(item: {
           precio_lista_con_iva: item.customerPriceWithTax,
           precio_hoy_con_iva: item.minimumPriceWithTax,
         }),
+    // Precio especial por código (Black Friday de Competimotor, 20-nov): el de
+    // hoy ya es el de la promo y el de lista el de siempre. Solo viaja si la
+    // llanta lo lleva: el ítem de Depot queda idéntico.
+    ...(item.promocionDePrecio
+      ? { promocion: `${item.promocionDePrecio.nombre} ${item.promocionDePrecio.vigenciaCorta}: precio_hoy_con_iva ya es el de la promoción` }
+      : {}),
+    // Cotiza con tarjeta (Competimotor): el precio de hoy ES el de tarjeta; en
+    // efectivo o transferencia, este (nunca más caro que el de hoy).
+    ...(politica.precioDeCotizacion === "tarjeta" && item.preciosPorPago && item.minimumPriceWithTax
+      ? { precio_efectivo_o_transferencia_con_iva: Math.min(item.preciosPorPago.efectivoConIva, item.minimumPriceWithTax) }
+      : {}),
     stock: item.stock,
     disponibilidad: item.availability,
     // Las lonas viven en el nombre del fabricante («KR29 10PR TL») y se

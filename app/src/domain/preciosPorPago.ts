@@ -31,12 +31,49 @@ export interface LineaPorPago {
   /** El número de la opción en la lámina («1 · TOWNHALL TH-161»); sin él, la cotizada. */
   numero?: number;
   cantidad: number;
-  /** Con IVA, por llanta. */
-  normal: number;
+  /**
+   * Con IVA, por llanta. Null: el negocio cotiza con el precio con tarjeta
+   * (Competimotor, 20-nov-2026) y el «precio normal» (Precio A) no se dice.
+   */
+  normal: number | null;
+  /** «Black Friday hasta el lunes 30-nov»: la llanta lleva precio de promoción. */
+  promocion?: string | null;
   /** Null: esta llanta no trae Precio B/C (o no pasó el control) y la confirma un asesor. */
   tarjeta: number | null;
   efectivo: number | null;
 }
+
+/**
+ * Las líneas de precio de UNA llanta. Con tarjeta y efectivo iguales (Black
+ * Friday más barato que el precio en efectivo) va una sola: decir dos veces la
+ * misma cifra con dos rótulos se lee como si fueran precios distintos.
+ */
+function lineasDePrecio(l: LineaPorPago, precio: (unitario: number, cantidad: number) => string): string[] {
+  return [
+    ...(l.normal === null ? [] : [`🧾 Precio normal: ${precio(l.normal, l.cantidad)}`]),
+    ...(l.tarjeta === null || l.efectivo === null
+      ? [SIN_PRECIO_POR_PAGO]
+      : l.tarjeta === l.efectivo
+        // Corto a propósito: con 6 palabras o más, dos opciones al mismo precio
+        // las toma por la misma idea el quitador de repetidas del turno.
+        ? [`💳 Tarjeta, efectivo o transferencia: ${precio(l.tarjeta, l.cantidad)}`]
+        : [
+            `💳 Con tarjeta de crédito: ${precio(l.tarjeta, l.cantidad)}`,
+            `💵 En efectivo o transferencia: ${precio(l.efectivo, l.cantidad)}`,
+          ]),
+  ];
+}
+
+/**
+ * LA PROMOCIÓN SE NOMBRA UNA VEZ (simulador, 20-nov): con «· Black Friday
+ * hasta el lunes 30-nov» en el título de cada opción, «*1 · WINRUN MAXCLAW
+ * A/T* · Black Friday…» y «*2 · WINRUN MAXCLAW R/T* · Black Friday…» eran la
+ * misma idea para `estructurarTurno` y el segundo título se borraba: quedaba un
+ * precio sin su llanta. Cada llanta con promo lleva 🖤 y la vigencia va al pie.
+ */
+const conPromocion = (titulo: string, l: LineaPorPago) => (l.promocion ? `${titulo} 🖤` : titulo);
+const pieDePromocion = (lineas: readonly LineaPorPago[]): string[] =>
+  [...new Set(lineas.map((l) => l.promocion).filter((p): p is string => Boolean(p)))].map((p) => `🖤 ${p}`);
 
 /** La frase para la opción que no trae precio por forma de pago: solo ella va al asesor. */
 export const SIN_PRECIO_POR_PAGO = "El precio con tarjeta y en efectivo de esta se lo confirma un asesor.";
@@ -58,15 +95,10 @@ export function mensajeDePreciosPorPago(lineas: readonly LineaPorPago[]): string
   return [
     TITULO_PRECIOS_POR_PAGO,
     ...lineas.flatMap((l) => [
-      l.numero ? `*${l.numero} · ${l.nombre}*` : `*${llantas(l.cantidad)} ${l.nombre}*`,
-      `🧾 Precio normal: ${precio(l.normal, l.cantidad)}`,
-      ...(l.tarjeta === null || l.efectivo === null
-        ? [SIN_PRECIO_POR_PAGO]
-        : [
-            `💳 Con tarjeta de crédito: ${precio(l.tarjeta, l.cantidad)}`,
-            `💵 En efectivo o transferencia: ${precio(l.efectivo, l.cantidad)}`,
-          ]),
+      conPromocion(l.numero ? `*${l.numero} · ${l.nombre}*` : `*${llantas(l.cantidad)} ${l.nombre}*`, l),
+      ...lineasDePrecio(l, precio),
     ]),
+    ...pieDePromocion(lineas),
   ].join("\n");
 }
 
@@ -81,15 +113,10 @@ function mensajeDeLaLamina(lineas: readonly LineaPorPago[]): string {
   return [
     titulo,
     ...lineas.flatMap((l) => [
-      mismaCantidad ? `*${l.numero ? `${l.numero} · ` : ""}${l.nombre}*` : `*${l.numero ? `${l.numero} · ` : ""}${l.nombre}* (${llantas(l.cantidad)})`,
-      `🧾 Precio normal: ${precio(l.normal, l.cantidad)}`,
-      ...(l.tarjeta === null || l.efectivo === null
-        ? [SIN_PRECIO_POR_PAGO]
-        : [
-            `💳 Con tarjeta de crédito: ${precio(l.tarjeta, l.cantidad)}`,
-            `💵 En efectivo o transferencia: ${precio(l.efectivo, l.cantidad)}`,
-          ]),
+      conPromocion(mismaCantidad ? `*${l.numero ? `${l.numero} · ` : ""}${l.nombre}*` : `*${l.numero ? `${l.numero} · ` : ""}${l.nombre}* (${llantas(l.cantidad)})`, l),
+      ...lineasDePrecio(l, precio),
     ]),
+    ...pieDePromocion(lineas),
   ].join("\n");
 }
 

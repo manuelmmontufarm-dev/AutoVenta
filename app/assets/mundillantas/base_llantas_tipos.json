@@ -1,58 +1,291 @@
 {
- "generado": "2026-11-04",
- "fuente": "Copia de los tipos comunes (assets/base_llantas_tipos.json) para Mundillantas/Competimotor, sin las líneas ni los SKUs de Depot. [PENDIENTE] orden de marcas y líneas propias.",
- "orden_de_marca": [],
- "regla_equivalencia": "Una medida alternativa es válida si el diámetro total no varía más de ±3% frente a la original. Fuera de ese rango afecta velocímetro, ABS y puede rozar en el guardafango.",
- "tipos": {
-  "H/T": {
-   "nombre": "Highway Terrain",
-   "definicion": "Llanta de carretera para SUV y camioneta. Taco cerrado, silenciosa y cómoda.",
-   "cuando_ofrecerla": "Cliente que anda 100% en asfalto, ciudad y carretera. Prioriza confort, ruido bajo y duración.",
-   "no_ofrecerla_si": "El cliente entra a tierra, lastre o obra con frecuencia."
+  "generado": "2026-11-04",
+  "fuente": "Copia de los tipos comunes (assets/base_llantas_tipos.json) para Mundillantas/Competimotor, sin los SKUs de Depot. 20-nov-2026: las LÍNEAS son las de la base que entregó Depot (5-ago) cuyo modelo también está en el Excel de Fénix de Competimotor (INV_NOV.XLS): es el mismo producto (KENDA KR29 es M/T acá y allá). Sin `aros`: el aro lo dice el catálogo del día. Lo que no está aquí se lee del nombre («TH-MT802», «WILDPEAK M/T», «AT771»; ver `tipoEnElNombre`). [PENDIENTE] orden de marcas.",
+  "orden_de_marca": [],
+  "regla_equivalencia": "Una medida alternativa es válida si el diámetro total no varía más de ±3% frente a la original. Fuera de ese rango afecta velocímetro, ABS y puede rozar en el guardafango.",
+  "tipos": {
+    "H/T": {
+      "nombre": "Highway Terrain",
+      "definicion": "Llanta de carretera para SUV y camioneta. Taco cerrado, silenciosa y cómoda.",
+      "cuando_ofrecerla": "Cliente que anda 100% en asfalto, ciudad y carretera. Prioriza confort, ruido bajo y duración.",
+      "no_ofrecerla_si": "El cliente entra a tierra, lastre o obra con frecuencia."
+    },
+    "A/T": {
+      "nombre": "All Terrain",
+      "definicion": "Mixta: taco más abierto que una H/T pero todavía manejable en carretera. El reparto asfalto/tierra cambia de un modelo a otro: se dice el de la ficha del modelo, nunca uno genérico.",
+      "cuando_ofrecerla": "Camionetas y 4x4 de uso mixto: ciudad entre semana y tierra o finca el fin de semana. Es la opción más pedida en camioneta.",
+      "no_ofrecerla_si": "El cliente solo anda en ciudad y le importa el ruido — ahí va H/T."
+    },
+    "R/T": {
+      "nombre": "Rugged Terrain",
+      "definicion": "Punto medio entre A/T y M/T. Taco abierto y flanco reforzado, pero con más confort que una barrosa.",
+      "cuando_ofrecerla": "Cliente que hace tierra, piedra o lodo seguido pero igual usa la camioneta en carretera. También el que busca look agresivo sin el ruido de una M/T.",
+      "no_ofrecerla_si": "Uso urbano puro o cliente sensible al ruido y al consumo."
+    },
+    "M/T": {
+      "nombre": "Mud Terrain",
+      "definicion": "Barrosa. Taco muy abierto y separado, flanco reforzado, máxima tracción fuera de la vía.",
+      "cuando_ofrecerla": "Lodo, cantera, trocha, minería, obra. Uso off-road real.",
+      "no_ofrecerla_si": "El cliente pasa la mayor parte en asfalto: es ruidosa, consume más y se desgasta rápido en carretera."
+    },
+    "TURISMO": {
+      "nombre": "Turismo / pasajero",
+      "definicion": "Llanta de auto de pasajeros para uso diario en asfalto.",
+      "cuando_ofrecerla": "Autos, sedanes y hatchbacks. Prioridad: duración, confort y precio.",
+      "no_ofrecerla_si": "El vehículo es camioneta, SUV pesada o van de carga."
+    },
+    "TURISMO SUV": {
+      "nombre": "Turismo SUV / UHP SUV",
+      "definicion": "Llanta de asfalto para SUV y crossover, con perfil bajo e índices de velocidad altos.",
+      "cuando_ofrecerla": "SUV moderna con aro 17 a 22 que nunca sale del pavimento.",
+      "no_ofrecerla_si": "El cliente quiere entrar a tierra."
+    },
+    "TURISMO UHP": {
+      "nombre": "Ultra High Performance",
+      "definicion": "Llanta de auto deportivo: máximo agarre, perfil bajo, índices W/Y.",
+      "cuando_ofrecerla": "Autos deportivos o sedanes de alta gama; cliente que pide agarre y respuesta.",
+      "no_ofrecerla_si": "Busca kilometraje y precio: la UHP dura menos y cuesta más."
+    },
+    "COMERCIAL": {
+      "nombre": "Comercial / carga (C - LT)",
+      "definicion": "Llanta de furgoneta, van o camión liviano. Carcasa rígida de 8 a 12 telas y alta capacidad de carga.",
+      "cuando_ofrecerla": "Vehículos de reparto y carga: medidas terminadas en C o convencionales tipo 7.00R16.",
+      "no_ofrecerla_si": "Es un auto o SUV liviana: el rodaje se siente duro y ruidoso."
+    }
   },
-  "A/T": {
-   "nombre": "All Terrain",
-   "definicion": "Mixta: taco más abierto que una H/T pero todavía manejable en carretera. El reparto asfalto/tierra cambia de un modelo a otro: se dice el de la ficha del modelo, nunca uno genérico.",
-   "cuando_ofrecerla": "Camionetas y 4x4 de uso mixto: ciudad entre semana y tierra o finca el fin de semana. Es la opción más pedida en camioneta.",
-   "no_ofrecerla_si": "El cliente solo anda en ciudad y le importa el ruido — ahí va H/T."
-  },
-  "R/T": {
-   "nombre": "Rugged Terrain",
-   "definicion": "Punto medio entre A/T y M/T. Taco abierto y flanco reforzado, pero con más confort que una barrosa.",
-   "cuando_ofrecerla": "Cliente que hace tierra, piedra o lodo seguido pero igual usa la camioneta en carretera. También el que busca look agresivo sin el ruido de una M/T.",
-   "no_ofrecerla_si": "Uso urbano puro o cliente sensible al ruido y al consumo."
-  },
-  "M/T": {
-   "nombre": "Mud Terrain",
-   "definicion": "Barrosa. Taco muy abierto y separado, flanco reforzado, máxima tracción fuera de la vía.",
-   "cuando_ofrecerla": "Lodo, cantera, trocha, minería, obra. Uso off-road real.",
-   "no_ofrecerla_si": "El cliente pasa la mayor parte en asfalto: es ruidosa, consume más y se desgasta rápido en carretera."
-  },
-  "TURISMO": {
-   "nombre": "Turismo / pasajero",
-   "definicion": "Llanta de auto de pasajeros para uso diario en asfalto.",
-   "cuando_ofrecerla": "Autos, sedanes y hatchbacks. Prioridad: duración, confort y precio.",
-   "no_ofrecerla_si": "El vehículo es camioneta, SUV pesada o van de carga."
-  },
-  "TURISMO SUV": {
-   "nombre": "Turismo SUV / UHP SUV",
-   "definicion": "Llanta de asfalto para SUV y crossover, con perfil bajo e índices de velocidad altos.",
-   "cuando_ofrecerla": "SUV moderna con aro 17 a 22 que nunca sale del pavimento.",
-   "no_ofrecerla_si": "El cliente quiere entrar a tierra."
-  },
-  "TURISMO UHP": {
-   "nombre": "Ultra High Performance",
-   "definicion": "Llanta de auto deportivo: máximo agarre, perfil bajo, índices W/Y.",
-   "cuando_ofrecerla": "Autos deportivos o sedanes de alta gama; cliente que pide agarre y respuesta.",
-   "no_ofrecerla_si": "Busca kilometraje y precio: la UHP dura menos y cuesta más."
-  },
-  "COMERCIAL": {
-   "nombre": "Comercial / carga (C - LT)",
-   "definicion": "Llanta de furgoneta, van o camión liviano. Carcasa rígida de 8 a 12 telas y alta capacidad de carga.",
-   "cuando_ofrecerla": "Vehículos de reparto y carga: medidas terminadas en C o convencionales tipo 7.00R16.",
-   "no_ofrecerla_si": "Es un auto o SUV liviana: el rodaje se siente duro y ruidoso."
-  }
- },
- "lineas": [],
- "skus": []
+  "lineas": [
+    {
+      "modelo": "AZENIS FK520L",
+      "linea": "Falken Azenis FK520L",
+      "marca": "FALKEN",
+      "tipo": "TURISMO UHP",
+      "uso": "Auto deportivo o sedán de alta gama",
+      "aros": []
+    },
+    {
+      "modelo": "KR12",
+      "linea": "Kenda KR12",
+      "marca": "KENDA",
+      "tipo": "COMERCIAL",
+      "uso": "Camión liviano y camioneta de carga",
+      "aros": []
+    },
+    {
+      "modelo": "KR15",
+      "linea": "Kenda Klever H/P",
+      "marca": "KENDA",
+      "tipo": "H/T",
+      "uso": "SUV / 4x4 de carretera con tierra ligera",
+      "aros": []
+    },
+    {
+      "modelo": "KR20",
+      "linea": "Kenda Kaiser KR20",
+      "marca": "KENDA",
+      "tipo": "TURISMO",
+      "uso": "Auto de pasajeros, uso diario y deportivo",
+      "aros": []
+    },
+    {
+      "modelo": "KR203",
+      "linea": "Kenda Kenetica Eco",
+      "marca": "KENDA",
+      "tipo": "TURISMO",
+      "uso": "Auto de pasajeros, uso urbano",
+      "aros": []
+    },
+    {
+      "modelo": "KR23",
+      "linea": "Kenda Komet",
+      "marca": "KENDA",
+      "tipo": "TURISMO",
+      "uso": "Auto pequeño, uso urbano",
+      "aros": []
+    },
+    {
+      "modelo": "KR28",
+      "linea": "Kenda Klever A/T",
+      "marca": "KENDA",
+      "tipo": "A/T",
+      "uso": "Camioneta y 4x4 mixto",
+      "aros": []
+    },
+    {
+      "modelo": "KR29",
+      "linea": "Kenda Klever M/T",
+      "marca": "KENDA",
+      "tipo": "M/T",
+      "uso": "Lodo, cantera, trocha pesada",
+      "aros": []
+    },
+    {
+      "modelo": "KR33",
+      "linea": "Kenda Komendo",
+      "marca": "KENDA",
+      "tipo": "COMERCIAL",
+      "uso": "Furgoneta y van de reparto",
+      "aros": []
+    },
+    {
+      "modelo": "KR33A",
+      "linea": "Kenda Komendo",
+      "marca": "KENDA",
+      "tipo": "COMERCIAL",
+      "uso": "Furgoneta y van de reparto",
+      "aros": []
+    },
+    {
+      "modelo": "KR41",
+      "linea": "Kenda Emera A1",
+      "marca": "KENDA",
+      "tipo": "TURISMO UHP",
+      "uso": "Auto deportivo, alto desempeño",
+      "aros": []
+    },
+    {
+      "modelo": "KR50",
+      "linea": "Kenda Klever H/T",
+      "marca": "KENDA",
+      "tipo": "H/T",
+      "uso": "SUV y camioneta 100% asfalto",
+      "aros": []
+    },
+    {
+      "modelo": "KR601",
+      "linea": "Kenda Klever R/T",
+      "marca": "KENDA",
+      "tipo": "R/T",
+      "uso": "4x4 en tierra, piedra y lodo con manejo en carretera",
+      "aros": []
+    },
+    {
+      "modelo": "KR605",
+      "linea": "Kenda Emera SUV XL",
+      "marca": "KENDA",
+      "tipo": "TURISMO SUV",
+      "uso": "SUV y camioneta deportiva 100% asfalto",
+      "aros": []
+    },
+    {
+      "modelo": "KR608",
+      "linea": "Kenda Klever A/T",
+      "marca": "KENDA",
+      "tipo": "A/T",
+      "uso": "Camioneta y 4x4 mixto, medidas LT reforzadas",
+      "aros": []
+    },
+    {
+      "modelo": "KR628",
+      "linea": "Kenda Klever A/T2",
+      "marca": "KENDA",
+      "tipo": "A/T",
+      "uso": "SUV, camioneta y 4x4 on/off road",
+      "aros": []
+    },
+    {
+      "modelo": "KR629",
+      "linea": "Kenda Klever M/T2",
+      "marca": "KENDA",
+      "tipo": "M/T",
+      "uso": "Lodo y off-road extremo",
+      "aros": []
+    },
+    {
+      "modelo": "MAXCLAW A/T",
+      "linea": "Winrun Maxclaw A/T",
+      "marca": "WINRUN",
+      "tipo": "A/T",
+      "uso": "Camioneta y SUV mixto",
+      "aros": []
+    },
+    {
+      "modelo": "MAXCLAW H/T2",
+      "linea": "Winrun Maxclaw H/T2",
+      "marca": "WINRUN",
+      "tipo": "H/T",
+      "uso": "SUV y camioneta de carretera",
+      "aros": []
+    },
+    {
+      "modelo": "MAXCLAW R/T",
+      "linea": "Winrun Maxclaw R/T",
+      "marca": "WINRUN",
+      "tipo": "R/T",
+      "uso": "4x4 mixto con look agresivo",
+      "aros": []
+    },
+    {
+      "modelo": "MT305",
+      "linea": "Winrun MT305",
+      "marca": "WINRUN",
+      "tipo": "M/T",
+      "uso": "Off-road, lodo y piedra",
+      "aros": []
+    },
+    {
+      "modelo": "R330",
+      "linea": "Winrun R330",
+      "marca": "WINRUN",
+      "tipo": "TURISMO",
+      "uso": "Auto de pasajeros, uso diario",
+      "aros": []
+    },
+    {
+      "modelo": "R380",
+      "linea": "Winrun R380",
+      "marca": "WINRUN",
+      "tipo": "TURISMO SUV",
+      "uso": "SUV y crossover de asfalto",
+      "aros": []
+    },
+    {
+      "modelo": "WILDPEAK A/T TRAIL",
+      "linea": "Falken Wildpeak A/T Trail",
+      "marca": "FALKEN",
+      "tipo": "A/T",
+      "uso": "SUV y camionetas de uso mixto: 80% asfalto / 20% tierra",
+      "aros": []
+    },
+    {
+      "modelo": "WILDPEAK AT3W",
+      "linea": "Falken Wildpeak A/T3W",
+      "marca": "FALKEN",
+      "tipo": "A/T",
+      "uso": "4x4 y camioneta, on/off road",
+      "aros": []
+    },
+    {
+      "modelo": "WILDPEAK M/T",
+      "linea": "Falken Wildpeak M/T",
+      "marca": "FALKEN",
+      "tipo": "M/T",
+      "uso": "Lodo, piedra, trocha pesada",
+      "aros": []
+    },
+    {
+      "modelo": "WILDPEAK R/T01",
+      "linea": "Falken Wildpeak R/T01",
+      "marca": "FALKEN",
+      "tipo": "R/T",
+      "uso": "4x4 que hace tierra, lodo y piedra sin perder confort en carretera",
+      "aros": []
+    },
+    {
+      "modelo": "ZE310R",
+      "linea": "Falken Ziex ZE310R Ecorun",
+      "marca": "FALKEN",
+      "tipo": "TURISMO",
+      "uso": "Auto de pasajeros, uso diario",
+      "aros": []
+    },
+    {
+      "modelo": "ZIEX CT60 A/S",
+      "linea": "Falken Ziex CT60 A/S",
+      "marca": "FALKEN",
+      "tipo": "H/T",
+      "uso": "SUV y crossover 100% asfalto",
+      "aros": []
+    }
+  ],
+  "skus": []
 }

@@ -20,6 +20,111 @@
   corrido a mano contra una base de prueba. **Sin probar:** los `.bat` y `diagnostico.ps1` nunca corrieron en un Windows;
   `sim:humo` no corrió (a esta copia le falta el `.env`); nada contra el Fénix real.
 - **Horas:** 0,5.
+
+## 20-nov-2026 · Bot · La insignia de la lámina no promete descuento en las opciones que no lo tienen, y dice BLACK FRIDAY (rama `fix/lamina-bf-insignia`)
+
+- **Qué:** `render/diaNoche.ts` (`optionsPosterDiaNoche`). Si alguna opción de la lámina no tiene descuento, la
+  insignia nombra las que sí lo tienen: por marca, o marca y modelo si la marca se repite. Ya no dice «en las N
+  opciones». Si todas las rebajadas son de precio especial por código (Black Friday de Competimotor), los renglones
+  dicen «BLACK FRIDAY» + «DESCUENTO HOY» (o «DESCUENTO MÁX.» si los porcentajes difieren).
+- **Por qué:** conv 469 (Competimotor): KENDA KR29 235/75R15 sin rebaja + FALKEN WILDPEAK M/T 30X9.5R15 con Black
+  Friday salía «−21% DESCUENTO HOY en las 2 opciones». `iguales` se contaba solo entre las que tienen descuento y el
+  texto nombraba todas.
+- **Depot:** los 16 hashes del arnés de piezas salen idénticos a `origin/main` (sus opciones siempre traen lista).
+- **Probado:** `laminaInsigniaBlackFriday.test.ts` (3 de 4 en rojo sin el arreglo). Láminas renderizadas con el
+  inventario del 20-nov: KR29 + Falken M/T («−21% BLACK FRIDAY · DESCUENTO HOY · en Falken») y Winrun R/T + A/T, las
+  dos con Black Friday («−21% BLACK FRIDAY · DESCUENTO MÁX. · según la opción»; «HASTA ESTE DESCUENTO» se salía de la
+  pieza). Suite: fallan solo `hashesPiezasDepot` y `unidadEnLaCantidad`, igual que en main. `tsc` ✅.
+  `verificar-precios` 444/444.
+- **Horas:** 0,5.
+## 20-nov-2026 · Bot · Competimotor: seguro solo Kenda y Falken; «pantanera» = M/T con stock (rama `fix/competimotor-seguro-pantaneras`)
+
+- **Qué (seguro):** la bajada de la lámina de opciones (`render/diaNoche.ts`, `loIncluidoEnElJuego`) dice «seguro» solo si
+  TODAS las opciones lo llevan (`golpesMeses` del perfil); antes era una frase fija. Perfil de Competimotor: Winrun y
+  Maxxis quedan con `golpesMeses: 0` (garantía de fábrica intacta) y el seguro de las piezas/política/conocimiento dice
+  «solo Kenda y Falken». El guardián recibe «SIN seguro contra impacto» para las marcas con `seguro.meses: 0`.
+- **Por qué (seguro):** Carlos (Competimotor), 20-nov: «Las únicas marcas que manejamos con seguro son KENDA y FALKEN;
+  aquí le envían con seguro una marca que no tiene» (TOURADOR FORCE AT II LB 265/65R17). Corrige la hoja de Jenny del 18-nov.
+- **Qué (pantaneras):** (1) `tireSize.ts` lee «23575r15» (ancho y perfil pegados, con la R obligatoria). (2) La base de tipos
+  de Competimotor estaba vacía: se copian 29 líneas de la base de Depot cuyo modelo está en el Excel de Fénix (KR29 M/T,
+  KR601 R/T, KR628 A/T…) y, solo en negocios sin base por código, `tipoEnElNombre` lee el tipo del nombre («TH-MT802»,
+  «WILDPEAK M/T», «AT771»). Depot no cambia. (3) `normalizarTipo("pantanera")` = M/T; en el texto del cliente sigue siendo el
+  uso lodo (M/T primero, R/T de respaldo). (4) `rafaga.ts`: «pantanera» completa la medida (un solo turno). (5) Perfil
+  `equivalenciasEnPulgadas` (Competimotor: 30X9.5R15 = 235/75R15, 3,9 % de diámetro): cuenta como equivalente en
+  `equivalencia.ts`, entra en `buscar_por_aro_y_tipo` y en el relleno por uso de `preparar_opciones`, y el guardián lo
+  recibe como hecho del negocio.
+- **Por qué (pantaneras):** conv 469 (Abg Jumbo, 11:34): «Llantas 23575r15 / Tipo pantaneras / Que precio tiene ?» →
+  «no me aparece stock». Había KENDA KR29 y TOWNHALL TH-MT802 en 235/75R15 y FALKEN WILDPEAK M/T (8) en 30X9.5R15. Para el bot
+  ninguna llanta de Competimotor tenía tipo, la medida no se leía y la 30X9.5R15 quedaba fuera del 3 %.
+- **Inventario:** prod tiene el `INV_NOV.XLS` de hoy (misma huella): reporte del 20-nov 10:01, subido 13:32, 445 llantas,
+  2.236 unidades, 25 filas descartadas.
+- **Probado:** `competimotorSeguroYPantaneras` (11) y `competimotorPantaneras` (4), en rojo en main; suite completa (fallan
+  solo `hashesPiezasDepot` y `unidadEnLaCantidad`, igual que en main); `tsc`; las cuatro de CLAUDE.md. Simulador perfil
+  mundillantas con INV_NOV.XLS: la conv 469 sale en un turno con la lámina KENDA KR29 + FALKEN WILDPEAK M/T 30X9.5R15 y el
+  guardián aprueba; «Esa es la medida exacta» → KR29 M/T a $220.80. Lámina de la TOURADOR renderizada sin «seguro».
+- **Tras mergear #74 (P2/P3 + Black Friday):** conflicto solo en esta bitácora. Simulador de nuevo con la conv 469: lámina
+  KENDA KR29 a $197.80 (P2; P1 era $220.80) + FALKEN WILDPEAK M/T a $220 (Black Friday, P2 $278.30 tachado), sin P1.
+  Láminas renderizadas: Tourador 265/65R17 sin «seguro»; Kenda KR601 en Black Friday con «seguro» y P2 tachado. Visto de
+  paso (no se toca acá, es de la promo): la insignia dice «−N % en las 2 opciones» aunque solo una tenga descuento.
+- **Horas:** 1,5.
+## 20-nov-2026 · Bot · Competimotor cotiza con P2 (tarjeta), ofrece P3 y Black Friday con precio tachado (rama `fix/competimotor-precio-p2-black-friday`)
+
+- **Qué (1, P2):** nueva perilla `politica.precioDeCotizacion = "tarjeta"` (solo Competimotor). Al cargar el Excel de
+  Fénix (`normalizarFilaDeCatalogo`, 4.º parámetro) el precio de la llanta es el **Precio B**: precio de hoy, «lista» y
+  mayorista = B, así que la pieza, el PDF, el texto, las 6 cuotas, el guardián y la cotización firmada salen de P2 sin
+  que nadie lo recalcule. Una llanta sin B y C válidos (B > A, bajo el D, C > B) no se cotiza y queda en «descartadas»
+  con su porqué. El bloque «según cómo paga» ya no dice el Precio A: tarjeta = el de hoy, efectivo/transferencia = C
+  (nunca más caro que el de hoy). `buildQuote` arma el total con IVA × cantidad solo en ese modo (por el camino sin
+  IVA 14 de 444 llantas salían un centavo arriba: 4 × $85.99 firmaba $343.97). El vendedor recibe
+  `precio_efectivo_o_transferencia_con_iva` y el Guardián ve tarjeta y efectivo en la fila del catálogo.
+- **Qué (2, Black Friday):** `politica.preciosEspeciales` + `domain/preciosEspeciales.ts`: lista por código con
+  `desde`/`hasta` exactos (hasta el 30-nov-2026 23:59:59 de Ecuador). `syncCatalog` la aplica sobre el catálogo: el
+  de hoy pasa a ser el de la promo y el P2 queda tachado; un temporizador rearma el catálogo en el segundo del cierre.
+  La pieza «día y noche» lleva la franja BLACK FRIDAY · «PRECIO ESPECIAL · −N%» · «Válido hasta el lunes 30 de
+  noviembre» y el total del juego tachado. La lista sale de `scripts/competimotor/black-friday.ts`, que cruza la hoja
+  de Carlos con el inventario (`domain/cruceDePromocion.ts`: medida + marca + cada palabra del modelo, UN artículo o
+  nada). 138 filas → 119 cruzan → 116 se prenden (1 con precio ≥ P2, 2 con más de 40 % de descuento que parecen
+  tipeo); 19 sin cruzar. Informe: `docs/clientes/competimotor-black-friday-2026.md`. IVA: el precio de la lista ya lo
+  trae (si se le sumara, 80 de 119 saldrían más caras que el precio normal en efectivo).
+- **Por qué:** Carlos Romero (Competimotor), 20-nov por WhatsApp: «Corregir PRECIO en cotizaciones: dar precio 2 y
+  cotizar en P2 y P3», y la lista de Black Friday. Manuel: «no hay cómo cagarla con los precios»; rige hasta el lunes
+  30-nov 23:59 y se apaga solo.
+- **Depot: sin cambios.** Todo cuelga de dos campos que su política no tiene (`test/depotPreciosSinCambios.test.ts`).
+  Los 16 hashes del arnés de piezas de Depot salen idénticos en `origin/main` y en esta rama.
+- **Con el #73 (seguimientos sin precio viejo):** el catálogo de hoy ya trae P2/Black Friday, así que una cotización
+  firmada con el Precio A no se repite y una de Black Friday vencida tampoco. Además, en una llanta con Black Friday el
+  P2 es el tachado y deja de contar como precio vigente (`services/precioViejo.ts`): una cotización firmada a P2 antes
+  de la promo no se repite mientras rige (`test/competimotorSeguimientoPrecio.test.ts`). Depot igual.
+- **Encontrado en el simulador:** con dos opciones de Black Friday en la lámina, el quitador de frases repetidas
+  (`estructurarTurno`) borraba el título de la 2.ª («… · Black Friday hasta el lunes 30-nov» las hacía «la misma
+  idea») y quedaba un precio sin su llanta. Ahora cada llanta con promo lleva 🖤 y la vigencia va una vez al pie.
+- **Probado:** `verificar-precios.ts` + `.py` (lee el Excel por su cuenta): 444/444 llantas al centavo (precio, total
+  de 4, 6 cuotas, P3), antes y después del 30-nov. Simulador (perfil mundillantas, INV_NOV.XLS): Townhall 185/65R14
+  Black Friday ($42 × 4 = $168, P2 $49.45 tachado), Kenda KR203 195/65R15 con «¿descuento?» (P2 $93.15 / P3 $83.95) y
+  lámina 265/65R17 con transferencia. Pruebas nuevas: `competimotorPrecioP2`, `competimotorBlackFriday`,
+  `depotPreciosSinCambios`; actualizadas las de precios por pago (el A ya no sale). Suite: fallan solo
+  `hashesPiezasDepot` y `unidadEnLaCantidad`, igual que en main. `sim:humo` y `--perfil ejemplo --humo` ✅.
+- **Horas:** 3.
+## 20-nov-2026 · Bot · El seguimiento no repite el precio viejo ni muestra el «---» (rama `fix/seguimiento-precio-y-guiones`)
+
+- **Qué:** dos pasos nuevos al final de la cadena de salida (`services/prepararSalida.ts`), solo para `seguimiento`:
+  `sin_precio_viejo_de_la_cotizacion` (`domain/precioViejo.ts` + `services/precioViejo.ts`) quita del texto el unitario,
+  la línea y el total de la última cotización del ciclo cuando el precio firmado ya no es ninguno de los de hoy (mínimo
+  y lista del catálogo, y el vivo del Interbot donde lo hay), y deja una alerta `precio_de_cotizacion_cambio` al asesor.
+  Las líneas con promo de la 2.ª llanta y los productos que ya no están en el catálogo no se juzgan.
+  `seguimiento_en_un_solo_mensaje` convierte cada bloque separado por «---» en un párrafo.
+- **Por qué:** prueba de seguimientos ×3 del 20-nov (código de main tras PR #68), caso s12: cotización del jueves
+  4 × KENDA KR203 a $104,65 ($418,60); el Excel del viernes 8 am la pone a $112,99 con 2 en stock. A la 1 pm el
+  Guardián reescribió el seguimiento con «— *$418.60 total*» (1 de 3) y `cerrarConLaAlternativa` le pegó
+  «\n\n---\n\n¿Le muestro las opciones…?» (2 de 3). El turno normal parte el texto por «---» (`index.ts`); el worker
+  de seguimientos lo manda entero, así que el cliente leía la raya. En producción de Competimotor: 0 casos en 7 días.
+- **Probado:** `seguimientoPrecioViejo.test.ts` (12, con el texto exacto que salió), `stockCortoViaja` y
+  `trasPruebasForma` con el orden nuevo, `tsc`, suite completa (fallan solo `hashesPiezasDepot` y
+  `unidadEnLaCantidad`, igual que en main), las cuatro de `CLAUDE.md`. Simulador: s12, s03 y s14 ×3 → 9/9 ($3,88); en
+  esas corridas el Guardián no volvió a escribir el precio, así que el paso del precio no llegó a actuar ahí: lo cubre la
+  prueba unitaria. Antes, en la misma noche: 16 conversaciones de los arreglos ×3 → 48/48 ($4,70) y seguimientos ×3 →
+  41/42.
+- **Horas:** 0,5.
 ## 20-nov-2026 · Vendedores · Página aparte para ver las ventas registradas (rama `feat/registros-de-venta-pagina`)
 
 - **Qué:** `GET /venta/registros?k=…` (tabla con todos los registros y resumen) y `/venta/registros.csv` (Excel), con una
@@ -5656,6 +5761,8 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-11-20 | _(este mismo)_ | Competimotor: seguro solo Kenda y Falken; «pantanera» = M/T, tipos por nombre, «23575r15», 30X9.5R15 = 235/75R15 | 1,5 |
+| 2026-11-20 | _(este mismo)_ | Competimotor cotiza con P2 y ofrece P3; Black Friday por código con P2 tachado y fin exacto el 30-nov | 3 |
 | 2026-10-21 | _(este mismo)_ | La guía de medida no sale a quien ya escribió la suya aunque el modelo diga que la pidió | 0,5 |
 | 2026-10-21 | _(este mismo)_ | Una sola regla para la ficha: la última medida que el cliente escribe en el mensaje | 1 |
 | 2026-10-21 | _(este mismo)_ | Casos sueltos: fuera de Quito como hecho, equivalencias con carga XL y dirección del ciclo, precio no es medida, «ya compré X, ahora Y» no cierra, el turno ve solo lo suyo | 5 |

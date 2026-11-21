@@ -22,7 +22,10 @@ import { aroEnTexto } from "./medidaConfirmada.js";
 import { esAcuseSimple } from "./ofertaAceptada.js";
 import { marcaElegidaASecas } from "./consultaConRespaldo.js";
 
-const TIPO = /\b(?:a\/?t|h\/?t|r\/?t|m\/?t|todo\s+terreno|all\s+terrain|mud|lodo|carretera|turismo)\b/i;
+// «Pantanera» es la M/T en Santo Domingo (Competimotor, conv 469, 20-nov-2026):
+// «Llantas 23575r15» + «Tipo pantaneras» + «Que precio tiene ?» es UN pedido.
+// Sin la palabra acá, la medida salía sola y la lámina se armaba sin el tipo.
+const TIPO = /\b(?:a\/?t|h\/?t|r\/?t|m\/?t|todo\s+terreno|all\s+terrain|mud|lodo|barro|pantaner[ao]s?|carretera|turismo)\b/i;
 
 function esSoloMedida(texto: string): boolean {
   const medidas = extractTireSizes(texto).length + extractFlotationSizes(texto).length;

@@ -111,8 +111,9 @@ describe("Mundillantas · solo lo confirmado", () => {
       default: { golpesMeses: 0, fabricaAnios: 0 },
       Kenda: { golpesMeses: 12, fabricaAnios: 1 },
       Falken: { golpesMeses: 18, fabricaAnios: 1.5 },
-      Winrun: { golpesMeses: 6, fabricaAnios: 0.5 },
-      Maxxis: { golpesMeses: 12, fabricaAnios: 1 },
+      // Seguro contra impacto solo Kenda y Falken (Carlos, 20-nov-2026).
+      Winrun: { golpesMeses: 0, fabricaAnios: 0.5 },
+      Maxxis: { golpesMeses: 0, fabricaAnios: 1 },
     });
     expect(negocio.vendedor.nombre.startsWith("[PENDIENTE]")).toBe(true);
     expect(negocio.palabrasDeLugarPropias).toEqual(["mundillantas", "mundi", "competimotor"]);

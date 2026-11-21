@@ -17,6 +17,7 @@ import * as XLS from "xlsx";
 import { z } from "zod";
 import { sql } from "../../db/client.js";
 import { negocio } from "../../negocio/index.js";
+import { politica } from "../../negocio/politica.js";
 import type { AroProducto } from "../../domain/aroProducto.js";
 import { extractCatalogSizeLabel, inferCatalogDesign, type CatalogItem } from "../../domain/catalog.js";
 import { resolveCatalogMedia, resolveCatalogMediaPorNombre, fotoDeReserva } from "../../domain/catalogMedia.js";
@@ -673,7 +674,7 @@ export function normalizarCatalogoSubido(
           }
         : {}),
     };
-    const { item, motivo } = normalizarFilaDeCatalogo(cruda, "archivo", precios);
+    const { item, motivo } = normalizarFilaDeCatalogo(cruda, "archivo", precios, politica.precioDeCotizacion);
     if (item) guardadas.push({ cruda, precios });
     else descartadas.push({ fila: filaNumero, motivo: motivo ?? "fila inválida" });
   });
@@ -806,6 +807,12 @@ export function descartadasEnPalabras(descartadas: { fila: number; motivo: strin
       return "Precio A más bajo que el Precio D: parece un error de tipeo en Fénix, revisar el precio";
     }
     if (/^precio inválido$/.test(motivo)) return "Sin precio (vacío o en 0)";
+    // Competimotor cotiza con el Precio B (20-nov): sin B y C que pasen el
+    // control (B mayor que A, o bajo el D) la llanta no se cotiza.
+    if (/^sin precio con tarjeta/.test(motivo)) {
+      return "Precio B (tarjeta) o C (efectivo) vacío, mayor que el Precio A o menor que el D: parece un error de tipeo en Fénix, el bot no la cotiza";
+    }
+    if (/^precio en efectivo \(Precio C\) mayor/.test(motivo)) return "Precio C (efectivo) mayor que el B (tarjeta): revisar en Fénix, el bot no la cotiza";
     if (/^aro de camión/.test(motivo)) return "Llanta de camión aro 17.5 o 22.5: el bot todavía no las cotiza";
     if (/^medida no reconocida/.test(motivo)) return "No se entiende la medida en la descripción";
     if (/^aro sin diámetro/.test(motivo)) return "Aro sin diámetro reconocible";
@@ -1009,7 +1016,7 @@ export const fuenteArchivoCatalogo: FuenteDeCatalogo = {
     const items: CatalogItem[] = [];
     const skipped: ReporteDeCatalogo["skipped"] = [...guardado.descartadas.map((d) => ({ row: d.fila, reason: d.motivo }))];
     for (const fila of guardado.filas) {
-      const { item, motivo } = normalizarFilaDeCatalogo(fila.cruda, "archivo", fila.precios);
+      const { item, motivo } = normalizarFilaDeCatalogo(fila.cruda, "archivo", fila.precios, politica.precioDeCotizacion);
       // Sin foto en el archivo, la del catálogo de fotos. Se busca al cargar y no
       // al subir: una foto nueva en el código vale sin volver a subir el Excel.
       if (item && !item.imageUrl) {

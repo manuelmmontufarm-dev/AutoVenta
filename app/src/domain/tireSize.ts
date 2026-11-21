@@ -65,6 +65,19 @@ const TIRE_RE =
 const PERFIL_PEGADO_AL_ARO_RE = /(?<![\d/])(\d{3})\s*\/\s*(\d{2})(\d{2})(?![\d/])/g;
 
 /**
+ * ANCHO Y PERFIL PEGADOS, CON LA R: «23575r15» es 235/75R15.
+ *
+ * Conv 469 de Competimotor (20-nov-2026, 11:34): «Llantas 23575r15 / Tipo
+ * pantaneras». La medida no se leyó, la ficha quedó sin medida y el candado
+ * `medidaNoDada` le prohibió al bot buscar 235/75R15 porque «el cliente solo
+ * dio el aro»: buscó por aro, no encontró M/T y negó un stock que había.
+ *
+ * La R (o «rin»/«aro») es el ancla obligatoria: cinco cifras seguidas de otras
+ * dos sin ella pueden ser un teléfono o un código.
+ */
+const ANCHO_Y_PERFIL_PEGADOS_RE = /(?<![\d/.,$])(\d{3})(\d{2})\s*(?:Z?R|RIN|ARO)\s*[/\-]?\s*(\d{2})(?!\d)/gi;
+
+/**
  * EL ARO PRIMERO Y SIN PALABRA: «tienen en 15 195 65 o 70» (chat 28854).
  *
  * Aro, ancho de tres cifras y perfil, separados por espacios. Va al final de
@@ -154,6 +167,11 @@ export function extractTireSizes(textoConPrecios: string): TireSize[] {
   }
   if (sizes.length === 0) {
     for (const m of text.matchAll(PERFIL_PEGADO_AL_ARO_RE)) {
+      agregar(Number(m[1]), Number(m[2]), Number(m[3]));
+    }
+  }
+  if (sizes.length === 0) {
+    for (const m of text.matchAll(ANCHO_Y_PERFIL_PEGADOS_RE)) {
       agregar(Number(m[1]), Number(m[2]), Number(m[3]));
     }
   }
