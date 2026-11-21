@@ -95,6 +95,7 @@ import {
 } from "../domain/equivalencia.js";
 import { avisoDeMedidaEnOpciones, LINEA_SIN_STOCK_EXACTO, siguientePasoPorMedidaDistinta } from "../domain/equivalenciaEnTexto.js";
 import { CAMPO_EQUIVALENTES, equivalentesAMostrar, reglaDeMostrarEquivalentes } from "../domain/equivalentesPorMostrar.js";
+import { CAMPO_SIN_STOCK, REGLA_SIN_NO_HAY_VENDEDOR, type PedidoSinStock } from "../domain/sinNoHay.js";
 import { extractFlotationSizes, extractTireSizes, formatFlotationSize, formatTireSize, parseTireSize, type TireSize, type FlotationSize, flotacionIncompleta, medidaGuardable } from "../domain/tireSize.js";
 import { marcaPreguntada, pidioCotizacionExplicita, ultimaMarcaPedida } from "../domain/consultaConRespaldo.js";
 import { armarLista, ordenDeLaLista, confirmacionDeLaOpcion, opcionPorPosicion, posicionElegida, preguntaDeLaLista, MAX_NUMERADA } from "../domain/listaDeOpciones.js";
@@ -673,6 +674,24 @@ const ARO_MIN = 12;
 const ARO_MAX = 24;
 
 /**
+ * COMPETIMOTOR: LO PEDIDO SIN STOCK SE MARCA Y SE DICE SIN «NO HAY» (21-nov-2026).
+ * Con `politica.nuncaDecirNoHay` el resultado de la búsqueda lleva PRIMERO la
+ * marca `sin_stock_en_lo_pedido` (la huella corta a 500 caracteres: de ahí la
+ * lee el aviso al asesor, `services/sinStockAlAsesor.ts`) y AL FINAL la regla
+ * del negocio, que manda sobre los «díselo con todas las letras» de arriba.
+ * Sin el campo (Depot) devuelve el texto tal cual. Ver `domain/sinNoHay.ts`.
+ */
+export function conSinNoHay(json: string, pedido: PedidoSinStock | null): string {
+  if (!politica.nuncaDecirNoHay || !pedido) return json;
+  try {
+    const cuerpo = JSON.parse(json) as Record<string, unknown>;
+    return JSON.stringify({ [CAMPO_SIN_STOCK]: pedido, ...cuerpo, regla_del_negocio: REGLA_SIN_NO_HAY_VENDEDOR });
+  } catch {
+    return json;
+  }
+}
+
+/**
  * Lo que se puede vender HOY.
  *
  * El candado de fitment le promete al vendedor opciones ofrecibles, no un
@@ -1099,14 +1118,15 @@ export function buildTools(ctx: AgentContext) {
         const encontradas = searchByText(etiqueta.replace(/R\d+$/, ""), 40)
           .filter((item) => item.sizeLabel === etiqueta);
         await updateConversationFacts(ctx.conversation.id, { tireSize: etiqueta });
-        return JSON.stringify({
+        const conStockFlotacion = encontradas.some((i) => i.stock > 0);
+        return conSinNoHay(JSON.stringify({
           medida: etiqueta,
           resultados: tresOpciones(encontradas).map(toolItemDe(await cantidadDeLaFicha(ctx))),
           total_en_esa_medida: encontradas.length,
           regla: encontradas.some((i) => i.stock > 0)
             ? "PROHIBIDO listarlas en texto: llama preparar_opciones para que salga la imagen."
             : "Ninguna tiene stock. Dilo claro y ofrece consultar con el asesor; no inventes que llegará.",
-        });
+        }), conStockFlotacion ? null : { medida: etiqueta, tipo: null, marca: null, aro: medida.rim });
       };
       const flotacionDelCliente = extractFlotationSizes(ctx.currentUserText ?? "")[0];
       if (flotacionDelCliente || flotacion) {
@@ -1204,7 +1224,8 @@ export function buildTools(ctx: AgentContext) {
           )
         : null;
       if (porMarca?.opciones.length) fijarEscalonesDelConjunto(porMarca.opciones);
-      return JSON.stringify({
+      const sinStockExacto = !exact.some((i) => i.stock > 0);
+      return conSinNoHay(JSON.stringify({
         ...(aMostrar.length ? { [CAMPO_EQUIVALENTES]: aMostrar } : {}),
         // Va arriba: la huella del Guardián corta a 500 caracteres.
         ...(porMarca ? { seleccion_por_marca: porMarca.modo } : {}),
@@ -1234,7 +1255,7 @@ export function buildTools(ctx: AgentContext) {
           : porMarca
           ? reglaDeLaSeleccion(porMarca, formatTireSize(size))
           : "PROHIBIDO escribir estas opciones como lista en el chat. Para mostrárselas al cliente llama preparar_opciones con máximo 3 códigos (una premium, una de equilibrio y una económica) — esa herramienta manda la imagen. Si escribes precios y disponibilidad en texto, el cliente recibe un muro y no ve la pieza. Y si el cliente pide un TIPO (A/T, H/T, R/T, M/T…) en cualquier turno, esta lista NO responde eso: busca de nuevo con buscar_por_aro_y_tipo pasándole el aro y ese tipo antes de afirmar o negar disponibilidad.",
-      });
+      }), sinStockExacto ? { medida: formatTireSize(size), tipo: null, marca: null, aro: size.rim } : null);
     },
   });
 
@@ -1419,13 +1440,15 @@ export function buildTools(ctx: AgentContext) {
       // Del ancho pedido no hay NADA en el aro: se dice, con los anchos
       // cercanos que sí hay — nunca se sustituye el ancho en silencio (la
       // demo del 4-nov: «235 rin 15» salió como 205/65, 185/65 y 195/55).
+      const sinNoHayAro = (json: string, medida: string | null) =>
+        conSinNoHay(json, { medida, tipo: pedido || null, marca: null, aro });
       if (anchoPedido !== null && !enElAro.length) {
         const anchosDelAro = [...new Set(
           searchByRim(aro)
             .filter((item) => item.stock > 0 && item.size?.width)
             .map((item) => item.size!.width),
         )].sort((a, b) => Math.abs(a - anchoPedido) - Math.abs(b - anchoPedido)).slice(0, 4);
-        return JSON.stringify({
+        return sinNoHayAro(JSON.stringify({
           encontrado: false,
           aro,
           ancho_pedido: anchoPedido,
@@ -1436,7 +1459,7 @@ export function buildTools(ctx: AgentContext) {
             + (anchosDelAro.length
               ? `Puedes nombrarle los anchos cercanos que sí hay en ese aro (${anchosDelAro.join(", ")}) y preguntarle si alguno le sirve — son OTRA medida, no la suya.`
               : "En ese aro no queda stock; ofrece tomar el pedido con el asesor."),
-        });
+        }), `${anchoPedido} aro ${aro}`);
       }
       if (esDeCamioneta && !delTipo.length) {
         return JSON.stringify({
@@ -1508,7 +1531,7 @@ export function buildTools(ctx: AgentContext) {
       // otra llanta con la palabra «equivalente» puesta encima. La respuesta
       // honesta es que en ese aro no hay ninguna que le monte.
       if (sinEquivalenteQueCalce) {
-        return JSON.stringify({
+        return sinNoHayAro(JSON.stringify({
           encontrado: false,
           aro,
           tipo_pedido: pedido || null,
@@ -1520,11 +1543,11 @@ export function buildTools(ctx: AgentContext) {
             + "PROHIBIDO ofrecerlas como «equivalentes» ni mandar la pieza con ellas. Dile la verdad —«de ese tipo "
             + "no tengo ninguna que le calce a su medida»— y ofrece las dos salidas reales: otro tipo en su medida "
             + "exacta, o que el asesor le confirme en el local si le entra alguna.",
-        });
+        }), suMedida);
       }
 
       if (!delTipo.length) {
-        return JSON.stringify({
+        return sinNoHayAro(JSON.stringify({
           encontrado: false,
           aro,
           tipo_pedido: pedido || null,
@@ -1534,7 +1557,7 @@ export function buildTools(ctx: AgentContext) {
           ],
           regla:
             "No hay stock de ese tipo en ese aro. Dile qué tipos SÍ hay en ese aro y pregunta el uso; no inventes que llegará ni ofrezcas otro tipo como si fuera el pedido.",
-        });
+        }), suMedida ?? null);
       }
 
       const info = pedido ? infoTipo(pedido) : null;
@@ -1546,7 +1569,7 @@ export function buildTools(ctx: AgentContext) {
           return { direccion: direccionVigente(textosDelCiclo), carga: requisitoDeCarga(textosDelCiclo) };
         })())
         : [];
-      return JSON.stringify({
+      const respuestaDelAro = JSON.stringify({
         ...(aMostrarDelAro.length ? { [CAMPO_EQUIVALENTES]: aMostrarDelAro } : {}),
         encontrado: true,
         aro,
@@ -1584,6 +1607,7 @@ export function buildTools(ctx: AgentContext) {
             : null,
         ].filter(Boolean).join(" "),
       });
+      return sinTipoEnSuMedida && suMedida ? sinNoHayAro(respuestaDelAro, suMedida) : respuestaDelAro;
     },
   });
 

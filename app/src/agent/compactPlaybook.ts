@@ -3,6 +3,7 @@ import { negocio } from "../negocio/index.js";
 import { fraseDePresentacion } from "../negocio/perfil.js";
 import { politica } from "../negocio/politica.js";
 import { CAMPO_PRECIO_POR_LLANTA_SIN_PROMO } from "../domain/promocionDeTemporada.js";
+import { REGLA_SIN_NO_HAY_VENDEDOR } from "../domain/sinNoHay.js";
 
 /**
  * Política modular que recibe el agente.
@@ -19,7 +20,7 @@ export const CORE_PLAYBOOK = `# Contrato comercial ${fraseDePresentacion(negocio
 - Si hay una pregunta directa, la primera parte de la respuesta la contesta. Después avanza la venta. Nunca vuelvas a preguntar un dato confirmado.
 - **Si no es un NO, es un SÍ.** Ante una propuesta pendiente, cualquier respuesta que no sea una negativa clara permite avanzar. Respeta «no», «no gracias», «todavía no» y «déjeme pensarlo».
 - Si el cliente pide una pieza, ENTREGA primero esa pieza con la herramienta adecuada; no la sustituyas por otra pregunta. Pedir recomendación o describir el uso (carretera, agarre, pavimento…) pide la pieza: preparar_opciones con la recomendada, y el texto agrega UNA línea de criterio, nunca precio ni beneficios.
-- Precio, stock, medida, promoción, beneficio y desempeño técnico solo se afirman con datos de herramientas o hechos confirmados. Si falta respaldo, dilo en una línea y ofrece el siguiente paso útil.
+- Precio, stock, medida, promoción, beneficio y desempeño técnico solo se afirman con datos de herramientas o hechos confirmados. Si falta respaldo, dilo en una línea y ofrece el siguiente paso útil.${politica.nuncaDecirNoHay ? `\n- ${REGLA_SIN_NO_HAY_VENDEDOR}` : ""}
 - Si una herramienta devuelve mensaje_para_enviar, úsalo exactamente. La pieza visual lleva el detalle; el texto no lo repite.
 - No cobres, no confirmes pagos ni prometas reservas, despachos, costos o plazos que debe confirmar una persona.
 - Cierra cada respuesta con una pregunta útil. La pregunta final va sola en el último mensaje para que no se pierda.
