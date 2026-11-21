@@ -1,0 +1,22 @@
+{
+  "servidor": "https://EL-BOT-DEL-CLIENTE.up.railway.app",
+  "clave": "LA-CONECTOR_KEY-DE-ESE-SERVICIO",
+
+  "motor": "postgres",
+  "conexion": {
+    "host": "localhost",
+    "puerto": 5432,
+    "base": "NOMBRE-DE-LA-BASE-DE-FENIX",
+    "usuario": "autoventa_lectura",
+    "clave": "LA-CLAVE-DE-ESE-USUARIO"
+  },
+
+  "inventario": {
+    "sql": "select a.codigo as \"código\", a.nombre as \"articulo\", c.nombre as \"categoria\", a.precio_a as \"precio a\", a.precio_b as \"precio b\", a.precio_c as \"precio c\", a.precio_d as \"precio d\", coalesce(sum(e.cantidad), 0) as \"existencia\" from TABLA_ARTICULOS a left join TABLA_CATEGORIAS c on c.id = a.categoria_id left join TABLA_EXISTENCIAS e on e.articulo_id = a.id where a.activo group by 1, 2, 3, 4, 5, 6, 7"
+  },
+
+  "facturas": {
+    "dias": 3,
+    "sql": "select f.numero as \"num factura\", to_char(f.fecha, 'YYYY-MM-DD') as \"fecha\", to_char(f.fecha, 'HH24:MI') as \"hora\", f.total as \"total\", f.subtotal as \"subtotal\", cl.nombre as \"cliente\", cl.telefono as \"telefono\", a.nombre as \"producto\", d.cantidad as \"cantidad\", d.precio as \"precio\", b.nombre as \"local\" from TABLA_FACTURAS f join TABLA_DETALLE d on d.factura_id = f.id join TABLA_ARTICULOS a on a.id = d.articulo_id left join TABLA_CLIENTES cl on cl.id = f.cliente_id left join TABLA_BODEGAS b on b.id = f.bodega_id where f.fecha >= {desde} and not f.anulada"
+  }
+}

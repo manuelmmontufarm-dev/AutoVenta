@@ -81,6 +81,7 @@ import { buildDailyReport } from "../services/dailyReport.js";
 import { enviarReporteDiario } from "../services/dailyReportDelivery.js";
 import { renderDailyReportHtml } from "../render/dailyReportHtml.js";
 import { nombreArchivoReporte, renderDailyReportPdf } from "../render/dailyReportPdf.js";
+import { estadoDelConector } from "./conector.js";
 import { emitLiveEvent, subscribeLiveEvents } from "../services/liveEvents.js";
 import { isStage } from "../domain/pipeline.js";
 import { authorizeConversationOutbound } from "../services/whatsappPolicy.js";
@@ -1669,7 +1670,9 @@ export function createAdminRouter(): express.Router {
   // el panel no le muestra nada nuevo.
   router.get("/catalog/archivo", async (_req, res) => {
     const porArchivo = !config.contifico && (!config.catalog || (await hayCatalogoArchivo()));
-    res.json({ ok: true, porArchivo, archivo: await estadoCatalogoArchivo(), catalog: catalogStatus() });
+    // `conector`: null si el inventario se sube a mano; si no, cuándo llamó por
+    // última vez el programa que lee Fénix y cómo le fue.
+    res.json({ ok: true, porArchivo, archivo: await estadoCatalogoArchivo(), catalog: catalogStatus(), conector: await estadoDelConector() });
   });
 
   router.post("/catalog/import", archivoCrudo, async (req, res) => {

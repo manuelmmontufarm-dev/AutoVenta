@@ -1,3 +1,26 @@
+## 20-nov-2026 · Integraciones · Conector de Fénix: inventario y facturas sin Excel a mano (rama `feat/conector-fenix`)
+
+- **Qué:** `app/conector-fenix/` — programa que corre en el servidor del cliente cada 5 minutos, lee la base de Fénix en
+  modo solo lectura y entrega inventario y facturas al bot. Trae `--probar` (ensayo que no guarda nada), `--explorar`,
+  `--buscar` y `--muestra` (para encontrar las tablas), `--historial` y los `.bat` de Windows (diagnóstico, instalar,
+  desinstalar). En el bot, `server/conector.ts` monta `/conector/*` con clave propia (`CONECTOR_KEY`): solo deja entregar
+  inventario y facturas, no abre el panel; sin la variable contesta 404 (Depot no cambia). Lo recibido pasa por la
+  importación de `fuentes/archivo.ts` con la misma regla de seguridad; `GET /api/catalog/archivo` ahora trae `conector`
+  (cuándo llamó y cómo le fue). Si el inventario llega igual, se marca al día (`marcarCatalogoAlDia`).
+- **Por qué:** Manuel, 20-nov: que leer el Fénix de Competimotor deje de ser manual. Fénix no tiene API y corre en el
+  servidor de ellos; lo que recibe los datos ya existía (el Excel que sube Jenny), faltaba quien los leyera allá.
+- **Ojo:** una base devuelve «4.000» para un stock de 4 y el lector del bot lo lee como cuatro mil. El conector
+  normaliza los números antes de mandarlos (`numeroComoTexto`).
+- **Lo que falta (no se puede sin entrar a su servidor):** saber qué motor de base usa Fénix (hoy el conector solo habla
+  PostgreSQL; otro motor es un archivo en `src/motores/`), un usuario de solo lectura y las dos consultas. Pasos en
+  `app/conector-fenix/README.md`.
+- **Probado:** `conectorFenix.test.ts` (55 casos, contra una base Postgres de mentira y con el programa lanzado como
+  proceso), `catalogoArchivo`, `facturasArchivo`, `simuladorFidelidad`, `tsc`, suite completa (fallan solo
+  `buscarPorAroCompleto`, `hashesPiezasDepot` y `unidadEnLaCantidad`, igual que en main). El paquete (`conector.cjs`)
+  corrido a mano contra una base de prueba. **Sin probar:** los `.bat` y `diagnostico.ps1` nunca corrieron en un Windows;
+  `sim:humo` no corrió (a esta copia le falta el `.env`); nada contra el Fénix real.
+- **Horas:** 0,5.
+
 ## 20-nov-2026 · Bot · La insignia de la lámina no promete descuento en las opciones que no lo tienen, y dice BLACK FRIDAY (rama `fix/lamina-bf-insignia`)
 
 - **Qué:** `render/diaNoche.ts` (`optionsPosterDiaNoche`). Si alguna opción de la lámina no tiene descuento, la
