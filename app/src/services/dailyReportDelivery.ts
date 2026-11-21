@@ -31,6 +31,8 @@ import { sendAdvisorPdf, sendAdvisorText } from "../wa/client.js";
 import { asesoresActivos } from "./advisorNotifications.js";
 import { buildDailyReport, HORA_DE_CORTE, type ReporteDiario } from "./dailyReport.js";
 import { nombreArchivoReporte, renderDailyReportPdf } from "../render/dailyReportPdf.js";
+import { renderReporteSimplePdf } from "../render/reporteSimplePdf.js";
+import { buildReporteSimple, textoDelReporteSimple } from "./reporteSimple.js";
 
 const CLAVE = "daily_report_last_sent";
 
@@ -224,14 +226,25 @@ export async function enviarReporteDiario(input: { ahora?: Date; forzar?: boolea
   const destinatarios = await asesoresActivos({ general: "reporte_diario" });
   if (!destinatarios.length) return { enviado: false, motivo: "Ningún nivel activo recibe el reporte diario" };
 
-  const texto = textoDelReporte(reporte);
+  // Lo que se manda es el modelo simple (quién viene, qué se cotizó, qué se
+  // vendió). Si armarlo falla —una consulta nueva, la fuente de facturas— sale
+  // el reporte original completo: un reporte de más páginas es mejor que
+  // ninguno, y el log dice por qué.
+  let texto = textoDelReporte(reporte);
   // El PDF se arma una vez para todos: es el mismo archivo y renderizarlo por
   // asesor sólo gasta CPU. Si falla, el texto igual sale.
   let pdf: Buffer | null = null;
   try {
-    pdf = await renderDailyReportPdf(reporte);
+    const simple = await buildReporteSimple(ahora, reporte);
+    pdf = await renderReporteSimplePdf(simple);
+    texto = textoDelReporteSimple(simple);
   } catch (error) {
-    console.error("⚠️ No se pudo generar el PDF del reporte:", error instanceof Error ? error.message : error);
+    console.error("⚠️ No se pudo armar el reporte simple; sale el completo:", error instanceof Error ? error.message : error);
+    try {
+      pdf = await renderDailyReportPdf(reporte);
+    } catch (errorPdf) {
+      console.error("⚠️ No se pudo generar el PDF del reporte:", errorPdf instanceof Error ? errorPdf.message : errorPdf);
+    }
   }
   const filename = nombreArchivoReporte(reporte);
 

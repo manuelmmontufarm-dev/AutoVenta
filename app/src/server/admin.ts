@@ -81,6 +81,8 @@ import { buildDailyReport } from "../services/dailyReport.js";
 import { enviarReporteDiario } from "../services/dailyReportDelivery.js";
 import { renderDailyReportHtml } from "../render/dailyReportHtml.js";
 import { nombreArchivoReporte, renderDailyReportPdf } from "../render/dailyReportPdf.js";
+import { nombreArchivoReporteSimple, renderReporteSimplePdf } from "../render/reporteSimplePdf.js";
+import { buildReporteSimple } from "../services/reporteSimple.js";
 import { emitLiveEvent, subscribeLiveEvents } from "../services/liveEvents.js";
 import { isStage } from "../domain/pipeline.js";
 import { authorizeConversationOutbound } from "../services/whatsappPolicy.js";
@@ -957,7 +959,17 @@ export function createAdminRouter(): express.Router {
     res.type("html").send(renderDailyReportHtml(await buildDailyReport()));
   });
 
+  // El PDF que llega por WhatsApp: el modelo simple.
   router.get("/hub/reporte-diario.pdf", async (_req, res) => {
+    const reporte = await buildReporteSimple();
+    const pdf = await renderReporteSimplePdf(reporte);
+    res.type("application/pdf")
+      .setHeader("Content-Disposition", `inline; filename="${nombreArchivoReporteSimple(reporte)}"`);
+    res.send(pdf);
+  });
+
+  // El original, con el tablero de la semana y una tarjeta por conversación.
+  router.get("/hub/reporte-diario-completo.pdf", async (_req, res) => {
     const reporte = await buildDailyReport();
     const pdf = await renderDailyReportPdf(reporte);
     res.type("application/pdf")
