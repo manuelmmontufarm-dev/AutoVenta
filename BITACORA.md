@@ -1,3 +1,24 @@
+## 21-nov-2026 · Competimotor · Nunca «no hay» al cliente: «No me sale en stock…» + aviso al asesor (rama `fix/competimotor-sin-stock-sin-no-hay`)
+
+- **Qué:** regla de la política (`politica.nuncaDecirNoHay`, solo Competimotor; Depot no cambia). (1) Las búsquedas
+  (`buscar_llanta`, flotación, `buscar_por_aro_y_tipo`) marcan lo pedido sin stock (`sin_stock_en_lo_pedido`, primero
+  en el JSON) y suman la regla del negocio: decir «No me sale en stock en este momento, pero tenemos estas que son
+  parecidas:» y mandar las cercanas (misma medida otro tipo/marca → equivalentes, incluida la de pulgadas → mismo aro);
+  sin ninguna, «…un asesor ya le está revisando cómo conseguírsela». La misma regla va al contrato
+  (`compactPlaybook`) y al Guardián. (2) Paso nuevo `sin_no_hay` en `prepararSalida`, después del Guardián: reescribe
+  cualquier «no hay / no tengo / no me aparece stock / agotado / no puedo darle precio» que se escape y manda SIEMPRE el
+  aviso nuevo `pedido_sin_stock` (categoría ventas, entra encendido): qué pidió (medida, tipo, marca, cantidad), qué
+  opciones se le mostraron y el ticket; también si lo que sale dice «no me sale en stock» sin búsqueda que lo marcara
+  (ruta directa + Guardián). Alerta operativa en el Hub. Módulos: `domain/sinNoHay.ts`, `services/sinStockAlAsesor.ts`.
+- **Por qué:** Carlos y Jenny (21-nov): «en nuestro lema comercial no existe la palabra no hay al cliente… si no hay
+  en stock y tengo opciones, debería pasarle al vendedor». Conv 469: «no me aparece stock disponible… no puedo darle
+  precio real de esa pantanera».
+- **Probado:** `competimotorSinNoHay.test.ts` 8/8 (7/7 en rojo sin el arreglo). Simulador perfil mundillantas con
+  INV_NOV.XLS: 225/65R16 (parecidas), 285/35R22 y 325/30R21 (ninguna), conv 469 — sin «no hay» y con aviso. Suite: solo
+  `hashesPiezasDepot` y `unidadEnLaCantidad`, como en main. `tsc`, `sim:humo`, fidelidad ✅.
+- **Pendiente aparte:** la ruta directa lee «325/30R21» como «30 R21» en pulgadas y pide el ancho (bug viejo).
+- **Horas:** 1.
+
 ## 21-nov-2026 · Panel · «Deshacer venta»: un solo botón para un «Vendido» por error (rama `feat/deshacer-venta`)
 
 - **Qué:** `POST /api/hub/tickets/:id/deshacer-venta` (`deshacerVenta` en `services/conversations.ts`): un ganado del

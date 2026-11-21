@@ -85,7 +85,8 @@ describe("le llega a los niveles que Depot ya guardó", () => {
 
   it("no duplica ni toca lo demás", () => {
     const [n] = completarEventosNuevos(completarEventosNuevos(guardado));
-    expect(n.eventos).toEqual(["visita_hoy", "send_error", "venta_confirmada"]);
+    // `pedido_sin_stock` (21-nov) también entra encendido al llegar.
+    expect(n.eventos).toEqual(["visita_hoy", "send_error", "venta_confirmada", "pedido_sin_stock"]);
   });
 
   it("los dos niveles por defecto lo reciben", () => {

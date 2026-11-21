@@ -51,6 +51,10 @@ export const POLITICA_MUNDILLANTAS: PoliticaComercial = {
   },
   // Manuel, 20-nov: «no gracias» a secas es «esa no»: se le ofrece otra (CM28).
   noGraciasPideOtraOpcion: true,
+  // Carlos y Jenny, 21-nov-2026: «no existe la palabra no hay al cliente:
+  // siempre hay o podemos conseguirle»; sin stock, opciones parecidas + aviso
+  // al vendedor para que vea una solución.
+  nuncaDecirNoHay: true,
   descuentoEnEfectivo: null,
   // No ofrecieron beneficio por redes; si lo piden, va acá palabra por palabra.
   beneficioDeRedes: null,

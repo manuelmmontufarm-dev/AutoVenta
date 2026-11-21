@@ -112,6 +112,8 @@ import { contextoDeEquivalencias } from "./medidasDelPedido.js";
 import { sinEquivalenciasFalsas } from "../domain/equivalenciaEnTexto.js";
 import { equivalentesDevueltos } from "../domain/equivalentesPorMostrar.js";
 import { soloLoDelTurno } from "../pipeline/corteDelTurno.js";
+import { LINEA_ASESOR_REVISANDO, sinNoHay } from "../domain/sinNoHay.js";
+import { avisarPedidoSinStock, codigosMostrados } from "./sinStockAlAsesor.js";
 
 /**
  * De qué puerta viene el texto.
@@ -606,6 +608,36 @@ export const PASOS: readonly PasoDeSalida[] = [
         ctx.conversation.id, ctx.conversation.current_cycle, texto,
       );
       return conStock.texto;
+    },
+  },
+  {
+    // EN COMPETIMOTOR NO EXISTE «NO HAY» (Carlos y Jenny, 21-nov-2026; conv 469:
+    // «no me aparece stock disponible… no puedo darle precio real»). Después
+    // del Guardián, que es el último que reescribe: lo que se le escapó al
+    // vendedor y al revisor se cambia por «No me sale en stock en este
+    // momento…», y el vendedor recibe el aviso con lo pedido y lo mostrado.
+    // Sin `politica.nuncaDecirNoHay` (Depot) no hace nada. Ver domain/sinNoHay.ts.
+    nombre: "sin_no_hay",
+    corre: ["respuesta", "retomada", "seguimiento"],
+    async aplicar(texto, ctx) {
+      if (!politica.nuncaDecirNoHay) return texto;
+      const huella = ctx.huella ?? [];
+      const hayOpciones = codigosMostrados(huella).length > 0;
+      if (ctx.tipo !== "seguimiento") {
+        const aviso = await avisarPedidoSinStock({
+          conversation: ctx.conversation,
+          huella,
+          textoDelCliente: ctx.textoDelCliente,
+          borrador: [ctx.textoAntesDelGuardian, texto].filter(Boolean).join("\n"),
+        });
+        const limpio = sinNoHay(texto, { hayOpciones });
+        // Sin ninguna parecida, el cliente se queda con quién se la busca.
+        if (aviso.avisado && !hayOpciones && !/\basesor\b/i.test(limpio)) {
+          return `${limpio}\n---\n${LINEA_ASESOR_REVISANDO}`;
+        }
+        return limpio;
+      }
+      return sinNoHay(texto, { hayOpciones });
     },
   },
   {

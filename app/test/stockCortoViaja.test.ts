@@ -169,6 +169,9 @@ describe("el orden de los candados en el turno", () => {
       // borrador con «le entra la 215/60R17» (conv 23080).
       "sin_equivalencias_falsas",
       "aviso_de_stock",
+      // Competimotor (21-nov): nunca «no hay» al cliente y aviso al asesor. Después
+      // del Guardián (el último que reescribe) y antes de separar la pregunta.
+      "sin_no_hay",
       "alcance_fuera_de_catalogo",
       "despedida_de_venta_perdida",
       "ubicacion_cuando_la_piden",

@@ -58,6 +58,17 @@ export interface PoliticaComercial {
    */
   noGraciasPideOtraOpcion: boolean;
   /**
+   * OPCIONAL: al cliente NUNCA se le dice «no hay», «no tengo», «no me aparece
+   * stock» ni «no puedo darle precio» (Competimotor, Carlos y Jenny,
+   * 21-nov-2026: «en nuestro lema comercial no existe la palabra no hay»). Con
+   * true: lo pedido sin stock se dice «No me sale en stock en este momento,
+   * pero tenemos estas que son parecidas:» con las más cercanas, el Guardián y
+   * un candado corrigen lo que se escape y SIEMPRE sale un aviso al asesor
+   * para que le busque una solución (`domain/sinNoHay.ts`,
+   * `services/sinStockAlAsesor.ts`). Sin el campo (Depot): nada cambia.
+   */
+  nuncaDecirNoHay?: boolean;
+  /**
    * El texto del beneficio por venir de redes sociales, palabra por palabra,
    * o null si el negocio no lo ofrece: entonces no se menciona en ninguna salida.
    */
