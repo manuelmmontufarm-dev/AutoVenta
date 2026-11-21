@@ -106,10 +106,14 @@ export interface FilaParaCerrar {
   revividoAt: Date | null;
   /** El teléfono aparece en una factura de Contífico con llantas, posterior a la cotización. */
   compro: boolean;
+  /** Un asesor tomó la conversación (`assigned_to = 'human'`): el bot no contesta. */
+  atiendeAsesor?: boolean;
 }
 
 export interface ClienteParaCerrar {
   ticketId: number;
+  /** Lo atiende un asesor: va primero y con la marca en el panel. */
+  atiendeAsesor: boolean;
   nombre: string | null;
   telefono: string;
   medida: string | null;
@@ -134,6 +138,7 @@ export interface ClienteParaCerrar {
 
 export interface ClienteEmpujando {
   ticketId: number;
+  atiendeAsesor: boolean;
   nombre: string | null;
   medida: string | null;
   llantas: string;
@@ -213,6 +218,7 @@ export function clasificar(filas: readonly FilaParaCerrar[], ahora: Date, est: E
     const sacado = Boolean(f.descartadoAt && (!f.ultimoCliente || f.descartadoAt >= f.ultimoCliente));
     const vencido = !ultimoTexto || ahora.getTime() - ultimoTexto.getTime() > DIAS_PARA_ARCHIVAR * DIA_MS;
     const base = { ticketId: f.ticketId, nombre: f.nombre, medida: f.medida, llantas: f.llantas, total: f.total, local: f.local };
+    const atiendeAsesor = Boolean(f.atiendeAsesor);
 
     if (sacado || vencido) {
       out.archivo.push({ ...base, telefono: f.telefono, ultimoTexto: iso(ultimoTexto), sacado });
@@ -222,7 +228,7 @@ export function clasificar(filas: readonly FilaParaCerrar[], ahora: Date, est: E
     const leTocaAlCliente = f.ultimoAsesor && (!f.ultimoCliente || f.ultimoAsesor > f.ultimoCliente);
     if (leTocaAlCliente) {
       const pasaron = Math.floor((ahora.getTime() - ultimoTexto.getTime()) / DIA_MS);
-      out.empujando.push({ ...base, ultimoAsesor: f.ultimoAsesor!.toISOString(), visita: iso(f.visita), visitaHora: f.visitaHora, seArchivaEn: Math.max(1, DIAS_PARA_ARCHIVAR - pasaron), ...leerTemperatura(f, ahora, est) });
+      out.empujando.push({ ...base, atiendeAsesor, ultimoAsesor: f.ultimoAsesor!.toISOString(), visita: iso(f.visita), visitaHora: f.visitaHora, seArchivaEn: Math.max(1, DIAS_PARA_ARCHIVAR - pasaron), ...leerTemperatura(f, ahora, est) });
       continue;
     }
 
@@ -232,6 +238,7 @@ export function clasificar(filas: readonly FilaParaCerrar[], ahora: Date, est: E
 
     out.paraCerrar.push({
       ...base,
+      atiendeAsesor,
       telefono: f.telefono,
       visita: iso(f.visita),
       visitaHora: f.visitaHora,
@@ -244,9 +251,11 @@ export function clasificar(filas: readonly FilaParaCerrar[], ahora: Date, est: E
     });
   }
 
-  // Los que ya no vienen van al fondo, aunque tengan más plata en juego.
-  out.paraCerrar.sort((a, b) => Number(a.temperatura === "fria") - Number(b.temperatura === "fria") || b.puntaje - a.puntaje || (b.ultimoCliente ?? "").localeCompare(a.ultimoCliente ?? ""));
-  out.empujando.sort((a, b) => b.ultimoAsesor.localeCompare(a.ultimoAsesor));
+  // Los que atiende un asesor, primero: tienen dueño y no se pueden perder entre
+  // los del bot (Manuel, 21-nov). Los que ya no vienen van al fondo, aunque
+  // tengan más plata en juego.
+  out.paraCerrar.sort((a, b) => Number(b.atiendeAsesor) - Number(a.atiendeAsesor) || Number(a.temperatura === "fria") - Number(b.temperatura === "fria") || b.puntaje - a.puntaje || (b.ultimoCliente ?? "").localeCompare(a.ultimoCliente ?? ""));
+  out.empujando.sort((a, b) => Number(b.atiendeAsesor) - Number(a.atiendeAsesor) || b.ultimoAsesor.localeCompare(a.ultimoAsesor));
   out.archivo.sort((a, b) => (b.ultimoTexto ?? "").localeCompare(a.ultimoTexto ?? ""));
   return out;
 }

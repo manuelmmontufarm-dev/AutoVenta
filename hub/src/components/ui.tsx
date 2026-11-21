@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import type { ReactNode } from "react";
 import { CIERRE_META, ETAPA_META, type Cierre, type Etapa, type Ticket } from "../data/types";
 import { iniciales } from "../lib/format";
-import { IconBandera, IconClock, IconInbox, IconRefresh, IconX } from "./icons";
+import { IconAsesor, IconBandera, IconClock, IconInbox, IconRefresh, IconX } from "./icons";
 
 /* ── Avatar ──
    Iniciales en un cuadrado de papel. Sin arcoíris: en Taller el color es para
@@ -69,14 +69,42 @@ export function CierreBadge({ cierre }: { cierre: Cierre }) {
   );
 }
 
-/** Quién contesta. Texto llano: «Bot» apagado, «Asesor» con peso. */
+/** Quién contesta. «Bot» en texto apagado; «Asesor» con la marca de tinta. */
 export function AtiendePill({ atiende }: { atiende: "bot" | "humano" }) {
-  const esBot = atiende === "bot";
+  if (atiende === "humano") return <MarcaAsesor />;
+  return <span className="text-[13px] whitespace-nowrap text-text2">Bot</span>;
+}
+
+/**
+ * La marca de «lo atiende un asesor»: cápsula de tinta con los audífonos.
+ * Es la misma en Inbox, Pipeline y Para cerrar, para que se reconozca de un
+ * vistazo sin leer. Tinta y no un color nuevo: la señal sigue siendo una sola
+ * (DESIGN.md §4), y la tinta llena sobre papel ya se distingue de todo lo demás.
+ * `solo` deja solo el ícono, para los renglones angostos del calendario.
+ */
+export function MarcaAsesor({ solo = false }: { solo?: boolean }) {
+  if (solo) {
+    return (
+      <span title="Lo atiende un asesor" aria-label="Lo atiende un asesor" className="inline-grid h-4 w-4 shrink-0 place-items-center rounded-full bg-text text-white">
+        <IconAsesor size={10} strokeWidth={2.4} />
+      </span>
+    );
+  }
   return (
-    <span className={`text-[13px] whitespace-nowrap ${esBot ? "text-text2" : "font-medium text-text"}`}>
-      {esBot ? "Bot" : "Asesor"}
+    <span title="Lo atiende un asesor: el bot no contesta" className="inline-flex h-[22px] shrink-0 items-center gap-1 rounded-full bg-text pr-2 pl-1.5 text-[12px] leading-none font-semibold whitespace-nowrap text-white">
+      <IconAsesor size={13} strokeWidth={2.2} />
+      Asesor
     </span>
   );
+}
+
+/**
+ * Lo que atiende un asesor va arriba, siempre: es una conversación a medias que
+ * tiene dueño y no se puede perder entre las del bot. Orden estable: dentro de
+ * cada grupo se respeta el orden que ya traía la lista.
+ */
+export function primeroElAsesor<T>(lista: readonly T[], esAsesor: (x: T) => boolean): T[] {
+  return [...lista.filter(esAsesor), ...lista.filter((x) => !esAsesor(x))];
 }
 
 /* ── La placa de medida ──

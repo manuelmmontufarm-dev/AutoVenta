@@ -4,7 +4,8 @@ import { horaLista } from "../lib/format";
 import { navigate } from "../router";
 import { useHub, useNow } from "../store";
 import { IconSearch } from "../components/icons";
-import { AtiendePill, CierreBadge, EmptyState, MedidaChip, PageHeader, SkeletonRows, StageBadge } from "../components/ui";
+import { IconAsesor } from "../components/icons";
+import { AtiendePill, CierreBadge, EmptyState, MarcaAsesor, MedidaChip, PageHeader, SkeletonRows, StageBadge, primeroElAsesor } from "../components/ui";
 
 /**
  * Una sola lista. Sin pestañas de Abiertos / Cerrados ni «Alertas del bot»:
@@ -14,6 +15,10 @@ import { AtiendePill, CierreBadge, EmptyState, MedidaChip, PageHeader, SkeletonR
  * que esperaban respuesta iban primero, y al abrir uno dejaba de esperar y
  * saltaba de grupo: la fila se movía justo cuando el asesor volvía a buscarla.
  * Abrir un chat solo lo pone blanco; su lugar lo decide el último mensaje.
+ *
+ * La única excepción: los que atiende un asesor van en su propio grupo, arriba
+ * (Manuel, 21-nov: «que no se les pierda»). Ese grupo no salta al abrir un chat:
+ * cambia solo cuando alguien toma la conversación o se la devuelve al bot.
  */
 function ordenar(a: Ticket, b: Ticket): number {
   return new Date(b.ultimaActividad).getTime() - new Date(a.ultimaActividad).getTime();
@@ -29,8 +34,14 @@ function Fila({ ticket, now }: { ticket: Ticket; now: number }) {
   const titulo = ticket.nombre ?? ticket.telefono;
   const hora = horaLista(ticket.ultimaActividad, now);
 
+  const asesor = !cerrado && ticket.atiende === "humano";
+
+  // Con asesor manda la marca aunque espere respuesta: la fila ya va teñida y
+  // con la hora en rojo, y lo que no se puede perder es de quién es el chat.
   const atiende = cerrado && ticket.cierre ? (
     <CierreBadge cierre={ticket.cierre} />
+  ) : asesor ? (
+    <MarcaAsesor />
   ) : espera ? (
     <span className="text-[13px] font-semibold whitespace-nowrap text-signal">Espera respuesta</span>
   ) : (
@@ -41,7 +52,7 @@ function Fila({ ticket, now }: { ticket: Ticket; now: number }) {
     <button
       type="button"
       onClick={() => navigate(`ticket/${ticket.id}`)}
-      className={`block w-full border-b border-line text-left transition-colors hover:bg-black/[.03] ${espera ? "bg-signal-tint" : ""}`}
+      className={`block w-full border-b border-line text-left transition-colors hover:bg-black/[.03] ${espera ? "bg-signal-tint" : ""} ${asesor ? "shadow-[inset_3px_0_0_var(--color-text)]" : ""}`}
     >
       {/* Escritorio: una fila de tabla */}
       <div className="hidden h-14 items-center gap-5 px-5 md:grid" style={{ gridTemplateColumns: COLUMNAS }}>
@@ -58,13 +69,26 @@ function Fila({ ticket, now }: { ticket: Ticket; now: number }) {
           <span className={`truncate text-[15px] ${espera ? "font-semibold" : "font-medium"}`}>{titulo}</span>
           <span className={`tnum shrink-0 font-mono text-[12px] ${espera ? "font-bold text-signal" : "font-medium text-text2"}`}>{hora}</span>
         </div>
-        <div className="flex items-baseline gap-3">
+        <div className="flex items-center gap-3">
           {ticket.medida ? <MedidaChip medida={ticket.medida} /> : <span className="text-[13px] text-text2">Sin medida</span>}
           {atiende}
+          {asesor && espera && <span className="text-[12px] font-semibold whitespace-nowrap text-signal">Espera respuesta</span>}
         </div>
         <StageBadge etapa={ticket.etapa} />
       </div>
     </button>
+  );
+}
+
+/** Cabecera de grupo dentro de la lista: se queda pegada arriba al bajar. */
+function Grupo({ asesor = false, titulo, n, detalle }: { asesor?: boolean; titulo: string; n: number; detalle?: string }) {
+  return (
+    <div className="sticky top-0 z-[1] flex h-9 items-center gap-2 border-b border-line bg-bg px-4 text-[12px] md:px-5">
+      {asesor && <span className="inline-grid h-5 w-5 place-items-center rounded-full bg-text text-white"><IconAsesor size={12} strokeWidth={2.2} /></span>}
+      <span className="font-semibold text-text">{titulo}</span>
+      <span className="tnum font-mono font-medium text-text2">{n}</span>
+      {detalle && <span className="hidden truncate text-text2 md:inline">· {detalle}</span>}
+    </div>
   );
 }
 
@@ -75,21 +99,25 @@ export function Inbox() {
 
   const abiertos = useMemo(() => tickets.filter((t) => t.estado === "abierto").sort(ordenar), [tickets]);
   const esperan = abiertos.filter((t) => t.sinLeer > 0).length;
+  const delAsesor = useMemo(() => abiertos.filter((t) => t.atiende === "humano"), [abiertos]);
+  const delBot = useMemo(() => abiertos.filter((t) => t.atiende !== "humano"), [abiertos]);
 
   // Sin búsqueda: los abiertos. Con búsqueda: todo, cerrados incluidos — un
   // cliente que ya compró tiene que poder encontrarse por su nombre o medida.
   const visibles = useMemo(() => {
     const texto = q.trim().toLowerCase();
     if (!texto) return abiertos;
-    return [...tickets].sort(ordenar).filter((t) => {
+    const hallados = [...tickets].sort(ordenar).filter((t) => {
       const blob = `${t.nombre ?? ""} ${t.telefono} ${t.medida ?? ""} ${t.vehiculo ?? ""}`.toLowerCase();
       return blob.includes(texto);
     });
+    // Buscando también: los abiertos de un asesor primero.
+    return primeroElAsesor(hallados, (t) => t.estado === "abierto" && t.atiende === "humano");
   }, [tickets, abiertos, q]);
 
   const resumen = cargando
     ? ""
-    : `${abiertos.length} ${abiertos.length === 1 ? "conversación abierta" : "conversaciones abiertas"} · ${esperan} ${esperan === 1 ? "espera" : "esperan"} respuesta`;
+    : `${abiertos.length} ${abiertos.length === 1 ? "conversación abierta" : "conversaciones abiertas"} · ${esperan} ${esperan === 1 ? "espera" : "esperan"} respuesta${delAsesor.length > 0 ? ` · ${delAsesor.length} con asesor` : ""}`;
 
   const buscador = (
     <label className="flex h-10 items-center gap-2 rounded-[6px] border border-line bg-surface px-3 md:h-10 md:w-[360px]">
@@ -133,8 +161,15 @@ export function Inbox() {
                 }
               />
             )
-          ) : (
+          ) : q.trim() || delAsesor.length === 0 ? (
             visibles.map((t) => <Fila key={t.id} ticket={t} now={now} />)
+          ) : (
+            <>
+              <Grupo asesor titulo="Los atiende un asesor" n={delAsesor.length} detalle="el bot no contesta: no los dejes sin respuesta" />
+              {delAsesor.map((t) => <Fila key={t.id} ticket={t} now={now} />)}
+              {delBot.length > 0 && <Grupo titulo="Los atiende el bot" n={delBot.length} />}
+              {delBot.map((t) => <Fila key={t.id} ticket={t} now={now} />)}
+            </>
           )}
         </div>
       </div>

@@ -158,3 +158,26 @@ describe("temperatura: si todavía viene (medido el 26-oct contra Contífico)", 
     expect(r.empujando[0].temperatura).toBe("fria");
   });
 });
+
+describe("lo que atiende un asesor va primero (Manuel, 21-nov: «que no se les pierda»)", () => {
+  it("en Para cerrar, antes que uno con más plata y más fresco", () => {
+    const r = clasificar([
+      fila({ ticketId: 1, total: 2000, ultimoCliente: horas(1) }),
+      fila({ ticketId: 2, total: 150, ultimoCliente: horas(30), atiendeAsesor: true }),
+    ], AHORA);
+    expect(r.paraCerrar.map((c) => [c.ticketId, c.atiendeAsesor])).toEqual([[2, true], [1, false]]);
+  });
+
+  it("en Empujando, antes que al que le escribieron más tarde", () => {
+    const r = clasificar([
+      fila({ ticketId: 1, ultimoCliente: horas(30), ultimoAsesor: horas(1) }),
+      fila({ ticketId: 2, ultimoCliente: horas(30), ultimoAsesor: horas(20), atiendeAsesor: true }),
+    ], AHORA);
+    expect(r.empujando.map((c) => c.ticketId)).toEqual([2, 1]);
+  });
+
+  it("sin el dato (filas viejas), nadie se marca como del asesor", () => {
+    const r = clasificar([fila()], AHORA);
+    expect(r.paraCerrar[0].atiendeAsesor).toBe(false);
+  });
+});

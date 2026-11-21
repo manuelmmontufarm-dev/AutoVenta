@@ -1,7 +1,7 @@
 import { AnimatePresence } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { IconX } from "../components/icons";
-import { EmptyState, MedidaChip, Modal, PageHeader, Segmented, SkeletonRows } from "../components/ui";
+import { EmptyState, MarcaAsesor, MedidaChip, Modal, PageHeader, Segmented, SkeletonRows } from "../components/ui";
 import { useParaCerrar } from "../data/paraCerrar";
 import type { AccionParaCerrar, ClienteArchivado, ClienteEmpujando, ClienteParaCerrar, CurvaLlegada, Temperatura } from "../data/types";
 import { money, relTime } from "../lib/format";
@@ -240,8 +240,9 @@ function VistaCerrar({ lista, empujando, tope, contactados, pospuestos, compraro
     const poner = (cita: Cita) => { const l = mapa.get(cita.dia); if (l) l.push(cita); else mapa.set(cita.dia, [cita]); };
     for (const c of lista) if (c.visita) poner({ tipo: "cerrar", c, dia: claveDia(new Date(c.visita)) });
     for (const c of empujando) if (c.visita) poner({ tipo: "empujando", c, dia: claveDia(new Date(c.visita)) });
-    // En el día: primero la hora; a igual hora, primero a quien le toca escribir.
-    for (const l of mapa.values()) l.sort((a, b) => (a.c.visita ?? "").localeCompare(b.c.visita ?? "") || (a.tipo === "cerrar" ? -1 : 1));
+    // En el día: primero los que atiende un asesor (que no se pierdan), después
+    // la hora; a igual hora, primero a quien le toca escribir.
+    for (const l of mapa.values()) l.sort((a, b) => Number(Boolean(b.c.atiendeAsesor)) - Number(Boolean(a.c.atiendeAsesor)) || (a.c.visita ?? "").localeCompare(b.c.visita ?? "") || (a.tipo === "cerrar" ? -1 : 1));
     return mapa;
   }, [lista, empujando]);
 
@@ -425,6 +426,7 @@ function Renglon({ cita, tenue }: { cita: Cita; tenue: boolean }) {
       {/* Tachado solo si ya no viene (gris): mientras los datos digan que todavía
           puede llegar, se ve con su color aunque su día ya haya pasado. */}
       <span className={`min-w-0 text-[12px] leading-[1.25] font-medium break-words ${cita.c.temperatura === "fria" ? "text-text3 line-through decoration-text3 decoration-[1.5px]" : cita.tipo === "empujando" ? "text-text2" : ""}`}>
+        {cita.c.atiendeAsesor && <span className="mr-1 inline-block align-[-3px]"><MarcaAsesor solo /></span>}
         {cita.c.nombre ?? "Sin nombre"}
       </span>
       {cita.c.visitaHora && <span className="col-start-2 truncate font-mono text-[10.5px] text-text2">{cita.c.visitaHora}</span>}
@@ -529,10 +531,11 @@ function TarjetaCita({ cita, hoy, now, onVendido, onPerdido, onPosponer, onSacar
   const t = c.temperatura;
 
   return (
-    <article className={`flex flex-col gap-2 rounded-[8px] border border-line px-4 py-3 ${cita.tipo === "empujando" || t === "fria" ? "bg-bg/60" : "bg-surface"} ${t === "fria" ? "opacity-80" : ""}`}>
+    <article className={`flex flex-col gap-2 rounded-[8px] border border-line px-4 py-3 ${cita.tipo === "empujando" || t === "fria" ? "bg-bg/60" : "bg-surface"} ${t === "fria" ? "opacity-80" : ""} ${c.atiendeAsesor ? "shadow-[inset_3px_0_0_var(--color-text)]" : ""}`}>
       <div className="flex items-center gap-2.5">
         <Punto cita={cita} grande />
         <button type="button" onClick={abrir} className="min-w-0 text-left text-[15px] leading-tight font-semibold break-words hover:underline">{c.nombre ?? "Sin nombre"}</button>
+        {c.atiendeAsesor && <MarcaAsesor />}
         <span className="tnum ml-auto shrink-0 font-mono text-[13px] text-text2">{money(c.total)}</span>
       </div>
       <div className="flex min-w-0 items-center gap-2 border-t border-line pt-2">
@@ -701,6 +704,7 @@ function VistaEmpujando({ lista, compraron, now, onSacar }: {
                 <span className="flex items-center gap-2">
                   <span className={`h-2 w-2 shrink-0 rounded-full border-[1.5px] ${HUECO[c.temperatura]}`} title={c.temperatura === "fria" ? "Ya no viene" : c.temperatura === "ultima" ? "Escribir hoy" : "Viene"} />
                   <button className={`text-left hover:underline ${c.temperatura === "fria" ? "text-text3" : ""}`} onClick={() => navigate(`ticket/${c.ticketId}`)}>{c.nombre ?? "Sin nombre"}</button>
+                  {c.atiendeAsesor && <MarcaAsesor />}
                 </span>
               </Celda>
               <Celda mono>{c.medida ?? c.llantas}</Celda>
