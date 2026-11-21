@@ -246,6 +246,14 @@ create table if not exists sales_history (
 create index if not exists sales_history_outcome_idx
   on sales_history (outcome, closed_at);
 
+-- La ficha del cierre (21-nov-2026, conv 469): el local y las fechas de
+-- entrega/visita se archivan con el ciclo. La reapertura vacía la ficha de la
+-- conversación; sin esto, el ciclo siguiente ya no puede saber dónde ni cuándo
+-- se entregaba lo que el cliente compró (domain/fichaDelCicloAnterior.ts).
+alter table sales_history add column if not exists store text;
+alter table sales_history add column if not exists pickup_date date;
+alter table sales_history add column if not exists visit_date timestamptz;
+
 -- Cuenta mensual del servicio: un registro por mes facturado ('YYYY-MM').
 -- El snapshot congela los montos al momento de marcar pagado, para que el
 -- historial no cambie si después se ajustan tarifas.

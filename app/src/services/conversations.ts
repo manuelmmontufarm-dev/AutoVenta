@@ -7,6 +7,8 @@ import { esMismaVisitaPorSilencio } from "../domain/medidaPedida.js";
 import { memoriaDelChatVencida } from "../domain/memoriaDelChat.js";
 import { medidaGuardable } from "../domain/tireSize.js";
 import { puedeOlvidarPorSilencio, TIPO_CLIENTE_SIN_RESPUESTA, type MotivoDePausa } from "../domain/turnoDelHumano.js";
+import { MOTIVO_DEL_RESTART } from "../domain/reinicio.js";
+import { fechaVigente } from "../domain/vigenciaDeLaFecha.js";
 import { cancelPendingFollowUps, scheduleConversationFollowUps } from "./followUps.js";
 import { emitLiveEvent } from "./liveEvents.js";
 import { soloLoDelTurno } from "../pipeline/corteDelTurno.js";
@@ -66,27 +68,49 @@ export async function reopenConversation(
   reason = "Nueva oportunidad comercial",
   options: { conservarFichaSiEsMismaVisita?: boolean; ahora?: Date } = {},
 ): Promise<Conversation> {
-  const [antesDeReabrir] = await sql<{ last_customer_message_at: Date | null }[]>`
-    select last_customer_message_at
+  const [antesDeReabrir] = await sql<{
+    last_customer_message_at: Date | null;
+    stage: Stage;
+    closed_at: Date | null;
+    pickup_date: Date | null;
+    visit_date: Date | null;
+    closed_reason: string | null;
+  }[]>`
+    select last_customer_message_at, stage, closed_at, pickup_date, visit_date, closed_reason
     from conversations
     where id = ${conversationId} and status = 'closed'
   `;
+  const ahora = options.ahora ?? new Date();
+  // El `/restart` cierra sin tocar la etapa: un ganado reiniciado a propósito
+  // es empezar de cero, no un cliente que vuelve.
+  const fueGanada = antesDeReabrir?.stage === "ganado"
+    && antesDeReabrir.closed_reason !== MOTIVO_DEL_RESTART;
   const conservarFicha = Boolean(
     options.conservarFichaSiEsMismaVisita
-    && esMismaVisitaPorSilencio(antesDeReabrir?.last_customer_message_at, options.ahora),
+    && esMismaVisitaPorSilencio(antesDeReabrir?.last_customer_message_at, ahora),
   );
+  // LA FECHA NO SE BORRA MIENTRAS SIGA VIGENTE (21-nov): de una venta ganada,
+  // la llegada o la visita pendiente es justo lo que el cliente viene a
+  // preguntar. De un cierre perdido o un reinicio, la visita ya no corre (y
+  // dejarla armaría el recordatorio de visita a quien no compró). Ver
+  // domain/vigenciaDeLaFecha.ts.
+  const conservarFechas = fueGanada && fechaVigente({
+    pickupDate: antesDeReabrir?.pickup_date,
+    visitDate: antesDeReabrir?.visit_date,
+  }, ahora);
   await sql`
     insert into sales_history (
       conversation_id, cycle, outcome, reason, tire_size, vehicle,
       selected_product_code, selected_quantity, quote_id, quote_number,
-      sale_number, total, closed_at
+      sale_number, total, closed_at, store, pickup_date, visit_date
     )
     select
       c.id, c.current_cycle,
       case when c.stage = 'ganado' then 'ganado' else 'perdido' end,
       c.closed_reason, c.tire_size, c.vehicle,
       c.selected_product_code, c.selected_quantity,
-      q.id, q.quote_number, q.sale_number, q.total, coalesce(c.closed_at, now())
+      q.id, q.quote_number, q.sale_number, q.total, coalesce(c.closed_at, now()),
+      c.nearest_store, c.pickup_date, c.visit_date
     from conversations c
     left join lateral (
       select id, quote_number, sale_number, total from quotes
@@ -111,7 +135,9 @@ export async function reopenConversation(
         selected_product_code = null, selected_quantity = null,
         location_label = case when ${conservarFicha} then location_label else null end,
         nearest_store = case when ${conservarFicha} then nearest_store else null end,
-        pickup_date = null, visit_date = null, visit_time_label = null,
+        pickup_date = case when ${conservarFechas} then pickup_date else null end,
+        visit_date = case when ${conservarFechas} then visit_date else null end,
+        visit_time_label = case when ${conservarFechas} then visit_time_label else null end,
         offer_expires_at = null,
         savings_amount = null, customer_commitment = null,
         customer_commitment_cycle = null, follow_up_reason = null,
@@ -257,7 +283,7 @@ export async function appendMessage(
 export async function reiniciarConversacion(conversationId: number): Promise<Conversation | null> {
   await sql`
     update conversations
-    set status = 'closed', closed_reason = ${"Reinicio manual (/restart)"},
+    set status = 'closed', closed_reason = ${MOTIVO_DEL_RESTART},
         closed_at = now(), assigned_to = 'bot', bot_paused_until = null,
         -- Empezar de cero es también olvidar la baja y la molestia: el
         -- /restart es para probar, y probar «cállese» dejaba el número mudo
@@ -266,7 +292,7 @@ export async function reiniciarConversacion(conversationId: number): Promise<Con
         updated_at = now()
     where id = ${conversationId}
   `;
-  return reopenConversation(conversationId, "customer", "Reinicio manual (/restart)");
+  return reopenConversation(conversationId, "customer", MOTIVO_DEL_RESTART);
 }
 
 /**
@@ -304,9 +330,11 @@ export async function reiniciarSiLaMemoriaVencio(
       pausa: string | null;
       motivo: string | null;
       mensajes_del_ciclo: boolean;
+      pickup_date: Date | null;
+      visit_date: Date | null;
     }[]
   >`
-    select last_customer_message_at, last_assistant_message_at, assigned_to,
+    select last_customer_message_at, last_assistant_message_at, assigned_to, pickup_date, visit_date,
       case when isfinite(bot_paused_until) then bot_paused_until::text end as pausa,
       bot_paused_reason as motivo,
       exists (
@@ -322,6 +350,13 @@ export async function reiniciarSiLaMemoriaVencio(
   // hasta que entra su primer mensaje; sin esto, cualquier segundo intento
   // sobre el mismo regreso (una reentrega de Meta) lo volvía a rotar.
   if (marcas && !marcas.mensajes_del_ciclo) return conversation;
+  // CON FECHA DE LLEGADA O VISITA, LA MEMORIA NO VENCE (regla 2, 21-nov): el
+  // cliente que quedó en venir el jueves y escribe el viernes sigue en la misma
+  // compra, aunque hayan pasado tres días callados. Hasta el día siguiente a
+  // esa fecha el ciclo no se rota por silencio. Ver domain/vigenciaDeLaFecha.ts.
+  if (marcas && fechaVigente({ pickupDate: marcas.pickup_date, visitDate: marcas.visit_date }, ahora)) {
+    return conversation;
+  }
   if (
     !marcas
     || !memoriaDelChatVencida(
@@ -484,12 +519,12 @@ export async function setStage(
       insert into sales_history (
         conversation_id, cycle, outcome, reason, tire_size, vehicle,
         selected_product_code, selected_quantity, quote_id, quote_number,
-        sale_number, total, closed_at
+        sale_number, total, closed_at, store, pickup_date, visit_date
       )
       select
         c.id, c.current_cycle, ${stage}, ${options.reason ?? null}, c.tire_size, c.vehicle,
         c.selected_product_code, c.selected_quantity, q.id, q.quote_number,
-        q.sale_number, q.total, now()
+        q.sale_number, q.total, now(), c.nearest_store, c.pickup_date, c.visit_date
       from conversations c
       left join lateral (
         select id, quote_number, sale_number, total from quotes
@@ -504,7 +539,8 @@ export async function setStage(
         selected_quantity = excluded.selected_quantity,
         quote_id = excluded.quote_id, quote_number = excluded.quote_number,
         sale_number = excluded.sale_number, total = excluded.total,
-        closed_at = excluded.closed_at
+        closed_at = excluded.closed_at, store = excluded.store,
+        pickup_date = excluded.pickup_date, visit_date = excluded.visit_date
     `;
   }
   // DESHACER UN CIERRE EN LA MISMA VISITA (21-nov: Eric Acosta, marcado

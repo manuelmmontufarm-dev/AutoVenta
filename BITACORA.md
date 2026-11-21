@@ -44,6 +44,58 @@
   API real: dos facturas, total $520,50 y «Añadir otra factura».
 - **Horas:** 1.
 
+## 21-nov-2026 · Métricas · Ventas de Competimotor desde el registro de ventas (rama `feat/metricas-ventas-registradas`)
+
+- **Qué:** si el negocio no tiene fuente de facturas (ni Contífico ni archivo), Métricas → Ventas usa
+  `ventas_registradas` (no anuladas, con factura, monto y chat): una venta por chat, varias facturas se suman (la
+  misma escrita dos veces cuenta una), sin IVA = monto / (1 + `negocio.iva`), día y hora = primer registro. Lectura
+  en `services/ventasRegistradasMetricas.ts` (archivo nuevo; solo lee). Contrato `MetricasComprobables` + `fuente`
+  y `registradas` (detalle del período). Panel: subtítulo «ventas registradas con factura», detalle con número de
+  factura y quién registró, «Cuándo se factura» con la hora del registro; «De lo que vende la tienda» y la columna
+  de la tienda dicen «Disponible cuando conectemos su sistema contable».
+- **Por qué:** Manuel, 21-nov: Competimotor (Fénix, sin conector) mostraba «Sin Contífico» aunque ya hay una venta
+  real (ticket 469, Abg Jumbo, factura 860, $437, ganada el 21-nov desde el panel).
+- **Probado:** `metricasVentasRegistradas.test.ts` (1 y 2 ventas, una con 2 facturas, anulada/sin factura/sin
+  monto/sin chat no cuentan, período) e `.integration.test.ts` (`resumenComprobables` contra Postgres sin Contífico);
+  Depot idéntico: salida de `armarComprobables` igual a `fixtures/comprobables-depot-antes.json`, generada con main
+  antes del cambio. `tsc` app y hub, hub reconstruido, `simuladorFidelidad`, `perfilAjeno.*`. Base de Competimotor
+  (solo lectura): el registro 4 es el único que cuenta → noviembre = 1 venta, $437, $380 sin IVA.
+- **Horas:** 0,5.
+
+## 21-nov-2026 · Bot · El ciclo nuevo hereda la ficha de la compra anterior y, con fecha de llegada o visita, la memoria no vence (rama `fix/memoria-tras-venta-ganada`)
+
+- **Qué:** dos reglas aprobadas por Manuel, para Depot y Competimotor.
+  (2) **Con fecha, la memoria no vence:** `reiniciarSiLaMemoriaVencio` no rota el ciclo por silencio mientras
+  `pickup_date`/`visit_date` siga vigente (hasta el fin del día siguiente, `domain/vigenciaDeLaFecha.ts`), y la
+  reapertura de una venta ganada ya no borra esa fecha (de un perdido o un reinicio sí, como antes). El
+  recordatorio de visita no le escribe a la visita que se conservó de una venta ganada.
+  (3) **Ficha del ciclo anterior** (`domain/` + `services/fichaDelCicloAnterior.ts`): resultado y fecha con la nota
+  del cierre, factura y monto (`ventas_registradas`, sin las anuladas), medida y llanta, cotización (número,
+  cantidad, total), local, llegada/visita y lo último que escribió el asesor; solo datos guardados, del último
+  ciclo con datos, sin cruzar un `/restart`. Va en los hechos del vendedor (`salesFactsPrompt`) y del Guardián.
+  Con una venta ganada prohíbe pedir la medida de lo que ya compró, manda las preguntas por el pedido al asesor
+  (`notificar_vendedor`), quita la línea genérica «si falta la medida, pídela» y el primer contacto no se
+  presenta ni manda la guía. `sales_history` archiva `store`, `pickup_date` y `visit_date` (columnas nuevas en
+  `schema.ts`).
+  Además: el perfil `mundillantas` del simulador apuntaba al servicio de Railway «Mundillantas», renombrado
+  «Competimotors» el 17-nov — el simulador no alineaba los `AI_*`.
+- **Por qué:** conv 469 (Competimotor, 21-nov): el asesor vendió a mano 4 × 235/75R15 Townhall MT y marcó ganado a
+  las 08:48; a las 09:39 «Me confirma amigo si consiguió las llantas» abrió un ciclo vacío y el bot contestó
+  «Todavía no tengo una medida confirmada…». Carlos: «Ya estaba hecha la venta y el bot empezó a decirle que no
+  teníamos la medida». **Cambio de alcance (Manuel, 11:29):** se quitaron la regla 1 (el chat seguía 3 días con el
+  asesor tras un ganado) y la 4 (fecha de entrega al marcar ganado): desde #80 «ganado» se marca cuando el
+  cliente ya compró, y que el bot retome está bien si tiene la ficha.
+- **Probado:** `fichaDelCicloAnterior.test.ts` (8) e `.integration.test.ts` (7): 4 en rojo con `conversations.ts` y
+  `agent.ts` de main. Simulador (`scripts/sim/escenarios-cliente-ya-compro.mjs`, cierre «ganado» por el endpoint del
+  panel con factura y monto): **469** — contesta el bot «Le paso con el asesor que lo atendió para que le confirme
+  el estado de sus llantas», sin «no tengo medida», sin pedirla, con `notificar_vendedor` — Competimotor 3/3, Depot
+  2/2 (la 1.ª de Depot marcó ❌ por un filtro del guion, `route='commercial'` y Depot usa `commercial+canary`; la
+  alerta sí estaba). **Llegada** (cotizó, visita a 3 días, vuelve el día siguiente): mismo ciclo y recuerda la
+  llanta — Competimotor 1/1, Depot 1/1. Suite 4553 ✅, fallan `hashesPiezasDepot` y `unidadEnLaCantidad` igual que
+  en origin/main. `tsc` app y hub ✅, `sim:humo` ✅, fidelidad + perfil ajeno ✅, humo `ejemplo` ✅ (falla si
+  arranca antes de que el bot del humo de Depot suelte el 3205: `EADDRINUSE`, del arnés). **No probado:** el
+  recordatorio automático de visita sobre una fecha conservada (solo la consulta).
+- **Horas:** 2.
 ## 21-nov-2026 · Panel · «Deshacer venta»: un solo botón para un «Vendido» por error (rama `feat/deshacer-venta`)
 
 - **Qué:** `POST /api/hub/tickets/:id/deshacer-venta` (`deshacerVenta` en `services/conversations.ts`): un ganado del

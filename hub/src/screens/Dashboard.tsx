@@ -4,6 +4,8 @@ import { BarChart, LineChart } from "../components/charts";
 import {
   Bloque, Cargando, Cifra, Cifras, CuandoEscribenBloque, CuandoSeFacturaBloque, CuantoTardanBloque, DelChatALaFacturaBloque,
   ParteDeLaTiendaBloque, VentasComprobadasBloque, estadoComprobables,
+  SIN_SISTEMA_CONTABLE,
+  esRegistro,
 } from "../components/comprobables";
 import { SelectorDeMes, etiquetaDeMes } from "../components/mes";
 import { Campo, PageHeader } from "../components/ui";
@@ -49,6 +51,8 @@ export function Dashboard() {
   const vc = metrics?.ventasConfirmadas;
   const estado = estadoComprobables(c, vc, cargando);
   const listo = estado === "listo" && c ? c : null;
+  /** Sin sistema contable: las ventas son las registradas con factura (Competimotor, 21-nov). */
+  const registro = esRegistro(c);
 
   // Un punto por día. El rótulo es la fecha corta: «12/9».
   const porDia = useMemo(
@@ -92,18 +96,18 @@ export function Dashboard() {
           </p>
 
           {/* ── Ventas ── */}
-          <Seccion id="ventas" titulo="Ventas" sub="solo ventas que tienen factura en Contífico" />
+          <Seccion id="ventas" titulo="Ventas" sub={registro ? "ventas registradas con factura" : "solo ventas que tienen factura en Contífico"} />
           <FilaKpis>
             <Kpi
               nombre="Ventas comprobadas"
               valor={guion(comprobado((k) => <>{k.ventas.n}<span className="ml-2 text-[15px] tracking-normal whitespace-nowrap text-text2 md:text-[17px]">{usd(k.ventas.conIva)}</span></>))}
-              nota="clientes del chat que ya tienen factura · con IVA"
+              nota={registro ? "clientes del chat con factura registrada · con IVA" : "clientes del chat que ya tienen factura · con IVA"}
             />
-            <Kpi nombre="Sin IVA" valor={guion(comprobado((k) => usd(k.ventas.sinIva)))} nota="subtotal de esas mismas facturas" />
+            <Kpi nombre="Sin IVA" valor={guion(comprobado((k) => usd(k.ventas.sinIva)))} nota={registro ? "el monto de esas mismas ventas, sin IVA" : "subtotal de esas mismas facturas"} />
             <Kpi
               nombre="De lo que vende la tienda, vino del bot"
               valor={guion(comprobado((k) => (k.participacion.periodo.llantasTienda > 0 ? fmtPct(k.participacion.periodo.pct) : "—")))}
-              nota={listo ? `${listo.participacion.periodo.delBot} de ${listo.participacion.periodo.llantasTienda} facturas con llantas` : "de las facturas con llantas"}
+              nota={registro ? SIN_SISTEMA_CONTABLE : listo ? `${listo.participacion.periodo.delBot} de ${listo.participacion.periodo.llantasTienda} facturas con llantas` : "de las facturas con llantas"}
             />
             <Kpi
               nombre="Ventas esperadas en 14 días"

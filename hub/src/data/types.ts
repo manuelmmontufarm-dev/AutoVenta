@@ -485,6 +485,23 @@ export type GrupoAtencion = "bot" | "bot_y_asesor" | "asesor";
 
 export interface MetricasComprobables {
   disponible: boolean;               // false: no hay Contífico o todavía no se leyó
+  /**
+   * De dónde salen las ventas. «facturas»: el cruce chat ↔ factura de la fuente
+   * contable (Contífico o archivo). «registro»: el negocio no tiene sistema
+   * contable conectado y las ventas son las de `ventas_registradas` con factura
+   * y monto (`/venta` o el ganado del panel); sin detalle de la factura, la
+   * parte de la tienda y las facturas de la tienda quedan en cero.
+   */
+  fuente: "facturas" | "registro";
+  /** Solo con fuente «registro»: las ventas DEL PERÍODO, para el detalle plegado. Con «facturas», vacío. */
+  registradas: Array<{
+    ticketId: number;
+    nombre: string | null;
+    facturas: Array<{ numero: string; dia: string; monto: number; vendedor: string }>;
+    total: number;
+    dia: string;                     // "YYYY-MM-DD" del primer registro con factura
+    grupo: GrupoAtencion;
+  }>;
   ultimaSync: string | null;         // ISO
   /** Período del selector (mes o «todos»). */
   periodo: { clave: string; todos: boolean };
