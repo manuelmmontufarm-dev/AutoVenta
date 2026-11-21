@@ -1,3 +1,11 @@
+## 21-nov-2026 · Reporte del día · Nombres invisibles → teléfono (rama `fix/reporte-nombre-invisible`)
+
+- **Qué:** `nombreVisible` quita los caracteres invisibles (`\p{Default_Ignorable_Code_Point}`, «ㅤ», braille en
+  blanco) y exige al menos una letra o número; si no, muestra el teléfono.
+- **Por qué:** tras el arreglo anterior la fila de Competimotor seguía en blanco: el nombre no estaba vacío, era
+  invisible, y `trim()` no lo quita.
+- **Horas:** 0,2
+
 ## 21-nov-2026 · Reporte del día · Cinco arreglos tras verlo con datos reales (rama `fix/reporte-simple-detalles`)
 
 - **Qué:** (1) «Tenían fecha y ya pasó» mira hoy, ayer y anteayer, no 14 días (Depot salía con 56). (2) La cifra

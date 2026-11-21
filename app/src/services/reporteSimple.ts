@@ -65,12 +65,18 @@ function partesDelDia(dia: string) {
  */
 /**
  * El nombre que se ve en el reporte. Un nombre vacío o de puros espacios cuenta
- * como sin nombre (pasó en Competimotor: la fila salía en blanco), y entonces
+ * como sin nombre (pasó en Competimotor: la fila salía en blanco), igual que uno
+ * hecho sólo de caracteres invisibles o emojis, y entonces
  * va el número, en la forma en que el asesor lo marcaría: 0998 412 776.
  */
 export function nombreVisible(nombre: string | null | undefined, telefono: string): string {
-  const limpio = nombre?.trim();
-  if (limpio) return limpio;
+  // \p{Default_Ignorable_Code_Point} cubre «ㅤ» (U+3164, que Unicode llama
+  // letra) y los de ancho cero; U+2800 es el braille en blanco.
+  const limpio = nombre?.replace(/[\p{Default_Ignorable_Code_Point}\u2800]/gu, "").trim();
+  // Sin una sola letra o número no hay nombre que leer: WhatsApp deja poner
+  // «ㅤ», espacios de ancho cero o sólo emojis, que trim() no quita y la fuente
+  // del PDF no dibuja — la fila salía en blanco igual.
+  if (limpio && /[\p{L}\p{N}]/u.test(limpio)) return limpio;
   const digitos = telefono.replace(/\D/g, "");
   const local = digitos.startsWith("593") && digitos.length === 12 ? `0${digitos.slice(3)}` : digitos;
   return local.length === 10 ? `${local.slice(0, 4)} ${local.slice(4, 7)} ${local.slice(7)}` : telefono;
