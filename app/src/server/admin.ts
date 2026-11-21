@@ -579,6 +579,16 @@ export function createAdminRouter(): express.Router {
         }
       }
       const power = await setBotPower(req.body);
+      // Quién prendió o apagó el bot (Manuel, 21-nov): se guarda siempre que
+      // cambie, en la misma bitácora que las acciones sobre tickets.
+      if (power.activo !== previo.activo || power.motivo !== previo.motivo) {
+        await sql`
+          insert into audit_events (actor, action, entity_type, entity_id, before_value, after_value)
+          values (${quienEnElPanel(req)}, ${power.activo ? "encender_bot" : "apagar_bot"}, 'bot', 'global',
+            ${sql.json({ activo: previo.activo, motivo: previo.motivo ?? null })},
+            ${sql.json({ activo: power.activo, motivo: power.motivo ?? null })})
+        `.catch((e) => console.warn("⚠️ No se guardó quién tocó el interruptor:", e));
+      }
       // El hub pinta el estado en la cabecera: que se entere sin recargar.
       emitLiveEvent("sync");
       // Solo si el interruptor cambió de verdad: reguardar el mismo estado (o

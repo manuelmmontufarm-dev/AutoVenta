@@ -15,3 +15,9 @@ select created_at at time zone 'America/Guayaquil' as cuando, actor as quien, ac
 **Límite:** lo que contestan desde el WhatsApp del teléfono (ecos de Meta, `messages.author_kind = 'owner'`
 sin `metadata->>'autor'`) no dice quién fue: es un solo número. Solo se sabe si escriben desde el panel
 (`messages.metadata->>'autor'`).
+
+## ¿Quién prendió o apagó el bot?
+
+```sql
+select created_at at time zone 'America/Guayaquil' as hora, actor, action, after_value->>'motivo' as motivo from audit_events where entity_type = 'bot' order by created_at desc limit 20;
+```

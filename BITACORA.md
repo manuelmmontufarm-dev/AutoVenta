@@ -1,3 +1,12 @@
+## 21-nov-2026 · Panel · Quién prendió o apagó el bot (rama `fix/auditar-bot-power`)
+
+- **Qué:** `PUT /bot-power` guarda en `audit_events` (entity_type `bot`, acción `encender_bot` / `apagar_bot`)
+  quién tocó el interruptor general, con el antes y el después (activo y motivo).
+- **Por qué:** Manuel quiere saber siempre quién hizo qué desde el panel; el interruptor general era lo único
+  que no lo guardaba.
+- **Probado:** tests de `bot-power` 5/5; `tsc` ✅.
+- **Horas:** 0.2.
+
 ## 21-nov-2026 · Panel · Métricas: monto después de la factura y «Asesor» solo sin bot (rama `fix/tabla-ventas-monto-al-final`)
 
 - **Qué:** en la tabla de ventas (Contífico y registradas) el monto va justo después de la factura y la fecha.
