@@ -1,3 +1,9 @@
+## 22-nov-2026 · Panel · Cotización con el diseño nuevo, al chat como imagen y máximo 4 opciones (rama `fix/cotizacion-pdf-imagen-opciones`)
+
+- **Qué:** el PDF del Cotizador (`/catalog/quote-pdf`) ahora es la misma imagen que manda el bot (pdfmake solo si falla el render); la cotización desde el «+» del chat sale como imagen, no PDF; Opciones desde el chat lleva máximo 4 (panel y servidor).
+- **Por qué:** Manuel: los PDF del panel salían con el formato viejo; desde el teléfono quiere siempre imagen; y tope de 4 opciones.
+- **Probado:** simulador --stub: PDF con el diseño nuevo, send-quote guarda type=image, 5 opciones → 400, 4 → ok; panel en vista de teléfono.
+- **Horas:** 0,5
 ## 22-nov-2026 · Panel + bot · La app avisa la ventana de 24 h del asesor y pide activar notificaciones (rama `feat/ventana-del-asesor`)
 
 - **Qué:**
