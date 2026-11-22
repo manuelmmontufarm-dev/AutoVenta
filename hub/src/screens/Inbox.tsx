@@ -108,7 +108,9 @@ export function Inbox() {
     const texto = q.trim().toLowerCase();
     if (!texto) return abiertos;
     const hallados = [...tickets].sort(ordenar).filter((t) => {
-      const blob = `${t.nombre ?? ""} ${t.telefono} ${t.medida ?? ""} ${t.vehiculo ?? ""}`.toLowerCase();
+      // El teléfono también como se escribe acá: «0991234567» encuentra al 593991234567.
+      const local = t.telefono.replace(/\D/g, "").replace(/^593/, "0");
+      const blob = `${t.nombre ?? ""} ${t.telefono} ${local} ${t.medida ?? ""} ${t.vehiculo ?? ""}`.toLowerCase();
       return blob.includes(texto);
     });
     // Buscando también: los abiertos de un asesor primero.
@@ -127,7 +129,8 @@ export function Inbox() {
         onChange={(e) => setQ(e.target.value)}
         placeholder="Buscar por nombre, medida o vehículo"
         aria-label="Buscar conversaciones"
-        className="min-w-0 flex-1 bg-transparent text-[14px] outline-none md:text-[13px]"
+        // 16 px en el teléfono: por debajo iOS hace zoom al enfocar y la pantalla queda corrida.
+        className="min-w-0 flex-1 bg-transparent text-[16px] outline-none md:text-[13px]"
       />
     </label>
   );

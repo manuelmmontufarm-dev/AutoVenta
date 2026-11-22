@@ -1800,7 +1800,7 @@ function SeccionMatrizAvisos({ editable, onError }: { editable: boolean; onError
 
 interface PermisosHub {
   verInbox: boolean; verKanban: boolean; verOportunidades: boolean; verMetricas: boolean;
-  verFinanzas: boolean; usarCotizador: boolean; verAjustes: boolean; verErrores: boolean;
+  verFinanzas: boolean; usarCotizador: boolean; verAjustes: boolean; verErrores: boolean; validarNumeros?: boolean;
 }
 
 interface UsuarioHub {
@@ -1839,6 +1839,7 @@ const PERMISOS_UI: { id: keyof PermisosHub; label: string }[] = [
   { id: "verMetricas", label: "Métricas" },
   { id: "verFinanzas", label: "Cifras de venta ($)" },
   { id: "verAjustes", label: "Ajustes" },
+  { id: "validarNumeros", label: "Validar números" },
 ];
 
 const ROLES_HUB: { valor: "admin" | "asesor"; etiqueta: string; explica: string }[] = [
@@ -1993,7 +1994,7 @@ function SeccionUsuarios({ onError }: { onError: (e: string) => void }) {
                 <label key={permiso.id} className="flex items-center gap-1.5 text-[12px]">
                   <input
                     type="checkbox"
-                    checked={u.permisos[permiso.id]}
+                    checked={Boolean(u.permisos[permiso.id])}
                     onChange={(e) => void cambiar(u, { permisos: { [permiso.id]: e.target.checked } })}
                     className="size-3.5 accent-[var(--color-ok)]"
                   />

@@ -3,7 +3,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { ConnectionChip, ConnectionGate, SalirButton, UserChip } from "./components/admin-key";
 import { hasAdminKey } from "./data/catalog";
 import { Confetti, Toasts } from "./components/overlays";
-import { IconAjustes, IconAlert, IconRefresh, IconChart, IconDiana, IconDoc, IconInbox, IconKanban, IconPlay, IconSilencio, IconSonido, IconStop, IconTire } from "./components/icons";
+import { IconAjustes, IconAlert, IconCampana, IconRefresh, IconChart, IconDiana, IconDoc, IconInbox, IconKanban, IconPhone, IconPlay, IconSilencio, IconSonido, IconStop, IconTire } from "./components/icons";
 import { PageHeader } from "./components/ui";
 import { VersionBadge } from "./components/version-badge";
 import { setSonidoActivo, sonidoActivo, sonidoBoton } from "./lib/sound";
@@ -17,6 +17,9 @@ import { Inventario } from "./screens/Inventario";
 import { ParaCerrar } from "./screens/ParaCerrar";
 import { Pipeline } from "./screens/Pipeline";
 import { TicketDetail } from "./screens/TicketDetail";
+import { Validar } from "./screens/Validar";
+import { Avisos } from "./screens/Avisos";
+import { avisosNuevos, useAvisos } from "./data/avisos";
 import { Settings } from "./screens/Settings";
 import { useHub } from "./store";
 import { recargarNegocio, useNegocio } from "./data/negocio";
@@ -38,6 +41,9 @@ const NAV: readonly { id: string; label: string; icon: typeof IconInbox; requier
   { id: "pipeline", label: "Pipeline", icon: IconKanban, requiere: null, soloEscritorio: true },
   { id: "para-cerrar", label: "Para cerrar", icon: IconDiana, requiere: null },
   { id: "cotizador", label: "Cotizador", icon: IconTire, requiere: "fase3" },
+  // «Validar»: el vendedor valida el número de un comprador. Solo para quien
+  // tiene el permiso en Ajustes → Usuarios (Depot no lo usa).
+  { id: "validar", label: "Validar", icon: IconPhone, requiere: null },
   { id: "dashboard", label: "Métricas", icon: IconChart, requiere: "fase3" },
 ];
 
@@ -52,6 +58,7 @@ const PERMISO_DE_VISTA: Record<string, keyof Permisos> = {
   pipeline: "verKanban",
   "para-cerrar": "verKanban",
   cotizador: "usarCotizador",
+  validar: "validarNumeros",
   dashboard: "verMetricas",
   ajustes: "verAjustes",
 };
@@ -76,13 +83,15 @@ const TITULOS: Record<string, { titulo: string; sub: string }> = {
   dashboard: { titulo: "Métricas", sub: "El negocio de un vistazo" },
   ajustes: { titulo: "Ajustes", sub: "Negocio, seguimientos, avisos y usuarios" },
   cotizador: { titulo: "Cotizador", sub: "Inventario y precios reales" },
+  avisos: { titulo: "Avisos", sub: "Lo que el bot le avisó al equipo, por día" },
+  validar: { titulo: "Validar número", sub: "¿Este comprador vino por WhatsApp? Escriba su número y registre la factura" },
   inventario: { titulo: "Inventario", sub: "El Excel de Fénix con el que el bot cotiza: súbalo cada día" },
   settings: { titulo: "Configuración técnica", sub: "WhatsApp, encendido y manual del bot" },
   ticket: { titulo: "Conversación", sub: "" },
 };
 
 /** Pantallas que ya dibujan su propia cabecera (tienen acciones dentro). */
-const CABECERA_PROPIA = new Set<string>(["inbox", "ticket", "pipeline", "para-cerrar", "dashboard"]);
+const CABECERA_PROPIA = new Set<string>(["inbox", "ticket", "pipeline", "para-cerrar", "dashboard", "avisos"]);
 
 function navActivo(route: Route): string {
   return route.vista === "ticket" ? "inbox" : route.vista;
@@ -178,6 +187,15 @@ export default function App() {
     return () => clearTimeout(t);
   }, [tickets, dataMode, permisos.verKanban, cargarParaCerrar]);
   const faltan = faltanHoy(paraCerrar);
+  // Avisos: la campana se entera con cada cambio (los «sync» del bot), igual que Para cerrar.
+  const cargarAvisos = useAvisos((a) => a.cargar);
+  const nuevos = useAvisos(avisosNuevos);
+  useEffect(() => {
+    if (dataMode !== "real" || conexion !== "conectada") return;
+    const t = setTimeout(() => void cargarAvisos(), 1200);
+    return () => clearTimeout(t);
+  }, [tickets, dataMode, conexion, cargarAvisos]);
+  const enAvisos = route.vista === "avisos";
   const meta = TITULOS[route.vista];
   const enTicket = route.vista === "ticket";
   const enAjustes = route.vista === "ajustes" || route.vista === "settings";
@@ -222,6 +240,15 @@ export default function App() {
               {audioOn ? <IconSonido size={18} /> : <IconSilencio size={18} />}
               <span className="flex-1 text-left">{audioOn ? "Sonido activado" : "Sonido apagado"}</span>
             </button>
+            {dataMode === "real" && (
+              <NavItem
+                activo={enAvisos}
+                onClick={() => navigate("avisos")}
+                icon={<IconCampana size={18} />}
+                label="Avisos"
+                aside={nuevos || undefined}
+              />
+            )}
             {pantallaPermitida("ajustes", phases, permisos) && (
               <NavItem
                 activo={enAjustes}
@@ -268,6 +295,12 @@ export default function App() {
                 <EstadoBot activo={power.activo} compacto />
               </div>
               <div className="flex items-center">
+                {dataMode === "real" && (
+                  <button type="button" onClick={() => navigate("avisos")} aria-label={nuevos ? `Avisos: ${nuevos} nuevos` : "Avisos"} data-testid="campana" className={`relative grid h-11 w-11 place-items-center ${enAvisos ? "text-signal" : "text-text"}`}>
+                    <IconCampana size={20} />
+                    {nuevos > 0 && <span className="tnum absolute top-1.5 right-1 grid h-[17px] min-w-[17px] place-items-center rounded-full bg-signal px-1 font-mono text-[10px] font-bold text-white">{nuevos > 9 ? "9+" : nuevos}</span>}
+                  </button>
+                )}
                 <button type="button" onClick={() => void refrescarTodo()} aria-label="Refrescar" data-testid="refrescar" className="grid h-11 w-11 place-items-center text-text">
                   <IconRefresh size={20} className={refrescando ? "animate-spin" : ""} />
                 </button>
@@ -306,6 +339,8 @@ export default function App() {
               {route.vista === "ajustes" && <Ajustes />}
               {route.vista === "cotizador" && phases.fase3 && <Cotizador />}
               {route.vista === "inventario" && <Inventario />}
+              {route.vista === "validar" && <Validar />}
+              {route.vista === "avisos" && <Avisos />}
               {route.vista === "settings" && <Settings />}
               {route.vista === "ticket" && !cargando && <TicketDetail id={route.id} />}
             </div>

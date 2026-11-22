@@ -132,3 +132,14 @@ export const IconSilencio = (p: P) =>
 
 export const IconImagen = (p: P) =>
   base(p, <><rect x="3.5" y="5" width="17" height="14" rx="2" /><circle cx="9" cy="10" r="1.6" /><path d="m3.5 16.5 4.5-4 3.5 3 3.5-3.5 5.5 5" /></>);
+
+export const IconPlus = (p: P) => base(p, <path d="M12 5v14M5 12h14" />);
+
+export const IconCamara = (p: P) =>
+  base(p, <><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z" /><circle cx="12" cy="13" r="3.5" /></>);
+
+export const IconCompartir = (p: P) =>
+  base(p, <><path d="M12 15V4" /><path d="m8 8 4-4 4 4" /><path d="M5 12v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" /></>);
+
+export const IconCampana = (p: P) =>
+  base(p, <><path d="M6 9a6 6 0 1 1 12 0c0 5 2 6 2 7H4c0-1 2-2 2-7Z" /><path d="M10 19a2 2 0 0 0 4 0" /></>);

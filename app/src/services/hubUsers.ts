@@ -54,9 +54,11 @@ const PermisosSchema = z.object({
   usarCotizador: z.boolean().default(true),
   verAjustes: z.boolean().default(true),
   verErrores: z.boolean().default(true),
+  // Nace apagado: ver `Permisos.validarNumeros`.
+  validarNumeros: z.boolean().default(false),
 });
 
-export const PERMISOS_COMPLETOS: Permisos = { verInbox: true, verKanban: true, verOportunidades: true, verMetricas: true, verFinanzas: true, usarCotizador: true, verAjustes: true, verErrores: true };
+export const PERMISOS_COMPLETOS: Permisos = { verInbox: true, verKanban: true, verOportunidades: true, verMetricas: true, verFinanzas: true, usarCotizador: true, verAjustes: true, verErrores: true, validarNumeros: false };
 
 /**
  * El id es el username del desplegable: minúsculas y sin espacios para que

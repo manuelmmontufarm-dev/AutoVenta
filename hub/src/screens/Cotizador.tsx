@@ -1,6 +1,7 @@
 import { navigate } from "../router";
 import { AnimatePresence, motion } from "framer-motion";
 import { MedidaChip } from "../components/ui";
+import { Cantidad, FilaProducto, Hoja } from "../components/adjuntar";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   downloadComparisonImage,
@@ -14,6 +15,7 @@ import {
   hasAdminKey,
   saveAdminKey,
   searchCatalog,
+  shareQuotePdf,
   type CatalogAvailability,
   type CatalogProduct,
   type CatalogSearchResponse,
@@ -22,6 +24,7 @@ import {
   IconCandado,
   IconCheck,
   IconComparar,
+  IconCompartir,
   IconDoc,
   IconImagen,
   IconRefresh,
@@ -85,6 +88,9 @@ export function Cotizador() {
   const [panelMode, setPanelMode] = useState<PanelMode>("options");
   const [action, setAction] = useState<Action>(null);
   const [notice, setNotice] = useState("");
+  // Teléfono: «Cotizar esta llanta» abre una hoja con cantidad, total y
+  // «Compartir PDF» (la hoja de compartir del sistema → WhatsApp).
+  const [hojaCotizar, setHojaCotizar] = useState(false);
 
   useEffect(() => {
     void runSearch("205/55R16");
@@ -199,6 +205,15 @@ export function Cotizador() {
     setQuoteQuantity(4);
     setPanelMode("quote");
     setNotice("");
+    if (window.matchMedia("(max-width: 1023px)").matches) setHojaCotizar(true);
+  }
+
+  async function compartirPdf() {
+    if (!quoteProduct) return;
+    await perform("quote-pdf", async () => {
+      const resultado = await shareQuotePdf(quoteProduct, quoteQuantity, customerName.trim() || "Cliente");
+      setNotice(resultado === "compartido" ? "PDF compartido." : resultado === "descargado" ? "PDF de cotización descargado." : "");
+    });
   }
 
   async function copyOptions(style: "customer" | "distributor") {
@@ -448,13 +463,53 @@ export function Cotizador() {
           <span className="inline-flex items-center justify-center gap-1"><IconComparar size={12} /> Comparar {compareProducts.length}/3</span>
         </button>
         <button
-          onClick={() => void createQuotePdf()}
+          onClick={() => setHojaCotizar(true)}
           disabled={!quoteProduct}
           className="btn-signal h-10 flex-1 rounded-[6px] px-2 text-[12px]"
         >
           Cotizar
         </button>
       </div>
+
+      <AnimatePresence>
+        {hojaCotizar && quoteProduct && (
+          <Hoja titulo="Cotización" onClose={() => setHojaCotizar(false)}>
+            <div className="flex flex-col gap-4 p-5" data-testid="hoja-cotizar">
+              <FilaProducto product={quoteProduct} />
+              <div className="flex items-center justify-between gap-3">
+                <Cantidad valor={quoteQuantity} onChange={setQuoteQuantity} />
+                <div className="text-right">
+                  <p className="text-[12px] text-text2">Total con IVA</p>
+                  <p className="tnum font-mono text-[24px] font-bold">{money(quoteProduct.salePrice * quoteQuantity)}</p>
+                </div>
+              </div>
+              <label className="flex flex-col gap-1.5 text-[13px] text-text2">
+                Cliente
+                <input
+                  value={customerName === "Cliente" ? "" : customerName}
+                  onChange={(event) => setCustomerName(event.target.value || "Cliente")}
+                  placeholder="Nombre del cliente (opcional)"
+                  className="h-12 rounded-[8px] border border-line bg-bg px-3.5 text-text outline-none focus:border-signal"
+                />
+              </label>
+              <button
+                type="button"
+                onClick={() => void compartirPdf()}
+                disabled={Boolean(action)}
+                className="btn-signal flex h-[52px] w-full items-center justify-center gap-2 rounded-[8px] text-[16px]"
+              >
+                <IconCompartir size={18} />
+                {action === "quote-pdf" ? "Preparando el PDF…" : "Compartir PDF"}
+              </button>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => void copyQuote()} disabled={Boolean(action)} className="btn-quiet h-11 flex-1 rounded-[8px] text-[14px]">Copiar texto</button>
+                <button type="button" onClick={() => void createQuoteImage()} disabled={Boolean(action)} className="btn-quiet h-11 flex-1 rounded-[8px] text-[14px]">Imagen</button>
+              </div>
+              {notice && <p className="text-center text-[13px] text-text2" role="status">{notice}</p>}
+            </div>
+          </Hoja>
+        )}
+      </AnimatePresence>
 
       <PhotoModal product={preview} close={() => setPreview(null)} />
     </div>
@@ -560,7 +615,8 @@ function ProductCard({
     >
       <button
         onClick={onPreview}
-        className="relative block aspect-[16/10] w-full overflow-hidden border-b border-line bg-bg"
+        // Teléfono: foto baja, para que precio y «Cotizar» entren sin bajar.
+        className="relative block h-[132px] w-full overflow-hidden border-b border-line bg-bg sm:h-auto sm:aspect-[16/10]"
         aria-label={`Ver foto de ${product.design}`}
       >
         {product.imageUrl && !imageBroken ? (
@@ -619,14 +675,14 @@ function ProductCard({
             {selected ? <IconCheck size={18} /> : <IconComparar size={16} />}
           </button>
         </div>
-        <div className="mt-3 border-t border-line pt-2.5 text-[12px] leading-relaxed text-text2">
+        <div className="mt-3 hidden border-t border-line pt-2.5 text-[12px] leading-relaxed text-text2 sm:block">
           <p>{product.warranty.factory}</p>
           {product.warranty.roadHazard && <p>{product.warranty.roadHazard}</p>}
         </div>
         <button
           onClick={onQuote}
           disabled={disabled}
-          className="mt-2.5 h-[38px] w-full rounded-[6px] border border-text bg-surface text-[13px] font-semibold transition-colors hover:bg-bg disabled:opacity-40"
+          className="mt-2.5 h-11 w-full rounded-[6px] border border-text bg-surface text-[14px] font-semibold transition-colors hover:bg-bg disabled:opacity-40 sm:h-[38px] sm:text-[13px]"
         >
           Cotizar esta llanta
         </button>

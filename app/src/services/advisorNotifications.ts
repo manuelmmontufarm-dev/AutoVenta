@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { asesoresConApp, enviarPushAAsesores, vaPorLaApp } from "./avisosEnLaApp.js";
+import { tel9 } from "./fuentes/contifico.js";
 import { config } from "../config.js";
 import { sql } from "../db/client.js";
 import { localPorNombre, negocio } from "../negocio/index.js";
@@ -672,7 +674,40 @@ export async function notifyAdvisor(input: AdvisorNotificationInput): Promise<{
     on conflict (dedupe_key, recipient_phone) do nothing
     returning id, recipient_phone, recipient_name
   `;
-  let pendientes = creadas;
+  let pendientes: { id: number; recipient_phone: string; recipient_name: string }[] = creadas;
+
+  // LA APP DEL TELÉFONO (22-nov-2026). A quien la tiene activada el aviso le
+  // llega por ahí. Si el evento es de los que no piden actuar (cotización
+  // enviada, venta confirmada), a ESE asesor ya no se le manda por WhatsApp;
+  // los urgentes le salen por los dos lados. Solo con los avisos recién
+  // creados: un reintento de WhatsApp no vuelve a sonar en la app.
+  let salioPorApp = false;
+  if (creadas.length) {
+    const conApp = await asesoresConApp();
+    const conLaApp = creadas.filter((d) => { const t = tel9(d.recipient_phone); return Boolean(t && conApp.has(t)); });
+    if (conLaApp.length) {
+      const enviados = await enviarPushAAsesores(conLaApp.map((d) => d.recipient_phone), {
+        titulo: cabeceraDeEvento(input.eventType).replace(/\*/g, "").trim(),
+        cuerpo: `${input.title} · ${conversation.name ?? conversation.phone}`.slice(0, 180),
+        ruta: `#/ticket/${input.conversationId}`,
+        etiqueta: input.dedupeKey,
+      });
+      // Solo se le quita el WhatsApp si la app de verdad lo recibió: un push
+      // que no salió no puede dejar al asesor sin enterarse.
+      if (enviados > 0 && vaPorLaApp(input.eventType)) {
+        const ids = conLaApp.map((d) => d.id);
+        await sql`
+          update advisor_notifications set channel='app', status='sent', sent_at=now(), updated_at=now()
+          where id = any(${ids})
+        `;
+        pendientes = creadas.filter((d) => !ids.includes(d.id));
+        salioPorApp = true;
+        emitLiveEvent("sync", input.conversationId);
+        if (!pendientes.length) return { sent: true, skipped: false };
+      }
+    }
+  }
+
   if (!pendientes.length) {
     // Reintento de las que fallaron antes, una por asesor.
     pendientes = await sql<{ id: number; recipient_phone: string; recipient_name: string }[]>`
@@ -735,6 +770,8 @@ export async function notifyAdvisor(input: AdvisorNotificationInput): Promise<{
     emitLiveEvent("sync", input.conversationId);
     return { sent: true, skipped: false };
   }
+  // Si a alguien le llegó por la app, el aviso salió aunque el WhatsApp de otro fallara.
+  if (salioPorApp) return { sent: true, skipped: false };
   return { sent: false, skipped: false, error: ultimoError };
 }
 

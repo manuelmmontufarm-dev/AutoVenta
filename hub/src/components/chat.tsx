@@ -7,6 +7,8 @@ import type { Mensaje, Rol, Ticket } from "../data/types";
 import { horaCorta, money } from "../lib/format";
 import { IconAlert, IconBot, IconCheck, IconChevronR, IconClock, IconDoc, IconDoubleCheck, IconPin, IconX } from "./icons";
 import { Modal } from "./ui";
+import { BotonAdjuntar } from "./adjuntar";
+import { useHub } from "../store";
 
 /* ── Burbuja ── */
 
@@ -368,6 +370,14 @@ export function Composer({
 }) {
   const [texto, setTexto] = useState("");
   const ref = useRef<HTMLInputElement>(null);
+  // Adjuntar (foto o cotización) habla con el servidor: en el demo no existe.
+  const real = useHub((s) => s.dataMode) === "real";
+  const [aviso, setAviso] = useState<{ texto: string; error: boolean } | null>(null);
+  useEffect(() => {
+    if (!aviso) return;
+    const t = setTimeout(() => setAviso(null), aviso.error ? 6000 : 2500);
+    return () => clearTimeout(t);
+  }, [aviso]);
   // El bot atendiendo NO bloquea el teclado: se escribe siempre y el traspaso
   // ocurre al enviar, que es cuando de verdad hace falta.
   const atiendeBot = ticket.atiende === "bot";
@@ -396,7 +406,13 @@ export function Composer({
   }
 
   return (
-    <div className="flex items-center gap-2.5 px-4 py-3 md:px-5 md:py-3.5">
+    <div className="relative flex items-center gap-2 px-3 py-3 md:gap-2.5 md:px-5 md:py-3.5">
+      {aviso && (
+        <p role="status" className={`absolute inset-x-3 -top-9 rounded-[6px] px-3 py-1.5 text-center text-[13px] font-medium shadow-pop ${aviso.error ? "bg-signal text-white" : "bg-text text-white"}`}>
+          {aviso.texto}
+        </p>
+      )}
+      {real && <BotonAdjuntar ticket={ticket} onAviso={(t, error = false) => setAviso({ texto: t, error })} />}
       <input
         ref={ref}
         value={texto}
@@ -410,7 +426,7 @@ export function Composer({
         // 16px en el teléfono: por debajo iOS hace zoom al enfocar.
         className="h-11 min-w-0 flex-1 rounded-[6px] border border-line bg-bg px-3.5 text-[16px] outline-none transition-colors focus:border-signal md:text-[14px]"
       />
-      <button onClick={enviar} disabled={!texto.trim()} className="btn-signal h-11 shrink-0 rounded-[6px] px-4.5 text-[14px]">
+      <button onClick={enviar} disabled={!texto.trim()} className="btn-signal h-11 shrink-0 rounded-[6px] px-3.5 text-[14px] md:px-4.5">
         Enviar
       </button>
     </div>
