@@ -8,6 +8,7 @@
  */
 import express from "express";
 import { tel9 } from "../services/fuentes/contifico.js";
+import { miVentana } from "../services/ventanaDelAsesor.js";
 import { anularRegistro, claveDeRegistros, claveDelEnlace, guardarFactura, leerMonto, listarVentasRegistradas, registrarVenta, validarEntrada, ventasACsv } from "../services/registroDeVentas.js";
 import { z } from "zod";
 import { sql } from "../db/client.js";
@@ -2389,6 +2390,15 @@ export function createAdminRouter(): express.Router {
       });
     } catch (error) {
       res.status(500).json({ ok: false, error: mensaje(error, "No se pudieron cargar los avisos") });
+    }
+  });
+
+  // La ventana de 24 h del asesor que está usando la app (ver services/ventanaDelAsesor.ts).
+  router.get("/hub/mi-ventana", async (req, res) => {
+    try {
+      res.json({ ok: true, ...(await miVentana(req.usuario ? { id: req.usuario.id, nombre: req.usuario.nombre } : null)) });
+    } catch (error) {
+      res.status(500).json({ ok: false, error: mensaje(error, "No se pudo leer la ventana") });
     }
   });
 
