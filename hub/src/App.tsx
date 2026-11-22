@@ -19,6 +19,7 @@ import { Pipeline } from "./screens/Pipeline";
 import { TicketDetail } from "./screens/TicketDetail";
 import { Validar } from "./screens/Validar";
 import { Avisos } from "./screens/Avisos";
+import { AvisosAlAbrir } from "./components/avisosAlAbrir";
 import { avisosNuevos, useAvisos } from "./data/avisos";
 import { Settings } from "./screens/Settings";
 import { useHub } from "./store";
@@ -375,6 +376,7 @@ export default function App() {
           </nav>
         )}
 
+        <AvisosAlAbrir />
         <Toasts />
         <Confetti />
         <Tour />

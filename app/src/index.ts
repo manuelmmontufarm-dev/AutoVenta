@@ -53,6 +53,7 @@ import {
 } from "./services/conversations.js";
 import { emitLiveEvent } from "./services/liveEvents.js";
 import { registrarMensajeDeAsesor } from "./services/advisorWindow.js";
+import { esComandoAsesor, nombreDelAsesor, respuestaAlAsesor } from "./services/ventanaDelAsesor.js";
 import { BOTON_LISTO } from "./services/avisoDeLaManana.js";
 import { BOTON_VER_AVISO, entregarAvisosCompletos } from "./services/avisoPorPlantilla.js";
 import { contestaAunApagado, isBotActive } from "./services/botPower.js";
@@ -959,6 +960,27 @@ async function recibirMensaje(
   pipeline.push(from, waMessageId, texto, name, receivedAt, quotedWaMessageId);
 }
 
+/**
+ * «/asesor» (22-nov-2026): lo manda un asesor desde el botón de la app para
+ * reabrir su ventana de 24 h. No es un cliente: no entra al pipeline, se le
+ * confirma y se le entregan los avisos que tenía pendientes. Un número que no
+ * está en la lista de asesores recibe una explicación en vez de una venta.
+ */
+async function atenderComandoAsesor(from: string, receivedAt: Date): Promise<void> {
+  const nombre = await nombreDelAsesor(from).catch(() => null);
+  if (nombre && (await registrarMensajeDeAsesor(from, receivedAt))) {
+    const pendientes = await entregarAvisosCompletos(from)
+      .catch((error) => { console.warn("⚠️ No se pudieron entregar los avisos pendientes:", error); return 0; });
+    await sendAdvisorText(respuestaAlAsesor(nombre, pendientes), from)
+      .catch((error) => console.warn("⚠️ No se pudo confirmar el /asesor:", error));
+    return;
+  }
+  await sendAdvisorText(
+    "Este número no está en la lista de asesores que reciben avisos. Pídele al administrador que lo agregue en el panel: Ajustes → Avisos.",
+    from,
+  ).catch((error) => console.warn("⚠️ No se pudo contestar el /asesor:", error));
+}
+
 /** Cuánto después del mensaje del cliente aparece el «escribiendo…». */
 const ESCRIBIENDO_TEMPRANO_MS = 3_000;
 
@@ -989,6 +1011,8 @@ setWaHandlers({
 
     switch (message.type) {
       case "text":
+        // «/asesor» lo manda un asesor desde la app: no es un cliente (ver abajo).
+        if (esComandoAsesor(message.text.body)) { await atenderComandoAsesor(from, receivedAt); break; }
         // El texto entra TAL CUAL y sin esperar a nada: el agrupador (debounce)
         // necesita ver los mensajes en el orden en que llegaron. Los links que
         // traiga se abren después, dentro del pipeline, con el "escribiendo…" ya

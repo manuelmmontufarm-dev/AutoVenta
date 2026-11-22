@@ -4,6 +4,25 @@
 - **Por qué:** Manuel: los PDF del panel salían con el formato viejo; desde el teléfono quiere siempre imagen; y tope de 4 opciones.
 - **Probado:** simulador --stub: PDF con el diseño nuevo, send-quote guarda type=image, 5 opciones → 400, 4 → ok; panel en vista de teléfono.
 - **Horas:** 0,5
+## 22-nov-2026 · Panel + bot · La app avisa la ventana de 24 h del asesor y pide activar notificaciones (rama `feat/ventana-del-asesor`)
+
+- **Qué:**
+  - Al abrir la app (y cada 10 min), si la ventana de 24 h de WhatsApp del asesor está cerrada o se cierra en
+    menos de 3 h, sale un aviso con «Abrir WhatsApp y enviar»: abre el WhatsApp del bot con el mensaje escrito
+    `/asesor Hola, soy <nombre> y quiero recibir los avisos del bot` (`GET /api/hub/mi-ventana`).
+  - El bot reconoce `/asesor` de un número de la lista de asesores: reabre su ventana, le manda los avisos que
+    tenía pendientes y le contesta «Hola <nombre> ✅ Tu WhatsApp quedó conectado…». No entra al pipeline de ventas.
+    Un número que no es asesor recibe cómo pedir que lo agreguen.
+  - El asesor se reconoce por los últimos 9 dígitos (antes era el número exacto: «0991…» y «593991…» no casaban).
+  - Al abrir la app, si las notificaciones no están activas, la app las pide; «Ahora no» la calla solo hasta la
+    próxima vez que se abra. Bloqueadas: explica cómo desbloquearlas. iPhone sin instalar: cómo instalarla.
+- **Por qué:** Manuel, 22-nov: que la app avise la ventana con un botón al chat del bot, y que moleste hasta que
+  activen las notificaciones.
+- **Probado:** simulador de iOS + simulador del bot: aviso de ventana cerrada, `/asesor` desde el número del asesor
+  guardado en otro formato (ventana reabierta, respuesta del bot, sin entrar al chat de ventas), aviso de
+  notificaciones al volver a abrir. `ventanaDelAsesor` (5) y `ventanaAsesores`. **Sin probar:** el botón
+  «Activar notificaciones» del aviso en un teléfono con la app instalada.
+- **Horas:** 1.
 
 ## 22-nov-2026 · Panel · Ventana de 24 h cerrada: aviso claro y plantilla para retomar; Validar visible en Competimotor (rama `feat/ventana-plantilla-validar`)
 

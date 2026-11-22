@@ -117,7 +117,10 @@ export async function registrarMensajeDeAsesor(
     set ventana_hasta = ${new Date(cuando.getTime() + VENTANA_MS)},
         ventana_avisada_en = null,
         updated_at = now()
-    where telefono = ${normalizado}
+    -- Por los últimos 9 dígitos (22-nov-2026): un asesor guardado como
+    -- «0991234567» y que escribe desde «593991234567» es la misma persona.
+    where right(regexp_replace(telefono, '\D', '', 'g'), 9) = right(${normalizado}, 9)
+      and length(${normalizado}) >= 9
     returning id
   `;
   return filas.length > 0;
