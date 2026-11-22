@@ -7,7 +7,8 @@ import type { Mensaje, Rol, Ticket } from "../data/types";
 import { horaCorta, money } from "../lib/format";
 import { IconAlert, IconBot, IconCheck, IconChevronR, IconClock, IconDoc, IconDoubleCheck, IconPin, IconX } from "./icons";
 import { Modal } from "./ui";
-import { BotonAdjuntar } from "./adjuntar";
+import { BotonAdjuntar, Hoja } from "./adjuntar";
+import { sendRetomarToChat } from "../data/catalog";
 import { useHub } from "../store";
 
 /* ── Burbuja ── */
@@ -409,15 +410,25 @@ export function TypingBubble({ rol }: { rol: Rol }) {
 
 /* ── Composer ── */
 
+/** ¿Ya pasaron las 24 h desde el último mensaje del cliente? Solo con texto libre importa. */
+function ventanaCerrada(ticket: Ticket): boolean {
+  if (!ticket.ventanaCierraEn) return false;
+  return new Date(ticket.ventanaCierraEn).getTime() <= Date.now();
+}
+
 export function Composer({
   ticket,
   nombreCliente = "el cliente",
   onEnviar,
   onTomar,
+  plantillaPendiente = false,
 }: {
   ticket: Ticket;
   nombreCliente?: string;
-  onEnviar: (texto: string) => void;
+  /** Ya se le mandó la plantilla «retomar la venta» y el cliente todavía no contestó. */
+  plantillaPendiente?: boolean;
+  /** Devuelve la promesa del envío: si falla, el texto vuelve al campo y se dice por qué. */
+  onEnviar: (texto: string) => Promise<void> | void;
   onTomar?: () => void;
 }) {
   const [texto, setTexto] = useState("");
@@ -425,6 +436,10 @@ export function Composer({
   // Adjuntar (foto o cotización) habla con el servidor: en el demo no existe.
   const real = useHub((s) => s.dataMode) === "real";
   const [aviso, setAviso] = useState<{ texto: string; error: boolean } | null>(null);
+  // El error de un envío NO se va solo: si el mensaje no salió, el asesor
+  // tiene que enterarse aunque esté mirando para otro lado (Manuel, 22-nov).
+  const [fallo, setFallo] = useState<string | null>(null);
+  const [plantilla, setPlantilla] = useState(false);
   useEffect(() => {
     if (!aviso) return;
     const t = setTimeout(() => setAviso(null), aviso.error ? 6000 : 2500);
@@ -433,20 +448,29 @@ export function Composer({
   // El bot atendiendo NO bloquea el teclado: se escribe siempre y el traspaso
   // ocurre al enviar, que es cuando de verdad hace falta.
   const atiendeBot = ticket.atiende === "bot";
+  const cerrada = real && ventanaCerrada(ticket);
 
   useEffect(() => {
     if (!atiendeBot) ref.current?.focus();
   }, [atiendeBot]);
 
-  function enviar() {
+  async function enviar() {
     const limpio = texto.trim();
     if (!limpio) return;
+    setFallo(null);
     // Primero el traspaso, después el mensaje: si se manda antes, el bot puede
-    // contestar encima en ese hueco.
-    if (atiendeBot) onTomar?.();
-    onEnviar(limpio);
+    // contestar encima en ese hueco. Con la ventana cerrada el mensaje no va a
+    // salir, así que tampoco se le quita el chat al bot.
+    if (atiendeBot && !cerrada) onTomar?.();
     setTexto("");
     ref.current?.focus(); // el teclado no se cierra entre mensajes (WhatsApp)
+    try {
+      await onEnviar(limpio);
+    } catch (error) {
+      // No salió: el texto vuelve al campo para no tener que escribirlo otra vez.
+      setTexto((actual) => actual || limpio);
+      setFallo((error as Error).message || "No se pudo mandar el mensaje.");
+    }
   }
 
   if (ticket.estado === "cerrado") {
@@ -457,31 +481,103 @@ export function Composer({
     );
   }
 
+  const porVentana = cerrada || (fallo !== null && /ventana de 24/i.test(fallo));
+
   return (
-    <div className="relative flex items-center gap-2 px-3 py-3 md:gap-2.5 md:px-5 md:py-3.5">
-      {aviso && (
-        <p role="status" className={`absolute inset-x-3 -top-9 rounded-[6px] px-3 py-1.5 text-center text-[13px] font-medium shadow-pop ${aviso.error ? "bg-signal text-white" : "bg-text text-white"}`}>
-          {aviso.texto}
-        </p>
+    <div className="flex flex-col">
+      {(porVentana || fallo) && (
+        <div role="alert" data-testid="aviso-ventana" className="mx-3 mt-3 flex flex-col gap-2 rounded-[8px] px-3 py-2.5 text-[14px] md:mx-5" style={{ background: "var(--color-signal-tint)", color: "var(--color-signal)" }}>
+          <p className="m-0 font-semibold">
+            {porVentana
+              ? (fallo ?? (plantillaPendiente
+                ? "Ya le mandó la plantilla. Cuando el cliente conteste, se abre otra vez la ventana y puede escribirle."
+                : "Se cerró la ventana de 24 h: un mensaje normal no le va a llegar."))
+              : fallo}
+          </p>
+          {porVentana && real && !plantillaPendiente && (
+            <button type="button" onClick={() => setPlantilla(true)} className="btn-signal h-11 self-start rounded-[6px] px-4 text-[14px]" data-testid="abrir-plantilla">
+              Enviar plantilla para retomar la venta
+            </button>
+          )}
+        </div>
       )}
-      {real && <BotonAdjuntar ticket={ticket} onAviso={(t, error = false) => setAviso({ texto: t, error })} />}
-      <input
-        ref={ref}
-        value={texto}
-        onChange={(e) => setTexto(e.target.value)}
-        onKeyDown={(e) => {
-          if ((e.key === "Enter" || e.key === "Return") && !e.nativeEvent.isComposing) enviar();
-        }}
-        enterKeyHint="send"
-        placeholder={atiendeBot ? `Escribir a ${nombreCliente}… al enviar, contestan ustedes` : `Escribir a ${nombreCliente}…`}
-        aria-label="Mensaje"
-        // 16px en el teléfono: por debajo iOS hace zoom al enfocar.
-        className="h-11 min-w-0 flex-1 rounded-[6px] border border-line bg-bg px-3.5 text-[16px] outline-none transition-colors focus:border-signal md:text-[14px]"
-      />
-      <button onClick={enviar} disabled={!texto.trim()} className="btn-signal h-11 shrink-0 rounded-[6px] px-3.5 text-[14px] md:px-4.5">
-        Enviar
-      </button>
+      <div className="relative flex items-center gap-2 px-3 py-3 md:gap-2.5 md:px-5 md:py-3.5">
+        {aviso && (
+          <p role="status" className={`absolute inset-x-3 -top-9 rounded-[6px] px-3 py-1.5 text-center text-[13px] font-medium shadow-pop ${aviso.error ? "bg-signal text-white" : "bg-text text-white"}`}>
+            {aviso.texto}
+          </p>
+        )}
+        {real && <BotonAdjuntar ticket={ticket} onAviso={(t, error = false) => setAviso({ texto: t, error })} />}
+        <input
+          ref={ref}
+          value={texto}
+          onChange={(e) => setTexto(e.target.value)}
+          onKeyDown={(e) => {
+            if ((e.key === "Enter" || e.key === "Return") && !e.nativeEvent.isComposing) void enviar();
+          }}
+          enterKeyHint="send"
+          placeholder={atiendeBot ? `Escribir a ${nombreCliente}… al enviar, contestan ustedes` : `Escribir a ${nombreCliente}…`}
+          aria-label="Mensaje"
+          // 16px en el teléfono: por debajo iOS hace zoom al enfocar.
+          className="h-11 min-w-0 flex-1 rounded-[6px] border border-line bg-bg px-3.5 text-[16px] outline-none transition-colors focus:border-signal md:text-[14px]"
+        />
+        <button onClick={() => void enviar()} disabled={!texto.trim()} className="btn-signal h-11 shrink-0 rounded-[6px] px-3.5 text-[14px] md:px-4.5">
+          Enviar
+        </button>
+      </div>
+      <AnimatePresence>
+        {plantilla && (
+          <HojaPlantillaRetomar
+            ticket={ticket}
+            onClose={() => setPlantilla(false)}
+            onListo={() => { setPlantilla(false); setFallo(null); setTexto(""); setAviso({ texto: "Plantilla enviada", error: false }); }}
+          />
+        )}
+      </AnimatePresence>
     </div>
+  );
+}
+
+/**
+ * La plantilla aprobada que sí le llega al cliente con la ventana cerrada. Se
+ * muestra tal como la va a leer, con sus dos botones, antes de mandarla.
+ */
+function HojaPlantillaRetomar({ ticket, onClose, onListo }: { ticket: Ticket; onClose: () => void; onListo: () => void }) {
+  const [ocupado, setOcupado] = useState(false);
+  const [error, setError] = useState("");
+  const nombre = ticket.nombre?.trim().split(/\s+/)[0] || "qué tal";
+  const texto = `Hola ${nombre}, le saluda ${negocioActual().nombre}. Quedamos pendientes con las llantas que estaba cotizando. ¿Le gustaría continuar con su compra?`;
+
+  async function enviar() {
+    setOcupado(true);
+    setError("");
+    try {
+      await sendRetomarToChat(ticket.id);
+      onListo();
+    } catch (e) {
+      setError((e as Error).message);
+      setOcupado(false);
+    }
+  }
+
+  return (
+    <Hoja titulo="Retomar la venta" onClose={onClose}>
+      <div className="flex flex-col gap-3 p-4" data-testid="hoja-plantilla">
+        <p className="m-0 text-[13px] text-text2">Le llega aunque hayan pasado más de 24 h. Si contesta, se abre de nuevo la conversación.</p>
+        <div className="bubble bubble-out self-end" style={{ maxWidth: "92%" }}>
+          <p className="m-0 whitespace-pre-wrap">{texto}</p>
+          <div className="mt-2 flex flex-col gap-1">
+            {["Sí, continuar", "Ya no las necesito"].map((b) => (
+              <span key={b} className="block rounded-[6px] px-2.5 py-1 text-center text-[12.5px] font-medium" style={{ border: "1px solid var(--color-line)", background: "var(--color-surface)" }}>{b}</span>
+            ))}
+          </div>
+        </div>
+        {error && <p role="alert" className="m-0 text-[14px] text-signal">{error}</p>}
+        <button type="button" onClick={() => void enviar()} disabled={ocupado} className="btn-signal h-[52px] w-full rounded-[8px] text-[16px]" data-testid="enviar-plantilla">
+          {ocupado ? "Enviando…" : `Enviar a ${ticket.nombre?.trim().split(/\s+/)[0] ?? "el cliente"}`}
+        </button>
+      </div>
+    </Hoja>
   );
 }
 
