@@ -76,7 +76,8 @@ const STOCK: Record<CatalogProduct["availability"], string> = { available: "Hay"
 
 /**
  * «Cotización» desde el chat: busca por la medida del ticket, se elige la
- * llanta y la cantidad, y el PDF le llega al cliente por WhatsApp. Tres toques.
+ * llanta y la cantidad, y la imagen de la cotización (la misma que manda el
+ * bot) le llega al cliente por WhatsApp. Nunca PDF desde el chat. Tres toques.
  */
 function CotizarEnChat({ ticket, onClose, onListo }: { ticket: Ticket; onClose: () => void; onListo: (texto: string) => void }) {
   const [query, setQuery] = useState(ticket.medida ?? "");
@@ -133,7 +134,7 @@ function CotizarEnChat({ ticket, onClose, onListo }: { ticket: Ticket; onClose: 
         </div>
         {error && <p role="alert" className="text-[14px] text-signal">{error}</p>}
         <button type="button" onClick={() => void enviar()} disabled={ocupado} className="btn-signal h-[52px] w-full rounded-[8px] text-[16px]">
-          {ocupado ? "Enviando…" : `Enviar PDF a ${ticket.nombre?.split(/\s+/)[0] ?? "el cliente"}`}
+          {ocupado ? "Enviando…" : `Enviar cotización a ${ticket.nombre?.split(/\s+/)[0] ?? "el cliente"}`}
         </button>
         <button type="button" onClick={() => setElegido(null)} className="btn-quiet h-11 w-full rounded-[8px] text-[14px]">Elegir otra llanta</button>
       </div>
@@ -176,12 +177,13 @@ function CotizarEnChat({ ticket, onClose, onListo }: { ticket: Ticket; onClose: 
 /**
  * «Opciones» y «Comparación» desde el chat: se busca por la medida del ticket,
  * se marcan las llantas y la pieza (la misma imagen que manda el bot) le llega
- * al cliente. Opciones: todas las que hay en stock vienen marcadas y se quitan
- * las que no. Comparación: se marcan dos o tres.
+ * al cliente. Opciones: vienen marcadas las 4 primeras con stock (el tope) y
+ * se cambian tocando. Comparación: se marcan dos o tres.
  */
 function PiezaEnChat({ ticket, modo, onClose, onListo }: { ticket: Ticket; modo: "options" | "comparison"; onClose: () => void; onListo: (texto: string) => void }) {
   const comparar = modo === "comparison";
-  const MAXIMO = comparar ? 3 : 24;
+  // Opciones: máximo 4 por envío (Manuel, 22-nov-2026).
+  const MAXIMO = comparar ? 3 : 4;
   const [query, setQuery] = useState(ticket.medida ?? "");
   const [buscada, setBuscada] = useState(ticket.medida ?? "");
   const [productos, setProductos] = useState<CatalogProduct[] | null>(null);
@@ -260,7 +262,7 @@ function PiezaEnChat({ ticket, modo, onClose, onListo }: { ticket: Ticket; modo:
         <p className="py-6 text-center text-[14px] text-text2">{query.trim() ? "No hay llantas con stock para esa medida." : "Escriba la medida para ver las llantas."}</p>
       ) : (
         <>
-          <p className="text-[13px] text-text2">{comparar ? "Marque dos o tres llantas." : "Quite las que no quiera mandar."}</p>
+          <p className="text-[13px] text-text2">{comparar ? "Marque dos o tres llantas." : `Marque hasta ${MAXIMO} llantas (${marcados.length} de ${MAXIMO}).`}</p>
           <ul className="flex flex-col">
             {productos.map((p) => {
               const marcado = marcados.includes(p.id);
@@ -299,7 +301,7 @@ function PiezaEnChat({ ticket, modo, onClose, onListo }: { ticket: Ticket; modo:
 
 /**
  * El «+» del compositor: foto (cámara o carrete, lo que ofrezca el teléfono),
- * opciones, comparación o cotización en PDF. Lo que se manda le llega al cliente por WhatsApp y, como
+ * opciones, comparación o cotización (imagen). Lo que se manda le llega al cliente por WhatsApp y, como
  * cuando se escribe, la conversación pasa a manos del asesor.
  */
 export function BotonAdjuntar({ ticket, onAviso }: { ticket: Ticket; onAviso: (texto: string, error?: boolean) => void }) {
@@ -365,7 +367,7 @@ export function BotonAdjuntar({ ticket, onAviso }: { ticket: Ticket; onAviso: (t
               <span className={icono}><IconComparar size={20} /></span>Comparación
             </button>
             <button type="button" className={`${fila} border-t border-line`} onClick={() => { setMenu(false); setCotizando(true); }}>
-              <span className={icono}><IconDoc size={20} /></span>Cotización en PDF
+              <span className={icono}><IconDoc size={20} /></span>Cotización
             </button>
           </Hoja>
         )}

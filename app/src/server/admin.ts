@@ -58,6 +58,7 @@ import {
   buildQuote,
   renderComparisonPdf,
   renderQuotePdf,
+  pngToQuotePdf,
 } from "../services/quotePdf.js";
 import {
   buildComparisonMessageDetallado,
@@ -1806,9 +1807,28 @@ export function createAdminRouter(): express.Router {
         input.customerName,
         input.customerPhone,
       );
-      const pdf = await renderQuotePdf(quote);
-      const filename = `Cotizacion-${business.name.replace(/\s/g, "")}-${quote.number}.pdf`;
-      return { quote, pdf, filename, product, quantity };
+      // La misma pieza que manda el bot (22-nov-2026): el PDF clásico de pdfmake
+      // era el «formato viejo» que les llegaba a los clientes desde el panel.
+      // El PDF ahora es esa imagen en una página; el pdfmake queda solo si el
+      // render falla.
+      let png: Buffer | null = null;
+      try {
+        png = await renderQuoteImage({
+          number: quote.number,
+          dateLabel: fechaDePieza(),
+          lines: [await toRenderLine(product, quantity)],
+          subtotal: quote.subtotal,
+          iva: quote.tax,
+          total: quote.total,
+          benefits: await applicableBenefitTexts({ brands: [product.brand], quantity }),
+          ...(await temaDePiezas()),
+        });
+      } catch (error) {
+        console.error(`❌ render de la cotización ${quote.number} falló; sale el PDF clásico:`, error);
+      }
+      const pdf = png ? await pngToQuotePdf(png) : await renderQuotePdf(quote);
+      const base = `Cotizacion-${business.name.replace(/\s/g, "")}-${quote.number}`;
+      return { quote, png, pdf, filename: `${base}.pdf`, pngFilename: `${base}.png`, product, quantity };
   }
 
   router.post("/catalog/quote-pdf", async (req, res) => {
@@ -2070,10 +2090,12 @@ export function createAdminRouter(): express.Router {
   // descargarse. Con esto el teléfono ya no necesita la pestaña Cotizador.
   // Se guarda igual que cuando la manda el bot (`piece` + `codes`): que el
   // cliente vio esas opciones es un hecho, lo haya mandado quien lo haya mandado.
+  const MAX_OPCIONES_CHAT = 4;
   const PiezaDelChatSchema = z.discriminatedUnion("piece", [
     z.object({
       piece: z.literal("options"),
-      items: z.array(z.object({ id: z.string().min(1).max(80) })).min(1).max(24),
+      // Máximo 4 opciones por envío (Manuel, 22-nov-2026).
+      items: z.array(z.object({ id: z.string().min(1).max(80) })).min(1).max(MAX_OPCIONES_CHAT),
       medidaPedida: z.string().max(40).optional(),
     }),
     z.object({
@@ -2105,10 +2127,10 @@ export function createAdminRouter(): express.Router {
             products: lineas, ...(await temaDePiezas()),
           });
       } catch (error) {
-        // Un pedido mal formado (una sola llanta para comparar, más de 24 opciones)
+        // Un pedido mal formado (una sola llanta para comparar, más de 4 opciones)
         // se dice en cristiano, no con el detalle interno de la validación.
         const texto = error instanceof z.ZodError
-          ? "Elige entre 1 y 24 llantas para las opciones, o 2 o 3 para comparar."
+          ? `Elige entre 1 y ${MAX_OPCIONES_CHAT} llantas para las opciones, o 2 o 3 para comparar.`
           : mensaje(error, "No se pudo armar la pieza");
         return res.status(400).json({ ok: false, error: texto });
       }
@@ -2150,7 +2172,9 @@ export function createAdminRouter(): express.Router {
 
   router.post("/conversations/:id/send-quote", async (req, res) => {
     try {
-      const conversation = await conversacionParaAdjuntar(req, res, "pdf");
+      // Desde el chat (teléfono o escritorio) la cotización sale SIEMPRE como
+      // imagen, igual que cuando cotiza el bot (Manuel, 22-nov-2026).
+      const conversation = await conversacionParaAdjuntar(req, res, "image");
       if (!conversation) return;
       let armada: Awaited<ReturnType<typeof cotizacionDelPanel>>;
       try {
@@ -2162,8 +2186,12 @@ export function createAdminRouter(): express.Router {
       } catch (error) {
         return res.status(400).json({ ok: false, error: mensaje(error, "No se pudo armar la cotización") });
       }
-      const { quote, pdf, filename, product, quantity } = armada;
-      const providerId = await sendPdf(conversation.id, conversation.phone, pdf, filename, "Su cotización 📄", "owner");
+      const { quote, png, pngFilename, product, quantity } = armada;
+      if (!png) {
+        return res.status(502).json({ ok: false, error: "No se pudo dibujar la imagen de la cotización. Intente de nuevo." });
+      }
+      const filename = pngFilename;
+      const providerId = await sendImage(conversation.id, conversation.phone, png, "Su cotización 🏁", filename, "owner");
       // Igual que cuando cotiza el bot: queda en `quotes` (cuenta en Métricas y
       // el chat puede volver a dibujar la pieza desde ahí).
       await logQuote(conversation.id, quote.lines, quote.subtotal, quote.tax, quote.total, quote.number);
@@ -2173,12 +2201,20 @@ export function createAdminRouter(): express.Router {
         `Cotización ${quote.number} enviada por $${quote.total.toFixed(2)} · ${quantity} × ${product.brand} ${product.design}`,
         providerId,
         {
-          type: "pdf",
+          type: "image",
           authorKind: "owner",
           status: "sent",
           metadata: { autor: quienEnElPanel(req), piece: "quote", filename, quoteNumber: quote.number, codes: [product.code], quantity, origen: "panel" },
         },
       );
+      // La pieza ya está dibujada: queda en memoria para que el chat la abra al instante.
+      if (providerId) {
+        const [guardado] = await sql<{ id: number }[]>`select id from messages where wa_message_id = ${providerId}`;
+        if (guardado) {
+          guardarPieza(`${Number(guardado.id)}:grande`, png);
+          guardarPieza(`${Number(guardado.id)}:chica`, achicarPieza(png, 560));
+        }
+      }
       await trasAdjuntar(req, conversation.id, { adjunto: "cotizacion", cotizacion: quote.number, total: quote.total });
       res.json({ ok: true, id: providerId ?? null, numero: quote.number, total: quote.total });
     } catch (error) {
