@@ -10,6 +10,20 @@
 - **Probado:** simulador de iOS contra el simulador del bot en `--stub`: comparación de 2 y opciones de 4 enviadas
   y dibujadas en el chat; la barra ya no trae Cotizador. `tsc` de app y hub; suite completa.
 - **Horas:** 0.7.
+## 22-nov-2026 · Panel · Una cuenta nueva entra sin enlace de invitación (rama `fix/instalar-app-para-todos`)
+
+- **Qué:** una cuenta pendiente se activa eligiendo su nombre en el login, creando su clave y dejando su email. El
+  enlace de invitación (19-nov) ya no es obligatorio: sigue existiendo como atajo (deja el nombre elegido) y uno viejo
+  no bloquea. Una cuenta con clave sigue sin poder re-activarse. Textos de Ajustes → Usuarios al día; `app/site`
+  recompilado.
+- **Por qué:** a Joaquín (y a Jenny) en Competimotor el login les pedía «el enlace de invitación que te mandaron», y
+  la app instalada en el teléfono abre sin el `?invitacion=` aunque se haya instalado desde el enlace. Manuel pidió
+  que funcione para todos sin complicarse. Contrapartida aceptada: quien tenga la dirección del panel puede activar
+  una cuenta todavía pendiente antes que su dueño.
+- **Probado:** `test/invitacionHub.integration.test.ts` reescrito (8/8; 4 fallan con el código anterior). Suite
+  completa: 4576 pasan; fallan `bitacoraDelPanel`, `hashesPiezasDepot`, `unidadEnLaCantidad` (ya estaban en `main`) y
+  `buscarPorAroCompleto` (pide el catálogo del simulador, que no existe en un worktree nuevo).
+- **Horas:** 0,5.
 
 ## 22-nov-2026 · Panel · App del teléfono: cotizar, adjuntar, validar, métricas simples y avisos (rama `feat/movil-app`)
 
