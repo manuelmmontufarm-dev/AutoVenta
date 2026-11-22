@@ -73,7 +73,8 @@ function armarPasos(input: {
         + "hacer clic: dentro de 24 h el bot todavía puede contestar; fuera, sólo ustedes. Podés arrastrar "
         + "una tarjeta si algo cambió.",
     },
-    phases.fase3 && permisos.usarCotizador && {
+    // Tampoco el Cotizador: en el teléfono se cotiza desde el «+» del chat.
+    phases.fase3 && permisos.usarCotizador && !window.matchMedia("(max-width: 767px)").matches && {
       id: "cotizador",
       vista: "cotizador",
       objetivo: "nav-cotizador",

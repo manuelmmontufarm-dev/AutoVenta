@@ -2058,6 +2058,89 @@ export function createAdminRouter(): express.Router {
     }
   });
 
+  // «Opciones» y «Comparación» desde el «+» del chat (22-nov-2026, tarde): la
+  // misma pieza que dibuja el Cotizador, pero se le manda al cliente en vez de
+  // descargarse. Con esto el teléfono ya no necesita la pestaña Cotizador.
+  // Se guarda igual que cuando la manda el bot (`piece` + `codes`): que el
+  // cliente vio esas opciones es un hecho, lo haya mandado quien lo haya mandado.
+  const PiezaDelChatSchema = z.discriminatedUnion("piece", [
+    z.object({
+      piece: z.literal("options"),
+      items: z.array(z.object({ id: z.string().min(1).max(80) })).min(1).max(24),
+      medidaPedida: z.string().max(40).optional(),
+    }),
+    z.object({
+      piece: z.literal("comparison"),
+      items: z.array(z.object({ id: z.string().min(1).max(80) })).min(2).max(3),
+    }),
+  ]);
+
+  router.post("/conversations/:id/send-piece", async (req, res) => {
+    try {
+      const conversation = await conversacionParaAdjuntar(req, res, "image");
+      if (!conversation) return;
+      let png: Buffer;
+      let products: ReturnType<typeof resolveCatalogProducts>;
+      let input: z.infer<typeof PiezaDelChatSchema>;
+      let sizeLabel: string | null = null;
+      try {
+        await ensureCatalogReady();
+        input = PiezaDelChatSchema.parse(req.body);
+        products = resolveCatalogProducts(input.items.map(({ id }) => id));
+        const medidas = new Set(products.map((p) => p.sizeLabel).filter(Boolean));
+        sizeLabel = medidas.size === 1 ? (products[0]?.sizeLabel ?? null) : null;
+        const lineas = await Promise.all(products.map((p) => toRenderLine(p)));
+        png = input.piece === "comparison"
+          ? await renderCompareImage({ dateLabel: fechaDePieza(), sizeLabel: products[0]?.sizeLabel ?? null, products: lineas, ...(await temaDePiezas()) })
+          : await renderOptionsImage({
+            dateLabel: fechaDePieza(), sizeLabel,
+            medidaPedida: input.medidaPedida?.trim() || null,
+            products: lineas, ...(await temaDePiezas()),
+          });
+      } catch (error) {
+        // Un pedido mal formado (una sola llanta para comparar, más de 24 opciones)
+        // se dice en cristiano, no con el detalle interno de la validación.
+        const texto = error instanceof z.ZodError
+          ? "Elige entre 1 y 24 llantas para las opciones, o 2 o 3 para comparar."
+          : mensaje(error, "No se pudo armar la pieza");
+        return res.status(400).json({ ok: false, error: texto });
+      }
+      const esComparacion = input.piece === "comparison";
+      const nombres = products.map((p) => `${p.brand} ${p.design}`);
+      const filename = `${esComparacion ? "Comparativa" : "Opciones"}-${business.name.replace(/\s/g, "")}.png`;
+      const providerId = await sendImage(conversation.id, conversation.phone, png, undefined, filename, "owner");
+      await appendMessage(
+        conversation.id,
+        "assistant",
+        esComparacion ? `Comparativa enviada: ${nombres.join(" vs ")}` : `Opciones enviadas: ${nombres.join(", ")}`,
+        providerId,
+        {
+          type: "image",
+          authorKind: "owner",
+          status: "sent",
+          metadata: {
+            autor: quienEnElPanel(req), piece: input.piece, filename, origen: "panel",
+            codes: products.map((p) => p.code),
+            ...(input.piece === "options" ? { sizeLabel: input.medidaPedida?.trim() || sizeLabel } : {}),
+          },
+        },
+      );
+      // La pieza ya está dibujada: queda en memoria para que el chat la abra al instante.
+      if (providerId) {
+        const [guardado] = await sql<{ id: number }[]>`select id from messages where wa_message_id = ${providerId}`;
+        if (guardado) {
+          guardarPieza(`${Number(guardado.id)}:grande`, png);
+          guardarPieza(`${Number(guardado.id)}:chica`, achicarPieza(png, 560));
+        }
+      }
+      await trasAdjuntar(req, conversation.id, { adjunto: input.piece, productos: products.map((p) => p.code) });
+      res.json({ ok: true, id: providerId ?? null, productos: products.length });
+    } catch (error) {
+      console.error("❌ send-piece:", error);
+      res.status(502).json({ ok: false, error: mensaje(error, "No se pudo enviar la pieza") });
+    }
+  });
+
   router.post("/conversations/:id/send-quote", async (req, res) => {
     try {
       const conversation = await conversacionParaAdjuntar(req, res, "pdf");

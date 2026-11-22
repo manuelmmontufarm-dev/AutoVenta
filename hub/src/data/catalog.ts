@@ -311,6 +311,20 @@ export function sendQuoteToChat(ticketId: number, product: CatalogProduct, quant
   return postJson(`/api/conversations/${ticketId}/send-quote`, { item: { id: product.id, quantity } });
 }
 
+/** Manda la imagen de opciones o la comparativa al cliente de ese ticket. */
+export function sendPieceToChat(
+  ticketId: number,
+  piece: "options" | "comparison",
+  products: readonly CatalogProduct[],
+  medidaPedida?: string,
+): Promise<{ ok: true; productos: number }> {
+  return postJson(`/api/conversations/${ticketId}/send-piece`, {
+    piece,
+    items: products.map(({ id }) => ({ id })),
+    ...(piece === "options" && medidaPedida?.trim() ? { medidaPedida: medidaPedida.trim() } : {}),
+  });
+}
+
 /** La foto como JPEG, achicada para que no pese: `lado` es el máximo del lado largo. */
 async function fotoAJpeg(archivo: Blob, lado: number, calidad: number): Promise<string> {
   const bitmap = await createImageBitmap(archivo);
