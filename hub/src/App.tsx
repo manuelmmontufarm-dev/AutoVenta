@@ -40,7 +40,9 @@ const NAV: readonly { id: string; label: string; icon: typeof IconInbox; requier
   // tarjetas con el dedo (Manuel, 22-nov). `soloEscritorio` lo saca de la barra.
   { id: "pipeline", label: "Pipeline", icon: IconKanban, requiere: null, soloEscritorio: true },
   { id: "para-cerrar", label: "Para cerrar", icon: IconDiana, requiere: null },
-  { id: "cotizador", label: "Cotizador", icon: IconTire, requiere: "fase3" },
+  // En el teléfono se cotiza desde el «+» del chat (opciones, comparación y
+  // cotización en PDF): la pestaña queda solo para el escritorio (Manuel, 22-nov).
+  { id: "cotizador", label: "Cotizador", icon: IconTire, requiere: "fase3", soloEscritorio: true },
   // «Validar»: el vendedor valida el número de un comprador. Solo para quien
   // tiene el permiso en Ajustes → Usuarios (Depot no lo usa).
   { id: "validar", label: "Validar", icon: IconPhone, requiere: null },
@@ -156,7 +158,7 @@ export default function App() {
     }
   }, [route.vista, phases, permisos, porArchivo, inventario.porArchivo]);
 
-  // En el teléfono el Pipeline no existe: un enlace viejo cae en el Inbox.
+  // En el teléfono Pipeline y Cotizador no existen: un enlace viejo cae en el Inbox.
   useEffect(() => {
     if (movil && NAV.some((n) => n.soloEscritorio && n.id === route.vista)) navigate("inbox");
   }, [movil, route.vista]);

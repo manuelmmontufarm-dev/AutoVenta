@@ -1,3 +1,15 @@
+## 22-nov-2026 · Panel · Teléfono: opciones y comparación desde el «+» del chat; sin pestaña Cotizador (rama `feat/movil-opciones-chat`)
+
+- **Qué:** el «+» del chat ahora tiene cuatro cosas: foto, **Opciones**, **Comparación** y cotización en PDF.
+  Opciones y Comparación buscan por la medida del ticket, se marcan las llantas (opciones: todas las que hay en
+  stock vienen marcadas; comparación: dos o tres) y la pieza —la misma imagen que manda el bot— le llega al cliente
+  (`POST /conversations/:id/send-piece`). Se guarda como la del bot (`piece` + `codes`) y queda en memoria para que
+  el chat la abra al instante. En el teléfono desaparece la pestaña **Cotizador** (en escritorio sigue): un enlace
+  viejo cae en el Inbox.
+- **Por qué:** Manuel, 22-nov: con las opciones y la comparación en el «+», la pestaña de cotizar sobra en el móvil.
+- **Probado:** simulador de iOS contra el simulador del bot en `--stub`: comparación de 2 y opciones de 4 enviadas
+  y dibujadas en el chat; la barra ya no trae Cotizador. `tsc` de app y hub; suite completa.
+- **Horas:** 0.7.
 ## 22-nov-2026 · Panel · Una cuenta nueva entra sin enlace de invitación (rama `fix/instalar-app-para-todos`)
 
 - **Qué:** una cuenta pendiente se activa eligiendo su nombre en el login, creando su clave y dejando su email. El
