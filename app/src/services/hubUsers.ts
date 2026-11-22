@@ -45,6 +45,14 @@ export function estadoClave(u: Pick<UsuarioHub, "claveCompartida" | "pinHash">):
   return u.claveCompartida ? "compartida" : "pendiente";
 }
 
+/**
+ * «Validar números» (22-nov-2026, tarde): nace PRENDIDO en todo negocio que no
+ * sea Depot. Depot cruza las ventas con Contífico y no la usa; Competimotor sí
+ * (Manuel: «no me sale el Validar en la app de Competi»). Se puede apagar por
+ * usuario en Ajustes → Usuarios.
+ */
+const VALIDAR_POR_DEFECTO = negocio.id !== "depot";
+
 const PermisosSchema = z.object({
   verInbox: z.boolean().default(true),
   verKanban: z.boolean().default(true),
@@ -54,11 +62,12 @@ const PermisosSchema = z.object({
   usarCotizador: z.boolean().default(true),
   verAjustes: z.boolean().default(true),
   verErrores: z.boolean().default(true),
-  // Nace apagado: ver `Permisos.validarNumeros`.
-  validarNumeros: z.boolean().default(false),
+  // Ver `Permisos.validarNumeros`: prendido en los negocios sin sistema contable
+  // (Competimotor), apagado en Depot.
+  validarNumeros: z.boolean().default(VALIDAR_POR_DEFECTO),
 });
 
-export const PERMISOS_COMPLETOS: Permisos = { verInbox: true, verKanban: true, verOportunidades: true, verMetricas: true, verFinanzas: true, usarCotizador: true, verAjustes: true, verErrores: true, validarNumeros: false };
+export const PERMISOS_COMPLETOS: Permisos = { verInbox: true, verKanban: true, verOportunidades: true, verMetricas: true, verFinanzas: true, usarCotizador: true, verAjustes: true, verErrores: true, validarNumeros: VALIDAR_POR_DEFECTO };
 
 /**
  * El id es el username del desplegable: minúsculas y sin espacios para que

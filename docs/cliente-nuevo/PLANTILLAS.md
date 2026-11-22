@@ -31,9 +31,14 @@ minutos hasta 24 horas en aprobarlas, así que se envían **antes** de probar el
 | `seguimiento_opciones_v1` | Vio opciones y no eligió | nombre, medida | |
 | `recordatorio_visita_v1` | Tiene visita mañana | nombre, día, local, medida | «Sí voy» · «Cambiar día» |
 | `visita_no_llego_v1` | Dijo que venía y no llegó | ver el archivo JSON usado | «Agendar otro día» · «Ya no las necesito» |
+| `retomar_venta_v1` | El asesor la manda a mano desde el chat cuando se cerró la ventana de 24 h | nombre, nombre del negocio | «Sí, continuar» · «Ya no las necesito» |
 
 Las tres primeras son las que el código ya trae en la tabla `follow_up_templates`. La cuarta existe
-en Meta pero todavía no tiene disparador en el código (ver «Lo que falta», abajo).
+en Meta pero todavía no tiene disparador en el código (ver «Lo que falta», abajo). La quinta,
+`retomar_venta_v1`, no la manda el bot: la manda el asesor con el botón «Enviar plantilla para retomar
+la venta» del chat del panel, que aparece cuando la ventana de 24 h se cerró (22-nov-2026). Es un
+nombre fijo en el código (`PLANTILLA_RETOMAR` en `app/src/server/admin.ts`): un cliente nuevo tiene
+que crearla en su WABA con el mismo nombre. El archivo JSON está en la bitácora del 22-nov.
 
 Si el cliente tiene **un solo local**, el nombre del local se escribe fijo en el texto y la
 plantilla lleva un hueco menos (así se hizo en Competimotor: «en Competimotor»).
@@ -83,6 +88,8 @@ cliente con la tarjeta de su cuenta de WhatsApp. Sin tarjeta, Meta no envía pla
 | Depot Tire | `970823328872837` | `visita_no_llego_v1` | `1168267625538604` | 18-nov-2026 | PENDING al enviar · falta confirmar |
 | Competimotor | `847835534545450` | `recordatorio_visita_v1` | `1680661520324356` | 18-nov-2026 | PENDING al enviar · falta confirmar |
 | Competimotor | `847835534545450` | `visita_no_llego_v1` | `1679376043547704` | 18-nov-2026 | PENDING al enviar · falta confirmar |
+| Competimotor | `847835534545450` | `retomar_venta_v1` | `1860460948304638` | 22-nov-2026 | PENDING al enviar (UTILITY) · falta confirmar |
+| Depot Tire | `970823328872837` | `retomar_venta_v1` | `1616297076393510` | 22-nov-2026 | PENDING al enviar (UTILITY) · falta confirmar |
 
 Sin revisar todavía en ninguno de los dos clientes: si `seguimiento_cotizacion_v1` y
 `seguimiento_opciones_v1` existen y están aprobadas en Meta. Se comprueba con el paso 5.

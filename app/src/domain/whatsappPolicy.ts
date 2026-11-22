@@ -63,7 +63,11 @@ export function evaluateOutboundPolicy(input: OutboundPolicyInput): OutboundDeci
     return { allowed: false, code: "human_control", windowClosesAt };
   }
   if (input.contentType === "template") {
-    if (input.requireConsent && !input.customerOptIn && input.actor !== "visit_reminder") {
+    // `owner` (22-nov-2026): la plantilla «retomar la venta» la manda un asesor a
+    // mano, una vez, desde el chat de un cliente que ya le escribió al negocio.
+    // No es una campaña: el consentimiento de seguimientos automáticos no aplica.
+    // El opt-out y la molestia sí la frenan (arriba), como a todo.
+    if (input.requireConsent && !input.customerOptIn && input.actor !== "visit_reminder" && input.actor !== "owner") {
       return { allowed: false, code: "consent_required", windowClosesAt };
     }
     return { allowed: true, code: "allowed_template", windowClosesAt };

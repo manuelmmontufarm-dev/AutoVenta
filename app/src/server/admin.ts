@@ -166,7 +166,9 @@ import {
   usuariosHub,
   type UsuarioHub,
 } from "../services/hubUsers.js";
-import { sendImage, sendPdf, reloadWa, listarPlantillasDeMeta } from "../wa/client.js";
+import { sendApprovedTemplate, sendImage, sendPdf, reloadWa, listarPlantillasDeMeta } from "../wa/client.js";
+import { negocio } from "../negocio/index.js";
+import { nombreDelResponsable } from "./privacidad.js";
 import { enviarAvisoDeLaManana, getAvisoManana, saveAvisoManana, ultimoResultadoAvisoManana } from "../services/avisoDeLaManana.js";
 import { sincronizarPlantillas } from "../services/plantillasMeta.js";
 import { registrarEnviado } from "../wa/outboundRegistry.js";
@@ -241,6 +243,11 @@ const QuoteSchema = z.object({
   customerName: z.string().max(120).default("Cliente"),
   customerPhone: z.string().max(30).default(""),
 });
+
+/** Lo que ve el asesor cuando escribe y la ventana de 24 h ya se cerró (Manuel, 22-nov-2026). */
+const VENTANA_CERRADA = "No se pudo mandar el mensaje porque se cerró la ventana de 24 h. Puede mandarle la plantilla para retomar la venta.";
+/** La plantilla aprobada que sí sale con la ventana cerrada (en cada WABA, mismo nombre). */
+const PLANTILLA_RETOMAR = "retomar_venta_v1";
 
 /** `data:image/jpeg;base64,…` → los bytes; null si no es eso (foto adjunta desde el chat del panel). */
 function miniaturaABuffer(valor: unknown): Buffer | null {
@@ -1958,7 +1965,7 @@ export function createAdminRouter(): express.Router {
       return res.status(409).json({
         ok: false,
         error: decision.code === "window_closed"
-          ? "La ventana de 24 h está cerrada. Selecciona una plantilla aprobada; no se enviará texto libre."
+          ? VENTANA_CERRADA
           : `Envío bloqueado por seguridad: ${decision.code}`,
         policyCode: decision.code,
         windowClosesAt: decision.windowClosesAt?.toISOString() ?? null,
@@ -2007,7 +2014,7 @@ export function createAdminRouter(): express.Router {
       res.status(409).json({
         ok: false,
         error: decision.code === "window_closed"
-          ? "La ventana de 24 h está cerrada: el cliente tiene que escribir primero."
+          ? VENTANA_CERRADA
           : `Envío bloqueado por seguridad: ${decision.code}`,
         policyCode: decision.code,
       });
@@ -2177,6 +2184,69 @@ export function createAdminRouter(): express.Router {
     } catch (error) {
       console.error("❌ send-quote:", error);
       res.status(502).json({ ok: false, error: mensaje(error, "No se pudo enviar la cotización") });
+    }
+  });
+
+  // ── «Retomar la venta»: la plantilla que sí sale con la ventana cerrada ──
+  // (22-nov-2026). Manuel: «que tengamos una plantilla aprobada simple que
+  // podamos mandar ahí». Texto fijo aprobado por Meta en cada WABA
+  // (`retomar_venta_v1`, ver docs/cliente-nuevo/PLANTILLAS.md) con dos botones:
+  // «Sí, continuar» y «Ya no las necesito» (no «No, gracias»: para el bot eso
+  // significa «quiero otra opción», no «ya no quiero»).
+  router.post("/conversations/:id/send-retomar", async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return res.status(400).json({ ok: false, error: "Conversación inválida" });
+    const [conversation] = await sql<{ id: number; phone: string; name: string | null }[]>`
+      select id, phone, name from conversations where id = ${id}
+    `;
+    if (!conversation) return res.status(404).json({ ok: false, error: "Conversación no encontrada" });
+    const decision = await authorizeConversationOutbound({ conversationId: id, contentType: "template", actor: "owner" });
+    if (!decision.allowed) {
+      const motivo: Record<string, string> = {
+        opted_out: "El cliente pidió que no le escriban: no se le puede mandar la plantilla.",
+        negative_sentiment: "El cliente estaba molesto: no se le manda la plantilla. Mejor llámelo.",
+        conversation_closed: "El ticket está cerrado: reábralo para escribirle.",
+      };
+      return res.status(409).json({ ok: false, error: motivo[decision.code] ?? `No se puede mandar la plantilla: ${decision.code}`, policyCode: decision.code });
+    }
+    const nombre = conversation.name?.trim().split(/\s+/)[0] || "";
+    // Meta no acepta un hueco vacío: sin nombre va un saludo neutro.
+    const variables = [nombre || "qué tal", nombreDelResponsable(negocio)];
+    try {
+      const providerId = await sendApprovedTemplate({
+        conversationId: id,
+        to: conversation.phone,
+        templateName: PLANTILLA_RETOMAR,
+        language: "es",
+        variables,
+        callbackData: `retomar_venta:${id}`,
+        actor: "owner",
+      });
+      const texto = `Hola ${variables[0]}, le saluda ${variables[1]}. Quedamos pendientes con las llantas que estaba cotizando. ¿Le gustaría continuar con su compra?`;
+      await appendMessage(id, "assistant", texto, providerId, {
+        authorKind: "owner",
+        status: "sent",
+        metadata: {
+          autor: quienEnElPanel(req), plantilla: PLANTILLA_RETOMAR,
+          botones: [{ id: "retomar_si", titulo: "Sí, continuar" }, { id: "retomar_no", titulo: "Ya no las necesito" }],
+        },
+      });
+      await registrarAccion(id, "mensaje", quienEnElPanel(req), { plantilla: PLANTILLA_RETOMAR });
+      await pauseBot(id, undefined, "persona_escribio");
+      await setConversationAssignee(id, "human", "persona_escribio");
+      emitLiveEvent("message", id);
+      emitLiveEvent("sync", id);
+      res.json({ ok: true, id: providerId ?? null });
+    } catch (error) {
+      const crudo = mensaje(error, "");
+      console.error("❌ send-retomar:", crudo);
+      // 132001 = la plantilla no existe (o no está aprobada) en esta cuenta.
+      const texto = /132001|132000|does not exist|not approved|template name/i.test(crudo)
+        ? "La plantilla para retomar la venta todavía no está aprobada por Meta. Pruebe más tarde."
+        : /131042|payment/i.test(crudo)
+          ? "WhatsApp no envía plantillas: la cuenta no tiene método de pago."
+          : `No se pudo mandar la plantilla. ${crudo}`.trim();
+      res.status(502).json({ ok: false, error: texto });
     }
   });
 

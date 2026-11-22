@@ -239,7 +239,12 @@ export function TicketDetail({ id }: { id: number }) {
             <Composer
               ticket={ticket}
               nombreCliente={nombre}
-              onEnviar={(texto) => void enviarMensaje(ticket.id, texto)}
+              onEnviar={(texto) => enviarMensaje(ticket.id, texto)}
+              // La plantilla «retomar la venta» salió después del último mensaje del cliente.
+              plantillaPendiente={(() => {
+                const ultimoCliente = msgs.reduce((t, m) => (m.rol === "cliente" ? Math.max(t, new Date(m.hora).getTime()) : t), 0);
+                return msgs.some((m) => (m.metadata as { plantilla?: string } | undefined)?.plantilla === "retomar_venta_v1" && new Date(m.hora).getTime() > ultimoCliente);
+              })()}
               onTomar={() => void setAtiende(ticket.id, "humano")}
             />
           </div>

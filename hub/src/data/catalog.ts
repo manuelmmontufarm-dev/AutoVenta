@@ -311,6 +311,11 @@ export function sendQuoteToChat(ticketId: number, product: CatalogProduct, quant
   return postJson(`/api/conversations/${ticketId}/send-quote`, { item: { id: product.id, quantity } });
 }
 
+/** La plantilla aprobada «retomar la venta»: sale aunque la ventana de 24 h esté cerrada. */
+export function sendRetomarToChat(ticketId: number): Promise<{ ok: true }> {
+  return postJson(`/api/conversations/${ticketId}/send-retomar`, {});
+}
+
 /** Manda la imagen de opciones o la comparativa al cliente de ese ticket. */
 export function sendPieceToChat(
   ticketId: number,

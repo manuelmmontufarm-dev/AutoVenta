@@ -1,3 +1,24 @@
+## 22-nov-2026 · Panel · Ventana de 24 h cerrada: aviso claro y plantilla para retomar; Validar visible en Competimotor (rama `feat/ventana-plantilla-validar`)
+
+- **Qué:**
+  - Si el asesor escribe y la ventana de 24 h está cerrada, el chat dice «No se pudo mandar el mensaje porque se
+    cerró la ventana de 24 h» y el texto vuelve al campo. Antes el error se perdía en silencio. Si la ventana ya
+    está cerrada al abrir el chat, el aviso sale antes de escribir.
+  - Botón «Enviar plantilla para retomar la venta»: muestra el texto tal cual y manda `retomar_venta_v1`
+    (`POST /conversations/:id/send-retomar`). Creada en Meta para Competimotor y Depot como UTILITY; al subir seguía PENDING (Meta tarda de minutos a 24 h).
+    Texto: «Hola {{1}}, le saluda {{2}}. Quedamos pendientes con las llantas que estaba cotizando. ¿Le gustaría
+    continuar con su compra?» · botones «Sí, continuar» / «Ya no las necesito» (no «No, gracias»: para el bot eso
+    es «quiero otra opción»). Tras mandarla, el aviso dice que espere la respuesta.
+  - La política deja que un asesor (`owner`) mande una plantilla sin el consentimiento de seguimientos (es un
+    mensaje a mano, no una campaña); el opt-out y la molestia la siguen frenando.
+  - «Validar números» nace prendido en todo negocio que no sea Depot. Los usuarios de Competimotor no tenían la
+    llave guardada, así que les aparece sin tocar la base.
+- **Por qué:** Manuel, 22-nov: el mensaje no salía y no se enteraba; quería una plantilla simple para retomar; y
+  Validar no le aparecía en la app de Competimotor.
+- **Probado:** simulador de iOS: aviso previo, error al enviar, vista previa y envío de la plantilla, aviso de
+  «espere la respuesta», Validar visible sin permiso a mano. `whatsappPolicy` (+3), `validarPorNegocio` (1), `auth`.
+- **Horas:** 1.
+
 ## 22-nov-2026 · Panel · Teléfono: opciones y comparación desde el «+» del chat; sin pestaña Cotizador (rama `feat/movil-opciones-chat`)
 
 - **Qué:** el «+» del chat ahora tiene cuatro cosas: foto, **Opciones**, **Comparación** y cotización en PDF.
