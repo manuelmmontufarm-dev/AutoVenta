@@ -1,3 +1,36 @@
+## 22-nov-2026 · Panel · App del teléfono: cotizar, adjuntar, validar, métricas simples y avisos (rama `feat/movil-app`)
+
+- **Qué (teléfono):** la barra de abajo ya no trae Pipeline; botón de refrescar arriba; el chat separa los días con
+  una pastilla «Hoy / Ayer / 3 de diciembre»; Métricas muestra solo los números grandes y cada detalle queda plegado
+  (la nota de cada número aparece al tocarlo); los campos ya no hacen zoom al enfocarse en iOS; el tour ya no se sale
+  de la pantalla.
+- **Qué (cotizar):** en el Cotizador, «Cotizar esta llanta» abre una hoja con − / + y **Compartir PDF** (la hoja de
+  compartir del teléfono → WhatsApp). En el chat, un **«+»** adjunta una foto (cámara o carrete) o manda una
+  **cotización en PDF** al cliente sin salir de la conversación (`POST /conversations/:id/send-image` y
+  `/send-quote`; misma política de 24 h que el texto del asesor, y la cotización queda en `quotes`).
+- **Qué (validar):** pestaña **Validar** = la página `/venta` dentro del panel, con el usuario que entró como
+  vendedor. La abre el permiso nuevo `validarNumeros` (Ajustes → Usuarios → «Validar números»), que nace APAGADO:
+  Depot no la ve. Los permisos se refrescan sin volver a entrar.
+- **Qué (avisos):** pantalla **Avisos** (campana): historial por día con hora y por dónde salió cada uno. Quien
+  activa las notificaciones en su teléfono deja de recibir por WhatsApp «cotización enviada» y «venta confirmada»:
+  le llegan por la app (`services/avisosEnLaApp.ts`, migración 038, `web-push`). Lo urgente sigue por WhatsApp a
+  todos y además suena en la app. Si la app no recibe el aviso, sale por WhatsApp. Cita agendada, Excel de stock y
+  resumen del día se quedan en WhatsApp (decisión de Manuel).
+- **Por qué:** Manuel instaló el panel como app en el teléfono (22-nov) y pidió simplificarlo para los vendedores.
+- **Probado:** en el simulador de iOS (iPhone 17 Pro) contra el simulador del bot en `--stub`: barra, refrescar,
+  divisores, Métricas, Validar de punta a punta, hoja de cotizar + hoja de compartir de iOS, «+» del chat con
+  cotización enviada, y Avisos. `test/avisosEnLaApp.integration.test.ts` (7) + avisos, fidelidad y perfil ajeno
+  (102/102); `tsc` de app y hub; humo del simulador ✅. Enviar una foto del carrete destapó un HTTP 413 (el JSON
+  general corta en 100 kB) que quedó arreglado con un tipo de contenido propio. La suite completa deja 3 fallos que
+  ya estaban en `main` (`bitacoraDelPanel`, `hashesPiezasDepot`, `unidadEnLaCantidad`). **Sin probar:** la llegada
+  de una notificación real a un teléfono (el simulador de iOS no instala la app web ni recibe push).
+- **Rápido (misma tarde):** la vista previa de una cotización en el chat tardaba ~1 s y pesaba ~900 kB cada vez
+  (se redibuja desde los códigos). Ahora queda 30 min en memoria (`services/piezasDelChat.ts`: la segunda vez <1 ms),
+  la burbuja pide una versión de 560 px (~180 kB) y solo cuando está a la vista; la grande baja al ampliar. La
+  miniatura de una foto ya no viaja en la lista de mensajes (iban 60 kB en cada refresco de 4 s). La cotización
+  enviada desde el chat queda en `quotes`, así que se ve con su diseño. `test/piezasDelChat.test.ts` (5).
+- **Horas:** 3,5.
+
 ## 21-nov-2026 · Panel · Todo cambio del panel queda con nombre (rama `fix/auditar-todo`)
 
 - **Qué:** middleware `registrarCambioDelPanel` después del login: todo POST/PUT/PATCH/DELETE de `/api` (incluidas

@@ -58,6 +58,8 @@ export interface Permisos {
   usarCotizador: boolean;
   verAjustes: boolean;
   verErrores: boolean;
+  /** La pestaña «Validar» (números de compradores). Nace apagado. */
+  validarNumeros: boolean;
 }
 
 export interface Sesion {
@@ -76,6 +78,7 @@ export const PERMISOS_ABIERTOS: Permisos = {
   usarCotizador: true,
   verAjustes: true,
   verErrores: true,
+  validarNumeros: false,
 };
 
 export function getSesion(): Sesion | null {

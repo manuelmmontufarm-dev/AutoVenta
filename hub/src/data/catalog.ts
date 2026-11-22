@@ -252,3 +252,91 @@ function filenameFromDisposition(value: string | null): string {
   const match = value?.match(/filename="?([^"]+)"?/i);
   return match?.[1] ?? `${nombreParaArchivo()}-${Date.now()}.pdf`;
 }
+
+// ── Teléfono: compartir en vez de descargar (22-nov-2026) ────────────────────
+//
+// En el teléfono «descargar un PDF» lo deja perdido en Archivos y hay que ir a
+// buscarlo para mandarlo. Con la hoja de compartir del sistema el asesor elige
+// WhatsApp y el PDF ya va adjunto. Donde no existe (escritorio), se descarga.
+
+/** La cotización en PDF: se abre la hoja de compartir del teléfono; si no hay, se descarga. */
+export async function shareQuotePdf(
+  product: CatalogProduct,
+  quantity: number,
+  customerName: string,
+): Promise<"compartido" | "descargado" | "cancelado"> {
+  const response = await fetch(apiUrl("/api/catalog/quote-pdf"), {
+    method: "POST",
+    headers: requestHeaders(),
+    body: JSON.stringify({ item: { id: product.id, quantity }, customerName }),
+  });
+  if (!response.ok) throw await responseError(response);
+  const blob = await response.blob();
+  const nombre = filenameFromDisposition(response.headers.get("Content-Disposition"));
+  const archivo = new File([blob], nombre, { type: "application/pdf" });
+  if (typeof navigator.canShare === "function" && navigator.canShare({ files: [archivo] })) {
+    try {
+      await navigator.share({ files: [archivo], title: nombre });
+      return "compartido";
+    } catch (error) {
+      // Cerrar la hoja sin elegir no es un error.
+      if ((error as Error).name === "AbortError") return "cancelado";
+      throw error;
+    }
+  }
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = nombre;
+  anchor.style.display = "none";
+  document.body.append(anchor);
+  anchor.click();
+  setTimeout(() => {
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  }, 2_000);
+  return "descargado";
+}
+
+// ── Adjuntar desde el chat (el «+» del compositor) ───────────────────────────
+
+async function postJson<T>(path: string, payload: unknown): Promise<T> {
+  const response = await fetch(apiUrl(path), { method: "POST", headers: requestHeaders(), body: JSON.stringify(payload) });
+  if (!response.ok) throw await responseError(response);
+  return (await response.json()) as T;
+}
+
+/** Manda la cotización en PDF al cliente de ese ticket, por WhatsApp. */
+export function sendQuoteToChat(ticketId: number, product: CatalogProduct, quantity: number): Promise<{ ok: true; numero: string; total: number }> {
+  return postJson(`/api/conversations/${ticketId}/send-quote`, { item: { id: product.id, quantity } });
+}
+
+/** La foto como JPEG, achicada para que no pese: `lado` es el máximo del lado largo. */
+async function fotoAJpeg(archivo: Blob, lado: number, calidad: number): Promise<string> {
+  const bitmap = await createImageBitmap(archivo);
+  const escala = Math.min(1, lado / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bitmap.width * escala);
+  canvas.height = Math.round(bitmap.height * escala);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("No se pudo leer la foto");
+  // Fondo blanco: un PNG con transparencia saldría negro en JPEG.
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  return canvas.toDataURL("image/jpeg", calidad);
+}
+
+/** Manda una foto (cámara o carrete) al cliente de ese ticket. */
+export async function sendImageToChat(ticketId: number, archivo: Blob, caption = ""): Promise<void> {
+  const [imagen, miniatura] = await Promise.all([fotoAJpeg(archivo, 1600, 0.85), fotoAJpeg(archivo, 720, 0.6)]);
+  // Tipo propio (no `application/json`): el servidor lo lee con un tope de 6 MB;
+  // como JSON normal lo cortaría en 100 kB (HTTP 413).
+  const response = await fetch(apiUrl(`/api/conversations/${ticketId}/send-image`), {
+    method: "POST",
+    headers: { ...requestHeaders(), "Content-Type": "application/vnd.autoventa.foto+json" },
+    body: JSON.stringify({ imagen, miniatura, caption }),
+  });
+  if (!response.ok) throw await responseError(response);
+}

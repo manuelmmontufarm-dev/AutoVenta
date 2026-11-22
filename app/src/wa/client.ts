@@ -426,8 +426,10 @@ export async function sendPdf(
   pdf: Buffer,
   filename: string,
   caption?: string,
+  // El asesor también manda cotizaciones desde el chat del panel (22-nov): va como `owner`.
+  actor: "bot" | "owner" = "bot",
 ): Promise<string | undefined> {
-  await assertConversationOutbound({ conversationId, contentType: "pdf", actor: "bot" });
+  await assertConversationOutbound({ conversationId, contentType: "pdf", actor });
   const mediaId = await uploadMedia(pdf, "application/pdf", filename);
   return graphSend("el PDF", (ch) => ({
     path: `${ch.phoneId}/messages`,
@@ -477,9 +479,11 @@ export async function sendImage(
   // El ticket del cupón también sale desde el seguimiento, que habla como
   // `worker`: misma política que el texto de ese seguimiento.
   actor: "bot" | "owner" | "worker" = "bot",
+  // Las piezas del bot son PNG; la foto que adjunta un asesor desde el panel es JPEG.
+  mime: "image/png" | "image/jpeg" = "image/png",
 ): Promise<string | undefined> {
   await assertConversationOutbound({ conversationId, contentType: "image", actor });
-  const mediaId = await uploadMedia(png, "image/png", filename);
+  const mediaId = await uploadMedia(png, mime, filename);
   return graphSend("la imagen", (ch) => ({
     path: `${ch.phoneId}/messages`,
     body: {

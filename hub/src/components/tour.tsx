@@ -62,7 +62,8 @@ function armarPasos(input: {
         + "respuesta. Buscá por nombre, medida o vehículo, y tocá cualquiera para leer la conversación completa "
         + "y escribirle vos mismo.",
     },
-    permisos.verKanban && {
+    // En el teléfono el Pipeline no existe (22-nov): la parada se salta.
+    permisos.verKanban && !window.matchMedia("(max-width: 767px)").matches && {
       id: "pipeline",
       vista: "pipeline",
       objetivo: "nav-pipeline",
@@ -216,7 +217,9 @@ export function Tour() {
       ? { top: rect.bottom + MARGEN + 14, left: izquierda, width: anchoCarta }
       : { bottom: vh - rect.top + MARGEN + 14, left: izquierda, width: anchoCarta };
   } else {
-    cartaStyle = { top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: anchoCarta };
+    // Centrada con números, no con `transform`: la animación de framer-motion
+    // pisa el transform y en el teléfono la tarjeta salía corrida a la derecha.
+    cartaStyle = { top: Math.max(12, (vh - 300) / 2), left: (vw - anchoCarta) / 2, width: anchoCarta };
   }
 
   return (

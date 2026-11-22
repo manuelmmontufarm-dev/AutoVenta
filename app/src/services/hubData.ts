@@ -410,7 +410,10 @@ export async function getHubMessages(conversationId: number) {
       : "texto",
     contenido: row.content,
     estado: row.status ?? undefined,
-    metadata: row.metadata ?? {},
+    // La miniatura de una foto adjunta (decenas de kB en base64) NO viaja con la
+    // lista: el chat la pide aparte por `/pieza.png`, y esta lista se refresca
+    // cada pocos segundos.
+    metadata: sinMiniatura(row.metadata),
     hora: row.created_at.toISOString(),
   }));
 }
@@ -1038,4 +1041,12 @@ export async function getFinalStageArrivals(mes?: string | null) {
     // Más reciente primero: lo de hoy es lo que se mira.
     days: [...days.values()].sort((a, b) => b.day.localeCompare(a.day)),
   };
+}
+
+/** Los metadatos del mensaje sin el peso de la miniatura; deja dicho que existe. */
+export function sinMiniatura(metadata: Record<string, unknown> | null | undefined): Record<string, unknown> {
+  if (!metadata) return {};
+  if (!("miniatura" in metadata)) return metadata;
+  const { miniatura: _miniatura, ...resto } = metadata;
+  return { ...resto, tieneMiniatura: true };
 }

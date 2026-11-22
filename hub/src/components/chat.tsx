@@ -7,6 +7,8 @@ import type { Mensaje, Rol, Ticket } from "../data/types";
 import { horaCorta, money } from "../lib/format";
 import { IconAlert, IconBot, IconCheck, IconChevronR, IconClock, IconDoc, IconDoubleCheck, IconPin, IconX } from "./icons";
 import { Modal } from "./ui";
+import { BotonAdjuntar } from "./adjuntar";
+import { useHub } from "../store";
 
 /* ── Burbuja ── */
 
@@ -142,31 +144,77 @@ function motivoDeFallo(msg: Mensaje): string | null {
  * tarjeta de documento muerta: «no se abren los pdfs» (Manuel, 1-sep). En
  * local sin clave el `<img>` pasaba, por eso no se vio antes de desplegar.
  */
-function usePiezaAutenticada(url: string): { src: string | null; falló: boolean } {
-  const [src, setSrc] = useState<string | null>(null);
+/**
+ * Las piezas ya bajadas, por URL. Volver a abrir un chat (o ampliar una pieza
+ * que ya se vio) no vuelve a pedir nada: en el teléfono cada pieza pesa cientos
+ * de kB. Tope de 60 para no llenar la memoria en una sesión larga.
+ */
+const piezasBajadas = new Map<string, string>();
+function recordarPieza(url: string, objeto: string): void {
+  piezasBajadas.set(url, objeto);
+  if (piezasBajadas.size > 60) {
+    const primera = piezasBajadas.keys().next().value;
+    if (primera !== undefined) {
+      URL.revokeObjectURL(piezasBajadas.get(primera) ?? "");
+      piezasBajadas.delete(primera);
+    }
+  }
+}
+
+/** `activa` = false no pide nada todavía (la pieza no está a la vista, o no se amplió). */
+function usePiezaAutenticada(url: string, activa = true): { src: string | null; falló: boolean } {
+  const [src, setSrc] = useState<string | null>(() => piezasBajadas.get(url) ?? null);
   const [falló, setFalló] = useState(false);
   useEffect(() => {
+    const guardada = piezasBajadas.get(url);
+    if (guardada) {
+      setSrc(guardada);
+      setFalló(false);
+      return;
+    }
+    if (!activa) return;
     let vivo = true;
-    let objeto: string | null = null;
     setSrc(null);
     setFalló(false);
     fetch(url, { headers: authHeaders() })
       .then(async (r) => {
         if (!r.ok) throw new Error(`pieza ${r.status}`);
         const blob = await r.blob();
-        if (!vivo) return;
-        objeto = URL.createObjectURL(blob);
-        setSrc(objeto);
+        const objeto = URL.createObjectURL(blob);
+        recordarPieza(url, objeto);
+        if (vivo) setSrc(objeto);
       })
       .catch(() => {
         if (vivo) setFalló(true);
       });
     return () => {
       vivo = false;
-      if (objeto) URL.revokeObjectURL(objeto);
     };
-  }, [url]);
+  }, [url, activa]);
   return { src, falló };
+}
+
+/** ¿El elemento ya entró (o está por entrar) en pantalla? Una vez que sí, se queda en sí. */
+function useALaVista<T extends Element>(): [React.RefObject<T | null>, boolean] {
+  const ref = useRef<T | null>(null);
+  const [visto, setVisto] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || visto) return;
+    if (!("IntersectionObserver" in window)) {
+      setVisto(true);
+      return;
+    }
+    const obs = new IntersectionObserver((entradas) => {
+      if (entradas.some((e) => e.isIntersecting)) {
+        setVisto(true);
+        obs.disconnect();
+      }
+    }, { rootMargin: "300px" });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [visto]);
+  return [ref, visto];
 }
 
 function PiezaAdjunta({ msg, onFallback }: { msg: Mensaje; onFallback?: () => void }) {
@@ -174,13 +222,17 @@ function PiezaAdjunta({ msg, onFallback }: { msg: Mensaje; onFallback?: () => vo
   const [ampliada, setAmpliada] = useState(false);
   const fallida = msg.estado === "failed";
   const error = (msg.metadata as { renderError?: string } | undefined)?.renderError;
-  const { src, falló } = usePiezaAutenticada(`/api/hub/messages/${msg.id}/pieza.png`);
+  // En la burbuja va la versión chica y solo cuando está a la vista; la grande
+  // se pide recién al ampliar. Un chat con diez piezas ya no baja 9 MB al abrir.
+  const [caja, aLaVista] = useALaVista<HTMLDivElement>();
+  const { src, falló } = usePiezaAutenticada(`/api/hub/messages/${msg.id}/pieza.png?chica=1`, aLaVista);
+  const grande = usePiezaAutenticada(`/api/hub/messages/${msg.id}/pieza.png`, ampliada);
   const titulo = tituloDePieza(msg);
 
   if (falló) return <PdfCard titulo={msg.contenido} onVer={onFallback} />;
 
   return (
-    <div className="flex w-full max-w-[260px] flex-col gap-1.5">
+    <div ref={caja} className="flex w-full max-w-[260px] flex-col gap-1.5">
       {fallida ? (
         <div
           className="rounded-xl px-3 py-2 text-[11px]"
@@ -253,7 +305,8 @@ function PiezaAdjunta({ msg, onFallback }: { msg: Mensaje; onFallback?: () => vo
                   <IconX size={17} />
                 </button>
               </div>
-              <img src={src ?? undefined} alt={titulo} className="block w-full rounded-[8px] border border-line" />
+              {/* La chica ya está en pantalla: se ve al instante y la grande la reemplaza al llegar. */}
+              <img src={grande.src ?? src ?? undefined} alt={titulo} className="block w-full rounded-[8px] border border-line" />
               <p className="mt-2 px-1 text-[12px] text-text2">{msg.contenido}</p>
             </div>
           </Modal>
@@ -273,7 +326,8 @@ function PiezaAdjunta({ msg, onFallback }: { msg: Mensaje; onFallback?: () => vo
  * el asesor busca cuando repasa la conversación.
  */
 function tituloDePieza(msg: Mensaje): string {
-  const meta = msg.metadata as { quoteNumber?: string | number; piece?: string } | undefined;
+  const meta = msg.metadata as { quoteNumber?: string | number; piece?: string; adjunto?: string } | undefined;
+  if (meta?.adjunto === "foto") return "Foto";
   if (meta?.quoteNumber) return `Cotización #${meta.quoteNumber}`;
   if (meta?.piece === "comparison") return "Comparativa de opciones";
   if (meta?.piece === "options") return "Opciones enviadas";
@@ -368,6 +422,14 @@ export function Composer({
 }) {
   const [texto, setTexto] = useState("");
   const ref = useRef<HTMLInputElement>(null);
+  // Adjuntar (foto o cotización) habla con el servidor: en el demo no existe.
+  const real = useHub((s) => s.dataMode) === "real";
+  const [aviso, setAviso] = useState<{ texto: string; error: boolean } | null>(null);
+  useEffect(() => {
+    if (!aviso) return;
+    const t = setTimeout(() => setAviso(null), aviso.error ? 6000 : 2500);
+    return () => clearTimeout(t);
+  }, [aviso]);
   // El bot atendiendo NO bloquea el teclado: se escribe siempre y el traspaso
   // ocurre al enviar, que es cuando de verdad hace falta.
   const atiendeBot = ticket.atiende === "bot";
@@ -396,7 +458,13 @@ export function Composer({
   }
 
   return (
-    <div className="flex items-center gap-2.5 px-4 py-3 md:px-5 md:py-3.5">
+    <div className="relative flex items-center gap-2 px-3 py-3 md:gap-2.5 md:px-5 md:py-3.5">
+      {aviso && (
+        <p role="status" className={`absolute inset-x-3 -top-9 rounded-[6px] px-3 py-1.5 text-center text-[13px] font-medium shadow-pop ${aviso.error ? "bg-signal text-white" : "bg-text text-white"}`}>
+          {aviso.texto}
+        </p>
+      )}
+      {real && <BotonAdjuntar ticket={ticket} onAviso={(t, error = false) => setAviso({ texto: t, error })} />}
       <input
         ref={ref}
         value={texto}
@@ -410,7 +478,7 @@ export function Composer({
         // 16px en el teléfono: por debajo iOS hace zoom al enfocar.
         className="h-11 min-w-0 flex-1 rounded-[6px] border border-line bg-bg px-3.5 text-[16px] outline-none transition-colors focus:border-signal md:text-[14px]"
       />
-      <button onClick={enviar} disabled={!texto.trim()} className="btn-signal h-11 shrink-0 rounded-[6px] px-4.5 text-[14px]">
+      <button onClick={enviar} disabled={!texto.trim()} className="btn-signal h-11 shrink-0 rounded-[6px] px-3.5 text-[14px] md:px-4.5">
         Enviar
       </button>
     </div>

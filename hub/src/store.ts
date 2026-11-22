@@ -4,6 +4,8 @@ import { TODOS } from "./data/types";
 import { MockSource } from "./data/mock/mockSource";
 import { Simulator } from "./data/mock/simulator";
 import {
+  authHeaders,
+  guardarSesion,
   AdminKeyError,
   PERMISOS_ABIERTOS,
   RealSource,
@@ -290,6 +292,11 @@ export const useHub = create<HubState>((set, get) => {
     set(parcial);
     if (claveMala || todasFallaron) return;
 
+    // Los permisos se guardan al entrar; si el administrador prende o apaga
+    // uno después (p. ej. «Validar números»), se enteran con el próximo
+    // refresco y no hay que salir y volver a entrar.
+    void refrescarPermisos();
+
     // Lo secundario llena la pantalla cuando pueda; que falle no rompe nada.
     // Todo lo que mira el mes va con el MISMO valor: si el usuario cambia de mes
     // mientras esto viaja, el `set` de abajo lo descarta en vez de dejar mitad
@@ -321,6 +328,21 @@ export const useHub = create<HubState>((set, get) => {
       precargado = true;
       void precargarMeses();
     }
+  }
+
+  async function refrescarPermisos(): Promise<void> {
+    const sesion = getSesion();
+    if (dataMode !== "real" || !sesion) return;
+    try {
+      const r = await fetch("/api/status", { headers: authHeaders() });
+      if (!r.ok) return;
+      const data = (await r.json()) as { permisos?: Partial<Permisos> | null };
+      if (!data.permisos) return;
+      const permisos = { ...PERMISOS_ABIERTOS, ...data.permisos };
+      if (JSON.stringify(permisos) === JSON.stringify(get().permisos)) return;
+      guardarSesion({ ...sesion, permisos });
+      set({ permisos });
+    } catch { /* se queda con los de la sesión */ }
   }
 
   /**

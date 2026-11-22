@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { createContext, useContext, useState, type ReactNode } from "react";
 import type { Franja, MetricasComprobables, VentasConfirmadas } from "../data/types";
 import { money, relTime } from "../lib/format";
 import { navigate } from "../router";
@@ -16,11 +16,41 @@ import { BlockTitle, Campo } from "./ui";
  */
 
 /** Un bloque de Métricas: título, una nota, un gráfico y sus cifras debajo. */
+/**
+ * En el teléfono Métricas se lee de un vistazo (Manuel, 22-nov): arriba los
+ * números grandes y cada bloque de detalle PLEGADO, con su título como botón.
+ * El Dashboard prende este contexto; el resto de pantallas no cambia.
+ */
+export const BloquesPlegados = createContext(false);
+
 export function Bloque({ titulo, nota, children, className = "" }: { titulo: string; nota?: ReactNode; children: ReactNode; className?: string }) {
+  const plegable = useContext(BloquesPlegados);
+  const [abierto, setAbierto] = useState(false);
+  if (!plegable) {
+    return (
+      <section className={`flex min-w-0 flex-col gap-3.5 rounded-[10px] border border-line bg-surface px-5 pt-[18px] pb-4 ${className}`}>
+        <BlockTitle aside={nota}>{titulo}</BlockTitle>
+        {children}
+      </section>
+    );
+  }
   return (
-    <section className={`flex min-w-0 flex-col gap-3.5 rounded-[10px] border border-line bg-surface px-5 pt-[18px] pb-4 ${className}`}>
-      <BlockTitle aside={nota}>{titulo}</BlockTitle>
-      {children}
+    <section className={`flex min-w-0 flex-col rounded-[10px] border border-line bg-surface px-5 md:gap-3.5 md:pt-[18px] md:pb-4 ${className}`}>
+      {/* Teléfono: el título es el botón que abre el detalle. */}
+      <button
+        type="button"
+        onClick={() => setAbierto((v) => !v)}
+        aria-expanded={abierto}
+        className="flex min-h-[52px] items-center justify-between gap-3 text-left md:hidden"
+      >
+        <span className="text-[14px] font-semibold">{titulo}</span>
+        <IconChevronR size={16} className={`shrink-0 text-text2 transition-transform ${abierto ? "rotate-90" : ""}`} />
+      </button>
+      <div className="hidden md:block"><BlockTitle aside={nota}>{titulo}</BlockTitle></div>
+      <div className={`${abierto ? "flex pb-4" : "hidden"} min-w-0 flex-col gap-3.5 md:flex md:pb-0`}>
+        {nota && <span className="text-[12px] text-text2 md:hidden">{nota}</span>}
+        {children}
+      </div>
     </section>
   );
 }
