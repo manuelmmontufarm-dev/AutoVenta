@@ -1,18 +1,16 @@
 /**
- * CADA UNO ENTRA CON SU CLAVE, Y LA CUENTA NUEVA SOLO SE ACTIVA CON SU ENLACE
- * (Manuel, 19-nov-2026: usuarios del panel para Carlos Andrés, Carlos Romero y
- * Jenny en Competimotor).
+ * UNA CUENTA NUEVA ENTRA SIN ENLACE ESPECIAL (Manuel, 22-nov-2026).
  *
- * La clave por usuario ya existía: una cuenta creada desde Ajustes queda
- * «pendiente» y su primer ingreso es crear la clave. El hueco: `/auth/users` es
- * pública y dice qué cuentas están pendientes, así que cualquiera que abriera el
- * login podía crearle la clave a una cuenta de administrador antes que su dueño.
- * Ahora una cuenta nueva trae un código de invitación de un solo uso (solo su
- * hash se guarda) y se activa únicamente con él.
+ * El 19-nov se exigió un enlace de invitación para activar una cuenta nueva.
+ * En la práctica bloqueó a Joaquín y a Jenny en Competimotor: el login les
+ * pedía «el enlace que te mandaron», y la app instalada en el teléfono abre sin
+ * el `?invitacion=` aunque la hayas instalado desde el enlace. Manuel pidió que
+ * funcione para todos sin complicarse: una cuenta pendiente se activa eligiendo
+ * su nombre, creando su clave y dejando su email. El enlace sigue existiendo
+ * (deja el nombre elegido) y uno viejo o repetido no estorba.
  *
- * Las cuentas de Depot no cambian: la clave compartida sigue abriendo las de
- * siempre, y una cuenta pendiente creada ANTES de esto (sin código) se activa
- * como hasta ahora.
+ * Lo que NO cambia: una cuenta que ya tiene clave no se puede «re-activar», y
+ * las de Depot siguen con la clave compartida.
  */
 import postgres from "postgres";
 import type { Server } from "node:http";
@@ -69,17 +67,16 @@ async function post(ruta: string, body: unknown, headers: Record<string, string>
   return { status: r.status, body: (await r.json()) as Record<string, unknown> };
 }
 
-describe.sequential("enlace de invitación de un solo uso", () => {
+describe.sequential("cuenta nueva sin enlace especial", () => {
   let codigo = "";
 
-  it("crear la cuenta devuelve el código UNA vez; la lista pública no lo muestra ni la base lo guarda en claro", async () => {
+  it("crear la cuenta todavía da un enlace, que no queda en claro en ningún lado", async () => {
     const r = await post("/hub-users", { id: "jenny", nombre: "Jenny Paz Alvarez", rol: "admin" }, comoAdmin);
     expect(r.status).toBe(200);
     codigo = String(r.body.invitacion ?? "");
     expect(codigo).toMatch(/^[A-Za-z0-9_-]{20,}$/);
     const usuario = r.body.usuario as Record<string, unknown>;
     expect(usuario.estadoClave).toBe("pendiente");
-    expect(usuario.invitacionVigente).toBe(true);
     expect(JSON.stringify(usuario)).not.toContain(codigo);
 
     const publica = await fetch(`${baseUrl}/api/auth/users`).then((x) => x.json()) as { users: Array<{ id: string; pendiente: boolean }> };
@@ -89,37 +86,36 @@ describe.sequential("enlace de invitación de un solo uso", () => {
     expect(JSON.stringify(fila.value)).not.toContain(codigo);
   });
 
-  it("sin el código, o con otro, nadie puede crearle la clave", async () => {
-    const sin = await post("/auth/activate", { userId: "jenny", email: "intruso@x.com", pin: "abcd1234" });
-    expect(sin.status).toBe(400);
-    expect(String(sin.body.error)).toMatch(/enlace de invitaci[oó]n/i);
-    const otro = await post("/auth/activate", { userId: "jenny", email: "intruso@x.com", pin: "abcd1234", invitacion: "x".repeat(24) });
-    expect(otro.status).toBe(400);
-  });
-
-  it("con el código: crea su clave, entra, y el código ya no sirve", async () => {
-    const ok = await post("/auth/activate", { userId: "jenny", email: "jenny@competimotor.ec", pin: "clave-de-jenny", invitacion: codigo });
+  it("SIN el enlace (como abre la app instalada) crea su clave y entra", async () => {
+    const ok = await post("/auth/activate", { userId: "jenny", email: "jenny@competimotor.ec", pin: "clave-de-jenny" });
     expect(ok.status).toBe(200);
     expect(ok.body.token).toBeTruthy();
-    const otraVez = await post("/auth/activate", { userId: "jenny", email: "otro@x.com", pin: "otra-clave", invitacion: codigo });
-    expect(otraVez.status).toBe(400);
     const login = await post("/auth/login", { userId: "jenny", pin: "clave-de-jenny" });
     expect(login.status).toBe(200);
     const compartida = await post("/auth/login", { userId: "jenny", pin: "1234" });
     expect(compartida.status).toBe(401);
   });
 
-  it("restablecer la clave da un enlace nuevo, y solo ese activa", async () => {
-    const r = await post("/hub-users/jenny/reset-clave", {}, comoAdmin);
-    expect(r.status).toBe(200);
-    const nuevo = String(r.body.invitacion ?? "");
-    expect(nuevo).toMatch(/^[A-Za-z0-9_-]{20,}$/);
-    expect(nuevo).not.toBe(codigo);
-    expect((await post("/auth/activate", { userId: "jenny", email: "j@x.com", pin: "nueva-1", invitacion: codigo })).status).toBe(400);
-    expect((await post("/auth/activate", { userId: "jenny", email: "j@x.com", pin: "nueva-1", invitacion: nuevo })).status).toBe(200);
+  it("una cuenta que ya tiene clave no se puede volver a activar, ni con el enlace", async () => {
+    const sin = await post("/auth/activate", { userId: "jenny", email: "intruso@x.com", pin: "abcd1234" });
+    expect(sin.status).toBe(400);
+    const con = await post("/auth/activate", { userId: "jenny", email: "intruso@x.com", pin: "abcd1234", invitacion: codigo });
+    expect(con.status).toBe(400);
   });
 
-  it("si Manuel perdió el enlace de una cuenta pendiente, puede pedir otro", async () => {
+  it("un enlace viejo (o con otro código) no bloquea a nadie", async () => {
+    await post("/hub-users", { id: "joaquin.c", nombre: "Joaquin Tamayo", rol: "admin" }, comoAdmin);
+    const ok = await post("/auth/activate", { userId: "joaquin.c", email: "j@x.com", pin: "clave-1", invitacion: "x".repeat(24) });
+    expect(ok.status).toBe(200);
+  });
+
+  it("restablecer la clave deja crear una nueva sin enlace", async () => {
+    const r = await post("/hub-users/jenny/reset-clave", {}, comoAdmin);
+    expect(r.status).toBe(200);
+    expect((await post("/auth/activate", { userId: "jenny", email: "j@x.com", pin: "nueva-1" })).status).toBe(200);
+  });
+
+  it("si Manuel quiere, todavía puede sacar un enlace para una cuenta pendiente", async () => {
     await post("/hub-users", { id: "carlos.romero", nombre: "Carlos Romero", rol: "admin" }, comoAdmin);
     const r = await post("/hub-users/carlos.romero/invitacion", {}, comoAdmin);
     expect(r.status).toBe(200);

@@ -1828,7 +1828,7 @@ function enlaceDeInvitacion(id: string, codigo: string): string {
 const ESTADO_CLAVE_UI: Record<UsuarioHub["estadoClave"], { label: string; explica: string }> = {
   compartida: { label: "clave compartida", explica: "Entra con la clave común de siempre (los cuatro originales)." },
   propia: { label: "clave propia", explica: "Ya creó su clave personal; solo esa clave abre." },
-  pendiente: { label: "pendiente", explica: "Todavía no entra: abre su enlace de invitación, crea su clave y deja su email." },
+  pendiente: { label: "pendiente", explica: "Todavía no entra: en el login elige su nombre, crea su clave y deja su email." },
 };
 
 /** Cada interruptor en el idioma de las pestañas que abre o esconde. */
@@ -1952,7 +1952,7 @@ function SeccionUsuarios({ onError }: { onError: (e: string) => void }) {
   return (
     <Tarjeta
       titulo="Usuarios del panel"
-      sub="Quién sale en el desplegable del login y qué pestañas ve. Al crear un usuario aparece su enlace de invitación: mándaselo a esa persona; con él crea su propia clave y deja su email. Solo ese enlace activa la cuenta y sirve una vez. Si alguien olvida su clave, «Restablecer clave» da un enlace nuevo. Los cambios de acceso se aplican en su próximo inicio de sesión."
+      sub="Quién sale en el desplegable del login y qué pestañas ve. Una cuenta nueva entra eligiendo su nombre en el login y creando su clave: basta con mandarle la dirección del panel. El enlace de invitación es opcional (le deja el nombre ya elegido). Si alguien olvida su clave, «Restablecer clave» le deja crear una nueva. Los cambios de acceso se aplican en su próximo inicio de sesión."
     >
       <div className="flex flex-col gap-4">
         {usuarios.map((u) => (
