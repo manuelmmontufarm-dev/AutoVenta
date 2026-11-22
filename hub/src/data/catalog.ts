@@ -330,7 +330,7 @@ async function fotoAJpeg(archivo: Blob, lado: number, calidad: number): Promise<
 
 /** Manda una foto (cámara o carrete) al cliente de ese ticket. */
 export async function sendImageToChat(ticketId: number, archivo: Blob, caption = ""): Promise<void> {
-  const [imagen, miniatura] = await Promise.all([fotoAJpeg(archivo, 1600, 0.85), fotoAJpeg(archivo, 360, 0.55)]);
+  const [imagen, miniatura] = await Promise.all([fotoAJpeg(archivo, 1600, 0.85), fotoAJpeg(archivo, 720, 0.6)]);
   // Tipo propio (no `application/json`): el servidor lo lee con un tope de 6 MB;
   // como JSON normal lo cortaría en 100 kB (HTTP 413).
   const response = await fetch(apiUrl(`/api/conversations/${ticketId}/send-image`), {

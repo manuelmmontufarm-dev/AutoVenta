@@ -15,6 +15,7 @@ import { AnunciosActivosSchema } from "../domain/anunciosActivos.js";
 import { anunciosVistos, getAnunciosActivos, saveAnunciosActivos } from "../services/anunciosActivos.js";
 import { business, config } from "../config.js";
 import { appendMessage, logQuote, pauseBot } from "../services/conversations.js";
+import { achicarPieza, guardarPieza, piezaEnMemoria } from "../services/piezasDelChat.js";
 import { forceSyncNow, interbotPricesState } from "../services/interbotPrices.js";
 import { PLANTILLA_NAMES, MODO_NAMES,
   getAiConfig,
@@ -1239,6 +1240,16 @@ export function createAdminRouter(): express.Router {
    */
   router.get("/hub/messages/:id/pieza.png", async (req, res) => {
     try {
+      // `?chica=1`: la versión de 560 px para la burbuja del chat. Las dos
+      // versiones se guardan en memoria (ver services/piezasDelChat.ts).
+      const chica = req.query.chica === "1";
+      const claveDePieza = `${Number(req.params.id)}:${chica ? "chica" : "grande"}`;
+      const guardada = piezaEnMemoria(claveDePieza);
+      if (guardada) {
+        res.setHeader("Content-Type", "image/png");
+        res.setHeader("Cache-Control", "private, max-age=1800");
+        return res.send(guardada);
+      }
       const [row] = await sql<{
         type: string;
         metadata: Record<string, unknown> | null;
@@ -1309,8 +1320,13 @@ export function createAdminRouter(): express.Router {
           ? await renderCompareImage(comun)
           : await renderOptionsImage(comun);
       }
+      guardarPieza(`${Number(req.params.id)}:grande`, png);
+      if (chica) {
+        png = achicarPieza(png, 560);
+        guardarPieza(claveDePieza, png);
+      }
       res.setHeader("Content-Type", "image/png");
-      res.setHeader("Cache-Control", "private, max-age=300");
+      res.setHeader("Cache-Control", "private, max-age=1800");
       res.send(png);
     } catch (error) {
       console.error("❌ No se pudo re-dibujar la pieza:", error);
@@ -2031,7 +2047,7 @@ export function createAdminRouter(): express.Router {
         metadata: {
           autor: quienEnElPanel(req),
           adjunto: "foto",
-          ...(miniaturaABuffer(miniatura) && miniatura.length < 200_000 ? { miniatura } : {}),
+          ...(miniaturaABuffer(miniatura) && miniatura.length < 400_000 ? { miniatura } : {}),
         },
       });
       await trasAdjuntar(req, conversation.id, { adjunto: "foto" });

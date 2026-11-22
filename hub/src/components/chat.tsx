@@ -144,31 +144,77 @@ function motivoDeFallo(msg: Mensaje): string | null {
  * tarjeta de documento muerta: «no se abren los pdfs» (Manuel, 1-sep). En
  * local sin clave el `<img>` pasaba, por eso no se vio antes de desplegar.
  */
-function usePiezaAutenticada(url: string): { src: string | null; falló: boolean } {
-  const [src, setSrc] = useState<string | null>(null);
+/**
+ * Las piezas ya bajadas, por URL. Volver a abrir un chat (o ampliar una pieza
+ * que ya se vio) no vuelve a pedir nada: en el teléfono cada pieza pesa cientos
+ * de kB. Tope de 60 para no llenar la memoria en una sesión larga.
+ */
+const piezasBajadas = new Map<string, string>();
+function recordarPieza(url: string, objeto: string): void {
+  piezasBajadas.set(url, objeto);
+  if (piezasBajadas.size > 60) {
+    const primera = piezasBajadas.keys().next().value;
+    if (primera !== undefined) {
+      URL.revokeObjectURL(piezasBajadas.get(primera) ?? "");
+      piezasBajadas.delete(primera);
+    }
+  }
+}
+
+/** `activa` = false no pide nada todavía (la pieza no está a la vista, o no se amplió). */
+function usePiezaAutenticada(url: string, activa = true): { src: string | null; falló: boolean } {
+  const [src, setSrc] = useState<string | null>(() => piezasBajadas.get(url) ?? null);
   const [falló, setFalló] = useState(false);
   useEffect(() => {
+    const guardada = piezasBajadas.get(url);
+    if (guardada) {
+      setSrc(guardada);
+      setFalló(false);
+      return;
+    }
+    if (!activa) return;
     let vivo = true;
-    let objeto: string | null = null;
     setSrc(null);
     setFalló(false);
     fetch(url, { headers: authHeaders() })
       .then(async (r) => {
         if (!r.ok) throw new Error(`pieza ${r.status}`);
         const blob = await r.blob();
-        if (!vivo) return;
-        objeto = URL.createObjectURL(blob);
-        setSrc(objeto);
+        const objeto = URL.createObjectURL(blob);
+        recordarPieza(url, objeto);
+        if (vivo) setSrc(objeto);
       })
       .catch(() => {
         if (vivo) setFalló(true);
       });
     return () => {
       vivo = false;
-      if (objeto) URL.revokeObjectURL(objeto);
     };
-  }, [url]);
+  }, [url, activa]);
   return { src, falló };
+}
+
+/** ¿El elemento ya entró (o está por entrar) en pantalla? Una vez que sí, se queda en sí. */
+function useALaVista<T extends Element>(): [React.RefObject<T | null>, boolean] {
+  const ref = useRef<T | null>(null);
+  const [visto, setVisto] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || visto) return;
+    if (!("IntersectionObserver" in window)) {
+      setVisto(true);
+      return;
+    }
+    const obs = new IntersectionObserver((entradas) => {
+      if (entradas.some((e) => e.isIntersecting)) {
+        setVisto(true);
+        obs.disconnect();
+      }
+    }, { rootMargin: "300px" });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [visto]);
+  return [ref, visto];
 }
 
 function PiezaAdjunta({ msg, onFallback }: { msg: Mensaje; onFallback?: () => void }) {
@@ -176,13 +222,17 @@ function PiezaAdjunta({ msg, onFallback }: { msg: Mensaje; onFallback?: () => vo
   const [ampliada, setAmpliada] = useState(false);
   const fallida = msg.estado === "failed";
   const error = (msg.metadata as { renderError?: string } | undefined)?.renderError;
-  const { src, falló } = usePiezaAutenticada(`/api/hub/messages/${msg.id}/pieza.png`);
+  // En la burbuja va la versión chica y solo cuando está a la vista; la grande
+  // se pide recién al ampliar. Un chat con diez piezas ya no baja 9 MB al abrir.
+  const [caja, aLaVista] = useALaVista<HTMLDivElement>();
+  const { src, falló } = usePiezaAutenticada(`/api/hub/messages/${msg.id}/pieza.png?chica=1`, aLaVista);
+  const grande = usePiezaAutenticada(`/api/hub/messages/${msg.id}/pieza.png`, ampliada);
   const titulo = tituloDePieza(msg);
 
   if (falló) return <PdfCard titulo={msg.contenido} onVer={onFallback} />;
 
   return (
-    <div className="flex w-full max-w-[260px] flex-col gap-1.5">
+    <div ref={caja} className="flex w-full max-w-[260px] flex-col gap-1.5">
       {fallida ? (
         <div
           className="rounded-xl px-3 py-2 text-[11px]"
@@ -255,7 +305,8 @@ function PiezaAdjunta({ msg, onFallback }: { msg: Mensaje; onFallback?: () => vo
                   <IconX size={17} />
                 </button>
               </div>
-              <img src={src ?? undefined} alt={titulo} className="block w-full rounded-[8px] border border-line" />
+              {/* La chica ya está en pantalla: se ve al instante y la grande la reemplaza al llegar. */}
+              <img src={grande.src ?? src ?? undefined} alt={titulo} className="block w-full rounded-[8px] border border-line" />
               <p className="mt-2 px-1 text-[12px] text-text2">{msg.contenido}</p>
             </div>
           </Modal>
@@ -275,7 +326,8 @@ function PiezaAdjunta({ msg, onFallback }: { msg: Mensaje; onFallback?: () => vo
  * el asesor busca cuando repasa la conversación.
  */
 function tituloDePieza(msg: Mensaje): string {
-  const meta = msg.metadata as { quoteNumber?: string | number; piece?: string } | undefined;
+  const meta = msg.metadata as { quoteNumber?: string | number; piece?: string; adjunto?: string } | undefined;
+  if (meta?.adjunto === "foto") return "Foto";
   if (meta?.quoteNumber) return `Cotización #${meta.quoteNumber}`;
   if (meta?.piece === "comparison") return "Comparativa de opciones";
   if (meta?.piece === "options") return "Opciones enviadas";

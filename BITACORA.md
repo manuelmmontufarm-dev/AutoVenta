@@ -24,7 +24,12 @@
   general corta en 100 kB) que quedó arreglado con un tipo de contenido propio. La suite completa deja 3 fallos que
   ya estaban en `main` (`bitacoraDelPanel`, `hashesPiezasDepot`, `unidadEnLaCantidad`). **Sin probar:** la llegada
   de una notificación real a un teléfono (el simulador de iOS no instala la app web ni recibe push).
-- **Horas:** 3.
+- **Rápido (misma tarde):** la vista previa de una cotización en el chat tardaba ~1 s y pesaba ~900 kB cada vez
+  (se redibuja desde los códigos). Ahora queda 30 min en memoria (`services/piezasDelChat.ts`: la segunda vez <1 ms),
+  la burbuja pide una versión de 560 px (~180 kB) y solo cuando está a la vista; la grande baja al ampliar. La
+  miniatura de una foto ya no viaja en la lista de mensajes (iban 60 kB en cada refresco de 4 s). La cotización
+  enviada desde el chat queda en `quotes`, así que se ve con su diseño. `test/piezasDelChat.test.ts` (5).
+- **Horas:** 3,5.
 
 ## 21-nov-2026 · Panel · Todo cambio del panel queda con nombre (rama `fix/auditar-todo`)
 
