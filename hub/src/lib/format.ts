@@ -108,3 +108,17 @@ export function avatarColor(telefono: string): string {
   for (const c of telefono) h = (h * 31 + c.charCodeAt(0)) % 997;
   return AVATAR_COLORS[h % AVATAR_COLORS.length];
 }
+
+/**
+ * El rótulo del divisor de día dentro de un chat, como en WhatsApp: «Hoy»,
+ * «Ayer», «3 de diciembre» y, de otro año, «3 de diciembre de 2025».
+ */
+export function diaDelChat(iso: string, ahora: number = Date.now()): string {
+  const t = new Date(iso);
+  const hoy = new Date(ahora);
+  if (t.toDateString() === hoy.toDateString()) return "Hoy";
+  if (t.toDateString() === new Date(ahora - 86_400_000).toDateString()) return "Ayer";
+  return t.toLocaleDateString("es-EC", t.getFullYear() === hoy.getFullYear()
+    ? { day: "numeric", month: "long" }
+    : { day: "numeric", month: "long", year: "numeric" });
+}

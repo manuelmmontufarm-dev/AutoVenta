@@ -3,7 +3,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { ConnectionChip, ConnectionGate, SalirButton, UserChip } from "./components/admin-key";
 import { hasAdminKey } from "./data/catalog";
 import { Confetti, Toasts } from "./components/overlays";
-import { IconAjustes, IconAlert, IconChart, IconDiana, IconDoc, IconInbox, IconKanban, IconPlay, IconSilencio, IconSonido, IconStop, IconTire } from "./components/icons";
+import { IconAjustes, IconAlert, IconRefresh, IconChart, IconDiana, IconDoc, IconInbox, IconKanban, IconPlay, IconSilencio, IconSonido, IconStop, IconTire } from "./components/icons";
 import { PageHeader } from "./components/ui";
 import { VersionBadge } from "./components/version-badge";
 import { setSonidoActivo, sonidoActivo, sonidoBoton } from "./lib/sound";
@@ -30,14 +30,16 @@ import type { Permisos } from "./data/realSource";
 // rail (y arriba a la derecha en el teléfono). `requiere`: fase que
 // desbloquea cada pantalla (null = núcleo, siempre). «Inventario» solo existe
 // en negocios con catálogo por archivo (Competimotor): ver `porArchivo`.
-const NAV = [
+const NAV: readonly { id: string; label: string; icon: typeof IconInbox; requiere: "fase3" | null; soloEscritorio?: boolean }[] = [
   { id: "inbox", label: "Inbox", icon: IconInbox, requiere: null },
   { id: "inventario", label: "Inventario", icon: IconDoc, requiere: null },
-  { id: "pipeline", label: "Pipeline", icon: IconKanban, requiere: null },
+  // El tablero es de escritorio: en el teléfono no entra y nadie arrastra
+  // tarjetas con el dedo (Manuel, 22-nov). `soloEscritorio` lo saca de la barra.
+  { id: "pipeline", label: "Pipeline", icon: IconKanban, requiere: null, soloEscritorio: true },
   { id: "para-cerrar", label: "Para cerrar", icon: IconDiana, requiere: null },
   { id: "cotizador", label: "Cotizador", icon: IconTire, requiere: "fase3" },
   { id: "dashboard", label: "Métricas", icon: IconChart, requiere: "fase3" },
-] as const;
+];
 
 /**
  * Qué permiso del usuario abre cada pantalla. Los interruptores se editan en
@@ -88,7 +90,17 @@ function navActivo(route: Route): string {
 
 export default function App() {
   const route = useRoute();
-  const { init, cargando, tickets, demo, dataMode, toggleDemo, phases, conexion, power, usuario, permisos, salir } = useHub();
+  const { init, cargando, tickets, demo, dataMode, toggleDemo, phases, conexion, power, usuario, permisos, salir, refrescar } = useHub();
+  const movil = useEsMovil();
+  // El botón de refrescar del teléfono: gira mientras viaja y medio segundo
+  // más, para que se note que se tocó aunque el servidor conteste al instante.
+  const [refrescando, setRefrescando] = useState(false);
+  const refrescarTodo = async () => {
+    if (refrescando) return;
+    setRefrescando(true);
+    await Promise.allSettled([refrescar(), new Promise((r) => setTimeout(r, 500))]);
+    setRefrescando(false);
+  };
   const [audioOn, setAudioOn] = useState(sonidoActivo);
   // El negocio que atiende este panel (R-29): nombre en el rail y en la
   // pestaña. `index.html` dice «AutoVenta» y acá se pone el de verdad.
@@ -117,6 +129,7 @@ export default function App() {
 
   const navVisible = NAV.filter((item) =>
     (!item.requiere || phases[item.requiere]) && pantallaPermitida(item.id, phases, permisos, porArchivo));
+  const navMovil = navVisible.filter((item) => !item.soloEscritorio);
   const faseActiva = phases.fase4 ? 4 : phases.fase3 ? 3 : phases.fase2 ? 2 : 1;
   // El gate solo aplica al producto real; el demo usa fixtures y no tiene clave.
   const bloqueado =
@@ -133,6 +146,11 @@ export default function App() {
       navigate((refugio?.id ?? "inbox") as Parameters<typeof navigate>[0]);
     }
   }, [route.vista, phases, permisos, porArchivo, inventario.porArchivo]);
+
+  // En el teléfono el Pipeline no existe: un enlace viejo cae en el Inbox.
+  useEffect(() => {
+    if (movil && NAV.some((n) => n.soloEscritorio && n.id === route.vista)) navigate("inbox");
+  }, [movil, route.vista]);
 
   useEffect(() => {
     void init();
@@ -250,6 +268,9 @@ export default function App() {
                 <EstadoBot activo={power.activo} compacto />
               </div>
               <div className="flex items-center">
+                <button type="button" onClick={() => void refrescarTodo()} aria-label="Refrescar" data-testid="refrescar" className="grid h-11 w-11 place-items-center text-text">
+                  <IconRefresh size={20} className={refrescando ? "animate-spin" : ""} />
+                </button>
                 <button type="button" onClick={toggleSonido} aria-pressed={audioOn} aria-label={audioOn ? "Apagar sonidos" : "Activar sonidos"} className="grid h-11 w-11 place-items-center text-text2">
                   {audioOn ? <IconSonido size={20} /> : <IconSilencio size={20} />}
                 </button>
@@ -296,10 +317,10 @@ export default function App() {
         {!enTicket && (
           <nav
             className="fixed inset-x-0 bottom-0 z-20 grid border-t border-line bg-bg px-2 pt-2 md:hidden"
-            style={{ gridTemplateColumns: `repeat(${navVisible.length}, minmax(0, 1fr))`, paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}
+            style={{ gridTemplateColumns: `repeat(${navMovil.length}, minmax(0, 1fr))`, paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}
             aria-label="Principal"
           >
-            {navVisible.map((item) => {
+            {navMovil.map((item) => {
               const activo = navActivo(route) === item.id;
               return (
                 <button
@@ -324,6 +345,18 @@ export default function App() {
       </div>
     </MotionConfig>
   );
+}
+
+/** ¿Pantalla de teléfono? El mismo corte que `md:` de Tailwind. */
+function useEsMovil(): boolean {
+  const [movil, setMovil] = useState(() => window.matchMedia("(max-width: 767px)").matches);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const sync = () => setMovil(mq.matches);
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+  return movil;
 }
 
 function NavItem({

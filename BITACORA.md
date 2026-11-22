@@ -1,3 +1,12 @@
+## 22-nov-2026 · Panel · App del teléfono: barra, refrescar y días en el chat (rama `feat/movil-app`)
+
+- **Qué:** en el teléfono la barra de abajo ya no trae Pipeline (un enlace viejo cae en el Inbox); botón de
+  refrescar en la cabecera; el chat separa los días con una pastilla «Hoy / Ayer / 3 de diciembre», como WhatsApp.
+- **Por qué:** Manuel instaló el panel como app en el teléfono (22-nov): pidió quitar el Pipeline, un refrescar
+  arriba y el divisor de días para guiarse.
+- **Probado:** en el simulador de iOS (iPhone 17 Pro) contra el simulador del bot en modo `--stub`; `tsc` del hub ✅.
+- **Horas:** 0.5.
+
 ## 21-nov-2026 · Panel · Todo cambio del panel queda con nombre (rama `fix/auditar-todo`)
 
 - **Qué:** middleware `registrarCambioDelPanel` después del login: todo POST/PUT/PATCH/DELETE de `/api` (incluidas
