@@ -144,6 +144,11 @@ export interface AvisoPush {
   ruta?: string;
   /** Avisos con la misma etiqueta se reemplazan en vez de apilarse. */
   etiqueta?: string;
+  /**
+   * El WhatsApp del cliente. En Android la notificación trae el botón «WhatsApp»
+   * que abre ese chat directo (23-nov-2026); el iPhone no muestra botones.
+   */
+  telefono?: string;
 }
 
 /** Quién firma los avisos ante Apple/Google: la dirección pública del panel de este negocio. */

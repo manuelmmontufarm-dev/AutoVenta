@@ -691,6 +691,7 @@ export async function notifyAdvisor(input: AdvisorNotificationInput): Promise<{
         cuerpo: `${input.title} · ${conversation.name ?? conversation.phone}`.slice(0, 180),
         ruta: `#/ticket/${input.conversationId}`,
         etiqueta: input.dedupeKey,
+        telefono: conversation.phone,
       });
       // Solo se le quita el WhatsApp si la app de verdad lo recibió: un push
       // que no salió no puede dejar al asesor sin enterarse.

@@ -3,6 +3,7 @@ import { IconCampana, IconChevronR } from "../components/icons";
 import { EmptyState, PageHeader } from "../components/ui";
 import { activarPush, configPush, desactivarPush, esIos, estadoPush, instalada, useAvisos, type Aviso, type ConfigPush, type EstadoPush } from "../data/avisos";
 import { diaDelChat, horaCorta } from "../lib/format";
+import { trozosConTelefonos } from "../lib/whatsapp";
 import { navigate } from "../router";
 import { useHub } from "../store";
 
@@ -105,7 +106,7 @@ function Fila({ aviso }: { aviso: Aviso }) {
       </button>
       {abierta && (
         <div className="flex flex-col gap-2 px-4 pb-3 pl-[72px] text-[13px] text-text2">
-          {detalle.map((l, i) => <p key={i}>{l}</p>)}
+          {detalle.map((l, i) => <p key={i}><ConTelefonos linea={l} /></p>)}
           {aviso.conversationId && (
             <button type="button" onClick={() => navigate(`ticket/${aviso.conversationId}`)} className="self-start font-semibold text-text underline underline-offset-[3px]">
               Abrir el chat
@@ -114,6 +115,23 @@ function Fila({ aviso }: { aviso: Aviso }) {
         </div>
       )}
     </li>
+  );
+}
+
+/**
+ * La línea con el número del cliente tocable: abre el chat en WhatsApp directo
+ * (Manuel, 23-nov-2026 — sobre todo para el teléfono del local).
+ */
+function ConTelefonos({ linea }: { linea: string }) {
+  return (
+    <>
+      {trozosConTelefonos(linea).map((t, i) => "whatsapp" in t ? (
+        <a key={i} href={t.whatsapp} target="_blank" rel="noopener noreferrer" data-testid="aviso-whatsapp"
+          className="font-semibold text-text underline underline-offset-[3px]">
+          {t.texto}
+        </a>
+      ) : <span key={i}>{t.texto}</span>)}
+    </>
   );
 }
 
