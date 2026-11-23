@@ -1,3 +1,10 @@
+## 23-nov-2026 · Panel · Los meses del selector, en corto (rama `fix/meses-cortos`)
+
+- **Qué:** el selector de mes dice «Nov», «Oct», «Sept»… en vez del nombre entero, sin «· este mes» (el mes en curso ya va resaltado), y es más chico (12 px). De otro año lleva el año en dos cifras («Dic 25»).
+- **Por qué:** Manuel, 23-nov: los nombres estaban muy largos; pidió las primeras 3 o 4 letras.
+- **Probado:** iPhone simulado, pantalla Métricas con datos en tres meses: «Nov · Oct · Sept · Todos». `tsc` del hub.
+- **Horas:** 0,2
+
 ## 23-nov-2026 · Panel + bot · La app ya no se queda en blanco, y las fotos, audios y archivos del chat se abren (rama `fix/carga-y-medios`)
 
 - **Qué (arranque):**
