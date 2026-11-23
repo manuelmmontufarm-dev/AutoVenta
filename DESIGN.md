@@ -397,9 +397,11 @@ más **Ajustes** como engranaje, no como pestaña de primer nivel.
   del bot. Es lo mínimo técnico.
 - Todo lo demás de esa pantalla **se descarta**: no se estaba usando.
 
-### Tour
-- **Sólo la primera vez** que alguien se conecta. Después no aparece nunca más
-  y no tiene botón en la interfaz.
+### Sin tour
+- **No hay tour.** Se quitó el 23-nov-2026: aparecía al abrir la app en cada
+  teléfono nuevo y a nadie le servía (Manuel). Cada pantalla tiene que
+  entenderse sola (punto 10 de abajo); lo que haga falta explicar va en el
+  instructivo, no en un recorrido que tapa la pantalla.
 
 ## 18. Criterio de aceptación de la Parte II
 
@@ -412,5 +414,5 @@ más **Ajustes** como engranaje, no como pestaña de primer nivel.
 6. ¿Cada sección de Métricas tiene al menos un gráfico?
 7. ¿Negocio y los tiempos de seguimiento están en Ajustes y no en Configuración?
 8. ¿Configuración quedó con WhatsApp, encendido y Manual base, nada más?
-9. ¿El tour sólo aparece en la primera conexión?
+9. ¿Se abre la app y se ve el trabajo, sin tour ni recorrido que lo tape?
 10. ¿Alguien que nunca lo vio entiende cada pantalla en cinco segundos?

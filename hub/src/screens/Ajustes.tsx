@@ -271,7 +271,7 @@ export function Ajustes() {
   // pantalla se pasa del alto de <main> y no hay forma de bajar.
   return (
     <div className="h-full overflow-y-auto px-4 pb-10 md:px-8">
-      <div className="mb-4 overflow-x-auto" data-tour="ajustes-tabs">
+      <div className="mb-4 overflow-x-auto">
         <Segmented id="ajustes" valor={tab} onChange={setTab} opciones={tabs.map((t) => ({ valor: t.id, label: t.label }))} />
       </div>
 

@@ -99,7 +99,6 @@ export function Inventario() {
             role="button"
             tabIndex={0}
             onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && !subiendo) input.current?.click(); }}
-            data-tour="inventario-subir"
             className={`mx-5 mt-4 flex cursor-pointer flex-col items-center gap-3 rounded-[8px] border-2 border-dashed px-6 py-9 text-center transition-colors md:mx-6 ${
               encima ? "border-signal bg-signal-tint" : "border-line-strong hover:border-signal hover:bg-signal-tint"
             } ${subiendo ? "pointer-events-none opacity-60" : ""}`}
