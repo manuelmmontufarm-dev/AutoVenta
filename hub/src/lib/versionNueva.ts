@@ -28,7 +28,10 @@ export function bundleActual(): string | null {
 /** El bundle que sirve el servidor hoy. null si no se pudo saber. */
 export async function bundleDelServidor(): Promise<string | null> {
   try {
-    const r = await fetch(new URL("./index.html", window.location.href).toString(), { cache: "no-store" });
+    const r = await fetch(new URL("./index.html", window.location.href).toString(), {
+      cache: "no-store",
+      signal: AbortSignal.timeout?.(8_000),
+    });
     if (!r.ok) return null;
     return PATRON.exec(await r.text())?.[0] ?? null;
   } catch {
@@ -45,7 +48,22 @@ export async function hayVersionNueva(): Promise<boolean> {
 
 /** Recarga la app en la misma pantalla (la ruta vive en el hash). */
 export function actualizarApp(): void {
+  try { window.sessionStorage.setItem(ULTIMA_RECARGA, String(Date.now())); } catch { /* sin almacenamiento */ }
   window.location.reload();
+}
+
+/**
+ * La recarga automática, como mucho una vez por minuto. Con mala señal el
+ * service worker puede devolver la página guardada (la vieja): sin este freno
+ * la app se recargaría una y otra vez sin llegar nunca a abrir.
+ */
+const ULTIMA_RECARGA = "autoventa.ultimaRecarga";
+function recargoHacePoco(): boolean {
+  try {
+    return Date.now() - Number(window.sessionStorage.getItem(ULTIMA_RECARGA) ?? 0) < 60_000;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -62,7 +80,7 @@ export function useVersionNueva(): boolean {
     const revisar = async (alVolver: boolean) => {
       const hay = await hayVersionNueva();
       if (!vivo || !hay) return;
-      if (alVolver) actualizarApp();
+      if (alVolver && !recargoHacePoco()) actualizarApp();
       else setNueva(true);
     };
     void revisar(false);

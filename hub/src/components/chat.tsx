@@ -19,7 +19,9 @@ export function ChatBubble({ msg, nombreCliente = "Cliente", onVerPdf }: { msg: 
   return (
     <div className={`flex max-w-[78%] flex-col gap-1 md:max-w-[62%] ${saliente ? "self-end items-end" : "self-start items-start"}`}>
       <div className={`bubble ${saliente ? "bubble-out" : "bubble-in"}`} style={{ maxWidth: "100%" }}>
-        {msg.tipo === "pdf" || msg.tipo === "imagen" ? (
+        {esMedioDelChat(msg) ? (
+          <MedioAdjunto msg={msg} />
+        ) : msg.tipo === "pdf" || msg.tipo === "imagen" ? (
           <PiezaAdjunta msg={msg} onFallback={onVerPdf} />
         ) : msg.tipo === "ubicacion" ? (
           <MapCard etiqueta={msg.contenido} />
@@ -163,9 +165,33 @@ function recordarPieza(url: string, objeto: string): void {
 }
 
 /** `activa` = false no pide nada todavía (la pieza no está a la vista, o no se amplió). */
-function usePiezaAutenticada(url: string, activa = true): { src: string | null; falló: boolean } {
+/**
+ * Baja un archivo del chat con la sesión del panel. Con mala señal no se rinde
+ * al primer intento: prueba tres veces (con un corte de 25 s cada una) y, si
+ * aun así falla, `reintentar` deja volver a probar con un toque.
+ */
+async function bajarConReintentos(url: string, vivo: () => boolean): Promise<Blob> {
+  let ultimo: unknown;
+  for (let intento = 0; intento < 3 && vivo(); intento++) {
+    if (intento) await new Promise((r) => setTimeout(r, 1200 * intento));
+    try {
+      const r = await fetch(url, { headers: authHeaders(), signal: AbortSignal.timeout?.(25_000) });
+      // Un 404 no mejora insistiendo: el archivo no está.
+      if (r.status === 404 || r.status === 401) throw Object.assign(new Error(`archivo ${r.status}`), { definitivo: true });
+      if (!r.ok) throw new Error(`archivo ${r.status}`);
+      return await r.blob();
+    } catch (error) {
+      ultimo = error;
+      if ((error as { definitivo?: boolean }).definitivo) break;
+    }
+  }
+  throw ultimo ?? new Error("cancelado");
+}
+
+function usePiezaAutenticada(url: string, activa = true): { src: string | null; falló: boolean; reintentar: () => void } {
   const [src, setSrc] = useState<string | null>(() => piezasBajadas.get(url) ?? null);
   const [falló, setFalló] = useState(false);
+  const [vuelta, setVuelta] = useState(0);
   useEffect(() => {
     const guardada = piezasBajadas.get(url);
     if (guardada) {
@@ -177,10 +203,8 @@ function usePiezaAutenticada(url: string, activa = true): { src: string | null; 
     let vivo = true;
     setSrc(null);
     setFalló(false);
-    fetch(url, { headers: authHeaders() })
-      .then(async (r) => {
-        if (!r.ok) throw new Error(`pieza ${r.status}`);
-        const blob = await r.blob();
+    bajarConReintentos(url, () => vivo)
+      .then((blob) => {
         const objeto = URL.createObjectURL(blob);
         recordarPieza(url, objeto);
         if (vivo) setSrc(objeto);
@@ -191,8 +215,8 @@ function usePiezaAutenticada(url: string, activa = true): { src: string | null; 
     return () => {
       vivo = false;
     };
-  }, [url, activa]);
-  return { src, falló };
+  }, [url, activa, vuelta]);
+  return { src, falló, reintentar: () => setVuelta((v) => v + 1) };
 }
 
 /** ¿El elemento ya entró (o está por entrar) en pantalla? Una vez que sí, se queda en sí. */
@@ -226,10 +250,14 @@ function PiezaAdjunta({ msg, onFallback }: { msg: Mensaje; onFallback?: () => vo
   // En la burbuja va la versión chica y solo cuando está a la vista; la grande
   // se pide recién al ampliar. Un chat con diez piezas ya no baja 9 MB al abrir.
   const [caja, aLaVista] = useALaVista<HTMLDivElement>();
-  const { src, falló } = usePiezaAutenticada(`/api/hub/messages/${msg.id}/pieza.png?chica=1`, aLaVista);
+  const { src, falló, reintentar } = usePiezaAutenticada(`/api/hub/messages/${msg.id}/pieza.png?chica=1`, aLaVista);
   const grande = usePiezaAutenticada(`/api/hub/messages/${msg.id}/pieza.png`, ampliada);
   const titulo = tituloDePieza(msg);
 
+  // Una foto del asesor que no bajó: se reintenta con un toque (no hay nada que redibujar).
+  if (falló && (msg.metadata as { adjunto?: string } | undefined)?.adjunto === "foto") {
+    return <NoCargo onReintentar={reintentar} texto={msg.contenido} />;
+  }
   if (falló) return <PdfCard titulo={msg.contenido} onVer={onFallback} />;
 
   return (
@@ -313,6 +341,248 @@ function PiezaAdjunta({ msg, onFallback }: { msg: Mensaje; onFallback?: () => vo
           </Modal>
         )}
         </AnimatePresence>,
+        document.body,
+      )}
+    </div>
+  );
+}
+
+/* ── Fotos, audios, videos y archivos del chat (23-nov-2026) ──
+ *
+ * Lo que manda el cliente, y lo que manda el asesor desde su WhatsApp. Antes
+ * solo se veía el texto («[El cliente mandó una foto. Se lee: …]»). El archivo
+ * se baja con la sesión del panel y se muestra desde memoria: así una foto se
+ * amplía al instante y un audio se puede adelantar.
+ */
+
+/** ¿Este mensaje trae un archivo guardado? Las piezas y las fotos de la app tienen su propio dibujo. */
+function esMedioDelChat(msg: Mensaje): boolean {
+  if (!msg.media) return false;
+  const meta = msg.metadata as { adjunto?: string; piece?: string; quoteNumber?: unknown } | undefined;
+  return !meta?.adjunto && !meta?.piece && !meta?.quoteNumber;
+}
+
+function NoCargo({ onReintentar, texto }: { onReintentar: () => void; texto?: string }) {
+  return (
+    <div className="flex w-full max-w-[260px] flex-col gap-1.5">
+      <button
+        type="button"
+        onClick={onReintentar}
+        className="flex min-h-[64px] w-full items-center gap-2 rounded-[6px] border border-line p-3 text-left text-[13px]"
+        style={{ background: "var(--color-bg)" }}
+        data-testid="medio-reintentar"
+      >
+        <IconAlert size={16} />
+        <span><b className="block">No se pudo cargar</b><span className="text-text2">Toca para reintentar</span></span>
+      </button>
+      {texto ? <p className="m-0 text-[11px] opacity-75">{texto}</p> : null}
+    </div>
+  );
+}
+
+/** Abre un archivo ya bajado: en el teléfono, la hoja de compartir (ver, guardar, reenviar); si no, pestaña nueva. */
+async function abrirArchivo(objeto: string, nombre: string, mime: string): Promise<void> {
+  try {
+    const blob = await (await fetch(objeto)).blob();
+    const archivo = new File([blob], nombre, { type: mime });
+    if (typeof navigator.canShare === "function" && navigator.canShare({ files: [archivo] })) {
+      await navigator.share({ files: [archivo], title: nombre });
+      return;
+    }
+  } catch (error) {
+    if ((error as Error).name === "AbortError") return; // cerró la hoja sin elegir
+  }
+  const a = document.createElement("a");
+  a.href = objeto;
+  a.target = "_blank";
+  a.rel = "noopener";
+  // Lo que el navegador no sabe mostrar, lo descarga con su nombre.
+  if (!/^(image|audio|video)\/|pdf$/.test(mime)) a.download = nombre;
+  document.body.append(a);
+  a.click();
+  a.remove();
+}
+
+/** El texto bajo el archivo. Los avisos internos entre corchetes se dicen en corto. */
+function pieDeMedio(msg: Mensaje): string {
+  const t = msg.contenido.trim();
+  const dice = /^\[[^\]]*?(?:Se lee|Dice):\s*([\s\S]*?)\]\s*([\s\S]*)$/.exec(t);
+  if (dice) return [dice[1].trim(), dice[2].trim()].filter(Boolean).join("\n");
+  // «[el asesor envió una imagen]», «[El cliente mandó un archivo que…]»: el archivo ya lo dice.
+  const sinAviso = t.replace(/^\[[^\]]*\]\s*/, "").trim();
+  return sinAviso;
+}
+
+const mmss = (s: number) => (Number.isFinite(s) && s >= 0 ? `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}` : "0:00");
+
+/**
+ * El audio, con controles propios. Los del iPhone, dentro de una burbuja, se
+ * encogen a un botón suelto sin barra ni duración; estos se ven igual en todos
+ * los teléfonos: tocar para oír, y tocar la barra para adelantar.
+ */
+function Reproductor({ src, onError }: { src: string; onError: () => void }) {
+  const audio = useRef<HTMLAudioElement>(null);
+  const [sonando, setSonando] = useState(false);
+  const [va, setVa] = useState(0);
+  const [dura, setDura] = useState(0);
+  const alternar = () => {
+    const a = audio.current;
+    if (!a) return;
+    if (a.paused) void a.play().catch(onError);
+    else a.pause();
+  };
+  const saltar = (e: React.MouseEvent<HTMLDivElement>) => {
+    const a = audio.current;
+    if (!a || !dura) return;
+    const caja = e.currentTarget.getBoundingClientRect();
+    a.currentTime = Math.min(dura, Math.max(0, ((e.clientX - caja.left) / caja.width) * dura));
+  };
+  return (
+    <div className="flex h-12 w-full items-center gap-2.5 rounded-[6px] border border-line px-2" style={{ background: "var(--color-bg)" }} data-testid="medio-audio">
+      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+      <audio
+        ref={audio}
+        src={src}
+        preload="metadata"
+        onPlay={() => setSonando(true)}
+        onPause={() => setSonando(false)}
+        onEnded={() => { setSonando(false); setVa(0); }}
+        onTimeUpdate={(e) => setVa(e.currentTarget.currentTime)}
+        // Algunos audios de WhatsApp no traen la duración hasta que suenan.
+        onLoadedMetadata={(e) => setDura(Number.isFinite(e.currentTarget.duration) ? e.currentTarget.duration : 0)}
+        onDurationChange={(e) => setDura(Number.isFinite(e.currentTarget.duration) ? e.currentTarget.duration : 0)}
+        onError={onError}
+      />
+      <button
+        type="button"
+        onClick={alternar}
+        className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-text text-[13px] text-white"
+        aria-label={sonando ? "Pausar el audio" : "Oír el audio"}
+        data-testid="medio-audio-play"
+      >
+        {sonando ? "❚❚" : "▶"}
+      </button>
+      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
+      <div className="flex h-9 min-w-0 flex-1 cursor-pointer items-center" onClick={saltar}>
+        <div className="h-1 w-full overflow-hidden rounded-full" style={{ background: "var(--color-line)" }}>
+          <div className="h-full bg-signal" style={{ width: `${dura ? Math.min(100, (va / dura) * 100) : 0}%` }} />
+        </div>
+      </div>
+      <span className="tnum shrink-0 font-mono text-[11px] text-text2">{mmss(sonando || va ? va : dura)}</span>
+    </div>
+  );
+}
+
+function MedioAdjunto({ msg }: { msg: Mensaje }) {
+  const media = msg.media!;
+  const url = `/api/hub/messages/${msg.id}/media`;
+  const [caja, aLaVista] = useALaVista<HTMLDivElement>();
+  const pesado = media.kind === "video" || media.kind === "document";
+  // Foto y audio bajan solos al entrar en pantalla; video y documento, al tocarlos.
+  const [pedido, setPedido] = useState(false);
+  const { src, falló, reintentar } = usePiezaAutenticada(url, pesado ? pedido : aLaVista);
+  const [ampliada, setAmpliada] = useState(false);
+  const [noSuena, setNoSuena] = useState(false);
+  const [abrirAlLlegar, setAbrirAlLlegar] = useState(false);
+  const pie = pieDeMedio(msg);
+
+  // Documento: se pidió con un toque; en cuanto llega, se abre.
+  useEffect(() => {
+    if (abrirAlLlegar && src) {
+      setAbrirAlLlegar(false);
+      void abrirArchivo(src, media.nombre, media.mime);
+    }
+  }, [abrirAlLlegar, src, media.nombre, media.mime]);
+
+  const cuerpo = falló ? (
+    <NoCargo onReintentar={reintentar} />
+  ) : media.kind === "image" || media.kind === "sticker" ? (
+    src ? (
+      <button
+        type="button"
+        onClick={() => setAmpliada(true)}
+        className="block w-full overflow-hidden rounded-[6px] border border-line"
+        aria-label="Ampliar la foto"
+        data-testid="medio-foto"
+      >
+        <img src={src} alt="Foto del chat" className="block max-h-[320px] w-full object-cover" />
+      </button>
+    ) : (
+      <div className="skeleton w-full" style={{ height: 180 }} />
+    )
+  ) : media.kind === "audio" ? (
+    src ? (
+      <>
+        <Reproductor src={src} onError={() => setNoSuena(true)} />
+        {noSuena && (
+          <button type="button" onClick={() => void abrirArchivo(src, media.nombre, media.mime)} className="text-left text-[12px] font-semibold text-signal underline underline-offset-[3px]">
+            Este teléfono no pudo reproducirlo aquí. Toca para abrirlo.
+          </button>
+        )}
+      </>
+    ) : (
+      <div className="skeleton w-full" style={{ height: 48 }} />
+    )
+  ) : media.kind === "video" ? (
+    src ? (
+      // eslint-disable-next-line jsx-a11y/media-has-caption
+      <video controls playsInline preload="metadata" src={src} className="block max-h-[360px] w-full rounded-[6px] bg-black" data-testid="medio-video" />
+    ) : (
+      <button
+        type="button"
+        onClick={() => setPedido(true)}
+        className="grid h-[150px] w-full place-items-center rounded-[6px] bg-text text-[14px] font-semibold text-white"
+        data-testid="medio-ver-video"
+      >
+        {pedido ? "Cargando el video…" : "▶ Ver video"}
+      </button>
+    )
+  ) : (
+    <button
+      type="button"
+      onClick={() => {
+        if (src) void abrirArchivo(src, media.nombre, media.mime);
+        else { setPedido(true); setAbrirAlLlegar(true); }
+      }}
+      className="flex w-full items-center gap-2.5 rounded-[6px] border border-line p-2.5 text-left"
+      style={{ background: "var(--color-bg)" }}
+      data-testid="medio-documento"
+    >
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[6px] border border-line" style={{ background: "var(--color-surface)" }}>
+        <IconDoc size={16} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[13px] font-semibold">{media.nombre}</span>
+        <span className="block text-[11px] text-text2">{pedido && !src ? "Abriendo…" : "Toca para abrir"}</span>
+      </span>
+    </button>
+  );
+
+  return (
+    <div ref={caja} className="flex w-[260px] max-w-full flex-col gap-1.5">
+      {cuerpo}
+      {pie ? <p className="m-0 whitespace-pre-wrap text-[13px]">{pie}</p> : null}
+      {ampliada && src && createPortal(
+        <div
+          className="fixed inset-0 z-[70] flex flex-col bg-black"
+          role="dialog"
+          aria-label="Foto"
+          data-testid="visor-de-foto"
+          style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}
+        >
+          <div className="flex items-center justify-between px-3 py-2 text-white">
+            <button type="button" onClick={() => setAmpliada(false)} className="grid h-11 w-11 place-items-center" aria-label="Cerrar">
+              <IconX size={22} />
+            </button>
+            <button type="button" onClick={() => void abrirArchivo(src, media.nombre, media.mime)} className="h-11 px-3 text-[15px] font-semibold">
+              Compartir o guardar
+            </button>
+          </div>
+          {/* Tocar fuera de la foto también cierra. El zoom con dos dedos es el del teléfono. */}
+          <button type="button" onClick={() => setAmpliada(false)} className="flex min-h-0 flex-1 items-center justify-center" aria-label="Cerrar la foto">
+            <img src={src} alt="Foto del chat" className="max-h-full max-w-full object-contain" />
+          </button>
+        </div>,
         document.body,
       )}
     </div>

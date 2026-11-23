@@ -1,3 +1,38 @@
+## 23-nov-2026 · Panel + bot · La app ya no se queda en blanco, y las fotos, audios y archivos del chat se abren (rama `fix/carga-y-medios`)
+
+- **Qué (arranque):**
+  - Pantalla de carga escrita en `index.html` (se ve antes de que baje el programa); a los 10 s, o si el programa
+    no baja o se rompe, ofrece «Reintentar».
+  - El service worker guarda el cascarón (página, programa, estilos, fuentes, ícono). La página se pide siempre
+    primero al servidor; si no contesta en 3 s o falla, se abre la guardada. Los datos `/api` no se guardan nunca.
+  - Tocar una notificación ya no manda a recargar la app (`client.navigate`): le pasa un mensaje y la app cambia
+    de pantalla sola. Sin ventana abierta, abre una nueva.
+  - Red de seguridad de React (`RedDeSeguridad`): una pantalla que se rompe muestra «Reintentar» y anota el error
+    en el log del servidor (`POST /api/hub/error-del-panel`).
+  - El chat abierto desde un enlace ya no queda vacío mientras llega la lista; si tarda, lo dice. Refresco al
+    volver del fondo (`pageshow`, `online`). La recarga automática por versión nueva, máximo una por minuto.
+- **Qué (archivos del chat):**
+  - Tabla `message_media` (migración 039): el archivo de cada mensaje, enlazado por `wa_message_id`. Se guarda lo
+    que manda el cliente (foto, audio, documento, video, sticker), lo que manda el asesor desde su WhatsApp (ecos)
+    y la foto entera que el asesor manda desde la app (antes solo la miniatura).
+  - `GET /api/hub/messages/:id/media`. Si Meta no entregó el archivo al llegar, se vuelve a pedir al abrirlo.
+  - En el chat: la foto se ve y se amplía a pantalla completa (compartir o guardar), el audio tiene su reproductor,
+    el video se carga al tocarlo y el documento se abre con la hoja del teléfono. Cada archivo se baja con tres
+    intentos y, si falla, «Toca para reintentar».
+- **Por qué:** Manuel, 23-nov: «muchas veces abro la app y solo se queda en blanco… a veces aplasto notificaciones
+  y se queda cargando hasta que toca reiniciar» y «que se puedan leer las imágenes, audios, fotos… que no falle nunca».
+  Causas encontradas: sin pantalla de carga; nada guardado, así que con mala señal o el servidor reiniciando la
+  página no llegaba; un error al dibujar dejaba la página vacía; y el toque de la notificación recargaba la app.
+  De las fotos y audios solo se guardaba el texto leído; el archivo se tiraba.
+- **Probado:** simulador `--stub` + iPhone simulado: foto, audio y PDF reales se guardan, se ven, se amplían y se
+  abren; con el servidor congelado (`kill -STOP`) la app abre a los ~4 s desde lo guardado y se recupera sola al
+  volver el servidor (antes: en blanco indefinidamente — reproducido). `mediosDelChat.integration.test.ts` (8),
+  las cuatro del simulador, suite completa (fallan las 3 que ya fallaban en `main`).
+- **No probado:** el toque de una notificación real (el simulador no recibe push); el audio `ogg/opus` de WhatsApp
+  en un iPhone con iOS anterior a 18.4 (si no suena, queda el botón para abrirlo y la transcripción); que Meta
+  entregue por `id` los archivos de los ecos en coexistencia.
+- **Horas:** 3.
+
 ## 23-nov-2026 · Panel · La app instalada se actualiza sola (rama `fix/app-se-actualiza-sola`)
 
 - **Qué:** el panel compara su `assets/index-<hash>.js` con el que sirve el servidor (`index.html` sin caché). Al

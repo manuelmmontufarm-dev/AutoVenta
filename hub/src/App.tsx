@@ -101,6 +101,30 @@ function navActivo(route: Route): string {
   return route.vista === "ticket" ? "inbox" : route.vista;
 }
 
+/**
+ * Mientras llega la lista (abrir desde una notificación entra directo al chat).
+ * Si tarda, lo dice y deja reintentar: nunca una pantalla muda.
+ */
+function AbriendoChat() {
+  const [lento, setLento] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setLento(true), 7000);
+    return () => clearTimeout(t);
+  }, []);
+  return (
+    <div className="grid h-full place-items-center p-6 text-center text-[14px] text-text2" data-testid="abriendo-chat">
+      {lento ? (
+        <div className="flex flex-col items-center gap-3">
+          <span>El servidor está tardando en contestar. Seguimos intentando…</span>
+          <button type="button" className="btn-signal h-11 rounded-[8px] px-6 text-[15px] font-semibold" onClick={() => window.location.reload()}>
+            Reintentar
+          </button>
+        </div>
+      ) : "Abriendo la conversación…"}
+    </div>
+  );
+}
+
 export default function App() {
   const route = useRoute();
   const { init, cargando, tickets, demo, dataMode, toggleDemo, phases, conexion, power, usuario, permisos, salir, refrescar } = useHub();
@@ -366,7 +390,11 @@ export default function App() {
               {route.vista === "validar" && <Validar />}
               {route.vista === "avisos" && <Avisos />}
               {route.vista === "settings" && <Settings />}
-              {route.vista === "ticket" && !cargando && <TicketDetail id={route.id} />}
+              {route.vista === "ticket" && (cargando
+                // Nunca en blanco: abrir desde una notificación entra directo
+                // aquí, antes de que llegue la lista.
+                ? <AbriendoChat />
+                : <TicketDetail id={route.id} />)}
             </div>
           </main>
         </div>

@@ -333,6 +333,8 @@ export interface Mensaje {
   contenido: string;
   estado?: string;
   metadata?: Record<string, unknown>;
+  /** El archivo del mensaje (foto, audio, video, documento), si lo trae. Se pide por `/api/hub/messages/:id/media`. */
+  media?: { kind: "image" | "audio" | "video" | "document" | "sticker"; mime: string; nombre: string };
   hora: string;
 }
 

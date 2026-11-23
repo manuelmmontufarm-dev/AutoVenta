@@ -129,7 +129,7 @@ export interface UsuarioDisponible {
 
 /** Lista para el desplegable del login. Ruta pública: no necesita clave. */
 export async function listarUsuarios(): Promise<UsuarioDisponible[]> {
-  const r = await fetch("/api/auth/users");
+  const r = await fetch("/api/auth/users", { signal: AbortSignal.timeout?.(12_000) });
   if (!r.ok) throw new Error(`El servidor respondió ${r.status}`);
   const data = (await r.json()) as { users?: UsuarioDisponible[] };
   return data.users ?? [];

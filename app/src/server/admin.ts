@@ -17,6 +17,7 @@ import { anunciosVistos, getAnunciosActivos, saveAnunciosActivos } from "../serv
 import { business, config } from "../config.js";
 import { appendMessage, logQuote, pauseBot } from "../services/conversations.js";
 import { achicarPieza, guardarPieza, piezaEnMemoria } from "../services/piezasDelChat.js";
+import { guardarMedio, medioDelMensaje } from "../services/mediosDelChat.js";
 import { forceSyncNow, interbotPricesState } from "../services/interbotPrices.js";
 import { PLANTILLA_NAMES, MODO_NAMES,
   getAiConfig,
@@ -168,7 +169,7 @@ import {
   usuariosHub,
   type UsuarioHub,
 } from "../services/hubUsers.js";
-import { sendApprovedTemplate, sendImage, sendPdf, reloadWa, listarPlantillasDeMeta } from "../wa/client.js";
+import { downloadMedia, sendApprovedTemplate, sendImage, sendPdf, reloadWa, listarPlantillasDeMeta } from "../wa/client.js";
 import { negocio } from "../negocio/index.js";
 import { nombreDelResponsable } from "./privacidad.js";
 import { enviarAvisoDeLaManana, getAvisoManana, saveAvisoManana, ultimoResultadoAvisoManana } from "../services/avisoDeLaManana.js";
@@ -761,6 +762,47 @@ export function createAdminRouter(): express.Router {
     res.json({ ok: true, messages: await getHubMessages(id) });
   });
 
+  // ── Fotos, audios y archivos del chat (23-nov-2026) ───────────────────────
+  // El archivo de un mensaje (del cliente, o del asesor desde su WhatsApp).
+  // Ver services/mediosDelChat.ts. Si al llegar no se pudo bajar de Meta, se
+  // vuelve a intentar aquí.
+  router.get("/hub/messages/:id/media", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      if (!Number.isInteger(id)) return res.status(400).json({ ok: false, error: "id inválido" });
+      const medio = await medioDelMensaje(id, downloadMedia);
+      if (!medio) return res.status(404).json({ ok: false, error: "Ese archivo ya no está disponible." });
+      res.setHeader("Content-Type", medio.mime);
+      res.setHeader("Content-Length", String(medio.bytes.byteLength));
+      res.setHeader("Content-Disposition", `inline; filename*=UTF-8''${encodeURIComponent(medio.nombre)}`);
+      res.setHeader("X-Content-Type-Options", "nosniff");
+      res.setHeader("Cache-Control", "private, max-age=86400");
+      res.send(medio.bytes);
+    } catch (error) {
+      console.error("❌ media del mensaje:", error);
+      res.status(500).json({ ok: false, error: "No se pudo abrir el archivo." });
+    }
+  });
+
+  // Un error del panel en el teléfono (pantalla rota, promesa suelta): queda en
+  // el log del servidor. Sin esto «se me quedó en blanco» no deja rastro.
+  let erroresDelPanel = 0;
+  setInterval(() => { erroresDelPanel = 0; }, 60_000).unref();
+  router.post("/hub/error-del-panel", (req, res) => {
+    if (erroresDelPanel++ < 20) {
+      const c = (v: unknown, n: number) => String(v ?? "").slice(0, n);
+      console.warn("📱 Error en el panel:", JSON.stringify({
+        quien: req.usuario?.nombre ?? null,
+        mensaje: c(req.body?.mensaje, 300),
+        donde: c(req.body?.donde, 500),
+        ruta: c(req.body?.ruta, 80),
+        agente: c(req.body?.agente, 160),
+        pila: c(req.body?.pila, 1500),
+      }));
+    }
+    res.json({ ok: true });
+  });
+
   router.get("/hub/feed", async (_req, res) => {
     res.json({ ok: true, feed: await getHubFeed() });
   });
@@ -1275,7 +1317,9 @@ export function createAdminRouter(): express.Router {
       const meta = row.metadata ?? {};
       // Una foto que adjuntó el asesor: no hay nada que redibujar, se sirve su miniatura.
       if (meta.adjunto === "foto") {
-        const foto = miniaturaABuffer(meta.miniatura);
+        // Al ampliar va la foto entera (guardada desde el 23-nov); en la burbuja, la miniatura.
+        const entera = chica ? null : await medioDelMensaje(Number(req.params.id), downloadMedia).catch(() => null);
+        const foto = entera?.bytes ?? miniaturaABuffer(meta.miniatura);
         if (!foto) return res.status(404).json({ ok: false, error: "Esa foto no guardó miniatura" });
         res.setHeader("Content-Type", "image/jpeg");
         res.setHeader("Cache-Control", "private, max-age=86400");
@@ -2078,6 +2122,10 @@ export function createAdminRouter(): express.Router {
           ...(miniaturaABuffer(miniatura) && miniatura.length < 400_000 ? { miniatura } : {}),
         },
       });
+      // La foto entera, para ampliarla en el chat (antes solo quedaba la miniatura).
+      if (providerId) {
+        await guardarMedio({ waMessageId: providerId, conversationId: conversation.id, kind: "image", mime: "image/jpeg", filename: "foto.jpg", bytes: imagen });
+      }
       await trasAdjuntar(req, conversation.id, { adjunto: "foto" });
       res.json({ ok: true, id: providerId ?? null });
     } catch (error) {
