@@ -1,3 +1,15 @@
+## 23-nov-2026 · Panel · Sin tour al abrir la app (rama `fix/panel-sin-tour`)
+
+- **Qué:** se quitó el tour del panel (`hub/src/components/tour.tsx`, el `<Tour />` de `App.tsx` y los
+  `data-tour` que solo usaba él). La app abre directo en el Inbox. `DESIGN.md` §17: ya no hay tour; cada
+  pantalla se entiende sola y lo que haga falta va en el instructivo.
+- **Por qué:** Manuel, 23-nov: «lo de el tour cuando abres la app también quitaría, a nadie le interesa».
+  La marca de «ya lo vi» vivía en el navegador, así que al instalar la app en cada teléfono volvía a salir y
+  tapaba la pantalla a vendedores que solo querían contestar.
+- **Probado:** `tsc` y build del hub; en el navegador (demo, teléfono y escritorio) abre en el Inbox sin
+  recorrido y sin errores nuevos en la consola.
+- **Horas:** 0,3.
+
 ## 23-nov-2026 · Panel + bot · La app ya no se queda en blanco, y las fotos, audios y archivos del chat se abren (rama `fix/carga-y-medios`)
 
 - **Qué (arranque):**

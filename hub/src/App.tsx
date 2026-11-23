@@ -7,7 +7,6 @@ import { IconAjustes, IconAlert, IconCampana, IconRefresh, IconChart, IconDiana,
 import { PageHeader } from "./components/ui";
 import { VersionBadge } from "./components/version-badge";
 import { setSonidoActivo, sonidoActivo, sonidoBoton } from "./lib/sound";
-import { Tour } from "./components/tour";
 import { navigate, useRoute, type Route } from "./router";
 import { Ajustes } from "./screens/Ajustes";
 import { Dashboard } from "./screens/Dashboard";
@@ -259,7 +258,6 @@ export default function App() {
                 onClick={() => navigate(item.id)}
                 icon={<item.icon size={18} />}
                 label={item.label}
-                tour={`nav-${item.id}`}
                 aside={item.id === "inbox" && abiertos > 0 ? abiertos : item.id === "para-cerrar" && faltan ? faltan : undefined}
               />
             ))}
@@ -291,7 +289,6 @@ export default function App() {
                 onClick={() => navigate("ajustes")}
                 icon={<IconAjustes size={18} />}
                 label="Ajustes"
-                tour="nav-ajustes"
                 className="mt-1.5"
               />
             )}
@@ -414,7 +411,6 @@ export default function App() {
                   key={item.id}
                   onClick={() => navigate(item.id)}
                   className={`flex h-12 flex-col items-center justify-center gap-1 text-[11px] ${activo ? "font-semibold text-signal" : "font-medium text-text"}`}
-                  data-tour={`nav-${item.id}`}
                   aria-current={activo ? "page" : undefined}
                 >
                   <item.icon size={22} />
@@ -428,7 +424,6 @@ export default function App() {
         <AvisosAlAbrir />
         <Toasts />
         <Confetti />
-        <Tour />
         {bloqueado && <ConnectionGate estado={conexion as "clave-invalida" | "sin-conexion"} />}
       </div>
     </MotionConfig>
@@ -453,7 +448,6 @@ function NavItem({
   icon,
   label,
   aside,
-  tour,
   className = "",
 }: {
   activo: boolean;
@@ -461,7 +455,6 @@ function NavItem({
   icon: ReactNode;
   label: string;
   aside?: number;
-  tour?: string;
   className?: string;
 }) {
   return (
@@ -469,7 +462,6 @@ function NavItem({
       type="button"
       onClick={onClick}
       aria-current={activo ? "page" : undefined}
-      data-tour={tour}
       className={`flex h-10 items-center gap-3 rounded-[6px] px-3 text-[14px] transition-colors ${
         activo ? "bg-signal-tint font-semibold text-signal" : "font-medium text-text hover:bg-black/[.03]"
       } ${className}`}

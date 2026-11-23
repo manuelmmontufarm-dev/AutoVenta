@@ -3,7 +3,7 @@
  *
  * Hasta ahora «Depot Tire», su teléfono y sus dos locales estaban escritos a
  * mano por todo el hub: el panel de otro cliente decía Depot en el título, en
- * el tour y hasta en el nombre del PDF. Ahora todo eso sale de
+ * el saludo y hasta en el nombre del PDF. Ahora todo eso sale de
  * `GET /api/negocio` (lo entrega el Sprint 1), que se pide UNA vez después del
  * login y se comparte con el patrón de `useNivelesAviso`: un estado a nivel de
  * módulo con oyentes, para que cualquier componente lo lea síncrono y se
