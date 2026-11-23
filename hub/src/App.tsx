@@ -19,6 +19,7 @@ import { Pipeline } from "./screens/Pipeline";
 import { TicketDetail } from "./screens/TicketDetail";
 import { Validar } from "./screens/Validar";
 import { Avisos } from "./screens/Avisos";
+import { actualizarApp, hayVersionNueva, useVersionNueva } from "./lib/versionNueva";
 import { AvisosAlAbrir } from "./components/avisosAlAbrir";
 import { avisosNuevos, useAvisos } from "./data/avisos";
 import { Settings } from "./screens/Settings";
@@ -107,8 +108,16 @@ export default function App() {
   // El botón de refrescar del teléfono: gira mientras viaja y medio segundo
   // más, para que se note que se tocó aunque el servidor conteste al instante.
   const [refrescando, setRefrescando] = useState(false);
+  // La app instalada no se recarga sola: si hay una versión nueva, se avisa
+  // (o se recarga al volver a ella) — ver lib/versionNueva.ts.
+  const versionNueva = useVersionNueva();
   const refrescarTodo = async () => {
     if (refrescando) return;
+    // Refrescar también trae la versión nueva del panel, si la hay.
+    if (await hayVersionNueva()) {
+      actualizarApp();
+      return;
+    }
     setRefrescando(true);
     await Promise.allSettled([refrescar(), new Promise((r) => setTimeout(r, 500))]);
     setRefrescando(false);
@@ -328,6 +337,18 @@ export default function App() {
 
           {porArchivo && route.vista !== "inventario" && !enTicket && inventarioViejo(inventario.estado) && (
             <AvisoInventarioViejo estado={inventario.estado} />
+          )}
+
+          {versionNueva && (
+            <button
+              type="button"
+              onClick={actualizarApp}
+              data-testid="version-nueva"
+              className="mx-4 mt-2 flex items-center justify-between gap-3 rounded-[8px] bg-text px-4 py-2.5 text-left text-[14px] font-medium text-white md:mx-8 md:mt-4"
+            >
+              <span>Hay una versión nueva del panel.</span>
+              <span className="font-semibold whitespace-nowrap underline underline-offset-[3px]">Actualizar</span>
+            </button>
           )}
 
           <main className={`min-h-0 flex-1 ${enTicket ? "" : "pb-[92px] md:pb-0"}`}>

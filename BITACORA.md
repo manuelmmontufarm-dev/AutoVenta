@@ -1,3 +1,14 @@
+## 23-nov-2026 · Panel · La app instalada se actualiza sola (rama `fix/app-se-actualiza-sola`)
+
+- **Qué:** el panel compara su `assets/index-<hash>.js` con el que sirve el servidor (`index.html` sin caché). Al
+  volver a la app con una versión nueva publicada, recarga sola; mientras se está usando, muestra «Hay una versión
+  nueva del panel · Actualizar»; el botón de refrescar también la trae. Revisa al abrir, cada 5 min y al volver.
+- **Por qué:** Manuel, 22-nov: «el de Competi sigue teniendo el Cotizador». El servidor ya servía la versión sin la
+  pestaña; la app instalada en el iPhone seguía corriendo la vieja en memoria hasta cerrarla del todo.
+- **Probado:** con el panel abierto se publicó otra compilación local; al volver a la app pasó del bundle viejo al
+  nuevo sin tocar nada. `tsc` del hub.
+- **Horas:** 0.4.
+
 ## 22-nov-2026 · Panel · Cotización con el diseño nuevo, al chat como imagen y máximo 4 opciones (rama `fix/cotizacion-pdf-imagen-opciones`)
 
 - **Qué:** el PDF del Cotizador (`/catalog/quote-pdf`) ahora es la misma imagen que manda el bot (pdfmake solo si falla el render); la cotización desde el «+» del chat sale como imagen, no PDF; Opciones desde el chat lleva máximo 4 (panel y servidor).
