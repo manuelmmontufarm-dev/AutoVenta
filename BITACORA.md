@@ -1,3 +1,14 @@
+## 23-nov-2026 · Panel · El número del cliente en los avisos abre WhatsApp + usuario «Depot Tire» (rama `feat/aviso-numero-a-whatsapp`)
+
+- **Qué:** en Avisos, al abrir un aviso el número del cliente es un enlace a `wa.me` (09…, 9…, 593… y extranjeros;
+  montos, medidas y facturas no). La notificación push lleva el teléfono: en Android sale el botón «WhatsApp»; en
+  iPhone el toque sigue abriendo el chat del panel. Aparte (sin código): se creó en Depot el usuario `depot`
+  («Depot Tire», asesor, sin Finanzas/Ajustes/Errores), pendiente de crear su clave desde el teléfono del local.
+- **Por qué:** Manuel, 23-nov: que el teléfono de Depot tenga usuario y que el número del aviso se toque y abra WhatsApp.
+- **Probado:** `tsc` hub y app; 53 pruebas de avisos (nueva: el push lleva `telefono`); simulador --stub con un aviso
+  real servido. No probado en un teléfono físico.
+- **Horas:** 0.5.
+
 ## 23-nov-2026 · Panel · La app instalada se actualiza sola (rama `fix/app-se-actualiza-sola`)
 
 - **Qué:** el panel compara su `assets/index-<hash>.js` con el que sirve el servidor (`index.html` sin caché). Al

@@ -39,7 +39,7 @@ const CON_APP = "593990000001"; // Ana activó las notificaciones
 const SIN_APP = "593990000002"; // Beto no
 
 /** Lo que «salió» por la app en cada prueba. */
-let pushes: { endpoint: string; aviso: { titulo: string; cuerpo: string; ruta?: string } }[] = [];
+let pushes: { endpoint: string; aviso: { titulo: string; cuerpo: string; ruta?: string; telefono?: string } }[] = [];
 let pushFalla = false;
 
 async function conversacion(): Promise<number> {
@@ -95,6 +95,8 @@ describe("avisos en la app", () => {
     expect(pushes).toHaveLength(1);
     expect(pushes[0].aviso.ruta).toBe(`#/ticket/${id}`);
     expect(pushes[0].aviso.cuerpo).toContain("Carla Mendoza");
+    // Y el WhatsApp del cliente, para el botón que abre su chat (23-nov-2026).
+    expect(pushes[0].aviso.telefono).toMatch(/^\d{9,15}$/);
   });
 
   it("venta confirmada también va por la app", async () => {
