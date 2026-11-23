@@ -34,8 +34,18 @@ export function etiquetaDeMes(clave: string, opciones: { corta?: boolean } = {})
  * Vive en el store, así que elegir agosto en los KPIs deja el kanban en agosto:
  * dos pantallas con meses distintos serían dos verdades sobre el mismo negocio.
  */
-/** «septiembre» → «Septiembre»; sólo la primera letra, no cada palabra. */
-const conMayuscula = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+/**
+ * El mes en corto para el selector: «Nov», «Oct», «Sept» (Manuel, 23-nov-2026:
+ * los nombres enteros ocupaban demasiado, sobre todo en el teléfono). De otro
+ * año lleva el año en dos cifras: «Dic 25».
+ */
+const MESES_CORTOS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sept", "Oct", "Nov", "Dic"];
+export function mesCorto(clave: string): string {
+  const [año, mes] = clave.split("-");
+  const nombre = MESES_CORTOS[Number(mes) - 1];
+  if (!nombre) return clave;
+  return año === mesEnCurso().slice(0, 4) ? nombre : `${nombre} ${año.slice(2)}`;
+}
 
 export function SelectorDeMes({ className = "" }: { className?: string }) {
   const mes = useHub((s) => s.mes);
@@ -64,18 +74,14 @@ export function SelectorDeMes({ className = "" }: { className?: string }) {
             title={
               op.clave === TODOS
                 ? "Todo el histórico, sin recortar por mes"
-                : `Ver ${etiquetaDeMes(op.clave)}`
+                : `Ver ${etiquetaDeMes(op.clave)}${op.esActual ? " (este mes)" : ""}`
             }
-            className={`flex h-[30px] shrink-0 items-center rounded-[4px] px-3 text-[13px] whitespace-nowrap transition-colors ${
+            className={`flex h-[28px] shrink-0 items-center rounded-[4px] px-2.5 text-[12px] whitespace-nowrap transition-colors ${
               activo ? "bg-surface font-semibold text-signal shadow-[0_1px_2px_rgba(28,27,25,.08)]" : "font-medium text-text2 hover:text-text"
             }`}
           >
             <span>
-              {op.clave === TODOS
-                ? "Todos"
-                : op.esActual
-                  ? `${conMayuscula(etiquetaDeMes(op.clave, { corta: true }))} · este mes`
-                  : conMayuscula(etiquetaDeMes(op.clave, { corta: true }))}
+              {op.clave === TODOS ? "Todos" : mesCorto(op.clave)}
             </span>
           </button>
         );
