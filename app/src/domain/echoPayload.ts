@@ -22,9 +22,11 @@ export interface EchoMessage {
   timestamp?: string;
   type?: string;
   text?: { body?: string };
-  image?: { caption?: string };
-  video?: { caption?: string };
-  document?: { caption?: string; filename?: string };
+  image?: { caption?: string; id?: string; mime_type?: string };
+  video?: { caption?: string; id?: string; mime_type?: string };
+  audio?: { id?: string; mime_type?: string };
+  sticker?: { id?: string; mime_type?: string };
+  document?: { caption?: string; filename?: string; id?: string; mime_type?: string };
   location?: { name?: string; address?: string };
   [key: string]: unknown;
 }
@@ -151,4 +153,28 @@ const TEXTO_AUTOMATICO = new RegExp([
 export function esRespuestaAutomatica(texto: string, segundosDesdeElCliente: number | null): boolean {
   if (TEXTO_AUTOMATICO.test(texto)) return true;
   return segundosDesdeElCliente !== null && segundosDesdeElCliente >= 0 && segundosDesdeElCliente < SEGUNDOS_DE_UNA_AUTOMATICA;
+}
+
+/**
+ * El archivo que trae un eco (foto, audio, video, sticker, documento), para
+ * guardarlo y que el panel lo pueda abrir. null si el eco no trae ninguno.
+ */
+export function medioDeEco(eco: EchoMessage): {
+  kind: "image" | "audio" | "video" | "document" | "sticker";
+  id: string;
+  mime: string | null;
+  filename: string | null;
+} | null {
+  for (const kind of ["image", "audio", "video", "sticker", "document"] as const) {
+    if (eco.type !== kind) continue;
+    const adjunto = eco[kind];
+    if (!adjunto?.id) return null;
+    return {
+      kind,
+      id: String(adjunto.id),
+      mime: adjunto.mime_type ?? null,
+      filename: kind === "document" ? (eco.document?.filename ?? null) : null,
+    };
+  }
+  return null;
 }

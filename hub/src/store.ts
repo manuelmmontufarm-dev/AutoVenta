@@ -452,6 +452,12 @@ export const useHub = create<HubState>((set, get) => {
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") void refrescarLigero();
     });
+    // Volver del fondo sin que cambie la visibilidad (el iPhone restaura la
+    // página congelada) y el toque de una notificación sobre la pantalla que
+    // ya estaba abierta: se vuelve a pedir todo en vez de mostrar lo viejo.
+    window.addEventListener("pageshow", (e) => { if (e.persisted) void refrescarLigero(); });
+    window.addEventListener("online", () => void refrescarLigero());
+    window.addEventListener("autoventa:refrescar", () => void refrescarLigero());
   }
 
   async function refrescarMensajes(ticketId: number): Promise<void> {

@@ -1,4 +1,5 @@
 import { config } from "../config.js";
+import { medioParaLaLista } from "./mediosDelChat.js";
 import { sql } from "../db/client.js";
 import { atiendeUnaPersona as atiendeUnaPersonaDominio, type FilaDeTurno } from "../domain/turnoDelHumano.js";
 import { resolverPeriodo } from "./periodoMensual.js";
@@ -374,13 +375,19 @@ export async function getHubMessages(conversationId: number) {
       status: string | null;
       created_at: Date;
       metadata: Record<string, unknown> | null;
+      media_kind: string | null;
+      media_mime: string | null;
+      media_filename: string | null;
     }[]
   >`
     select * from (
-      select id, role, author_kind, type, content, status, created_at, metadata
-      from messages
-      where conversation_id = ${conversationId} and type <> 'note'
-      order by created_at desc, id desc
+      select m.id, m.role, m.author_kind, m.type, m.content, m.status, m.created_at, m.metadata,
+             mm.kind as media_kind, mm.mime as media_mime, mm.filename as media_filename
+      from messages m
+      -- El archivo del mensaje (foto, audio…), sin sus bytes: el chat lo pide aparte.
+      left join message_media mm on mm.wa_message_id = m.wa_message_id
+      where m.conversation_id = ${conversationId} and m.type <> 'note'
+      order by m.created_at desc, m.id desc
       limit 300
     ) ultimos
     order by created_at asc, id asc
@@ -414,6 +421,7 @@ export async function getHubMessages(conversationId: number) {
     // lista: el chat la pide aparte por `/pieza.png`, y esta lista se refresca
     // cada pocos segundos.
     metadata: sinMiniatura(row.metadata),
+    media: medioParaLaLista(row),
     hora: row.created_at.toISOString(),
   }));
 }

@@ -15,6 +15,7 @@ function nombreCorto(ticket: Ticket): string {
 }
 
 export function TicketDetail({ id }: { id: number }) {
+  const conexion = useHub((s) => s.conexion);
   const { tickets, ticketsSueltos, mensajes, typing, abrirTicket, enviarMensaje, setAtiende, cerrar, reabrir, deshacerVenta, agregarNota } = useHub();
   // El listado corta en 500: un enlace viejo apunta a una conversación que
   // existe pero no vino en el lote. `abrirTicket` la trae de a una.
@@ -92,6 +93,14 @@ export function TicketDetail({ id }: { id: number }) {
       <div className="grid h-full place-items-center text-[14px] text-text2">
         {cargandoTicket ? (
           "Abriendo la conversación…"
+        ) : conexion !== "conectada" ? (
+          // Sin red no se sabe si el ticket existe: no decir «no encontrado».
+          <span>
+            Sin conexión con el servidor.{" "}
+            <button className="font-semibold text-signal underline underline-offset-[3px]" onClick={() => { setCargandoTicket(true); void abrirTicket(id).finally(() => setCargandoTicket(false)); }}>
+              Reintentar
+            </button>
+          </span>
         ) : (
           <span>
             Ticket no encontrado.{" "}

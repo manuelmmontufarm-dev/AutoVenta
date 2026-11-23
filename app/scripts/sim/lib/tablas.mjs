@@ -31,6 +31,8 @@ export const TABLAS_CONFIG = [
 /** NO se copia: son clientes, conversaciones y su rastro. */
 export const TABLAS_DATOS = [
   // Avisos en la app (22-nov): los teléfonos suscritos y las claves de firma son de cada servicio.
+  // Fotos, audios y archivos del chat (23-nov): son datos de las conversaciones.
+  "message_media",
   "push_subscriptions",
   "push_keys",
   "conversations",

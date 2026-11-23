@@ -22,6 +22,7 @@ process.on("unhandledRejection", (reason) => {
 });
 import { initWa, setWaHandlers, sendAdvisorText, sendCustomerText, sendCustomerButtons, showTyping, downloadMedia } from "./wa/client.js";
 import { describirFotoDeLlanta } from "./services/vision.js";
+import { bajarYGuardarMedio, guardarMedio } from "./services/mediosDelChat.js";
 import { transcribirAudio } from "./services/transcripcion.js";
 import { conResumenDeLinks } from "./services/linkPreview.js";
 import { getPublicChannelConfig } from "./services/channel.js";
@@ -1096,6 +1097,8 @@ setWaHandlers({
         // medida sola. El ack a Meta ya salió arriba (received()), así que el
         // await de la descarga+visión no arriesga un reintento del webhook.
         const media = await downloadMedia(message.image.id);
+        // El archivo se guarda para que el asesor lo abra en el panel (039).
+        await guardarMedio({ waMessageId: message.id, kind: "image", waMediaId: message.image.id, mime: media?.mimeType, bytes: media?.bytes });
         const caption = message.image.caption?.trim();
         const visionConversation = await getOrCreateConversation(from, name);
         const leido = media ? await describirFotoDeLlanta(media.bytes, media.mimeType, caption, {
@@ -1124,6 +1127,7 @@ setWaHandlers({
         // que el await de la descarga+transcripción no arriesga un reintento del
         // webhook.
         const media = await downloadMedia(message.audio.id);
+        await guardarMedio({ waMessageId: message.id, kind: "audio", waMediaId: message.audio.id, mime: media?.mimeType, bytes: media?.bytes });
         const dicho = media ? await transcribirAudio(media.bytes, media.mimeType) : null;
         const cuerpo = dicho
           ? `[El cliente mandó un audio. Dice: ${dicho}]`
@@ -1140,6 +1144,7 @@ setWaHandlers({
         const mime = (message.document.mime_type ?? "").toLowerCase();
         if (mime.startsWith("image/")) {
           const media = await downloadMedia(message.document.id);
+          await guardarMedio({ waMessageId: message.id, kind: "image", waMediaId: message.document.id, mime: media?.mimeType, bytes: media?.bytes, filename: message.document.filename });
           const caption = message.document.caption?.trim();
           const docConversation = await getOrCreateConversation(from, name);
           const leido = media ? await describirFotoDeLlanta(media.bytes, media.mimeType, caption, {
@@ -1157,6 +1162,11 @@ setWaHandlers({
             receivedAt,
           );
         } else {
+          // El bot no lo lee, pero el asesor sí lo puede abrir en el panel.
+          await bajarYGuardarMedio(
+            { waMessageId: message.id, kind: "document", waMediaId: message.document.id, mime: message.document.mime_type, filename: message.document.filename },
+            downloadMedia,
+          );
           await recibirMensaje(
             from,
             name,
@@ -1180,6 +1190,16 @@ setWaHandlers({
         // caído.
         const mudos = ["reaction", "system", "order", "unknown", "unsupported"];
         if (mudos.includes(message.type)) break;
+        // Video y sticker: el bot no los lee, pero el archivo se guarda para el panel.
+        if (message.type === "video" || message.type === "sticker") {
+          const adjunto = (message as unknown as Record<string, { id?: string; mime_type?: string } | undefined>)[message.type];
+          if (adjunto?.id) {
+            await bajarYGuardarMedio(
+              { waMessageId: message.id, kind: message.type, waMediaId: adjunto.id, mime: adjunto.mime_type },
+              downloadMedia,
+            );
+          }
+        }
         // QUÉ se le pide depende de dónde está la venta. Pedirle la medida a
         // quien ya tiene la visita confirmada es reiniciar una conversación que
         // iba bien: conv 18821 (sticker tras «Correcto todo bien gracias» →
