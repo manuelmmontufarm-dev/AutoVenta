@@ -2,7 +2,7 @@
  * AutoVenta — bot de ventas de llantas por WhatsApp.
  * Punto de entrada: conecta webhook → pipeline → agente → WhatsApp.
  */
-import { sembrarDescuentoDeSiempre, sembrarPromocionDeLaPolitica } from "./services/promociones.js";
+import { sembrarDescuentoDeSiempre, sembrarPromocionDeLaPolitica, sembrarPromocionDeTemporada } from "./services/promociones.js";
 import { business, config } from "./config.js";
 import { validarCanaryAlArrancar } from "./agent/canary.js";
 import { conElTelefonoDelTurno, instalarCompuertaDeTemporada } from "./services/temporadaDelTurno.js";
@@ -1237,6 +1237,7 @@ console.log("✅ Esquema de base de datos listo");
 // pasa una vez a la pestaña Promociones, antes de armar el primer catálogo.
 await sembrarPromocionDeLaPolitica();
 await sembrarDescuentoDeSiempre();
+await sembrarPromocionDeTemporada();
 // Calentar las métricas ya no frena el arranque (26-oct): con la base cargada
 // esa consulta tardaba y el contenedor no llegaba a contestar /health a tiempo.
 void getHubMetrics().catch((error) => console.warn("⚠️ No se pudieron precalentar las métricas:", error instanceof Error ? error.message : error));

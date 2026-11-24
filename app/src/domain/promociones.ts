@@ -59,6 +59,15 @@ export interface ParametrosDePromocion {
    * promoción) y las promos del panel se cuentan sobre ese precio.
    */
   todas?: boolean;
+  /**
+   * enesima: `temporada` = es la promoción de temporada de la política (el
+   * Black Friday de Depot, 24-nov-2026), sin Excel: va en las `marcas`, sobre
+   * el precio de LISTA y en las llantas pares. Sus cuentas viven en
+   * `domain/promocionDeTemporada.ts`; el panel solo la prende, la apaga y le
+   * cambia las fechas y el %.
+   */
+  temporada?: boolean;
+  marcas?: string[];
 }
 
 /** Una llanta de la promoción, como quedó guardada. */
@@ -478,6 +487,10 @@ export interface InformeDeAplicacion {
 
 const clave = (codigo: string) => codigo.trim().toLowerCase();
 
+/** ¿Es la promoción de temporada de la política (Black Friday, sin Excel)? */
+export const esDeTemporada = (p: Pick<Promocion, "tipo" | "parametros">): boolean =>
+  p.tipo === "enesima" && p.parametros.temporada === true;
+
 /** ¿Es el descuento para todas las llantas (sin Excel)? */
 export const esParaTodas = (p: Pick<Promocion, "tipo" | "parametros">): boolean =>
   p.tipo === "porcentaje" && p.parametros.todas === true;
@@ -514,6 +527,8 @@ export function aplicarPromociones(
     if (!promocionVigente(promo, ahora)) continue;
     // El descuento para todas ya está dentro del precio de hoy (`descuentoParaTodas`).
     if (esParaTodas(promo)) continue;
+    // La de temporada la cuenta `segundaLlantaDe` (sobre la lista, por marca).
+    if (esDeTemporada(promo)) continue;
     const informe: InformeDeAplicacion = { promocionId: promo.id, nombre: promo.nombre, aplicadas: 0, omitidas: [] };
     const vigencia = vigenciaEnPalabras(promo.hasta);
     const hastaIso = promo.hasta ? finDelDiaIso(promo.hasta) : SIN_FIN_ISO;

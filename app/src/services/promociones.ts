@@ -19,8 +19,9 @@ import {
   reglaEnPalabras, tipoParaElPanel,
   type EstadoDePromocion, type FilaDePromocion, type ParametrosDePromocion, type PrecioBase, type Promocion,
   type TipoDePromocion,
-  descuentoParaTodas,
+  descuentoParaTodas, esDeTemporada,
 } from "../domain/promociones.js";
+import type { AjusteDeTemporada } from "../domain/promocionDeTemporada.js";
 import { filasDelArchivo, numeroDelArchivo } from "./fuentes/archivo.js";
 
 // ── Base ────────────────────────────────────────────────────────────────────
@@ -123,6 +124,11 @@ export function datosValidados(crudo: Partial<DatosDePromocion>): Required<Omit<
 export function parametrosLimpios(tipo: TipoDePromocion, p: ParametrosDePromocion): ParametrosDePromocion {
   const n = (v: unknown) => (v === null || v === undefined || v === "" ? undefined : Number(v));
   if (tipo === "nxm") return { lleva: n(p.lleva), paga: n(p.paga) };
+  if (tipo === "enesima" && p.temporada === true) {
+    // La de temporada siempre es la 2.ª llanta y sus marcas no se tocan desde el panel.
+    const marcas = (Array.isArray(p.marcas) ? p.marcas : []).map((m) => String(m).trim().toUpperCase()).filter(Boolean);
+    return { temporada: true, posicion: 2, porcentaje: n(p.porcentaje), marcas };
+  }
   if (tipo === "enesima") return { posicion: n(p.posicion), porcentaje: n(p.porcentaje) };
   if (tipo === "escalonado") {
     return {
@@ -136,9 +142,12 @@ export function parametrosLimpios(tipo: TipoDePromocion, p: ParametrosDePromocio
   return {};
 }
 
+/** Las que no llevan Excel: el descuento para todas y la de temporada. */
+const sinExcel = (p: ParametrosDePromocion) => p.todas === true || p.temporada === true;
+
 export async function crearPromocion(datos: DatosDePromocion, filas: FilaDePromocion[], quien: string | null, origen = "panel"): Promise<Promocion> {
   const d = datosValidados(datos);
-  if (!filas.length && !d.parametros.todas) throw new PromocionInvalida("La promoción no tiene ninguna llanta: suba el Excel lleno.");
+  if (!filas.length && !sinExcel(d.parametros)) throw new PromocionInvalida("La promoción no tiene ninguna llanta: suba el Excel lleno.");
   const [fila] = await sql<FilaDeLaBase[]>`
     insert into promociones (nombre, tipo, texto_extra, activa, desde, hasta, parametros, filas, origen, creada_por)
     values (${d.nombre}, ${d.tipo}, ${d.textoExtra}, ${d.activa}, ${d.desde}, ${d.hasta},
@@ -166,7 +175,7 @@ export async function actualizarPromocion(
     parametros: cambios.parametros ?? actual.parametros,
   });
   const filas = cambios.filas ?? actual.filas;
-  if (!filas.length && !d.parametros.todas) throw new PromocionInvalida("La promoción no tiene ninguna llanta: suba el Excel lleno.");
+  if (!filas.length && !sinExcel(d.parametros)) throw new PromocionInvalida("La promoción no tiene ninguna llanta: suba el Excel lleno.");
   const [fila] = await sql<FilaDeLaBase[]>`
     update promociones set nombre = ${d.nombre}, texto_extra = ${d.textoExtra}, activa = ${d.activa},
       desde = ${d.desde}, hasta = ${d.hasta}, parametros = ${sql.json(d.parametros as never)},
@@ -207,6 +216,8 @@ export async function promocionesParaElCatalogo(): Promise<{
   politicaSembrada: boolean;
   /** % que se descuenta a todas las llantas hoy (el «Descuento de siempre»). */
   descuentoDeSiempre: number;
+  /** Lo que el panel dice de la promo de temporada; null = rige la política. */
+  temporada: AjusteDeTemporada | null;
 }> {
   try {
     const promos = await listarPromociones();
@@ -218,21 +229,77 @@ export async function promocionesParaElCatalogo(): Promise<{
     const [descuentoSembrado] = politica.descuentoDeSiempre
       ? await sql<{ id: number }[]>`select id from promociones where origen = ${ORIGEN_DESCUENTO_DE_SIEMPRE} limit 1`
       : [];
+    const [temporadaSembrada] = politica.promocionDeTemporada?.segundaLlanta
+      ? await sql<{ id: number }[]>`select id from promociones where origen = ${ORIGEN_TEMPORADA} limit 1`
+      : [];
     recordar(promos);
     politicaYaSembrada = Boolean(sembrada);
     descuentoYaSembrado = Boolean(descuentoSembrado);
-    return { promos, deLaBase: true, politicaSembrada: politicaYaSembrada, descuentoDeSiempre: descuentoDeHoy(promos, descuentoYaSembrado) };
+    temporadaYaSembrada = Boolean(temporadaSembrada);
+    return {
+      promos, deLaBase: true, politicaSembrada: politicaYaSembrada,
+      descuentoDeSiempre: descuentoDeHoy(promos, descuentoYaSembrado),
+      temporada: temporadaDeHoy(promos, temporadaYaSembrada),
+    };
   } catch (error) {
     if (cargadas) {
-      return { promos: cargadas, deLaBase: true, politicaSembrada: politicaYaSembrada, descuentoDeSiempre: descuentoDeHoy(cargadas, descuentoYaSembrado) };
+      return {
+        promos: cargadas, deLaBase: true, politicaSembrada: politicaYaSembrada,
+        descuentoDeSiempre: descuentoDeHoy(cargadas, descuentoYaSembrado),
+        temporada: temporadaDeHoy(cargadas, temporadaYaSembrada),
+      };
     }
     console.warn("⚠️ No se pudieron leer las promociones de la base:", error instanceof Error ? error.message : error);
     // Una caída de la base no le quita a Depot su precio de hoy.
-    return { promos: [], deLaBase: false, politicaSembrada: false, descuentoDeSiempre: descuentoDeHoy([], false) };
+    return { promos: [], deLaBase: false, politicaSembrada: false, descuentoDeSiempre: descuentoDeHoy([], false), temporada: null };
   }
 }
 
 export const ORIGEN_DESCUENTO_DE_SIEMPRE = "politica:descuento-de-siempre";
+export const ORIGEN_TEMPORADA = "politica:temporada";
+let temporadaYaSembrada = false;
+
+/**
+ * Sin sembrar, rige la política tal cual (null). Sembrada, manda el panel:
+ * prendida = corre en sus fechas; apagada o quitada = no corre.
+ */
+function temporadaDeHoy(promos: readonly Promocion[], sembrada: boolean): AjusteDeTemporada | null {
+  if (!sembrada) return null;
+  const fila = promos.find((p) => p.origen === ORIGEN_TEMPORADA && esDeTemporada(p));
+  if (!fila) return { abierta: false, desde: null, hasta: null, porcentaje: null };
+  return {
+    abierta: fila.activa, desde: fila.desde, hasta: fila.hasta,
+    porcentaje: fila.parametros.porcentaje ?? null, lema: fila.textoExtra,
+  };
+}
+
+/**
+ * EL BLACK FRIDAY PASA AL PANEL, UNA VEZ (24-nov-2026). La promo de la 2.ª
+ * llanta de Depot vivía solo en el código (y en «Modo promoción» de Ajustes).
+ * Ahora es una fila de la pestaña Promociones, junto al «Descuento de siempre»,
+ * con su interruptor, sus fechas y su %. No se vuelve a sembrar aunque la quiten.
+ */
+export async function sembrarPromocionDeTemporada(): Promise<void> {
+  const t = politica.promocionDeTemporada;
+  if (!t?.segundaLlanta) return;
+  try {
+    const [ya] = await sql<{ id: number }[]>`select id from promociones where origen = ${ORIGEN_TEMPORADA} limit 1`;
+    if (ya) return;
+    const parametros: ParametrosDePromocion = {
+      temporada: true, posicion: 2, porcentaje: t.segundaLlanta.porcentaje, marcas: t.segundaLlanta.marcas,
+    };
+    await sql`
+      insert into promociones (nombre, tipo, texto_extra, activa, desde, hasta, parametros, filas, origen, creada_por)
+      values (${t.nombre}, 'enesima', ${t.lema.slice(0, TEXTO_MAXIMO)}, true, ${t.desde}, ${t.hasta},
+              ${sql.json(parametros as never)}, '[]'::jsonb, ${ORIGEN_TEMPORADA}, 'AutoVenta')
+      on conflict do nothing
+    `;
+    recordar(null);
+    console.log(`🏷️ «${t.nombre}» (${t.segundaLlanta.porcentaje} % en la 2.ª llanta ${t.segundaLlanta.marcas.join(", ")}) pasado a la pestaña Promociones.`);
+  } catch (error) {
+    console.warn("⚠️ No se pudo sembrar la promoción de temporada:", error instanceof Error ? error.message : error);
+  }
+}
 let descuentoYaSembrado = false;
 
 /**
@@ -391,6 +458,10 @@ export interface PromocionParaElPanel extends Omit<Promocion, "filas"> {
   resumen: string | null;
 }
 
+const marcaBonita = (m: string) => m.charAt(0) + m.slice(1).toLowerCase();
+const deLasMarcas = (items: readonly CatalogItem[], marcas: readonly string[] | undefined) =>
+  items.filter((i) => (marcas ?? []).includes(String(i.brand ?? "").trim().toUpperCase())).length;
+
 export function paraElPanel(
   promo: Promocion,
   items: readonly CatalogItem[],
@@ -401,6 +472,7 @@ export function paraElPanel(
   void _filas;
   const p = promo.parametros;
   const resumen = promo.tipo === "nxm" ? `Lleva ${p.lleva}, paga ${p.paga}`
+    : p.temporada ? `${p.porcentaje} % menos en la 2.ª llanta ${(p.marcas ?? []).map(marcaBonita).join(" y ")}, sobre el precio de lista`
     : promo.tipo === "enesima" ? (p.porcentaje! >= 100 ? `La ${p.posicion}.ª llanta gratis` : `${p.porcentaje} % menos en la ${p.posicion}.ª llanta`)
     : promo.tipo === "escalonado" ? (p.escalones ?? []).map((e) => `${e.desde}+ llantas: ${e.porcentaje} %`).join(" · ")
     : promo.tipo === "regalo" ? (p.regalo ?? null)
@@ -410,8 +482,8 @@ export function paraElPanel(
     ...resto,
     estado: estadoDePromocion(promo),
     tipoNombre: tipoParaElPanel(promo.tipo).nombre,
-    llantas: p.todas ? items.length : promo.filas.length,
-    entranHoy: p.todas ? items.length : vista.entran.length,
+    llantas: p.todas ? items.length : p.temporada ? deLasMarcas(items, p.marcas) : promo.filas.length,
+    entranHoy: p.todas ? items.length : p.temporada ? deLasMarcas(items, p.marcas) : vista.entran.length,
     noEntranHoy: vista.noEntran.length,
     resumen,
   };

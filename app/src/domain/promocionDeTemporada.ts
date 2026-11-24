@@ -44,6 +44,40 @@ export function fijarCompuertaDeTemporada(fn: () => boolean): void {
 }
 
 /**
+ * EL INTERRUPTOR DEL PANEL (24-nov-2026). La promo de temporada se siembra una
+ * vez en la pestaña Promociones; desde ahí el negocio la apaga, la prende y le
+ * cambia fechas y %. Cada sincronización del catálogo trae lo del panel y lo
+ * pone sobre la política (todas las piezas la leen de ahí). Null = sin sembrar
+ * o sin base: rige la política tal como está escrita.
+ */
+export interface AjusteDeTemporada {
+  abierta: boolean;
+  desde: string | null;
+  hasta: string | null;
+  porcentaje: number | null;
+  /** El «texto extra» del panel: la bajada de la franja («se vive TODO NOVIEMBRE»). */
+  lema?: string | null;
+}
+let abiertaPorElPanel = true;
+const comoVino = new WeakMap<PromocionDeTemporada, { desde: string; hasta: string; lema: string; porcentaje: number | null }>();
+export function fijarTemporadaDelPanel(promo: PromocionDeTemporada | null | undefined, ajuste: AjusteDeTemporada | null): void {
+  abiertaPorElPanel = ajuste ? ajuste.abierta : true;
+  if (!promo) return;
+  if (!comoVino.has(promo)) {
+    comoVino.set(promo, { desde: promo.desde, hasta: promo.hasta, lema: promo.lema, porcentaje: promo.segundaLlanta?.porcentaje ?? null });
+  }
+  const original = comoVino.get(promo)!;
+  promo.desde = ajuste?.desde ?? original.desde;
+  promo.hasta = ajuste?.hasta ?? original.hasta;
+  promo.lema = ajuste?.lema?.trim() || original.lema;
+  if (promo.segundaLlanta) {
+    const pct = ajuste?.porcentaje;
+    (promo.segundaLlanta as { porcentaje: number }).porcentaje =
+      typeof pct === "number" && pct >= 1 && pct <= 100 ? pct : (original.porcentaje ?? promo.segundaLlanta.porcentaje);
+  }
+}
+
+/**
  * ¿La promoción corre hoy, para este turno? Null, fuera de fechas o cerrada
  * por la compuerta = no existe. Todo lo que habla de la promo pasa por acá.
  */
@@ -53,7 +87,7 @@ export function promocionVigente(
 ): promo is PromocionDeTemporada {
   if (!promo) return false;
   const hoy = diaEnEcuador(ahora);
-  return hoy >= promo.desde && hoy <= promo.hasta && compuerta();
+  return abiertaPorElPanel && hoy >= promo.desde && hoy <= promo.hasta && compuerta();
 }
 
 /** «30 de noviembre»: el último día, para «válido hasta…». */
