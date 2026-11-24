@@ -1,3 +1,13 @@
+## 24-nov-2026 · App del teléfono · El ícono dice el nombre del cliente debajo del «AV» (rama `feat/nombre-bajo-logo`)
+
+- **Qué:** cada servicio dibuja el ícono de la app con su nombre abajo («DEPOT TIRE», «COMPETIMOTOR»)
+  y pone ese nombre bajo el ícono de la pantalla de inicio (manifiesto + `apple-mobile-web-app-title`).
+  Sale de `negocio.nombre`; rutas en `app/src/server/iconoDeLaApp.ts`, antes del estático.
+- **Por qué:** Manuel, 24-nov: las dos apps se veían iguales («AV» / «AutoVenta») en el teléfono.
+- **Ojo:** quien ya instaló la app puede seguir viendo el ícono viejo hasta borrarla y volver a
+  «Añadir a pantalla de inicio» (el teléfono guarda el ícono al instalar).
+- **Horas:** 0,5.
+
 ## 24-nov-2026 · Bot + panel (Depot) · Precios desde Contífico y el −25 % como promoción con interruptor (rama `fix/competimotor-precio-proforma`)
 
 - **Qué:**
