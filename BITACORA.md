@@ -1,3 +1,15 @@
+## 24-nov-2026 · Bot · Competimotor: de Black Friday queda solo el «cuadro rojo», hasta el 5-dic (rama `fix/black-friday-cuadro-rojo`)
+
+- **Qué:** la promoción por lista de Competimotor ahora cubre solo la sección «PROMOCIÓN TODO EL MES» del Excel
+  (el cuadro rojo, filas 116+: 27 llantas de aro 18 a 20) y rige hasta el sábado 5-dic a las 23:59 de Ecuador.
+  Las otras 89 («jueves, viernes, sábado y lunes») vuelven a P2 desde este deploy; un seguimiento ya no repite
+  su precio de Black Friday.
+- **Por qué:** Carlos Romero, 24-nov 8:14: «Ese cuadro va a estar con promoción hasta el 05 de diciembre, las
+  otras llantas vuelven a precio normal».
+- **Probado:** `competimotorBlackFriday` (13), `competimotorSeguimientoPrecio` (4, con el caso nuevo) y el resto
+  de pruebas de Black Friday; `tsc`.
+- **Horas:** 0,3
+
 ## 24-nov-2026 · Bot · Competimotor: sin stock ya no se nombra — «Claro» y recomendar (rama `fix/competimotor-claro-y-recomendar`)
 
 - **Qué:** cuando lo pedido no tiene stock el bot ya no dice «no me sale en stock»: empieza con «Claro» y
