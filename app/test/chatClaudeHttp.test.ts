@@ -69,7 +69,8 @@ describe.each(["claude-fable-5-2", "claude-haiku-5-5", "claude-sonnet-5"])("un t
 
     const hechas = doble.peticiones.slice(antes);
     expect(hechas.map((p) => p.rechazo)).toEqual([null, null, null, null]);
-    expect(hechas.every((p) => String(p.cabeceras["anthropic-beta"]).includes("server-side-fallback-2026-07-01"))).toBe(true);
+    // El respaldo del servidor solo va en los modelos que lo tienen (Fable sí; Haiku y Sonnet 5 no).
+    expect(hechas.every((p) => String(p.cabeceras["anthropic-beta"]).includes("server-side-fallback-2026-07-01"))).toBe(model === "claude-fable-5-2");
   });
 });
 

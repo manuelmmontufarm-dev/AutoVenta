@@ -91,6 +91,13 @@ describe("la petición que sale hacia Claude", () => {
     expect(Object.keys(cuerpo).sort()).toEqual(["betas", "fallbacks", "max_tokens", "messages", "model", "output_config"]);
   });
 
+  it("a Haiku no se le manda `fallbacks`: no tiene respaldo del lado del servidor", () => {
+    const { cuerpo } = m.aPeticionClaude({ model: "claude-haiku-5-5", messages: [{ role: "user", content: "x" }] }, { esfuerzo: "low" });
+    expect(Object.keys(cuerpo).sort()).toEqual(["max_tokens", "messages", "model", "output_config"]);
+    for (const id of ["claude-fable-5-2", "claude-opus-5-5", "claude-sonnet-5-5"]) expect(m.tieneRespaldoDelServidor(id)).toBe(true);
+    for (const id of ["claude-haiku-5-5", "claude-sonnet-5", "claude-opus-4-8"]) expect(m.tieneRespaldoDelServidor(id)).toBe(false);
+  });
+
   it("el Guardián: su esquema estricto sale como formato de salida", () => {
     const schema = { type: "object", additionalProperties: false, required: ["veredicto"], properties: { veredicto: { type: "string", enum: ["aprobar", "corregir"] } } };
     const { cuerpo } = m.aPeticionClaude({

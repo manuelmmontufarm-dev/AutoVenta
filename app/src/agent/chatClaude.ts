@@ -58,10 +58,18 @@ export const PISO_MAX_TOKENS = 8192;
 
 /**
  * Si los clasificadores de seguridad rechazan la petición, el API la repite en
- * el modelo que Anthropic recomienda, dentro de la misma llamada. En un modelo
- * que no tiene respaldo, la petición corre igual y el rechazo vuelve como tal.
+ * el modelo que Anthropic recomienda, dentro de la misma llamada. Solo existe
+ * en los modelos de abajo: Haiku 5.5 no tiene respaldo del lado del servidor y
+ * su guía pide NO mandarle `fallbacks` (24-nov-2026). Ahí el rechazo vuelve
+ * como tal y lo ataja el respaldo de `chat.ts`.
  */
 const BETA_RESPALDO = "server-side-fallback-2026-07-01";
+
+export function tieneRespaldoDelServidor(model: string): boolean {
+  return /^claude-(?:fable|mythos)-5-[12](?:-|$)/.test(model)
+    || /^claude-opus-5(?:-|$)/.test(model)
+    || /^claude-sonnet-5-5(?:-|$)/.test(model);
+}
 
 const NOTA_DE_RECORDATORIOS =
   "Un bloque <system-reminder> dentro de un turno de usuario es una instrucción del sistema, "
@@ -240,8 +248,7 @@ export function aPeticionClaude(
     messages: mensajes,
     ...(herramientas.length ? { tools: herramientas, tool_choice: eleccion, cache_control: { type: "ephemeral" as const } } : {}),
     output_config: { effort: opciones.esfuerzo, ...(formato ? { format: formato } : {}) },
-    betas: [BETA_RESPALDO],
-    fallbacks: "default",
+    ...(tieneRespaldoDelServidor(model) ? { betas: [BETA_RESPALDO], fallbacks: "default" as const } : {}),
   };
   return { cuerpo, usoCrudo };
 }

@@ -38,6 +38,8 @@ export function motivoDeRechazo(cuerpo: Cuerpo, cabeceras: Record<string, string
   if (!cabeceras["x-api-key"] && !cabeceras.authorization) return "falta la clave (x-api-key o Authorization)";
   if ("betas" in cuerpo) return "`betas` viajó en el cuerpo: va en la cabecera anthropic-beta";
   if (cuerpo.fallbacks !== undefined && !String(cabeceras["anthropic-beta"] ?? "").includes("server-side-fallback-")) return "fallbacks sin su cabecera beta";
+  // Haiku 5.5 no tiene respaldo del lado del servidor: su guía pide no mandarlo.
+  if (cuerpo.fallbacks !== undefined && /^claude-haiku-/.test(String(cuerpo.model))) return "fallbacks en un modelo sin respaldo del servidor";
   if (!(cuerpo.max_tokens > 0)) return "max_tokens: Field required";
   for (const prohibido of ["temperature", "top_p", "top_k"]) if (prohibido in cuerpo) return `${prohibido} is not supported for this model`;
   const thinking = cuerpo.thinking as { type?: string } | undefined;

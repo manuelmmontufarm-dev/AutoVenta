@@ -1,3 +1,18 @@
+## 24-nov-2026 · Bot · Claude: respaldo en OpenAI si Anthropic falla, y rama al día con main (rama `feat/proveedor-fable`)
+
+- **Qué:** si una llamada a un modelo `claude-` falla (caída, límite de cuenta nueva, créditos agotados, clave vencida,
+  rechazo, respuesta vacía), la misma petición sale por `AI_CLAUDE_RESPALDO_MODEL` (por defecto `gpt-5.5`; `off` lo apaga)
+  y `ai_runs`/`guardian_reviews` guardan el modelo que contestó de verdad (`modeloQueAtendio`). A Haiku 5.5 ya no se le
+  manda `fallbacks` (no tiene respaldo del lado del servidor y su guía pide no mandarlo). Merge de `main` (35 commits);
+  la migración de tokens escritos al caché pasó de 038 a 041.
+- **Por qué:** Manuel pidió dejar Claude listo para Depot «con la misma o mejor calidad». Sin respaldo, una cuenta nueva
+  de Anthropic sin saldo dejaba al cliente sin respuesta y al borrador sin revisar.
+- **Probado:** SIN clave todavía. `respaldoDeClaude` 3 nuevas, `chatClaude`/`chatClaudeHttp`/`costoClaude`/`canary` verdes;
+  suite 4.721 pasan, 3 en rojo en archivos idénticos a `main` (`bitacoraDelPanel`, `hashesPiezasDepot`,
+  `unidadEnLaCantidad`); `tsc` ✅; `sim:humo` ✅. La CALIDAD contra gpt-5.5 no está medida: necesita la clave y los
+  lotes del plan (sección 6). Nada desplegado ni mergeado.
+- **Horas:** 1.
+
 ## 24-nov-2026 · Bot + panel (Depot) · Precios desde Contífico y el −25 % como promoción con interruptor (rama `fix/competimotor-precio-proforma`)
 
 - **Qué:**

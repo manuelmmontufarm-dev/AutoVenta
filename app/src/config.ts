@@ -42,6 +42,12 @@ function esfuerzoClaude(name: string): EsfuerzoClaude {
   return valor === "medium" || valor === "high" ? valor : "low";
 }
 
+function modeloDeRespaldoDeClaude(): string | null {
+  const valor = (process.env.AI_CLAUDE_RESPALDO_MODEL ?? "gpt-5.5").trim();
+  if (!valor || valor.toLowerCase() === "off" || valor.startsWith("claude-")) return null;
+  return valor;
+}
+
 function contificoConfigured(): boolean {
   return Boolean(process.env.CONTIFICO_API_KEY);
 }
@@ -255,6 +261,13 @@ export const config = {
     apiKey: process.env.ANTHROPIC_API_KEY || null,
     effortVendedor: esfuerzoClaude("AI_CLAUDE_EFFORT_VENDEDOR"),
     effortGuardian: esfuerzoClaude("AI_CLAUDE_EFFORT_GUARDIAN"),
+    /**
+     * Si una llamada a Claude falla (Anthropic caído, límite de la cuenta,
+     * créditos agotados, clave vencida, rechazo), la MISMA petición se repite
+     * en este modelo de OpenAI para que el cliente no se quede sin respuesta.
+     * `AI_CLAUDE_RESPALDO_MODEL=off` lo apaga. Ver `agent/chat.ts`.
+     */
+    respaldoOpenAI: modeloDeRespaldoDeClaude(),
   },
 
   vehicleFitment: {

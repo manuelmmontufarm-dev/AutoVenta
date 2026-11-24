@@ -8,22 +8,58 @@
  *
  * Quedan fuera, y siguen en OpenAI: la transcripción de audios (Anthropic no
  * transcribe) y la investigación de fitment (usa la búsqueda web de OpenAI).
+ *
+ * SI CLAUDE FALLA, CONTESTA OPENAI (24-nov-2026). Una cuenta nueva de Anthropic
+ * tiene límites bajos y créditos prepagados: un 429, un «credit balance is too
+ * low», una clave vencida o una caída no pueden dejar al cliente sin respuesta
+ * ni al borrador sin revisar. La petición ya viene en el dialecto de OpenAI,
+ * así que se repite tal cual en `config.anthropic.respaldoOpenAI`. Quién
+ * contestó de verdad se lee con `modeloQueAtendio` (para cobrar bien).
  */
 import type OpenAI from "openai";
 import type { ChatCompletion } from "openai/resources/chat/completions";
-import type { EsfuerzoClaude } from "../config.js";
+import { config, type EsfuerzoClaude } from "../config.js";
+import { chatReasoningEffort } from "./aiRequestPolicy.js";
 import { completarConClaude, type PeticionChat } from "./chatClaude.js";
 import { esModeloClaude } from "./claudeCliente.js";
+
+/** Respuestas que NO vinieron del modelo pedido, y de cuál vinieron. */
+const ATENDIO_EL_RESPALDO = new WeakMap<object, string>();
+
+/** La misma petición, vestida para un modelo de OpenAI. */
+export function peticionDeRespaldo(peticion: PeticionChat, model: string): PeticionChat {
+  const conHerramientas = (peticion.tools?.length ?? 0) > 0;
+  const esfuerzo = chatReasoningEffort(model, conHerramientas);
+  return {
+    ...peticion,
+    model,
+    ...(esfuerzo ? { reasoning_effort: esfuerzo, verbosity: "low" as const } : {}),
+  };
+}
 
 export async function completarChat(
   openai: OpenAI,
   peticion: PeticionChat,
   opciones: { esfuerzo?: EsfuerzoClaude } = {},
 ): Promise<ChatCompletion> {
-  if (esModeloClaude(peticion.model)) {
-    return completarConClaude(peticion, { esfuerzo: opciones.esfuerzo ?? "low" });
+  if (!esModeloClaude(peticion.model)) return openai.chat.completions.create(peticion);
+  try {
+    return await completarConClaude(peticion, { esfuerzo: opciones.esfuerzo ?? "low" });
+  } catch (error) {
+    const respaldo = config.anthropic.respaldoOpenAI;
+    if (!respaldo) throw error;
+    console.warn(
+      `⚠️ ${peticion.model} falló (${error instanceof Error ? error.message : String(error)}); contesta ${respaldo}.`,
+    );
+    const respuesta = await openai.chat.completions.create(peticionDeRespaldo(peticion, respaldo));
+    ATENDIO_EL_RESPALDO.set(respuesta, respaldo);
+    return respuesta;
   }
-  return openai.chat.completions.create(peticion);
+}
+
+/** El modelo que de verdad contestó: el pedido, salvo que haya entrado el respaldo. */
+export function modeloQueAtendio(respuesta: ChatCompletion, pedido: string): string {
+  return ATENDIO_EL_RESPALDO.get(respuesta) ?? pedido;
 }
 
 /**
