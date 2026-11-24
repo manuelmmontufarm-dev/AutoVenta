@@ -13,6 +13,8 @@ describe("ícono y nombre de la app del teléfono por cliente", () => {
 
   it("el nombre bajo el ícono del teléfono es el del cliente", () => {
     expect(manifiestoDeLaApp("Competimotor")).toMatchObject({ name: "Competimotor", short_name: "Competimotor" });
+    // Los links del panel que llegan por WhatsApp abren la app instalada (Android).
+    expect(manifiestoDeLaApp("Depot Tire")).toMatchObject({ id: "./", handle_links: "preferred" });
     const html = '<meta name="apple-mobile-web-app-title" content="AutoVenta" />\n<title>AutoVenta · Hub</title>';
     const out = paginaConNombre(html, "Depot Tire");
     expect(out).toContain('content="Depot Tire"');

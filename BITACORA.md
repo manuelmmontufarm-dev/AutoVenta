@@ -1,3 +1,16 @@
+## 24-nov-2026 · App del teléfono · Tour apagado y los links de WhatsApp abren la app (rama `feat/tour-apagado-y-links-app`)
+
+- **Qué:** el tour de bienvenida ya no aparece (se quitó `<Tour />` de `hub/src/App.tsx`; el archivo
+  queda por si se quiere volver). El manifiesto de la app lleva `id`, `handle_links: "preferred"` y
+  `launch_handler: navigate-existing`: en **Android**, tocar en WhatsApp un link del panel
+  (`…/admin/#/ticket/123`) abre la app instalada y no Chrome, en la ventana que ya estaba abierta.
+- **Por qué:** Manuel, 24-nov: «apaga el tour» y «si aplasto el link de wpp en mi teléfono que se abra
+  el app, no el website».
+- **Ojo:** en **iPhone** no se puede: iOS no deja que una app de pantalla de inicio capture links,
+  siempre abren Safari. Ahí lo que abre la app son las notificaciones de la propia app (push).
+  En Android hay que reinstalar la app desde Chrome para que tome el manifiesto nuevo.
+- **Horas:** 0,5.
+
 ## 24-nov-2026 · Piezas + panel · Tema de la cotización (Black Friday, Navidad… o personalizado) y el ahorro doble del Black Friday (rama `feat/plantillas-cotizacion`)
 
 - **Qué:**

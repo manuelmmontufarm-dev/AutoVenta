@@ -7,7 +7,6 @@ import { IconAjustes, IconAlert, IconCampana, IconChevronR, IconSliders, IconRef
 import { PageHeader } from "./components/ui";
 import { VersionBadge } from "./components/version-badge";
 import { setSonidoActivo, sonidoActivo, sonidoBoton } from "./lib/sound";
-import { Tour } from "./components/tour";
 import { navigate, useRoute, type Route } from "./router";
 import { Ajustes } from "./screens/Ajustes";
 import { Dashboard } from "./screens/Dashboard";
@@ -492,7 +491,6 @@ export default function App() {
         <AvisosAlAbrir />
         <Toasts />
         <Confetti />
-        <Tour />
         {bloqueado && <ConnectionGate estado={conexion as "clave-invalida" | "sin-conexion"} />}
       </div>
     </MotionConfig>
