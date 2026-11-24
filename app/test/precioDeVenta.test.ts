@@ -27,7 +27,8 @@ const { applyInterbotPrices } = await import("../src/services/catalog.js");
 const V = await import("../src/services/precioDeVenta.js");
 const P = await import("../src/domain/promociones.js");
 const S = await import("../src/services/promociones.js");
-const { segundaLlantaDe } = await import("../src/domain/promocionDeTemporada.js");
+const P_T = await import("../src/domain/promocionDeTemporada.js");
+const { segundaLlantaDe } = P_T;
 const { politica } = await import("../src/negocio/politica.js");
 type Promocion = import("../src/domain/promociones.js").Promocion;
 
@@ -225,5 +226,82 @@ describe("dos (o tres) promociones a la vez: la de siempre + las que se suman", 
     const P4 = P.productoParaCantidad(r17, 4);
     expect(P4.minimumPriceWithTax).toBe(142.12);
     expect(P.productoParaCantidad(r17, 1).minimumPriceWithTax).toBe(189.5);
+  });
+});
+
+/**
+ * EL BLACK FRIDAY EN LA PESTAÑA PROMOCIONES (24-nov-2026). Manuel: «siguen con
+ * la promoción en la 2.ª llanta… préndele desde ahí». La 2.ª llanta al 60 %
+ * vivía solo en el código; ahora es una fila del panel con interruptor, fechas
+ * y % (la siembra `sembrarPromocionDeTemporada`).
+ */
+describe("el Black Friday se prende y se apaga desde Promociones", () => {
+  const { fijarTemporadaDelPanel, promocionVigente } = P_T;
+  const bf = (extra: Partial<Promocion> = {}) => promo({
+    nombre: "Black Friday", tipo: "enesima", origen: S.ORIGEN_TEMPORADA, desde: "2026-11-01", hasta: "2026-11-30",
+    parametros: { temporada: true, posicion: 2, porcentaje: 60, marcas: ["FALKEN", "KENDA"] }, ...extra,
+  });
+  const ajusteDe = (p: Promocion | null) =>
+    p ? { abierta: p.activa, desde: p.desde, hasta: p.hasta, porcentaje: p.parametros.porcentaje ?? null, lema: p.textoExtra }
+      : { abierta: false, desde: null, hasta: null, porcentaje: null };
+  const precios = { hoyConIva: 189.5, listaConIva: 252.66 };
+  afterEach(() => fijarTemporadaDelPanel(temporada, null));
+
+  it("prendida en el panel: 4 KR628 R17 = $707,44, igual que antes", () => {
+    fijarTemporadaDelPanel(temporada, ajusteDe(bf()));
+    expect(segundaLlantaDe(temporada, "KENDA", 4, precios, BF_NOV)?.totalConIva).toBe(707.44);
+  });
+
+  it("apagada en el panel: no hay Black Friday, quedan 4 × $189,50", () => {
+    fijarTemporadaDelPanel(temporada, ajusteDe(bf({ activa: false })));
+    expect(promocionVigente(temporada, BF_NOV)).toBe(false);
+    expect(segundaLlantaDe(temporada, "KENDA", 4, precios, BF_NOV)).toBeNull();
+  });
+
+  it("quitada del panel (archivada): tampoco corre, aunque el código la traiga", () => {
+    fijarTemporadaDelPanel(temporada, ajusteDe(null));
+    expect(promocionVigente(temporada, BF_NOV)).toBe(false);
+  });
+
+  it("la fecha de fin del panel manda: extendida al 7-dic, el 3-dic sigue", () => {
+    const tresDic = new Date("2026-12-03T17:00:00Z");
+    expect(promocionVigente(temporada, tresDic)).toBe(false);
+    fijarTemporadaDelPanel(temporada, ajusteDe(bf({ hasta: "2026-12-07" })));
+    expect(promocionVigente(temporada, tresDic)).toBe(true);
+    expect(P_T.hastaEnPalabras(temporada!)).toBe("7 de diciembre");
+  });
+
+  it("el texto extra del panel es el lema del saludo (vacío = el de la política)", () => {
+    fijarTemporadaDelPanel(temporada, ajusteDe(bf({ textoExtra: "Extendemos el Black Friday hasta el 7 de diciembre" })));
+    expect(temporada!.lema).toBe("Extendemos el Black Friday hasta el 7 de diciembre");
+    fijarTemporadaDelPanel(temporada, ajusteDe(bf({ textoExtra: null })));
+    expect(temporada!.lema).toBe("El Black Friday se vive TODO NOVIEMBRE");
+  });
+
+  it("sin sembrar (o sin base) rige la política como está escrita", () => {
+    fijarTemporadaDelPanel(temporada, ajusteDe(bf({ hasta: "2026-12-07", parametros: { temporada: true, posicion: 2, porcentaje: 50, marcas: ["KENDA"] } })));
+    fijarTemporadaDelPanel(temporada, null);
+    expect(temporada!.hasta).toBe("2026-11-30");
+    expect(temporada!.segundaLlanta!.porcentaje).toBe(60);
+    expect(promocionVigente(temporada, BF_NOV)).toBe(true);
+  });
+
+  it("aplicarPromociones no la cuenta como un 2x1 del panel (la cuenta va sobre la lista, por marca)", () => {
+    V.__fijarListaDeFacturacion({ K557B738: { pvp1: 219.7 } });
+    const r17 = llanta(KR628_R17);
+    applyInterbotPrices([r17]);
+    expect(P.aplicarPromociones([r17], [bf()], BF_NOV)).toEqual([]);
+    expect(r17.promocionPorCantidad).toBeUndefined();
+  });
+
+  it("el panel la guarda sin Excel, siempre en la 2.ª llanta, y la muestra con sus marcas", () => {
+    const d = S.datosValidados({ nombre: "Black Friday", tipo: "enesima", parametros: { temporada: true, posicion: 3, porcentaje: 60, marcas: ["kenda", "Falken"] } });
+    expect(d.parametros).toEqual({ temporada: true, posicion: 2, porcentaje: 60, marcas: ["KENDA", "FALKEN"] });
+    V.__fijarListaDeFacturacion({ K557B738: { pvp1: 219.7 } });
+    const items = [llanta(KR628_R17), llanta(KR628_R16)];
+    applyInterbotPrices(items);
+    const vista = S.paraElPanel(bf(), items, P.preciosBaseDe(items));
+    expect(vista.resumen).toBe("60 % menos en la 2.ª llanta Falken y Kenda, sobre el precio de lista");
+    expect(vista.entranHoy).toBe(2);
   });
 });

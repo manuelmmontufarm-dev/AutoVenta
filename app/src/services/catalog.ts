@@ -23,6 +23,7 @@ import { formatTireSize, type TireSize } from "../domain/tireSize.js";
 import { aplicarPreciosEspeciales, msHastaElProximoCambio } from "../domain/preciosEspeciales.js";
 import { aplicarPromociones, msHastaElProximoCambioDePromociones, preciosBaseDe, type PrecioBase, type Promocion } from "../domain/promociones.js";
 import { promocionesParaElCatalogo } from "./promociones.js";
+import { fijarTemporadaDelPanel } from "../domain/promocionDeTemporada.js";
 import { politica } from "../negocio/politica.js";
 import { fuenteDeCatalogo, type IdFuente } from "./fuentes/index.js";
 import {
@@ -114,8 +115,10 @@ export async function syncCatalog(): Promise<SyncReport> {
       const resultado = await fuente.sincronizar();
       // Las promociones se leen ANTES de poner precios: el «Descuento de
       // siempre» (−25 % de Depot) es parte del precio de hoy de cada llanta.
-      const { promos, politicaSembrada, descuentoDeSiempre: descuento } = await promocionesParaElCatalogo();
+      const { promos, politicaSembrada, descuentoDeSiempre: descuento, temporada } = await promocionesParaElCatalogo();
       fijarDescuentoDeSiempre(descuento);
+      // El Black Friday (promo de temporada) lo prende y le pone fechas el panel.
+      fijarTemporadaDelPanel(politica.promocionDeTemporada, temporada);
       if (fuente.id === "contifico") {
         await asegurarPreciosDeFacturacion();
         applyInterbotPrices(resultado.items);

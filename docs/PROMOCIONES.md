@@ -69,6 +69,25 @@ La lista de Depot sale de Contífico, de la empresa que factura (`CONTIFICO_FACT
 leída entera cada hora); el Interbot queda de respaldo para lo que falte o no tenga sentido contra
 el costo (fuera de 1,2–3,5 veces). Ver el encabezado de `services/precioDeVenta.ts`.
 
+## El Black Friday de Depot en la pestaña (24-nov-2026)
+
+La 2.ª llanta al 60 % (Falken y Kenda, sobre la lista) vivía solo en el código
+(`politica.promocionDeTemporada`) y se prendía en Ajustes → «Modo promoción». Ahora también es una
+fila de la pestaña, sembrada una vez (origen `politica:temporada`, tipo `enesima` con
+`{ temporada: true, posicion: 2, porcentaje: 60, marcas: [...] }`, sin Excel):
+
+- **Interruptor**: apagada o quitada, no hay Black Friday en ningún lado (cotización, pieza, PDF,
+  saludo, guardián). Prendida, corre en sus fechas.
+- **Nombre y fechas**: la fecha de fin del panel es la que dice el bot («válido hasta el 7 de
+  diciembre»). El texto extra es el lema del saludo; vacío, va el de la política.
+- Las cuentas siguen en `domain/promocionDeTemporada.ts`; el panel solo pone encima interruptor,
+  fechas, % y lema (`fijarTemporadaDelPanel`, en cada sincronización del catálogo).
+  `aplicarPromociones` no la toca. Sin sembrar o sin base, rige la política tal cual.
+- «Modo promoción» de Ajustes sigue existiendo (apagada / solo números de prueba / todos): las dos
+  llaves tienen que estar abiertas.
+- Prenderla a mitad de una conversación no rehace la cotización que el cliente ya tiene: la
+  siguiente cotización nueva sí sale con la promo.
+
 ## Dónde vive
 
 - `app/src/domain/promociones.ts` — tipos, cuentas y candados (puro).

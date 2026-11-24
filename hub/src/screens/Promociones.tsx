@@ -549,6 +549,8 @@ function Tarjeta({ promo, onCambio, onQuitada }: { promo: PromocionGuardada; onC
   const estado = ESTADO[promo.estado];
   const vencida = promo.estado === "vencida";
   const paraTodas = promo.parametros.todas === true;
+  const deTemporada = promo.parametros.temporada === true;
+  const sinExcel = paraTodas || deTemporada;
 
   return (
     <Panel className="flex flex-col gap-3 p-5 md:px-6" >
@@ -566,6 +568,12 @@ function Tarjeta({ promo, onCambio, onQuitada }: { promo: PromocionGuardada; onC
             <p className="mt-1 text-[13px]">
               Va en <b>todas</b> las llantas ({promo.entranHoy} hoy): es el precio de hoy de la cotización.
               Las demás promociones se cuentan sobre ese precio. Apagada, se cotiza al precio de lista.
+            </p>
+          ) : deTemporada ? (
+            <p className="mt-1 text-[13px]">
+              Va en las llantas {(promo.parametros.marcas ?? []).map((m) => m.charAt(0) + m.slice(1).toLowerCase()).join(" y ")} ({promo.entranHoy} hoy):
+              con 2 o 4 llantas, las pares van con el descuento sobre el precio de lista y las impares a precio de lista.
+              Si así sale más caro que el precio de hoy (1 o 3 llantas), no se aplica. Se suma a la pieza, el PDF y el saludo de temporada.
             </p>
           ) : (
             <p className="mt-1 text-[13px]">
@@ -588,9 +596,9 @@ function Tarjeta({ promo, onCambio, onQuitada }: { promo: PromocionGuardada; onC
       </div>
 
       <div className="flex flex-wrap gap-2">
-        {!paraTodas && <button type="button" className="btn-quiet h-9 rounded-[6px] px-3 text-[13px]" onClick={() => abrir("llantas")}>{abierto === "llantas" ? "Ocultar llantas" : "Ver llantas"}</button>}
+        {!sinExcel && <button type="button" className="btn-quiet h-9 rounded-[6px] px-3 text-[13px]" onClick={() => abrir("llantas")}>{abierto === "llantas" ? "Ocultar llantas" : "Ver llantas"}</button>}
         <button type="button" className="btn-quiet h-9 rounded-[6px] px-3 text-[13px]" onClick={() => abrir("editar")}>Nombre y fechas</button>
-        {!paraTodas && <button type="button" className="btn-quiet h-9 rounded-[6px] px-3 text-[13px]" onClick={() => abrir("excel")}>Cambiar llantas o precios</button>}
+        {!sinExcel && <button type="button" className="btn-quiet h-9 rounded-[6px] px-3 text-[13px]" onClick={() => abrir("excel")}>Cambiar llantas o precios</button>}
         <button type="button" className="btn-quiet h-9 rounded-[6px] px-3 text-[13px]" onClick={() => abrir("quitar")}>Quitar</button>
       </div>
 

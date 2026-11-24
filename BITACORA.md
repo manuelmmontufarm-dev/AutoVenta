@@ -1,3 +1,18 @@
+## 24-nov-2026 · Bot + panel (Depot) · El Black Friday (2.ª llanta al 60 %) pasa a la pestaña Promociones (rama `feat/black-friday-en-promociones`)
+
+- **Qué:** la promo de temporada de Depot se siembra una vez como fila de Promociones («Black Friday»,
+  60 % en la 2.ª llanta Falken y Kenda, sobre la lista, sin Excel), junto al «Descuento de siempre».
+  Su interruptor, sus fechas y su texto extra mandan sobre la política en cada sincronización del
+  catálogo (`fijarTemporadaDelPanel`); las cuentas no cambian. El panel muestra a qué marcas va y
+  cuántas llantas entran hoy.
+- **Por qué:** Manuel, 24-nov: «siguen con la promoción en la 2.ª llanta… préndele desde ahí, para que
+  siga con lo de Black Friday». Estaba prendida (Ajustes → Modo promoción = todos, hasta el 30-nov),
+  pero escrita en el código: Joaquín no la veía en Promociones ni podía extenderla sin un deploy.
+- **Probado:** simulador con el catálogo de hoy: prendida = 4 KR628 R17 a $707,44; apagada desde el
+  panel = $758,00; prendida con fin 7-dic = el saludo dice «Válido hasta el 7 de diciembre» y la
+  cotización COT firmada a $707,44.
+- **Horas:** 1,5.
+
 ## 24-nov-2026 · App del teléfono · El ícono dice el nombre del cliente debajo del «AV» (rama `feat/nombre-bajo-logo`)
 
 - **Qué:** cada servicio dibuja el ícono de la app con su nombre abajo («DEPOT TIRE», «COMPETIMOTOR»)
@@ -6379,6 +6394,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-11-24 | _(este mismo)_ | Depot: el Black Friday (2.ª llanta) pasa a la pestaña Promociones con interruptor y fechas | 1,5 |
 | 2026-11-24 | _(este mismo)_ | Depot: precios desde Contífico (Interbot de respaldo) y el −25 % como promoción con interruptor | 3,5 |
 | 2026-11-20 | _(este mismo)_ | Competimotor: seguro solo Kenda y Falken; «pantanera» = M/T, tipos por nombre, «23575r15», 30X9.5R15 = 235/75R15 | 1,5 |
 | 2026-11-20 | _(este mismo)_ | Competimotor cotiza con P2 y ofrece P3; Black Friday por código con P2 tachado y fin exacto el 30-nov | 3 |
