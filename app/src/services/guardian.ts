@@ -78,6 +78,8 @@ import { alcanzaParaVender } from "../domain/stockCorto.js";
 import { hayDescuentoEnEfectivo, politicaDePagos } from "../domain/datosDelNegocio.js";
 import { politica } from "../negocio/politica.js";
 import { REGLA_SIN_NO_HAY_GUARDIAN } from "../domain/sinNoHay.js";
+import { hechoDePromocionPorCantidad } from "../domain/promociones.js";
+import { nombreConVigencia } from "../domain/preciosEspeciales.js";
 import { despedidaQueCorresponde } from "../domain/cierrePerdido.js";
 import { hechoDeMenuSinElegir, menuDeCotizarAbierto, ofertaDeCotizarAceptada, soloAcuseOCantidad } from "../domain/ofertaAceptada.js";
 import {
@@ -547,9 +549,16 @@ async function catalogoParaElGuardian(pedidas: readonly string[], cantidadDelCli
         // de hoy ya es el de la promo; el tachado es el de siempre. Y si el
         // negocio cotiza con tarjeta, el precio en efectivo o transferencia
         // (Precio C, nunca más caro que el de hoy) también es real y se puede decir.
-        const especial = p.promocionDePrecio
-          ? ` (${p.promocionDePrecio.nombre} ${p.promocionDePrecio.vigenciaCorta}; antes $${p.customerPriceWithTax.toFixed(2)}: decir «${p.promocionDePrecio.nombre}», el precio de antes tachado o el ahorro NO es error)`
-          : "";
+        const especial = (p.promocionDePrecio
+          ? ` (${nombreConVigencia(p.promocionDePrecio)}${p.promocionDePrecio.detalle ? `, ${p.promocionDePrecio.detalle}` : ""}; antes $${p.customerPriceWithTax.toFixed(2)}: decir «${p.promocionDePrecio.nombre}», el precio de antes tachado o el ahorro NO es error)`
+          : "")
+          // Promociones del panel (24-nov): por cantidad (la cotización la
+          // aplica según cuántas lleve) y regalos. Lo que el revisor no ve en
+          // los hechos lo tacha, así que van la regla y cada cifra.
+          + (p.promocionPorCantidad ? ` (${hechoDePromocionPorCantidad(p.promocionPorCantidad)})` : "")
+          + (p.regalosDePromocion?.length
+            ? ` (${p.regalosDePromocion.map((r) => `${nombreConVigencia(r)}: ${r.texto}`).join("; ")} — es real: decirlo NO es error)`
+            : "");
         const efectivo = politica.precioDeCotizacion === "tarjeta" && p.preciosPorPago
           ? ` · con tarjeta de crédito $${p.minimumPriceWithTax.toFixed(2)}; en efectivo o transferencia $${Math.min(p.preciosPorPago.efectivoConIva, p.minimumPriceWithTax).toFixed(2)} c/u`
           : "";

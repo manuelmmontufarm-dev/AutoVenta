@@ -90,7 +90,7 @@ export async function preciosPorPagoDeLaConversacion(
         nombre, numero: linea.numero, cantidad, normal: null,
         tarjeta,
         efectivo: tarjeta !== null && precios ? Math.min(precios.efectivoConIva, tarjeta) : null,
-        promocion: item?.promocionDePrecio ? `${item.promocionDePrecio.nombre} ${item.promocionDePrecio.vigenciaCorta}` : null,
+        promocion: item?.promocionDePrecio ? [item.promocionDePrecio.nombre, item.promocionDePrecio.vigenciaCorta].filter(Boolean).join(" ") : null,
       });
       continue;
     }

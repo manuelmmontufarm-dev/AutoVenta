@@ -83,7 +83,12 @@ describe("permisos", () => {
   it("hoy todos ven todo, a propósito, y el objeto no se puede contaminar", () => {
     const admin = permisosDe("admin");
     const asesor = permisosDe("asesor");
-    expect(Object.values(admin).every(Boolean)).toBe(true);
+    // Todo lo de siempre está prendido. La única excepción es «Validar números»
+    // (22-nov-2026), que nace APAGADO para todos: es de los negocios sin sistema
+    // contable (Competimotor) y se prende usuario por usuario; Depot no la ve.
+    const { validarNumeros, ...deSiempre } = admin;
+    expect(Object.values(deSiempre).every(Boolean)).toBe(true);
+    expect(validarNumeros).toBe(false);
     expect(asesor).toEqual(admin);
 
     // Se devuelve una COPIA: si alguna pantalla o endpoint le apaga un permiso

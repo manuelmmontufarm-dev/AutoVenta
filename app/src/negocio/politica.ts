@@ -61,8 +61,9 @@ export interface PoliticaComercial {
    * OPCIONAL: al cliente NUNCA se le dice «no hay», «no tengo», «no me aparece
    * stock» ni «no puedo darle precio» (Competimotor, Carlos y Jenny,
    * 21-nov-2026: «en nuestro lema comercial no existe la palabra no hay»). Con
-   * true: lo pedido sin stock se dice «No me sale en stock en este momento,
-   * pero tenemos estas que son parecidas:» con las más cercanas, el Guardián y
+   * true: lo pedido sin stock NO se nombra: «Claro… le recomiendo estas
+   * opciones» con las más cercanas (24-nov: si preguntó el precio, «ya le
+   * estoy revisando el valor promocional…»), el Guardián y
    * un candado corrigen lo que se escape y SIEMPRE sale un aviso al asesor
    * para que le busque una solución (`domain/sinNoHay.ts`,
    * `services/sinStockAlAsesor.ts`). Sin el campo (Depot): nada cambia.
@@ -120,6 +121,14 @@ export interface PoliticaComercial {
    * cuentas viven en `domain/promocionDeTemporada.ts`; acá solo los datos.
    */
   promocionDeTemporada?: PromocionDeTemporada;
+  /**
+   * OPCIONAL: el descuento que el negocio da SIEMPRE sobre el precio de lista
+   * (Depot: −25 %, el «precio hoy» de cada llanta). Se siembra una vez como
+   * promoción «para todas las llantas» en la pestaña Promociones, y desde ahí
+   * el negocio lo prende, lo apaga o le pone fechas (24-nov-2026). Este valor
+   * solo manda mientras no esté sembrado o si la base no contesta.
+   */
+  descuentoDeSiempre?: { nombre: string; porcentaje: number };
   /**
    * OPCIONAL: con qué lista se COTIZA cuando el catálogo trae precio por forma
    * de pago (Fénix: Precio B con tarjeta, C en efectivo o transferencia).

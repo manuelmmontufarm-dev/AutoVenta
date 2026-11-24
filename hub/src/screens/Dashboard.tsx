@@ -1,13 +1,14 @@
-import { useMemo, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { BillingSection } from "../components/billing";
 import { BarChart, LineChart } from "../components/charts";
 import {
-  Bloque, Cargando, Cifra, Cifras, CuandoEscribenBloque, CuandoSeFacturaBloque, CuantoTardanBloque, DelChatALaFacturaBloque,
+  Bloque, BloquesPlegados, Cargando, Cifra, Cifras, CuandoEscribenBloque, CuandoSeFacturaBloque, CuantoTardanBloque, DelChatALaFacturaBloque,
   ParteDeLaTiendaBloque, VentasComprobadasBloque, estadoComprobables,
   SIN_SISTEMA_CONTABLE,
   esRegistro,
 } from "../components/comprobables";
 import { SelectorDeMes, etiquetaDeMes } from "../components/mes";
+import { IconChevronR } from "../components/icons";
 import { Campo, PageHeader } from "../components/ui";
 import { TODOS } from "../data/types";
 import { money, relTime } from "../lib/format";
@@ -83,17 +84,31 @@ export function Dashboard() {
       <div className="hidden md:block">
         <PageHeader titulo="Métricas" sub="El negocio de un vistazo">{saltos}<SelectorDeMes /></PageHeader>
       </div>
-      <div className="flex flex-col gap-2 px-4 pt-3 md:hidden"><SelectorDeMes className="max-w-full" />{saltos}</div>
+      <div className="flex flex-col gap-2 px-4 pt-3 md:hidden"><SelectorDeMes className="max-w-full" /></div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6 md:px-8 md:pb-8">
-        <div className="flex flex-col gap-4">
-          <p className="text-[12px] text-text2">
-            {periodo.todos
+        <BloquesPlegados.Provider value={true}>
+        <div className="flex flex-col gap-3 pt-3 md:gap-4 md:pt-0">
+          {(() => {
+            const explicacion = periodo.todos
               ? "Todo lo que hay en la base, sin recortar por mes."
               : periodo.esElMesEnCurso
                 ? `Estos números son solo de ${periodo.mes}: el 1 de ${periodo.proximo} vuelven a cero. Los meses anteriores se eligen arriba.`
-                : `Estos números son solo de ${periodo.mes}.`}
-          </p>
+                : `Estos números son solo de ${periodo.mes}.`;
+            return (
+              <>
+                <p className="hidden text-[12px] text-text2 md:block">{explicacion}</p>
+                {/* Teléfono: la explicación existe, pero plegada (Manuel, 22-nov). */}
+                <details className="group text-[12px] text-text2 md:hidden">
+                  <summary className="inline-flex cursor-pointer list-none items-center gap-1 select-none [&::-webkit-details-marker]:hidden">
+                    Cómo se leen estos números
+                    <IconChevronR size={12} className="transition-transform group-open:rotate-90" />
+                  </summary>
+                  <p className="mt-1.5">{explicacion} Toque cualquier número para ver qué cuenta, y cada título de abajo para ver su detalle.</p>
+                </details>
+              </>
+            );
+          })()}
 
           {/* ── Ventas ── */}
           <Seccion id="ventas" titulo="Ventas" sub={registro ? "ventas registradas con factura" : "solo ventas que tienen factura en Contífico"} />
@@ -247,7 +262,7 @@ export function Dashboard() {
 
           {/* Cuenta (ocupa dos columnas por su cuenta) · actividad */}
           <div className="grid gap-4 lg:grid-cols-3">
-            <BillingSection />
+            <PlegadoEnMovil titulo="Cuenta y facturación"><BillingSection /></PlegadoEnMovil>
             <Bloque titulo="Actividad en vivo" nota="lo último que pasó">
               <ul className="flex flex-col">
                 {feed.slice(0, 9).map((item) => (
@@ -266,8 +281,31 @@ export function Dashboard() {
             </Bloque>
           </div>
         </div>
+        </BloquesPlegados.Provider>
       </div>
     </div>
+  );
+}
+
+/**
+ * Para lo que no es un `Bloque` (la cuenta): en el teléfono queda detrás de su
+ * título; en escritorio el envoltorio desaparece (`contents`) y la grilla sigue igual.
+ */
+function PlegadoEnMovil({ titulo, children }: { titulo: string; children: ReactNode }) {
+  const [abierto, setAbierto] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setAbierto((v) => !v)}
+        aria-expanded={abierto}
+        className="flex min-h-[52px] items-center justify-between gap-3 rounded-[10px] border border-line bg-surface px-5 text-left md:hidden"
+      >
+        <span className="text-[14px] font-semibold">{titulo}</span>
+        <IconChevronR size={16} className={`shrink-0 text-text2 transition-transform ${abierto ? "rotate-90" : ""}`} />
+      </button>
+      <div className={abierto ? "contents" : "hidden md:contents"}>{children}</div>
+    </>
   );
 }
 
@@ -276,7 +314,7 @@ function Seccion({ id, titulo, sub }: { id: string; titulo: string; sub: string 
   return (
     <div id={id} className="mt-3 flex scroll-mt-3 flex-wrap items-baseline gap-x-3 gap-y-0.5 border-b-2 border-text pb-1.5">
       <h2 className="text-[18px] font-semibold tracking-[-0.01em]">{titulo}</h2>
-      <span className="text-[13px] text-text2">{sub}</span>
+      <span className="hidden text-[13px] text-text2 md:inline">{sub}</span>
     </div>
   );
 }
@@ -304,12 +342,24 @@ function FilaKpis({ children }: { children: ReactNode }) {
   return <div className="grid grid-cols-2 overflow-hidden rounded-[10px] border border-line bg-surface lg:grid-cols-4">{children}</div>;
 }
 
+/**
+ * Un número grande con su nombre. En el teléfono la nota (qué cuenta ese
+ * número) queda plegada y aparece al tocar la celda; en escritorio va siempre.
+ */
 function Kpi({ nombre, valor, nota }: { nombre: string; valor: ReactNode; nota: string }) {
+  const [abierta, setAbierta] = useState(false);
   return (
-    <div className="flex min-w-0 flex-col gap-1.5 border-line px-5 pt-[18px] pb-5 [&:nth-child(-n+2)]:border-b [&:nth-child(odd)]:border-r lg:border-r lg:[&:nth-child(-n+2)]:border-b-0 lg:last:border-r-0">
-      <span className="text-[13px] font-semibold">{nombre}</span>
+    <div
+      className="flex min-w-0 cursor-pointer flex-col gap-1.5 border-line px-4 pt-3.5 pb-4 md:cursor-default md:px-5 md:pt-[18px] md:pb-5 [&:nth-child(-n+2)]:border-b [&:nth-child(odd)]:border-r lg:border-r lg:[&:nth-child(-n+2)]:border-b-0 lg:last:border-r-0"
+      onClick={() => setAbierta((v) => !v)}
+      data-testid="kpi"
+    >
+      <span className="flex items-start justify-between gap-1.5 text-[13px] font-semibold">
+        {nombre}
+        <IconChevronR size={13} className={`mt-0.5 shrink-0 text-text3 transition-transform md:hidden ${abierta ? "rotate-90" : ""}`} />
+      </span>
       <span className="tnum font-mono text-[28px] leading-[1.1] font-medium tracking-[-0.02em] md:text-[32px]">{valor}</span>
-      <span className="text-[12px] text-text2">{nota}</span>
+      <span className={`text-[12px] text-text2 ${abierta ? "" : "hidden md:inline"}`}>{nota}</span>
     </div>
   );
 }

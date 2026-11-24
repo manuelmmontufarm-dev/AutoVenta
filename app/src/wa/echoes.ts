@@ -28,6 +28,7 @@ import {
   esRespuestaAutomatica,
   extraerEcos,
   firmaValida,
+  medioDeEco,
   tipoDeEco,
   type EchoMessage,
 } from "../domain/echoPayload.js";
@@ -39,6 +40,8 @@ import {
 } from "../services/conversations.js";
 import { registrarEcoDescartado, registrarEcoGuardado } from "../services/echoHealth.js";
 import { esEnvioPropio } from "./outboundRegistry.js";
+import { bajarYGuardarMedio } from "../services/mediosDelChat.js";
+import { downloadMedia } from "./client.js";
 import { sql } from "../db/client.js";
 
 /** Segundos entre el último mensaje del cliente y el eco; null si no hay. */
@@ -124,6 +127,17 @@ async function guardarEco(eco: EchoMessage): Promise<boolean> {
       occurredAt,
     },
   );
+
+  // La foto, el audio o el archivo que mandó el asesor desde su WhatsApp se
+  // guarda para verlo en el panel (039). Lo que salió de este código ya guardó
+  // el suyo al enviarlo. No se espera: el eco no depende de la descarga.
+  const medio = esNuevo && !propio ? medioDeEco(eco) : null;
+  if (medio) {
+    void bajarYGuardarMedio(
+      { waMessageId: eco.id, conversationId: conversation.id, kind: medio.kind, waMediaId: medio.id, mime: medio.mime, filename: medio.filename },
+      downloadMedia,
+    );
+  }
 
   // Solo un mensaje ajeno y nuevo significa handoff. El eco de nuestro propio
   // envío no puede pausar al bot por su propia respuesta.

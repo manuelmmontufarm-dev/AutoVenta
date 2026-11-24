@@ -95,7 +95,7 @@ Fable en todo se comería entre $800 y $2.000 de ese margen. Las dos jugadas con
 | La traducción de ida y vuelta | `app/src/agent/chatClaude.ts` | 20 pruebas en memoria |
 | Vendedor, rescate, Guardián, clasificador, visión y redacción de seguimientos pasan por esa puerta | `agent.ts`, `guardian.ts`, `classifier.ts`, `vision.ts`, `followUpCopy.ts` | Suite completa: 4.598 pasan; los 4 archivos en rojo ya fallan en `main` sin este cambio |
 | El canary valida cada modelo en SU proveedor y se apaga solo si falta la clave | `app/src/agent/canary.ts` | 2 pruebas nuevas |
-| El costo cuenta lo escrito al caché | `billing.ts`, migración 038, `logAiRun` | 5 pruebas |
+| El costo cuenta lo escrito al caché | `billing.ts`, migración 041, `logAiRun` | 5 pruebas |
 | El simulador acepta modelos `claude-…` con clave de pruebas aparte | `scripts/sim/sim.mjs` | `npm run sim:humo` ✅, y el bot real contra el Anthropic de mentira: 4 peticiones, 0 rechazos |
 | Los lotes cuestan bien a Claude, guardan tokens por pieza y suman un segundo juez | `lote-canary.mjs`, `comparar-canary.mjs` | Sintaxis; se estrena con la clave |
 | Humo contra la API real | `npm run claude:humo` | 14 de 14 contra el doble local |

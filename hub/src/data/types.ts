@@ -333,6 +333,8 @@ export interface Mensaje {
   contenido: string;
   estado?: string;
   metadata?: Record<string, unknown>;
+  /** El archivo del mensaje (foto, audio, video, documento), si lo trae. Se pide por `/api/hub/messages/:id/media`. */
+  media?: { kind: "image" | "audio" | "video" | "document" | "sticker"; mime: string; nombre: string };
   hora: string;
 }
 
@@ -805,6 +807,20 @@ export interface ClienteArchivado {
   sacado: boolean;
 }
 
+export interface ClientePospuesto {
+  ticketId: number;
+  atiendeAsesor?: boolean;
+  nombre: string | null;
+  telefono: string;
+  medida: string | null;
+  llantas: string;
+  total: number;
+  local: string;
+  /** Cuándo vuelve a la lista (ISO). */
+  hasta: string;
+  pospuestoEn: string | null;
+}
+
 export interface ParaCerrar {
   tope: number;
   contactadosHoy: number;
@@ -812,6 +828,8 @@ export interface ParaCerrar {
   empujando: ClienteEmpujando[];
   archivo: ClienteArchivado[];
   pospuestos: number;
+  /** Puede faltar si el servidor todavía es el de antes. */
+  pospuestosLista?: ClientePospuesto[];
   compraron: number;
   estadistica: EstadisticaLlegada;
 }

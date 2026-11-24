@@ -78,3 +78,24 @@ describe("Fase C — política determinística de WhatsApp", () => {
       .toMatchObject({ allowed: false, code: "opted_out" });
   });
 });
+
+describe("la plantilla «retomar la venta» que manda un asesor (22-nov-2026)", () => {
+  const cerrada = { ...base, contentType: "template" as const, now: new Date("2026-07-22T15:00:00.000Z") };
+
+  it("el asesor la puede mandar con la ventana cerrada aunque no haya consentimiento de seguimientos", () => {
+    expect(evaluateOutboundPolicy({ ...cerrada, actor: "owner", assignedTo: "human" })).toMatchObject({ allowed: true, code: "allowed_template" });
+  });
+
+  it("los seguimientos automáticos siguen pidiendo el consentimiento", () => {
+    for (const actor of ["bot", "worker"] as const) {
+      expect(evaluateOutboundPolicy({ ...cerrada, actor })).toMatchObject({ allowed: false, code: "consent_required" });
+    }
+  });
+
+  it("si el cliente pidió que no le escriban o estaba molesto, tampoco el asesor", () => {
+    expect(evaluateOutboundPolicy({ ...cerrada, actor: "owner", optedOutAt: new Date("2026-07-21T00:00:00.000Z") }))
+      .toMatchObject({ allowed: false, code: "opted_out" });
+    expect(evaluateOutboundPolicy({ ...cerrada, actor: "owner", negativeSentimentAt: new Date("2026-07-21T00:00:00.000Z") }))
+      .toMatchObject({ allowed: false, code: "negative_sentiment" });
+  });
+});

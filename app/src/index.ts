@@ -2,6 +2,7 @@
  * AutoVenta — bot de ventas de llantas por WhatsApp.
  * Punto de entrada: conecta webhook → pipeline → agente → WhatsApp.
  */
+import { sembrarDescuentoDeSiempre, sembrarPromocionDeLaPolitica } from "./services/promociones.js";
 import { business, config } from "./config.js";
 import { validarCanaryAlArrancar } from "./agent/canary.js";
 import { conElTelefonoDelTurno, instalarCompuertaDeTemporada } from "./services/temporadaDelTurno.js";
@@ -22,6 +23,7 @@ process.on("unhandledRejection", (reason) => {
 });
 import { initWa, setWaHandlers, sendAdvisorText, sendCustomerText, sendCustomerButtons, showTyping, downloadMedia } from "./wa/client.js";
 import { describirFotoDeLlanta } from "./services/vision.js";
+import { bajarYGuardarMedio, guardarMedio } from "./services/mediosDelChat.js";
 import { transcribirAudio } from "./services/transcripcion.js";
 import { conResumenDeLinks } from "./services/linkPreview.js";
 import { getPublicChannelConfig } from "./services/channel.js";
@@ -53,6 +55,7 @@ import {
 } from "./services/conversations.js";
 import { emitLiveEvent } from "./services/liveEvents.js";
 import { registrarMensajeDeAsesor } from "./services/advisorWindow.js";
+import { esComandoAsesor, nombreDelAsesor, respuestaAlAsesor } from "./services/ventanaDelAsesor.js";
 import { BOTON_LISTO } from "./services/avisoDeLaManana.js";
 import { BOTON_VER_AVISO, entregarAvisosCompletos } from "./services/avisoPorPlantilla.js";
 import { contestaAunApagado, isBotActive } from "./services/botPower.js";
@@ -959,6 +962,27 @@ async function recibirMensaje(
   pipeline.push(from, waMessageId, texto, name, receivedAt, quotedWaMessageId);
 }
 
+/**
+ * «/asesor» (22-nov-2026): lo manda un asesor desde el botón de la app para
+ * reabrir su ventana de 24 h. No es un cliente: no entra al pipeline, se le
+ * confirma y se le entregan los avisos que tenía pendientes. Un número que no
+ * está en la lista de asesores recibe una explicación en vez de una venta.
+ */
+async function atenderComandoAsesor(from: string, receivedAt: Date): Promise<void> {
+  const nombre = await nombreDelAsesor(from).catch(() => null);
+  if (nombre && (await registrarMensajeDeAsesor(from, receivedAt))) {
+    const pendientes = await entregarAvisosCompletos(from)
+      .catch((error) => { console.warn("⚠️ No se pudieron entregar los avisos pendientes:", error); return 0; });
+    await sendAdvisorText(respuestaAlAsesor(nombre, pendientes), from)
+      .catch((error) => console.warn("⚠️ No se pudo confirmar el /asesor:", error));
+    return;
+  }
+  await sendAdvisorText(
+    "Este número no está en la lista de asesores que reciben avisos. Pídele al administrador que lo agregue en el panel: Ajustes → Avisos.",
+    from,
+  ).catch((error) => console.warn("⚠️ No se pudo contestar el /asesor:", error));
+}
+
 /** Cuánto después del mensaje del cliente aparece el «escribiendo…». */
 const ESCRIBIENDO_TEMPRANO_MS = 3_000;
 
@@ -989,6 +1013,8 @@ setWaHandlers({
 
     switch (message.type) {
       case "text":
+        // «/asesor» lo manda un asesor desde la app: no es un cliente (ver abajo).
+        if (esComandoAsesor(message.text.body)) { await atenderComandoAsesor(from, receivedAt); break; }
         // El texto entra TAL CUAL y sin esperar a nada: el agrupador (debounce)
         // necesita ver los mensajes en el orden en que llegaron. Los links que
         // traiga se abren después, dentro del pipeline, con el "escribiendo…" ya
@@ -1072,6 +1098,8 @@ setWaHandlers({
         // medida sola. El ack a Meta ya salió arriba (received()), así que el
         // await de la descarga+visión no arriesga un reintento del webhook.
         const media = await downloadMedia(message.image.id);
+        // El archivo se guarda para que el asesor lo abra en el panel (039).
+        await guardarMedio({ waMessageId: message.id, kind: "image", waMediaId: message.image.id, mime: media?.mimeType, bytes: media?.bytes });
         const caption = message.image.caption?.trim();
         const visionConversation = await getOrCreateConversation(from, name);
         const leido = media ? await describirFotoDeLlanta(media.bytes, media.mimeType, caption, {
@@ -1100,6 +1128,7 @@ setWaHandlers({
         // que el await de la descarga+transcripción no arriesga un reintento del
         // webhook.
         const media = await downloadMedia(message.audio.id);
+        await guardarMedio({ waMessageId: message.id, kind: "audio", waMediaId: message.audio.id, mime: media?.mimeType, bytes: media?.bytes });
         const dicho = media ? await transcribirAudio(media.bytes, media.mimeType) : null;
         const cuerpo = dicho
           ? `[El cliente mandó un audio. Dice: ${dicho}]`
@@ -1116,6 +1145,7 @@ setWaHandlers({
         const mime = (message.document.mime_type ?? "").toLowerCase();
         if (mime.startsWith("image/")) {
           const media = await downloadMedia(message.document.id);
+          await guardarMedio({ waMessageId: message.id, kind: "image", waMediaId: message.document.id, mime: media?.mimeType, bytes: media?.bytes, filename: message.document.filename });
           const caption = message.document.caption?.trim();
           const docConversation = await getOrCreateConversation(from, name);
           const leido = media ? await describirFotoDeLlanta(media.bytes, media.mimeType, caption, {
@@ -1133,6 +1163,11 @@ setWaHandlers({
             receivedAt,
           );
         } else {
+          // El bot no lo lee, pero el asesor sí lo puede abrir en el panel.
+          await bajarYGuardarMedio(
+            { waMessageId: message.id, kind: "document", waMediaId: message.document.id, mime: message.document.mime_type, filename: message.document.filename },
+            downloadMedia,
+          );
           await recibirMensaje(
             from,
             name,
@@ -1156,6 +1191,16 @@ setWaHandlers({
         // caído.
         const mudos = ["reaction", "system", "order", "unknown", "unsupported"];
         if (mudos.includes(message.type)) break;
+        // Video y sticker: el bot no los lee, pero el archivo se guarda para el panel.
+        if (message.type === "video" || message.type === "sticker") {
+          const adjunto = (message as unknown as Record<string, { id?: string; mime_type?: string } | undefined>)[message.type];
+          if (adjunto?.id) {
+            await bajarYGuardarMedio(
+              { waMessageId: message.id, kind: message.type, waMediaId: adjunto.id, mime: adjunto.mime_type },
+              downloadMedia,
+            );
+          }
+        }
         // QUÉ se le pide depende de dónde está la venta. Pedirle la medida a
         // quien ya tiene la visita confirmada es reiniciar una conversación que
         // iba bien: conv 18821 (sticker tras «Correcto todo bien gracias» →
@@ -1188,6 +1233,10 @@ setWaHandlers({
 // Aplica el esquema al arrancar (idempotente) → deploy sin paso manual de migración.
 await ensureSchema();
 console.log("✅ Esquema de base de datos listo");
+// La promoción que venía escrita en el código (Black Friday de Competimotor)
+// pasa una vez a la pestaña Promociones, antes de armar el primer catálogo.
+await sembrarPromocionDeLaPolitica();
+await sembrarDescuentoDeSiempre();
 // Calentar las métricas ya no frena el arranque (26-oct): con la base cargada
 // esa consulta tardaba y el contenedor no llegaba a contestar /health a tiempo.
 void getHubMetrics().catch((error) => console.warn("⚠️ No se pudieron precalentar las métricas:", error instanceof Error ? error.message : error));

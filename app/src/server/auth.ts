@@ -71,6 +71,13 @@ export interface Permisos {
   usarCotizador: boolean;
   verAjustes: boolean;
   verErrores: boolean;
+  /**
+   * La pestaña «Validar» del panel (22-nov-2026): el vendedor valida el número
+   * de un comprador y registra su factura, lo mismo que `/venta` pero dentro de
+   * la app. Nace prendido en los negocios sin sistema contable (Competimotor) y
+   * apagado en Depot, que cruza las ventas con Contífico (ver hubUsers.ts).
+   */
+  validarNumeros: boolean;
 }
 
 const TODO_PERMITIDO: Permisos = {
@@ -82,6 +89,7 @@ const TODO_PERMITIDO: Permisos = {
   usarCotizador: true,
   verAjustes: true,
   verErrores: true,
+  validarNumeros: PERMISOS_COMPLETOS.validarNumeros,
 };
 
 export function permisosDe(_rol: Rol): Permisos {

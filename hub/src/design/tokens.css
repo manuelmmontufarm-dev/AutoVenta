@@ -481,3 +481,10 @@ table,
     animation: none !important;
   }
 }
+
+/* Teléfono: iOS hace zoom (y deja la página corrida) al enfocar cualquier campo
+   con letra menor a 16 px. Pasó con la clave del login y con el buscador del
+   Inbox (22-nov). Acá se fija para todos de una vez. */
+@media (max-width: 767px) {
+  input, select, textarea { font-size: 16px !important; }
+}

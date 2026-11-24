@@ -5,7 +5,7 @@ import { IconBack, IconDoc, IconRefresh, IconX } from "../components/icons";
 import { BlockTitle, Campo, CierreBadge, CierreIcon, MedidaChip, Modal, Segmented } from "../components/ui";
 import { CIERRE_META, DETALLE_VENTA, ETAPA_META, enlaceRegistrarVenta, estadoDeLaVenta, ventaCompleta, type AccionDelHistorial, type Cierre, type DatosCierreGanado, type Mensaje, type Ticket } from "../data/types";
 import { AgregarFactura, CamposCierreGanado, DATOS_VACIOS, faltaParaCerrar } from "../components/venta";
-import { etiquetaVisita, money, relTime } from "../lib/format";
+import { diaDelChat, etiquetaVisita, money, relTime } from "../lib/format";
 import { navigate } from "../router";
 import { source, useHub, useNow } from "../store";
 
@@ -15,6 +15,7 @@ function nombreCorto(ticket: Ticket): string {
 }
 
 export function TicketDetail({ id }: { id: number }) {
+  const conexion = useHub((s) => s.conexion);
   const { tickets, ticketsSueltos, mensajes, typing, abrirTicket, enviarMensaje, setAtiende, cerrar, reabrir, deshacerVenta, agregarNota } = useHub();
   // El listado corta en 500: un enlace viejo apunta a una conversación que
   // existe pero no vino en el lote. `abrirTicket` la trae de a una.
@@ -92,6 +93,14 @@ export function TicketDetail({ id }: { id: number }) {
       <div className="grid h-full place-items-center text-[14px] text-text2">
         {cargandoTicket ? (
           "Abriendo la conversación…"
+        ) : conexion !== "conectada" ? (
+          // Sin red no se sabe si el ticket existe: no decir «no encontrado».
+          <span>
+            Sin conexión con el servidor.{" "}
+            <button className="font-semibold text-signal underline underline-offset-[3px]" onClick={() => { setCargandoTicket(true); void abrirTicket(id).finally(() => setCargandoTicket(false)); }}>
+              Reintentar
+            </button>
+          </span>
         ) : (
           <span>
             Ticket no encontrado.{" "}
@@ -215,8 +224,16 @@ export function TicketDetail({ id }: { id: number }) {
           >
             <div className="flex flex-col gap-2.5">
               <AvisoMonologo ticket={ticket} mensajes={msgs} />
-              {msgs.map((m) => (
-                <ChatBubble key={m.id} msg={m} nombreCliente={nombre} onVerPdf={() => setVerCotizacion(true)} />
+              {/* Un bloque por día, como en WhatsApp. Cada pastilla es `sticky`
+                  DENTRO de su bloque: sueltas en la misma lista se apilaban
+                  todas arriba, una encima de la otra. */}
+              {porDia(msgs).map((dia) => (
+                <div key={dia.clave} className="flex flex-col gap-2.5">
+                  <DivisorDeDia iso={dia.mensajes[0].hora} now={now} />
+                  {dia.mensajes.map((m) => (
+                    <ChatBubble key={m.id} msg={m} nombreCliente={nombre} onVerPdf={() => setVerCotizacion(true)} />
+                  ))}
+                </div>
               ))}
               <AnimatePresence>{escribiendo && <TypingBubble rol={escribiendo} />}</AnimatePresence>
             </div>
@@ -231,7 +248,12 @@ export function TicketDetail({ id }: { id: number }) {
             <Composer
               ticket={ticket}
               nombreCliente={nombre}
-              onEnviar={(texto) => void enviarMensaje(ticket.id, texto)}
+              onEnviar={(texto) => enviarMensaje(ticket.id, texto)}
+              // La plantilla «retomar la venta» salió después del último mensaje del cliente.
+              plantillaPendiente={(() => {
+                const ultimoCliente = msgs.reduce((t, m) => (m.rol === "cliente" ? Math.max(t, new Date(m.hora).getTime()) : t), 0);
+                return msgs.some((m) => (m.metadata as { plantilla?: string } | undefined)?.plantilla === "retomar_venta_v1" && new Date(m.hora).getTime() > ultimoCliente);
+              })()}
               onTomar={() => void setAtiende(ticket.id, "humano")}
             />
           </div>
@@ -299,6 +321,29 @@ export function TicketDetail({ id }: { id: number }) {
           />
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+/** Los mensajes agrupados por día calendario, en el orden en que llegaron. */
+function porDia(mensajes: Mensaje[]): { clave: string; mensajes: Mensaje[] }[] {
+  const dias: { clave: string; mensajes: Mensaje[] }[] = [];
+  for (const m of mensajes) {
+    const clave = new Date(m.hora).toDateString();
+    const ultimo = dias[dias.length - 1];
+    if (ultimo && ultimo.clave === clave) ultimo.mensajes.push(m);
+    else dias.push({ clave, mensajes: [m] });
+  }
+  return dias;
+}
+
+/** La pastilla que separa los días del chat. Se queda pegada arriba al subir. */
+function DivisorDeDia({ iso, now }: { iso: string; now: number }) {
+  return (
+    <div className="sticky top-0 z-[1] my-1 flex justify-center" data-testid="divisor-dia">
+      <span className="rounded-full border border-line bg-bg px-3 py-1 text-[12px] font-medium text-text2 shadow-[0_1px_2px_rgba(0,0,0,.04)]">
+        {diaDelChat(iso, now)}
+      </span>
     </div>
   );
 }

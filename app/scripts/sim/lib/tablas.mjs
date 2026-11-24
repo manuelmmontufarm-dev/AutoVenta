@@ -26,10 +26,18 @@ export const TABLAS_CONFIG = [
   "follow_up_templates",
   "follow_up_policies",
   "pending_discount_rules",
+  // Promociones que el negocio arma en el panel (24-nov-2026): cambian el
+  // precio que cotiza el bot, así que el simulador las copia.
+  "promociones",
 ];
 
 /** NO se copia: son clientes, conversaciones y su rastro. */
 export const TABLAS_DATOS = [
+  // Avisos en la app (22-nov): los teléfonos suscritos y las claves de firma son de cada servicio.
+  // Fotos, audios y archivos del chat (23-nov): son datos de las conversaciones.
+  "message_media",
+  "push_subscriptions",
+  "push_keys",
   "conversations",
   "messages",
   "message_status_events",

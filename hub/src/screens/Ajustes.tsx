@@ -1800,7 +1800,7 @@ function SeccionMatrizAvisos({ editable, onError }: { editable: boolean; onError
 
 interface PermisosHub {
   verInbox: boolean; verKanban: boolean; verOportunidades: boolean; verMetricas: boolean;
-  verFinanzas: boolean; usarCotizador: boolean; verAjustes: boolean; verErrores: boolean;
+  verFinanzas: boolean; usarCotizador: boolean; verAjustes: boolean; verErrores: boolean; validarNumeros?: boolean;
 }
 
 interface UsuarioHub {
@@ -1828,7 +1828,7 @@ function enlaceDeInvitacion(id: string, codigo: string): string {
 const ESTADO_CLAVE_UI: Record<UsuarioHub["estadoClave"], { label: string; explica: string }> = {
   compartida: { label: "clave compartida", explica: "Entra con la clave común de siempre (los cuatro originales)." },
   propia: { label: "clave propia", explica: "Ya creó su clave personal; solo esa clave abre." },
-  pendiente: { label: "pendiente", explica: "Todavía no entra: abre su enlace de invitación, crea su clave y deja su email." },
+  pendiente: { label: "pendiente", explica: "Todavía no entra: en el login elige su nombre, crea su clave y deja su email." },
 };
 
 /** Cada interruptor en el idioma de las pestañas que abre o esconde. */
@@ -1839,6 +1839,7 @@ const PERMISOS_UI: { id: keyof PermisosHub; label: string }[] = [
   { id: "verMetricas", label: "Métricas" },
   { id: "verFinanzas", label: "Cifras de venta ($)" },
   { id: "verAjustes", label: "Ajustes" },
+  { id: "validarNumeros", label: "Validar números" },
 ];
 
 const ROLES_HUB: { valor: "admin" | "asesor"; etiqueta: string; explica: string }[] = [
@@ -1951,7 +1952,7 @@ function SeccionUsuarios({ onError }: { onError: (e: string) => void }) {
   return (
     <Tarjeta
       titulo="Usuarios del panel"
-      sub="Quién sale en el desplegable del login y qué pestañas ve. Al crear un usuario aparece su enlace de invitación: mándaselo a esa persona; con él crea su propia clave y deja su email. Solo ese enlace activa la cuenta y sirve una vez. Si alguien olvida su clave, «Restablecer clave» da un enlace nuevo. Los cambios de acceso se aplican en su próximo inicio de sesión."
+      sub="Quién sale en el desplegable del login y qué pestañas ve. Una cuenta nueva entra eligiendo su nombre en el login y creando su clave: basta con mandarle la dirección del panel. El enlace de invitación es opcional (le deja el nombre ya elegido). Si alguien olvida su clave, «Restablecer clave» le deja crear una nueva. Los cambios de acceso se aplican en su próximo inicio de sesión."
     >
       <div className="flex flex-col gap-4">
         {usuarios.map((u) => (
@@ -1993,7 +1994,7 @@ function SeccionUsuarios({ onError }: { onError: (e: string) => void }) {
                 <label key={permiso.id} className="flex items-center gap-1.5 text-[12px]">
                   <input
                     type="checkbox"
-                    checked={u.permisos[permiso.id]}
+                    checked={Boolean(u.permisos[permiso.id])}
                     onChange={(e) => void cambiar(u, { permisos: { [permiso.id]: e.target.checked } })}
                     className="size-3.5 accent-[var(--color-ok)]"
                   />

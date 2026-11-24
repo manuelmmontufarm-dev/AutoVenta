@@ -169,6 +169,22 @@ export interface ClienteArchivado {
   sacado: boolean;
 }
 
+/** Pospuesto con «Posponer»: sale en el calendario el día que vuelve (Manuel, 24-nov). */
+export interface ClientePospuesto {
+  ticketId: number;
+  atiendeAsesor: boolean;
+  nombre: string | null;
+  telefono: string;
+  medida: string | null;
+  llantas: string;
+  total: number;
+  local: string;
+  /** Cuándo vuelve a la lista (ISO). */
+  hasta: string;
+  /** Cuándo lo pospusieron (ISO). */
+  pospuestoEn: string | null;
+}
+
 export interface ParaCerrar {
   tope: number;
   contactadosHoy: number;
@@ -176,6 +192,8 @@ export interface ParaCerrar {
   empujando: ClienteEmpujando[];
   archivo: ClienteArchivado[];
   pospuestos: number;
+  /** Los mismos pospuestos, con el día que vuelven: se pintan en el calendario. */
+  pospuestosLista: ClientePospuesto[];
   compraron: number;
   /** La curva de llegada con la que se pintó todo: se muestra en «Cómo se calcula». */
   estadistica: Estadistica;
@@ -205,7 +223,7 @@ export function puntaje(f: FilaParaCerrar, ahora: Date): number {
 export function clasificar(filas: readonly FilaParaCerrar[], ahora: Date, est: Estadistica = ESTADISTICA_POR_DEFECTO): ParaCerrar {
   const hoy = diaDeGuayaquil(ahora);
   const out: ParaCerrar = {
-    tope: TOPE_DIARIO, contactadosHoy: 0, paraCerrar: [], empujando: [], archivo: [], pospuestos: 0, compraron: 0, estadistica: est,
+    tope: TOPE_DIARIO, contactadosHoy: 0, paraCerrar: [], empujando: [], archivo: [], pospuestos: 0, pospuestosLista: [], compraron: 0, estadistica: est,
   };
   const iso = (d: Date | null) => d?.toISOString() ?? null;
 
@@ -234,7 +252,11 @@ export function clasificar(filas: readonly FilaParaCerrar[], ahora: Date, est: E
 
     // «Me dijo que cobra el 30»: fuera de la lista hasta esa fecha, salvo que escriba antes.
     const pospuesto = f.pospuestoHasta && f.pospuestoHasta > ahora && (!f.ultimoCliente || !f.pospuestoEn || f.pospuestoEn >= f.ultimoCliente);
-    if (pospuesto) { out.pospuestos++; continue; }
+    if (pospuesto) {
+      out.pospuestos++;
+      out.pospuestosLista.push({ ...base, atiendeAsesor, telefono: f.telefono, hasta: f.pospuestoHasta!.toISOString(), pospuestoEn: iso(f.pospuestoEn) });
+      continue;
+    }
 
     out.paraCerrar.push({
       ...base,
@@ -256,6 +278,7 @@ export function clasificar(filas: readonly FilaParaCerrar[], ahora: Date, est: E
   // tengan más plata en juego.
   out.paraCerrar.sort((a, b) => Number(b.atiendeAsesor) - Number(a.atiendeAsesor) || Number(a.temperatura === "fria") - Number(b.temperatura === "fria") || b.puntaje - a.puntaje || (b.ultimoCliente ?? "").localeCompare(a.ultimoCliente ?? ""));
   out.empujando.sort((a, b) => Number(b.atiendeAsesor) - Number(a.atiendeAsesor) || b.ultimoAsesor.localeCompare(a.ultimoAsesor));
+  out.pospuestosLista.sort((a, b) => a.hasta.localeCompare(b.hasta));
   out.archivo.sort((a, b) => (b.ultimoTexto ?? "").localeCompare(a.ultimoTexto ?? ""));
   return out;
 }

@@ -125,7 +125,10 @@ describe("precios reales del Interbot", () => {
     });
     const item = rt01Item();
     applyInterbotPrices([item]);
-    expect(item.customerPriceWithTax).toBe(489.14);
+    // Desde el 24-nov el −25 % sale de la lista: la lista mal cargada se rehace
+    // como mínimo ÷ 0,75 y el precio de venta queda el mismo.
+    expect(item.minimumPriceWithTax).toBe(489.14);
+    expect(item.customerPriceWithTax).toBe(652.19);
     expect(item.customerPriceWithTax).toBeGreaterThanOrEqual(item.minimumPriceWithTax);
   });
 });

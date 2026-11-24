@@ -1,9 +1,277 @@
+## 24-nov-2026 · Bot + panel (Depot) · Precios desde Contífico y el −25 % como promoción con interruptor (rama `fix/competimotor-precio-proforma`)
+
+- **Qué:**
+  - La **lista** de cada llanta de Depot sale de Contífico, de la empresa donde factura
+    (`CONTIFICO_FACTURAS_API_KEY`, leída entera cada hora). El Interbot queda de respaldo para lo que
+    falte o no tenga sentido contra el costo (fuera de 1,2–3,5 veces); la fórmula ÷0,5625, de último
+    recurso y nombrada en el log. Una sola fuente para todas las puertas: catálogo, pieza de opciones,
+    `generar_cotizacion` y el seguimiento que no repite precios viejos (`services/precioDeVenta.ts`).
+  - El **−25 % de siempre** es una promoción de la pestaña Promociones, «Descuento de siempre»:
+    porcentaje para todas las llantas, sin Excel, con interruptor. Baja el precio de hoy (sin rótulo);
+    las promos del panel se suman encima y el Black Friday lo reemplaza cuando sale más barato.
+    Apagada, se cotiza a la lista. Se siembra una vez al arrancar (`sembrarDescuentoDeSiempre`).
+  - La pieza de opciones ya no borra las promociones del panel al confirmar el precio en el momento.
+  - El simulador sirve también la empresa que factura (`datos/facturacion.json`, clave de mentira).
+- **Por qué:** Joaquín, 24-nov: dos clientes llegaron con la proforma más barata que la factura. KENDA
+  KR628 265/70R17: el bot daba $246,42 de lista (4 con Black Friday = $689,98) y el POS $219,70 + IVA =
+  $252,66 (4 = $707,44): el Interbot no tenía el código y caía a la fórmula sobre el costo. Revisando:
+  el Interbot es una copia semanal de los precios de Contífico (397 de 402 iguales; las 5 distintas son
+  atraso, p. ej. KR601 $295,32 vs $247,97) y el −25 % no estaba en Contífico sino escondido en el
+  «mínimo» del Interbot. Manuel: «leer de Contífico directo», «el 25 % como promoción», «que se puedan
+  sumar otras como Joaquín, que siempre tiene esta».
+- **Cambio de precios medido** (catálogo real del 24-nov): 232 llantas iguales, 162 a 1 centavo
+  (redondeo del POS: lista × 0,75), 18 cambian de verdad — las 6 que iban por fórmula y las que el
+  Interbot tenía atrasadas.
+- **Ojo (no arreglado acá):** la foto del simulador de agosto (`datos/catalogo.json`) es de la empresa
+  que factura, no de la del catálogo de producción (la `CONTIFICO_API_KEY` del `.env` local no es la de
+  Railway): para Depot hay que correr el simulador con `--catalogo-snapshot` de la empresa correcta.
+  Y si el precio cambia en medio de una conversación, el vendedor puede repetir el de la cotización
+  anterior al preguntarle de nuevo.
+- **Probado:** simulador con la foto del catálogo de producción de hoy + la empresa que factura
+  (408 de Contífico, 4 del Interbot, 0 por fórmula): 1 llanta $189,50; 4 con Black Friday $707,44;
+  + promo del panel 10 %: 1 llanta $170,55 y 4 llantas $682,20 (gana la del panel); apagando el
+  Descuento de siempre desde la API del panel: $227,39; todo apagado salvo el Black Friday: $707,44.
+  `vitest` del caso (17) + Interbot + Promociones (58 entre las tres), suite completa (las 3 rojas de `main`),
+  fidelidad y perfiles ajenos (45), `sim:humo` de Depot y de `ejemplo`.
+- **Horas:** 3,5
+
+## 24-nov-2026 · Panel · Menú: «Herramientas» agrupa Inventario, Promociones, Validar y Cotizador (rama `feat/menu-herramientas`)
+
+- **Qué:** en la computadora el menú queda Inbox, Pipeline, Para cerrar, Métricas y, al final, un grupo
+  «Herramientas» que se despliega con Inventario, Promociones, Validar y Cotizador (recuerda si quedó abierto y se
+  abre solo al entrar a una de ellas). En el teléfono ya no salen Inventario ni Promociones (Cotizador y Pipeline
+  ya no salían); el aviso de inventario viejo dice «Se sube desde la computadora» en vez de llevar a la pantalla.
+- **Por qué:** Manuel, 24-nov: esas no se miran todo el tiempo y el menú se aplastaba.
+- **Probado:** `tsc` y build del hub; en el navegador, escritorio (grupo plegado y desplegado) y teléfono.
+- **Horas:** 0,3
+
+## 24-nov-2026 · Panel + bot · Pestaña «Promociones»: el negocio arma sus promociones solo (rama `feat/promociones-autoservicio`)
+
+- **Qué:** pestaña nueva en el panel (escritorio, permiso «Ajustes»). Se elige el tipo, se le pone nombre, texto
+  extra y fechas, se baja un Excel con todo el stock y el precio de hoy, se llena, se sube, se ve cómo queda cada
+  llanta (precio tachado, precio de promo, %, y qué fila no entra y por qué) y se guarda. Después se prende y se
+  apaga con un interruptor, se le cambian fechas o llantas, o se quita (se archiva). Nueve tipos: precio de
+  promoción, % de descuento, $ de descuento, precio por llanta 1-2-3-4, lleva N paga M, la N.ª con descuento,
+  precio por par o juego, descuento por cantidad y regalo. Tabla `promociones` (migración 040).
+- **Cómo cuadran las cuentas:** toda promo termina en un precio por llanta sobre el mecanismo del precio tachado
+  del Black Friday de Competimotor, así que la pieza, el PDF, el texto, las cuotas y el Guardián leen la misma
+  cifra. Las que dependen de la cantidad se resuelven al cotizar (`productoParaCantidad`): total ÷ cantidad,
+  hacia abajo al centavo. Candados: precio menor que el de hoy, misma medida, dentro de fechas.
+- **Black Friday de Competimotor:** la lista del código se siembra una vez en la tabla; desde ahora la apaga o le
+  cambia la fecha el negocio. Si la base no contesta, el catálogo cae a la lista del código.
+- **Por qué:** Manuel, 24-nov: «la idea es que yo ya no haga las promociones sino ellos».
+- **Probado:** `promociones.test.ts` (35: cuentas de cada tipo, candados, fechas, Excel de ida y vuelta, pieza y
+  texto de los 8 tipos con precio); suite completa (las 4 rojas ya lo estaban en main; los hashes de las piezas
+  de Depot salen idénticos con y sin el cambio); simulador de Competimotor: Black Friday sembrado (27 llantas),
+  promo 4x3 creada con el Excel, el bot cotizó 4 Kenda KR20 205/55R16 a $74.17 c/u (antes $98.90, −25 %, total
+  $296.68) con lista, pieza y texto iguales y el Guardián aprobando; apagar y prender cambia el precio al momento.
+  Detalle en `docs/PROMOCIONES.md`.
+- **Horas:** 3
+
+## 24-nov-2026 · Bot · Competimotor: de Black Friday queda solo el «cuadro rojo», hasta el 5-dic (rama `fix/black-friday-cuadro-rojo`)
+
+- **Qué:** la promoción por lista de Competimotor ahora cubre solo la sección «PROMOCIÓN TODO EL MES» del Excel
+  (el cuadro rojo, filas 116+: 27 llantas de aro 18 a 20) y rige hasta el sábado 5-dic a las 23:59 de Ecuador.
+  Las otras 89 («jueves, viernes, sábado y lunes») vuelven a P2 desde este deploy; un seguimiento ya no repite
+  su precio de Black Friday.
+- **Por qué:** Carlos Romero, 24-nov 8:14: «Ese cuadro va a estar con promoción hasta el 05 de diciembre, las
+  otras llantas vuelven a precio normal».
+- **Probado:** `competimotorBlackFriday` (13), `competimotorSeguimientoPrecio` (4, con el caso nuevo) y el resto
+  de pruebas de Black Friday; `tsc`.
+- **Horas:** 0,3
+
+## 24-nov-2026 · Bot · Competimotor: sin stock ya no se nombra — «Claro» y recomendar (rama `fix/competimotor-claro-y-recomendar`)
+
+- **Qué:** cuando lo pedido no tiene stock el bot ya no dice «no me sale en stock»: empieza con «Claro» y
+  recomienda las más cercanas. Si el cliente pregunta el **precio** de la que quiere y no hay: «Claro, ya le estoy
+  revisando el valor promocional con el que me llegó esa mercadería. Hasta eso, le puedo recomendar…», y el asesor
+  recibe un aviso aparte («está esperando el precio»). La frase del 21-nov pasa a estar prohibida: el detector la
+  atrapa (también «no la veo en stock») y el candado la reescribe. Depot no cambia.
+- **Por qué:** Carlos Romero, 24-nov, sobre una respuesta real («De CONTINENTAL no me sale en stock en este
+  momento…»): «que no diga lo de no hay Stock… decir sí claro, y recomendar»; la frase del precio es suya y el
+  «hasta eso, le puedo recomendar» es de Manuel.
+- **Probado:** `competimotorSinNoHay.test.ts` (13; las nuevas vistas en rojo antes), suite completa (las 4 rojas
+  ya lo estaban en main) y el caso en el simulador de Competimotor (185/65R15 + «no dispone en continental» +
+  «qué precio tiene la continental»).
+- **Horas:** 0,5
+
+## 24-nov-2026 · Panel · Posponer eligiendo el día en un calendario, y los pospuestos se ven (rama `feat/posponer-calendario`)
+
+- **Qué:** «Posponer» abre un calendario: se toca el día (o un atajo: mañana, en 3 días, el lunes, quincena/fin
+  de mes) y un botón confirma «Posponer hasta el …». Cada día del selector muestra un puntito si ya hay clientes.
+  La API devuelve `pospuestosLista` con el día en que vuelve cada uno; en el calendario de Para cerrar salen con
+  un rombo morado ese día, y hay un atajo «Pospuestos» con la lista. Su tarjeta trae «Cambiar día» y «Traer ya».
+- **Por qué:** Manuel, 24-nov: el equipo de Competimotor pospuso a Jhonnycoloma y a Erick Acosta y parecía que se
+  habían perdido (solo se veía «2 pospuestos» abajo). Pidió elegir el día tocando un calendario y verlos siempre.
+- **Probado:** `vitest` de paraCerrar y llegada (33), `tsc` del hub; hub local con datos de prueba, en escritorio
+  y en teléfono: posponer, cambiar día, traer ya, la lista de pospuestos.
+- **Horas:** 0,6
+
+## 23-nov-2026 · Panel · Los meses del selector, en corto (rama `fix/meses-cortos`)
+
+- **Qué:** el selector de mes dice «Nov», «Oct», «Sept»… en vez del nombre entero, sin «· este mes» (el mes en curso ya va resaltado), y es más chico (12 px). De otro año lleva el año en dos cifras («Dic 25»).
+- **Por qué:** Manuel, 23-nov: los nombres estaban muy largos; pidió las primeras 3 o 4 letras.
+- **Probado:** iPhone simulado, pantalla Métricas con datos en tres meses: «Nov · Oct · Sept · Todos». `tsc` del hub.
+- **Horas:** 0,2
+
+## 23-nov-2026 · Panel + bot · La app ya no se queda en blanco, y las fotos, audios y archivos del chat se abren (rama `fix/carga-y-medios`)
+
+- **Qué (arranque):**
+  - Pantalla de carga escrita en `index.html` (se ve antes de que baje el programa); a los 10 s, o si el programa
+    no baja o se rompe, ofrece «Reintentar».
+  - El service worker guarda el cascarón (página, programa, estilos, fuentes, ícono). La página se pide siempre
+    primero al servidor; si no contesta en 3 s o falla, se abre la guardada. Los datos `/api` no se guardan nunca.
+  - Tocar una notificación ya no manda a recargar la app (`client.navigate`): le pasa un mensaje y la app cambia
+    de pantalla sola. Sin ventana abierta, abre una nueva.
+  - Red de seguridad de React (`RedDeSeguridad`): una pantalla que se rompe muestra «Reintentar» y anota el error
+    en el log del servidor (`POST /api/hub/error-del-panel`).
+  - El chat abierto desde un enlace ya no queda vacío mientras llega la lista; si tarda, lo dice. Refresco al
+    volver del fondo (`pageshow`, `online`). La recarga automática por versión nueva, máximo una por minuto.
+- **Qué (archivos del chat):**
+  - Tabla `message_media` (migración 039): el archivo de cada mensaje, enlazado por `wa_message_id`. Se guarda lo
+    que manda el cliente (foto, audio, documento, video, sticker), lo que manda el asesor desde su WhatsApp (ecos)
+    y la foto entera que el asesor manda desde la app (antes solo la miniatura).
+  - `GET /api/hub/messages/:id/media`. Si Meta no entregó el archivo al llegar, se vuelve a pedir al abrirlo.
+  - En el chat: la foto se ve y se amplía a pantalla completa (compartir o guardar), el audio tiene su reproductor,
+    el video se carga al tocarlo y el documento se abre con la hoja del teléfono. Cada archivo se baja con tres
+    intentos y, si falla, «Toca para reintentar».
+- **Por qué:** Manuel, 23-nov: «muchas veces abro la app y solo se queda en blanco… a veces aplasto notificaciones
+  y se queda cargando hasta que toca reiniciar» y «que se puedan leer las imágenes, audios, fotos… que no falle nunca».
+  Causas encontradas: sin pantalla de carga; nada guardado, así que con mala señal o el servidor reiniciando la
+  página no llegaba; un error al dibujar dejaba la página vacía; y el toque de la notificación recargaba la app.
+  De las fotos y audios solo se guardaba el texto leído; el archivo se tiraba.
+- **Probado:** simulador `--stub` + iPhone simulado: foto, audio y PDF reales se guardan, se ven, se amplían y se
+  abren; con el servidor congelado (`kill -STOP`) la app abre a los ~4 s desde lo guardado y se recupera sola al
+  volver el servidor (antes: en blanco indefinidamente — reproducido). `mediosDelChat.integration.test.ts` (8),
+  las cuatro del simulador, suite completa (fallan las 3 que ya fallaban en `main`).
+- **No probado:** el toque de una notificación real (el simulador no recibe push); el audio `ogg/opus` de WhatsApp
+  en un iPhone con iOS anterior a 18.4 (si no suena, queda el botón para abrirlo y la transcripción); que Meta
+  entregue por `id` los archivos de los ecos en coexistencia.
+- **Horas:** 3.
+
+## 23-nov-2026 · Panel · La app instalada se actualiza sola (rama `fix/app-se-actualiza-sola`)
+
+- **Qué:** el panel compara su `assets/index-<hash>.js` con el que sirve el servidor (`index.html` sin caché). Al
+  volver a la app con una versión nueva publicada, recarga sola; mientras se está usando, muestra «Hay una versión
+  nueva del panel · Actualizar»; el botón de refrescar también la trae. Revisa al abrir, cada 5 min y al volver.
+- **Por qué:** Manuel, 22-nov: «el de Competi sigue teniendo el Cotizador». El servidor ya servía la versión sin la
+  pestaña; la app instalada en el iPhone seguía corriendo la vieja en memoria hasta cerrarla del todo.
+- **Probado:** con el panel abierto se publicó otra compilación local; al volver a la app pasó del bundle viejo al
+  nuevo sin tocar nada. `tsc` del hub.
+- **Horas:** 0.4.
+
+## 22-nov-2026 · Panel · Cotización con el diseño nuevo, al chat como imagen y máximo 4 opciones (rama `fix/cotizacion-pdf-imagen-opciones`)
+
+- **Qué:** el PDF del Cotizador (`/catalog/quote-pdf`) ahora es la misma imagen que manda el bot (pdfmake solo si falla el render); la cotización desde el «+» del chat sale como imagen, no PDF; Opciones desde el chat lleva máximo 4 (panel y servidor).
+- **Por qué:** Manuel: los PDF del panel salían con el formato viejo; desde el teléfono quiere siempre imagen; y tope de 4 opciones.
+- **Probado:** simulador --stub: PDF con el diseño nuevo, send-quote guarda type=image, 5 opciones → 400, 4 → ok; panel en vista de teléfono.
+- **Horas:** 0,5
+## 22-nov-2026 · Panel + bot · La app avisa la ventana de 24 h del asesor y pide activar notificaciones (rama `feat/ventana-del-asesor`)
+
+- **Qué:**
+  - Al abrir la app (y cada 10 min), si la ventana de 24 h de WhatsApp del asesor está cerrada o se cierra en
+    menos de 3 h, sale un aviso con «Abrir WhatsApp y enviar»: abre el WhatsApp del bot con el mensaje escrito
+    `/asesor Hola, soy <nombre> y quiero recibir los avisos del bot` (`GET /api/hub/mi-ventana`).
+  - El bot reconoce `/asesor` de un número de la lista de asesores: reabre su ventana, le manda los avisos que
+    tenía pendientes y le contesta «Hola <nombre> ✅ Tu WhatsApp quedó conectado…». No entra al pipeline de ventas.
+    Un número que no es asesor recibe cómo pedir que lo agreguen.
+  - El asesor se reconoce por los últimos 9 dígitos (antes era el número exacto: «0991…» y «593991…» no casaban).
+  - Al abrir la app, si las notificaciones no están activas, la app las pide; «Ahora no» la calla solo hasta la
+    próxima vez que se abra. Bloqueadas: explica cómo desbloquearlas. iPhone sin instalar: cómo instalarla.
+- **Por qué:** Manuel, 22-nov: que la app avise la ventana con un botón al chat del bot, y que moleste hasta que
+  activen las notificaciones.
+- **Probado:** simulador de iOS + simulador del bot: aviso de ventana cerrada, `/asesor` desde el número del asesor
+  guardado en otro formato (ventana reabierta, respuesta del bot, sin entrar al chat de ventas), aviso de
+  notificaciones al volver a abrir. `ventanaDelAsesor` (5) y `ventanaAsesores`. **Sin probar:** el botón
+  «Activar notificaciones» del aviso en un teléfono con la app instalada.
+- **Horas:** 1.
+
+## 22-nov-2026 · Panel · Ventana de 24 h cerrada: aviso claro y plantilla para retomar; Validar visible en Competimotor (rama `feat/ventana-plantilla-validar`)
+
+- **Qué:**
+  - Si el asesor escribe y la ventana de 24 h está cerrada, el chat dice «No se pudo mandar el mensaje porque se
+    cerró la ventana de 24 h» y el texto vuelve al campo. Antes el error se perdía en silencio. Si la ventana ya
+    está cerrada al abrir el chat, el aviso sale antes de escribir.
+  - Botón «Enviar plantilla para retomar la venta»: muestra el texto tal cual y manda `retomar_venta_v1`
+    (`POST /conversations/:id/send-retomar`). Creada en Meta para Competimotor y Depot como UTILITY; al subir seguía PENDING (Meta tarda de minutos a 24 h).
+    Texto: «Hola {{1}}, le saluda {{2}}. Quedamos pendientes con las llantas que estaba cotizando. ¿Le gustaría
+    continuar con su compra?» · botones «Sí, continuar» / «Ya no las necesito» (no «No, gracias»: para el bot eso
+    es «quiero otra opción»). Tras mandarla, el aviso dice que espere la respuesta.
+  - La política deja que un asesor (`owner`) mande una plantilla sin el consentimiento de seguimientos (es un
+    mensaje a mano, no una campaña); el opt-out y la molestia la siguen frenando.
+  - «Validar números» nace prendido en todo negocio que no sea Depot. Los usuarios de Competimotor no tenían la
+    llave guardada, así que les aparece sin tocar la base.
+- **Por qué:** Manuel, 22-nov: el mensaje no salía y no se enteraba; quería una plantilla simple para retomar; y
+  Validar no le aparecía en la app de Competimotor.
+- **Probado:** simulador de iOS: aviso previo, error al enviar, vista previa y envío de la plantilla, aviso de
+  «espere la respuesta», Validar visible sin permiso a mano. `whatsappPolicy` (+3), `validarPorNegocio` (1), `auth`.
+- **Horas:** 1.
+
+## 22-nov-2026 · Panel · Teléfono: opciones y comparación desde el «+» del chat; sin pestaña Cotizador (rama `feat/movil-opciones-chat`)
+
+- **Qué:** el «+» del chat ahora tiene cuatro cosas: foto, **Opciones**, **Comparación** y cotización en PDF.
+  Opciones y Comparación buscan por la medida del ticket, se marcan las llantas (opciones: todas las que hay en
+  stock vienen marcadas; comparación: dos o tres) y la pieza —la misma imagen que manda el bot— le llega al cliente
+  (`POST /conversations/:id/send-piece`). Se guarda como la del bot (`piece` + `codes`) y queda en memoria para que
+  el chat la abra al instante. En el teléfono desaparece la pestaña **Cotizador** (en escritorio sigue): un enlace
+  viejo cae en el Inbox.
+- **Por qué:** Manuel, 22-nov: con las opciones y la comparación en el «+», la pestaña de cotizar sobra en el móvil.
+- **Probado:** simulador de iOS contra el simulador del bot en `--stub`: comparación de 2 y opciones de 4 enviadas
+  y dibujadas en el chat; la barra ya no trae Cotizador. `tsc` de app y hub; suite completa.
+- **Horas:** 0.7.
+## 22-nov-2026 · Panel · Una cuenta nueva entra sin enlace de invitación (rama `fix/instalar-app-para-todos`)
+
+- **Qué:** una cuenta pendiente se activa eligiendo su nombre en el login, creando su clave y dejando su email. El
+  enlace de invitación (19-nov) ya no es obligatorio: sigue existiendo como atajo (deja el nombre elegido) y uno viejo
+  no bloquea. Una cuenta con clave sigue sin poder re-activarse. Textos de Ajustes → Usuarios al día; `app/site`
+  recompilado.
+- **Por qué:** a Joaquín (y a Jenny) en Competimotor el login les pedía «el enlace de invitación que te mandaron», y
+  la app instalada en el teléfono abre sin el `?invitacion=` aunque se haya instalado desde el enlace. Manuel pidió
+  que funcione para todos sin complicarse. Contrapartida aceptada: quien tenga la dirección del panel puede activar
+  una cuenta todavía pendiente antes que su dueño.
+- **Probado:** `test/invitacionHub.integration.test.ts` reescrito (8/8; 4 fallan con el código anterior). Suite
+  completa: 4576 pasan; fallan `bitacoraDelPanel`, `hashesPiezasDepot`, `unidadEnLaCantidad` (ya estaban en `main`) y
+  `buscarPorAroCompleto` (pide el catálogo del simulador, que no existe en un worktree nuevo).
+- **Horas:** 0,5.
+
+## 22-nov-2026 · Panel · App del teléfono: cotizar, adjuntar, validar, métricas simples y avisos (rama `feat/movil-app`)
+
+- **Qué (teléfono):** la barra de abajo ya no trae Pipeline; botón de refrescar arriba; el chat separa los días con
+  una pastilla «Hoy / Ayer / 3 de diciembre»; Métricas muestra solo los números grandes y cada detalle queda plegado
+  (la nota de cada número aparece al tocarlo); los campos ya no hacen zoom al enfocarse en iOS; el tour ya no se sale
+  de la pantalla.
+- **Qué (cotizar):** en el Cotizador, «Cotizar esta llanta» abre una hoja con − / + y **Compartir PDF** (la hoja de
+  compartir del teléfono → WhatsApp). En el chat, un **«+»** adjunta una foto (cámara o carrete) o manda una
+  **cotización en PDF** al cliente sin salir de la conversación (`POST /conversations/:id/send-image` y
+  `/send-quote`; misma política de 24 h que el texto del asesor, y la cotización queda en `quotes`).
+- **Qué (validar):** pestaña **Validar** = la página `/venta` dentro del panel, con el usuario que entró como
+  vendedor. La abre el permiso nuevo `validarNumeros` (Ajustes → Usuarios → «Validar números»), que nace APAGADO:
+  Depot no la ve. Los permisos se refrescan sin volver a entrar.
+- **Qué (avisos):** pantalla **Avisos** (campana): historial por día con hora y por dónde salió cada uno. Quien
+  activa las notificaciones en su teléfono deja de recibir por WhatsApp «cotización enviada» y «venta confirmada»:
+  le llegan por la app (`services/avisosEnLaApp.ts`, migración 038, `web-push`). Lo urgente sigue por WhatsApp a
+  todos y además suena en la app. Si la app no recibe el aviso, sale por WhatsApp. Cita agendada, Excel de stock y
+  resumen del día se quedan en WhatsApp (decisión de Manuel).
+- **Por qué:** Manuel instaló el panel como app en el teléfono (22-nov) y pidió simplificarlo para los vendedores.
+- **Probado:** en el simulador de iOS (iPhone 17 Pro) contra el simulador del bot en `--stub`: barra, refrescar,
+  divisores, Métricas, Validar de punta a punta, hoja de cotizar + hoja de compartir de iOS, «+» del chat con
+  cotización enviada, y Avisos. `test/avisosEnLaApp.integration.test.ts` (7) + avisos, fidelidad y perfil ajeno
+  (102/102); `tsc` de app y hub; humo del simulador ✅. Enviar una foto del carrete destapó un HTTP 413 (el JSON
+  general corta en 100 kB) que quedó arreglado con un tipo de contenido propio. La suite completa deja 3 fallos que
+  ya estaban en `main` (`bitacoraDelPanel`, `hashesPiezasDepot`, `unidadEnLaCantidad`). **Sin probar:** la llegada
+  de una notificación real a un teléfono (el simulador de iOS no instala la app web ni recibe push).
+- **Rápido (misma tarde):** la vista previa de una cotización en el chat tardaba ~1 s y pesaba ~900 kB cada vez
+  (se redibuja desde los códigos). Ahora queda 30 min en memoria (`services/piezasDelChat.ts`: la segunda vez <1 ms),
+  la burbuja pide una versión de 560 px (~180 kB) y solo cuando está a la vista; la grande baja al ampliar. La
+  miniatura de una foto ya no viaja en la lista de mensajes (iban 60 kB en cada refresco de 4 s). La cotización
+  enviada desde el chat queda en `quotes`, así que se ve con su diseño. `test/piezasDelChat.test.ts` (5).
+- **Horas:** 3,5.
 ## 22-nov-2026 · Bot · Claude como proveedor alterno, listo para probar (rama `feat/proveedor-fable`)
 
 - **Qué:** una sola puerta a un modelo de chat (`agent/chat.ts`): si el nombre empieza con `claude-` lo atiende
   Anthropic con traducción de ida y vuelta (`agent/chatClaude.ts`), si no OpenAI igual que antes. Pasan por ahí el
   vendedor, el rescate, el Guardián, el clasificador, la visión y la redacción de seguimientos. El canary valida cada
-  modelo en su proveedor y se apaga solo sin `ANTHROPIC_API_KEY`. Migración 038 (`ai_runs.cache_write_tokens`) y
+  modelo en su proveedor y se apaga solo sin `ANTHROPIC_API_KEY`. Migración 041 (`ai_runs.cache_write_tokens`) y
   tarifas de Claude en `billing.ts`. Simulador con clave de Anthropic de pruebas aparte; lotes con costo de Claude,
   tokens por pieza y segundo juez; `npm run claude:humo`. Plan con números reales: `docs/planning/PLAN-CAMBIO-A-CLAUDE.md`.
 - **Por qué:** Manuel quiere saber si pasar Depot de OpenAI a Claude Fable abarata o vende más, con prueba
@@ -6117,6 +6385,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-11-24 | _(este mismo)_ | Depot: precios desde Contífico (Interbot de respaldo) y el −25 % como promoción con interruptor | 3,5 |
 | 2026-11-20 | _(este mismo)_ | Competimotor: seguro solo Kenda y Falken; «pantanera» = M/T, tipos por nombre, «23575r15», 30X9.5R15 = 235/75R15 | 1,5 |
 | 2026-11-20 | _(este mismo)_ | Competimotor cotiza con P2 y ofrece P3; Black Friday por código con P2 tachado y fin exacto el 30-nov | 3 |
 | 2026-10-21 | _(este mismo)_ | La guía de medida no sale a quien ya escribió la suya aunque el modelo diga que la pidió | 0,5 |

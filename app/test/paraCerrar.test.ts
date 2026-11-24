@@ -84,11 +84,13 @@ describe("la ✕ y posponer", () => {
     const r = clasificar([fila({ pospuestoHasta: new Date("2026-10-30T14:00:00Z"), pospuestoEn: horas(1), ultimoCliente: horas(3) })], AHORA);
     expect(r.paraCerrar).toEqual([]);
     expect(r.pospuestos).toBe(1);
+    expect(r.pospuestosLista).toEqual([expect.objectContaining({ ticketId: 1, hasta: "2026-10-30T14:00:00.000Z" })]);
   });
 
   it("pospuesto vuelve si el cliente escribe antes de la fecha", () => {
     const r = clasificar([fila({ pospuestoHasta: new Date("2026-10-30T14:00:00Z"), pospuestoEn: horas(5), ultimoCliente: horas(1) })], AHORA);
     expect(r.paraCerrar.map((c) => c.ticketId)).toEqual([1]);
+    expect(r.pospuestosLista).toEqual([]);
   });
 });
 

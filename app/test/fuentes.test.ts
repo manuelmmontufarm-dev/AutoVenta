@@ -26,8 +26,15 @@ process.env.DATABASE_URL = "postgresql://nadie@127.0.0.1:1/nada";
 const MUESTRA = fileURLToPath(new URL("./fixtures/catalogo-contifico-muestra.json", import.meta.url));
 const SNAPSHOT = fileURLToPath(new URL("../scripts/sim/datos/catalogo.json", import.meta.url));
 
-/** Hash de `dc50dab` (código viejo) — ver el encabezado. */
-const HASH_MUESTRA = "94bc6f71be19dee65745f9319c6a33794263eb38ff7262b1858fb7f5ec072e84";
+/**
+ * Hash de `dc50dab` (código viejo) — ver el encabezado — con UN cambio
+ * deliberado del 24-nov-2026: el precio de hoy de Depot ya no es el «mínimo»
+ * del Interbot sino la lista − el «Descuento de siempre» (25 %), redondeado
+ * como el POS. Comparado campo por campo contra el hash anterior: solo cambia
+ * `minimumPriceWithTax`, en 6 de las 30 llantas, y nunca más de 1 centavo.
+ * (Antes: 94bc6f71be19dee65745f9319c6a33794263eb38ff7262b1858fb7f5ec072e84.)
+ */
+const HASH_MUESTRA = "ea0147afaec596c09a27227185f8eb14d7666694809e3b0d93ae4e7b784670f3";
 
 const fetchOriginal = globalThis.fetch;
 afterEach(() => {

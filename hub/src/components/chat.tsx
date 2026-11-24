@@ -7,6 +7,9 @@ import type { Mensaje, Rol, Ticket } from "../data/types";
 import { horaCorta, money } from "../lib/format";
 import { IconAlert, IconBot, IconCheck, IconChevronR, IconClock, IconDoc, IconDoubleCheck, IconPin, IconX } from "./icons";
 import { Modal } from "./ui";
+import { BotonAdjuntar, Hoja } from "./adjuntar";
+import { sendRetomarToChat } from "../data/catalog";
+import { useHub } from "../store";
 
 /* ── Burbuja ── */
 
@@ -16,7 +19,9 @@ export function ChatBubble({ msg, nombreCliente = "Cliente", onVerPdf }: { msg: 
   return (
     <div className={`flex max-w-[78%] flex-col gap-1 md:max-w-[62%] ${saliente ? "self-end items-end" : "self-start items-start"}`}>
       <div className={`bubble ${saliente ? "bubble-out" : "bubble-in"}`} style={{ maxWidth: "100%" }}>
-        {msg.tipo === "pdf" || msg.tipo === "imagen" ? (
+        {esMedioDelChat(msg) ? (
+          <MedioAdjunto msg={msg} />
+        ) : msg.tipo === "pdf" || msg.tipo === "imagen" ? (
           <PiezaAdjunta msg={msg} onFallback={onVerPdf} />
         ) : msg.tipo === "ubicacion" ? (
           <MapCard etiqueta={msg.contenido} />
@@ -142,31 +147,99 @@ function motivoDeFallo(msg: Mensaje): string | null {
  * tarjeta de documento muerta: «no se abren los pdfs» (Manuel, 1-sep). En
  * local sin clave el `<img>` pasaba, por eso no se vio antes de desplegar.
  */
-function usePiezaAutenticada(url: string): { src: string | null; falló: boolean } {
-  const [src, setSrc] = useState<string | null>(null);
+/**
+ * Las piezas ya bajadas, por URL. Volver a abrir un chat (o ampliar una pieza
+ * que ya se vio) no vuelve a pedir nada: en el teléfono cada pieza pesa cientos
+ * de kB. Tope de 60 para no llenar la memoria en una sesión larga.
+ */
+const piezasBajadas = new Map<string, string>();
+function recordarPieza(url: string, objeto: string): void {
+  piezasBajadas.set(url, objeto);
+  if (piezasBajadas.size > 60) {
+    const primera = piezasBajadas.keys().next().value;
+    if (primera !== undefined) {
+      URL.revokeObjectURL(piezasBajadas.get(primera) ?? "");
+      piezasBajadas.delete(primera);
+    }
+  }
+}
+
+/** `activa` = false no pide nada todavía (la pieza no está a la vista, o no se amplió). */
+/**
+ * Baja un archivo del chat con la sesión del panel. Con mala señal no se rinde
+ * al primer intento: prueba tres veces (con un corte de 25 s cada una) y, si
+ * aun así falla, `reintentar` deja volver a probar con un toque.
+ */
+async function bajarConReintentos(url: string, vivo: () => boolean): Promise<Blob> {
+  let ultimo: unknown;
+  for (let intento = 0; intento < 3 && vivo(); intento++) {
+    if (intento) await new Promise((r) => setTimeout(r, 1200 * intento));
+    try {
+      const r = await fetch(url, { headers: authHeaders(), signal: AbortSignal.timeout?.(25_000) });
+      // Un 404 no mejora insistiendo: el archivo no está.
+      if (r.status === 404 || r.status === 401) throw Object.assign(new Error(`archivo ${r.status}`), { definitivo: true });
+      if (!r.ok) throw new Error(`archivo ${r.status}`);
+      return await r.blob();
+    } catch (error) {
+      ultimo = error;
+      if ((error as { definitivo?: boolean }).definitivo) break;
+    }
+  }
+  throw ultimo ?? new Error("cancelado");
+}
+
+function usePiezaAutenticada(url: string, activa = true): { src: string | null; falló: boolean; reintentar: () => void } {
+  const [src, setSrc] = useState<string | null>(() => piezasBajadas.get(url) ?? null);
   const [falló, setFalló] = useState(false);
+  const [vuelta, setVuelta] = useState(0);
   useEffect(() => {
+    const guardada = piezasBajadas.get(url);
+    if (guardada) {
+      setSrc(guardada);
+      setFalló(false);
+      return;
+    }
+    if (!activa) return;
     let vivo = true;
-    let objeto: string | null = null;
     setSrc(null);
     setFalló(false);
-    fetch(url, { headers: authHeaders() })
-      .then(async (r) => {
-        if (!r.ok) throw new Error(`pieza ${r.status}`);
-        const blob = await r.blob();
-        if (!vivo) return;
-        objeto = URL.createObjectURL(blob);
-        setSrc(objeto);
+    bajarConReintentos(url, () => vivo)
+      .then((blob) => {
+        const objeto = URL.createObjectURL(blob);
+        recordarPieza(url, objeto);
+        if (vivo) setSrc(objeto);
       })
       .catch(() => {
         if (vivo) setFalló(true);
       });
     return () => {
       vivo = false;
-      if (objeto) URL.revokeObjectURL(objeto);
     };
-  }, [url]);
-  return { src, falló };
+  }, [url, activa, vuelta]);
+  return { src, falló, reintentar: () => setVuelta((v) => v + 1) };
+}
+
+/** ¿El elemento ya entró (o está por entrar) en pantalla? Una vez que sí, se queda en sí. */
+function useALaVista<T extends Element>(): [React.RefObject<T | null>, boolean] {
+  const ref = useRef<T | null>(null);
+  const [visto, setVisto] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || visto) return;
+    if (!("IntersectionObserver" in window)) {
+      setVisto(true);
+      return;
+    }
+    const obs = new IntersectionObserver((entradas) => {
+      if (entradas.some((e) => e.isIntersecting)) {
+        setVisto(true);
+        obs.disconnect();
+      }
+    }, { rootMargin: "300px" });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [visto]);
+  return [ref, visto];
 }
 
 function PiezaAdjunta({ msg, onFallback }: { msg: Mensaje; onFallback?: () => void }) {
@@ -174,13 +247,21 @@ function PiezaAdjunta({ msg, onFallback }: { msg: Mensaje; onFallback?: () => vo
   const [ampliada, setAmpliada] = useState(false);
   const fallida = msg.estado === "failed";
   const error = (msg.metadata as { renderError?: string } | undefined)?.renderError;
-  const { src, falló } = usePiezaAutenticada(`/api/hub/messages/${msg.id}/pieza.png`);
+  // En la burbuja va la versión chica y solo cuando está a la vista; la grande
+  // se pide recién al ampliar. Un chat con diez piezas ya no baja 9 MB al abrir.
+  const [caja, aLaVista] = useALaVista<HTMLDivElement>();
+  const { src, falló, reintentar } = usePiezaAutenticada(`/api/hub/messages/${msg.id}/pieza.png?chica=1`, aLaVista);
+  const grande = usePiezaAutenticada(`/api/hub/messages/${msg.id}/pieza.png`, ampliada);
   const titulo = tituloDePieza(msg);
 
+  // Una foto del asesor que no bajó: se reintenta con un toque (no hay nada que redibujar).
+  if (falló && (msg.metadata as { adjunto?: string } | undefined)?.adjunto === "foto") {
+    return <NoCargo onReintentar={reintentar} texto={msg.contenido} />;
+  }
   if (falló) return <PdfCard titulo={msg.contenido} onVer={onFallback} />;
 
   return (
-    <div className="flex w-full max-w-[260px] flex-col gap-1.5">
+    <div ref={caja} className="flex w-full max-w-[260px] flex-col gap-1.5">
       {fallida ? (
         <div
           className="rounded-xl px-3 py-2 text-[11px]"
@@ -253,12 +334,255 @@ function PiezaAdjunta({ msg, onFallback }: { msg: Mensaje; onFallback?: () => vo
                   <IconX size={17} />
                 </button>
               </div>
-              <img src={src ?? undefined} alt={titulo} className="block w-full rounded-[8px] border border-line" />
+              {/* La chica ya está en pantalla: se ve al instante y la grande la reemplaza al llegar. */}
+              <img src={grande.src ?? src ?? undefined} alt={titulo} className="block w-full rounded-[8px] border border-line" />
               <p className="mt-2 px-1 text-[12px] text-text2">{msg.contenido}</p>
             </div>
           </Modal>
         )}
         </AnimatePresence>,
+        document.body,
+      )}
+    </div>
+  );
+}
+
+/* ── Fotos, audios, videos y archivos del chat (23-nov-2026) ──
+ *
+ * Lo que manda el cliente, y lo que manda el asesor desde su WhatsApp. Antes
+ * solo se veía el texto («[El cliente mandó una foto. Se lee: …]»). El archivo
+ * se baja con la sesión del panel y se muestra desde memoria: así una foto se
+ * amplía al instante y un audio se puede adelantar.
+ */
+
+/** ¿Este mensaje trae un archivo guardado? Las piezas y las fotos de la app tienen su propio dibujo. */
+function esMedioDelChat(msg: Mensaje): boolean {
+  if (!msg.media) return false;
+  const meta = msg.metadata as { adjunto?: string; piece?: string; quoteNumber?: unknown } | undefined;
+  return !meta?.adjunto && !meta?.piece && !meta?.quoteNumber;
+}
+
+function NoCargo({ onReintentar, texto }: { onReintentar: () => void; texto?: string }) {
+  return (
+    <div className="flex w-full max-w-[260px] flex-col gap-1.5">
+      <button
+        type="button"
+        onClick={onReintentar}
+        className="flex min-h-[64px] w-full items-center gap-2 rounded-[6px] border border-line p-3 text-left text-[13px]"
+        style={{ background: "var(--color-bg)" }}
+        data-testid="medio-reintentar"
+      >
+        <IconAlert size={16} />
+        <span><b className="block">No se pudo cargar</b><span className="text-text2">Toca para reintentar</span></span>
+      </button>
+      {texto ? <p className="m-0 text-[11px] opacity-75">{texto}</p> : null}
+    </div>
+  );
+}
+
+/** Abre un archivo ya bajado: en el teléfono, la hoja de compartir (ver, guardar, reenviar); si no, pestaña nueva. */
+async function abrirArchivo(objeto: string, nombre: string, mime: string): Promise<void> {
+  try {
+    const blob = await (await fetch(objeto)).blob();
+    const archivo = new File([blob], nombre, { type: mime });
+    if (typeof navigator.canShare === "function" && navigator.canShare({ files: [archivo] })) {
+      await navigator.share({ files: [archivo], title: nombre });
+      return;
+    }
+  } catch (error) {
+    if ((error as Error).name === "AbortError") return; // cerró la hoja sin elegir
+  }
+  const a = document.createElement("a");
+  a.href = objeto;
+  a.target = "_blank";
+  a.rel = "noopener";
+  // Lo que el navegador no sabe mostrar, lo descarga con su nombre.
+  if (!/^(image|audio|video)\/|pdf$/.test(mime)) a.download = nombre;
+  document.body.append(a);
+  a.click();
+  a.remove();
+}
+
+/** El texto bajo el archivo. Los avisos internos entre corchetes se dicen en corto. */
+function pieDeMedio(msg: Mensaje): string {
+  const t = msg.contenido.trim();
+  const dice = /^\[[^\]]*?(?:Se lee|Dice):\s*([\s\S]*?)\]\s*([\s\S]*)$/.exec(t);
+  if (dice) return [dice[1].trim(), dice[2].trim()].filter(Boolean).join("\n");
+  // «[el asesor envió una imagen]», «[El cliente mandó un archivo que…]»: el archivo ya lo dice.
+  const sinAviso = t.replace(/^\[[^\]]*\]\s*/, "").trim();
+  return sinAviso;
+}
+
+const mmss = (s: number) => (Number.isFinite(s) && s >= 0 ? `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}` : "0:00");
+
+/**
+ * El audio, con controles propios. Los del iPhone, dentro de una burbuja, se
+ * encogen a un botón suelto sin barra ni duración; estos se ven igual en todos
+ * los teléfonos: tocar para oír, y tocar la barra para adelantar.
+ */
+function Reproductor({ src, onError }: { src: string; onError: () => void }) {
+  const audio = useRef<HTMLAudioElement>(null);
+  const [sonando, setSonando] = useState(false);
+  const [va, setVa] = useState(0);
+  const [dura, setDura] = useState(0);
+  const alternar = () => {
+    const a = audio.current;
+    if (!a) return;
+    if (a.paused) void a.play().catch(onError);
+    else a.pause();
+  };
+  const saltar = (e: React.MouseEvent<HTMLDivElement>) => {
+    const a = audio.current;
+    if (!a || !dura) return;
+    const caja = e.currentTarget.getBoundingClientRect();
+    a.currentTime = Math.min(dura, Math.max(0, ((e.clientX - caja.left) / caja.width) * dura));
+  };
+  return (
+    <div className="flex h-12 w-full items-center gap-2.5 rounded-[6px] border border-line px-2" style={{ background: "var(--color-bg)" }} data-testid="medio-audio">
+      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+      <audio
+        ref={audio}
+        src={src}
+        preload="metadata"
+        onPlay={() => setSonando(true)}
+        onPause={() => setSonando(false)}
+        onEnded={() => { setSonando(false); setVa(0); }}
+        onTimeUpdate={(e) => setVa(e.currentTarget.currentTime)}
+        // Algunos audios de WhatsApp no traen la duración hasta que suenan.
+        onLoadedMetadata={(e) => setDura(Number.isFinite(e.currentTarget.duration) ? e.currentTarget.duration : 0)}
+        onDurationChange={(e) => setDura(Number.isFinite(e.currentTarget.duration) ? e.currentTarget.duration : 0)}
+        onError={onError}
+      />
+      <button
+        type="button"
+        onClick={alternar}
+        className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-text text-[13px] text-white"
+        aria-label={sonando ? "Pausar el audio" : "Oír el audio"}
+        data-testid="medio-audio-play"
+      >
+        {sonando ? "❚❚" : "▶"}
+      </button>
+      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
+      <div className="flex h-9 min-w-0 flex-1 cursor-pointer items-center" onClick={saltar}>
+        <div className="h-1 w-full overflow-hidden rounded-full" style={{ background: "var(--color-line)" }}>
+          <div className="h-full bg-signal" style={{ width: `${dura ? Math.min(100, (va / dura) * 100) : 0}%` }} />
+        </div>
+      </div>
+      <span className="tnum shrink-0 font-mono text-[11px] text-text2">{mmss(sonando || va ? va : dura)}</span>
+    </div>
+  );
+}
+
+function MedioAdjunto({ msg }: { msg: Mensaje }) {
+  const media = msg.media!;
+  const url = `/api/hub/messages/${msg.id}/media`;
+  const [caja, aLaVista] = useALaVista<HTMLDivElement>();
+  const pesado = media.kind === "video" || media.kind === "document";
+  // Foto y audio bajan solos al entrar en pantalla; video y documento, al tocarlos.
+  const [pedido, setPedido] = useState(false);
+  const { src, falló, reintentar } = usePiezaAutenticada(url, pesado ? pedido : aLaVista);
+  const [ampliada, setAmpliada] = useState(false);
+  const [noSuena, setNoSuena] = useState(false);
+  const [abrirAlLlegar, setAbrirAlLlegar] = useState(false);
+  const pie = pieDeMedio(msg);
+
+  // Documento: se pidió con un toque; en cuanto llega, se abre.
+  useEffect(() => {
+    if (abrirAlLlegar && src) {
+      setAbrirAlLlegar(false);
+      void abrirArchivo(src, media.nombre, media.mime);
+    }
+  }, [abrirAlLlegar, src, media.nombre, media.mime]);
+
+  const cuerpo = falló ? (
+    <NoCargo onReintentar={reintentar} />
+  ) : media.kind === "image" || media.kind === "sticker" ? (
+    src ? (
+      <button
+        type="button"
+        onClick={() => setAmpliada(true)}
+        className="block w-full overflow-hidden rounded-[6px] border border-line"
+        aria-label="Ampliar la foto"
+        data-testid="medio-foto"
+      >
+        <img src={src} alt="Foto del chat" className="block max-h-[320px] w-full object-cover" />
+      </button>
+    ) : (
+      <div className="skeleton w-full" style={{ height: 180 }} />
+    )
+  ) : media.kind === "audio" ? (
+    src ? (
+      <>
+        <Reproductor src={src} onError={() => setNoSuena(true)} />
+        {noSuena && (
+          <button type="button" onClick={() => void abrirArchivo(src, media.nombre, media.mime)} className="text-left text-[12px] font-semibold text-signal underline underline-offset-[3px]">
+            Este teléfono no pudo reproducirlo aquí. Toca para abrirlo.
+          </button>
+        )}
+      </>
+    ) : (
+      <div className="skeleton w-full" style={{ height: 48 }} />
+    )
+  ) : media.kind === "video" ? (
+    src ? (
+      // eslint-disable-next-line jsx-a11y/media-has-caption
+      <video controls playsInline preload="metadata" src={src} className="block max-h-[360px] w-full rounded-[6px] bg-black" data-testid="medio-video" />
+    ) : (
+      <button
+        type="button"
+        onClick={() => setPedido(true)}
+        className="grid h-[150px] w-full place-items-center rounded-[6px] bg-text text-[14px] font-semibold text-white"
+        data-testid="medio-ver-video"
+      >
+        {pedido ? "Cargando el video…" : "▶ Ver video"}
+      </button>
+    )
+  ) : (
+    <button
+      type="button"
+      onClick={() => {
+        if (src) void abrirArchivo(src, media.nombre, media.mime);
+        else { setPedido(true); setAbrirAlLlegar(true); }
+      }}
+      className="flex w-full items-center gap-2.5 rounded-[6px] border border-line p-2.5 text-left"
+      style={{ background: "var(--color-bg)" }}
+      data-testid="medio-documento"
+    >
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[6px] border border-line" style={{ background: "var(--color-surface)" }}>
+        <IconDoc size={16} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[13px] font-semibold">{media.nombre}</span>
+        <span className="block text-[11px] text-text2">{pedido && !src ? "Abriendo…" : "Toca para abrir"}</span>
+      </span>
+    </button>
+  );
+
+  return (
+    <div ref={caja} className="flex w-[260px] max-w-full flex-col gap-1.5">
+      {cuerpo}
+      {pie ? <p className="m-0 whitespace-pre-wrap text-[13px]">{pie}</p> : null}
+      {ampliada && src && createPortal(
+        <div
+          className="fixed inset-0 z-[70] flex flex-col bg-black"
+          role="dialog"
+          aria-label="Foto"
+          data-testid="visor-de-foto"
+          style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}
+        >
+          <div className="flex items-center justify-between px-3 py-2 text-white">
+            <button type="button" onClick={() => setAmpliada(false)} className="grid h-11 w-11 place-items-center" aria-label="Cerrar">
+              <IconX size={22} />
+            </button>
+            <button type="button" onClick={() => void abrirArchivo(src, media.nombre, media.mime)} className="h-11 px-3 text-[15px] font-semibold">
+              Compartir o guardar
+            </button>
+          </div>
+          {/* Tocar fuera de la foto también cierra. El zoom con dos dedos es el del teléfono. */}
+          <button type="button" onClick={() => setAmpliada(false)} className="flex min-h-0 flex-1 items-center justify-center" aria-label="Cerrar la foto">
+            <img src={src} alt="Foto del chat" className="max-h-full max-w-full object-contain" />
+          </button>
+        </div>,
         document.body,
       )}
     </div>
@@ -273,7 +597,8 @@ function PiezaAdjunta({ msg, onFallback }: { msg: Mensaje; onFallback?: () => vo
  * el asesor busca cuando repasa la conversación.
  */
 function tituloDePieza(msg: Mensaje): string {
-  const meta = msg.metadata as { quoteNumber?: string | number; piece?: string } | undefined;
+  const meta = msg.metadata as { quoteNumber?: string | number; piece?: string; adjunto?: string } | undefined;
+  if (meta?.adjunto === "foto") return "Foto";
   if (meta?.quoteNumber) return `Cotización #${meta.quoteNumber}`;
   if (meta?.piece === "comparison") return "Comparativa de opciones";
   if (meta?.piece === "options") return "Opciones enviadas";
@@ -355,36 +680,67 @@ export function TypingBubble({ rol }: { rol: Rol }) {
 
 /* ── Composer ── */
 
+/** ¿Ya pasaron las 24 h desde el último mensaje del cliente? Solo con texto libre importa. */
+function ventanaCerrada(ticket: Ticket): boolean {
+  if (!ticket.ventanaCierraEn) return false;
+  return new Date(ticket.ventanaCierraEn).getTime() <= Date.now();
+}
+
 export function Composer({
   ticket,
   nombreCliente = "el cliente",
   onEnviar,
   onTomar,
+  plantillaPendiente = false,
 }: {
   ticket: Ticket;
   nombreCliente?: string;
-  onEnviar: (texto: string) => void;
+  /** Ya se le mandó la plantilla «retomar la venta» y el cliente todavía no contestó. */
+  plantillaPendiente?: boolean;
+  /** Devuelve la promesa del envío: si falla, el texto vuelve al campo y se dice por qué. */
+  onEnviar: (texto: string) => Promise<void> | void;
   onTomar?: () => void;
 }) {
   const [texto, setTexto] = useState("");
   const ref = useRef<HTMLInputElement>(null);
+  // Adjuntar (foto o cotización) habla con el servidor: en el demo no existe.
+  const real = useHub((s) => s.dataMode) === "real";
+  const [aviso, setAviso] = useState<{ texto: string; error: boolean } | null>(null);
+  // El error de un envío NO se va solo: si el mensaje no salió, el asesor
+  // tiene que enterarse aunque esté mirando para otro lado (Manuel, 22-nov).
+  const [fallo, setFallo] = useState<string | null>(null);
+  const [plantilla, setPlantilla] = useState(false);
+  useEffect(() => {
+    if (!aviso) return;
+    const t = setTimeout(() => setAviso(null), aviso.error ? 6000 : 2500);
+    return () => clearTimeout(t);
+  }, [aviso]);
   // El bot atendiendo NO bloquea el teclado: se escribe siempre y el traspaso
   // ocurre al enviar, que es cuando de verdad hace falta.
   const atiendeBot = ticket.atiende === "bot";
+  const cerrada = real && ventanaCerrada(ticket);
 
   useEffect(() => {
     if (!atiendeBot) ref.current?.focus();
   }, [atiendeBot]);
 
-  function enviar() {
+  async function enviar() {
     const limpio = texto.trim();
     if (!limpio) return;
+    setFallo(null);
     // Primero el traspaso, después el mensaje: si se manda antes, el bot puede
-    // contestar encima en ese hueco.
-    if (atiendeBot) onTomar?.();
-    onEnviar(limpio);
+    // contestar encima en ese hueco. Con la ventana cerrada el mensaje no va a
+    // salir, así que tampoco se le quita el chat al bot.
+    if (atiendeBot && !cerrada) onTomar?.();
     setTexto("");
     ref.current?.focus(); // el teclado no se cierra entre mensajes (WhatsApp)
+    try {
+      await onEnviar(limpio);
+    } catch (error) {
+      // No salió: el texto vuelve al campo para no tener que escribirlo otra vez.
+      setTexto((actual) => actual || limpio);
+      setFallo((error as Error).message || "No se pudo mandar el mensaje.");
+    }
   }
 
   if (ticket.estado === "cerrado") {
@@ -395,25 +751,103 @@ export function Composer({
     );
   }
 
+  const porVentana = cerrada || (fallo !== null && /ventana de 24/i.test(fallo));
+
   return (
-    <div className="flex items-center gap-2.5 px-4 py-3 md:px-5 md:py-3.5">
-      <input
-        ref={ref}
-        value={texto}
-        onChange={(e) => setTexto(e.target.value)}
-        onKeyDown={(e) => {
-          if ((e.key === "Enter" || e.key === "Return") && !e.nativeEvent.isComposing) enviar();
-        }}
-        enterKeyHint="send"
-        placeholder={atiendeBot ? `Escribir a ${nombreCliente}… al enviar, contestan ustedes` : `Escribir a ${nombreCliente}…`}
-        aria-label="Mensaje"
-        // 16px en el teléfono: por debajo iOS hace zoom al enfocar.
-        className="h-11 min-w-0 flex-1 rounded-[6px] border border-line bg-bg px-3.5 text-[16px] outline-none transition-colors focus:border-signal md:text-[14px]"
-      />
-      <button onClick={enviar} disabled={!texto.trim()} className="btn-signal h-11 shrink-0 rounded-[6px] px-4.5 text-[14px]">
-        Enviar
-      </button>
+    <div className="flex flex-col">
+      {(porVentana || fallo) && (
+        <div role="alert" data-testid="aviso-ventana" className="mx-3 mt-3 flex flex-col gap-2 rounded-[8px] px-3 py-2.5 text-[14px] md:mx-5" style={{ background: "var(--color-signal-tint)", color: "var(--color-signal)" }}>
+          <p className="m-0 font-semibold">
+            {porVentana
+              ? (fallo ?? (plantillaPendiente
+                ? "Ya le mandó la plantilla. Cuando el cliente conteste, se abre otra vez la ventana y puede escribirle."
+                : "Se cerró la ventana de 24 h: un mensaje normal no le va a llegar."))
+              : fallo}
+          </p>
+          {porVentana && real && !plantillaPendiente && (
+            <button type="button" onClick={() => setPlantilla(true)} className="btn-signal h-11 self-start rounded-[6px] px-4 text-[14px]" data-testid="abrir-plantilla">
+              Enviar plantilla para retomar la venta
+            </button>
+          )}
+        </div>
+      )}
+      <div className="relative flex items-center gap-2 px-3 py-3 md:gap-2.5 md:px-5 md:py-3.5">
+        {aviso && (
+          <p role="status" className={`absolute inset-x-3 -top-9 rounded-[6px] px-3 py-1.5 text-center text-[13px] font-medium shadow-pop ${aviso.error ? "bg-signal text-white" : "bg-text text-white"}`}>
+            {aviso.texto}
+          </p>
+        )}
+        {real && <BotonAdjuntar ticket={ticket} onAviso={(t, error = false) => setAviso({ texto: t, error })} />}
+        <input
+          ref={ref}
+          value={texto}
+          onChange={(e) => setTexto(e.target.value)}
+          onKeyDown={(e) => {
+            if ((e.key === "Enter" || e.key === "Return") && !e.nativeEvent.isComposing) void enviar();
+          }}
+          enterKeyHint="send"
+          placeholder={atiendeBot ? `Escribir a ${nombreCliente}… al enviar, contestan ustedes` : `Escribir a ${nombreCliente}…`}
+          aria-label="Mensaje"
+          // 16px en el teléfono: por debajo iOS hace zoom al enfocar.
+          className="h-11 min-w-0 flex-1 rounded-[6px] border border-line bg-bg px-3.5 text-[16px] outline-none transition-colors focus:border-signal md:text-[14px]"
+        />
+        <button onClick={() => void enviar()} disabled={!texto.trim()} className="btn-signal h-11 shrink-0 rounded-[6px] px-3.5 text-[14px] md:px-4.5">
+          Enviar
+        </button>
+      </div>
+      <AnimatePresence>
+        {plantilla && (
+          <HojaPlantillaRetomar
+            ticket={ticket}
+            onClose={() => setPlantilla(false)}
+            onListo={() => { setPlantilla(false); setFallo(null); setTexto(""); setAviso({ texto: "Plantilla enviada", error: false }); }}
+          />
+        )}
+      </AnimatePresence>
     </div>
+  );
+}
+
+/**
+ * La plantilla aprobada que sí le llega al cliente con la ventana cerrada. Se
+ * muestra tal como la va a leer, con sus dos botones, antes de mandarla.
+ */
+function HojaPlantillaRetomar({ ticket, onClose, onListo }: { ticket: Ticket; onClose: () => void; onListo: () => void }) {
+  const [ocupado, setOcupado] = useState(false);
+  const [error, setError] = useState("");
+  const nombre = ticket.nombre?.trim().split(/\s+/)[0] || "qué tal";
+  const texto = `Hola ${nombre}, le saluda ${negocioActual().nombre}. Quedamos pendientes con las llantas que estaba cotizando. ¿Le gustaría continuar con su compra?`;
+
+  async function enviar() {
+    setOcupado(true);
+    setError("");
+    try {
+      await sendRetomarToChat(ticket.id);
+      onListo();
+    } catch (e) {
+      setError((e as Error).message);
+      setOcupado(false);
+    }
+  }
+
+  return (
+    <Hoja titulo="Retomar la venta" onClose={onClose}>
+      <div className="flex flex-col gap-3 p-4" data-testid="hoja-plantilla">
+        <p className="m-0 text-[13px] text-text2">Le llega aunque hayan pasado más de 24 h. Si contesta, se abre de nuevo la conversación.</p>
+        <div className="bubble bubble-out self-end" style={{ maxWidth: "92%" }}>
+          <p className="m-0 whitespace-pre-wrap">{texto}</p>
+          <div className="mt-2 flex flex-col gap-1">
+            {["Sí, continuar", "Ya no las necesito"].map((b) => (
+              <span key={b} className="block rounded-[6px] px-2.5 py-1 text-center text-[12.5px] font-medium" style={{ border: "1px solid var(--color-line)", background: "var(--color-surface)" }}>{b}</span>
+            ))}
+          </div>
+        </div>
+        {error && <p role="alert" className="m-0 text-[14px] text-signal">{error}</p>}
+        <button type="button" onClick={() => void enviar()} disabled={ocupado} className="btn-signal h-[52px] w-full rounded-[8px] text-[16px]" data-testid="enviar-plantilla">
+          {ocupado ? "Enviando…" : `Enviar a ${ticket.nombre?.trim().split(/\s+/)[0] ?? "el cliente"}`}
+        </button>
+      </div>
+    </Hoja>
   );
 }
 

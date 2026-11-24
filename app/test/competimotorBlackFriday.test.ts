@@ -1,8 +1,9 @@
 /**
  * BLACK FRIDAY DE COMPETIMOTOR (lista de Carlos Romero, 20-nov-2026).
  *
- * Manuel: rige desde ya hasta el lunes 30-nov-2026 a las 23:59 de Ecuador,
- * para las dos secciones, y después se apaga solo. Cada fila se cruza con el
+ * Rigió entera hasta el 24-nov. Carlos, 24-nov: solo el «cuadro rojo»
+ * («PROMOCIÓN TODO EL MES», filas 116+) sigue hasta el 5-dic; las otras
+ * vuelven a precio normal. Cada fila se cruza con el
  * inventario por medida + marca/modelo; lo que no cruza claro NO se adivina.
  */
 import { describe, expect, it } from "vitest";
@@ -38,14 +39,17 @@ const item = (code: string, sizeLabel: string, p2: number, extra: Partial<Catalo
 
 describe("la lista de Black Friday en la política", () => {
   const bf = politica.preciosEspeciales!;
-  it("rige hasta el lunes 30-nov a las 23:59:59 de Ecuador", () => {
+  it("rige hasta el sábado 5-dic a las 23:59:59 de Ecuador", () => {
     expect(bf.nombre).toBe("Black Friday");
-    expect(new Date(bf.hasta).toISOString()).toBe("2026-12-01T04:59:59.000Z");
-    expect(bf.vigenciaCorta).toBe("hasta el lunes 30-nov");
+    expect(new Date(bf.hasta).toISOString()).toBe("2026-12-06T04:59:59.000Z");
+    expect(bf.vigenciaCorta).toBe("hasta el sábado 5-dic");
   });
 
-  it("116 llantas, sin códigos repetidos, con medida canónica y precio positivo", () => {
-    expect(bf.llantas).toHaveLength(116);
+  it("solo el cuadro rojo: 27 llantas de aro 18 a 20, sin códigos repetidos, con medida canónica y precio positivo", () => {
+    expect(bf.llantas).toHaveLength(27);
+    expect(bf.llantas.every((l) => /R(18|19|20)$/.test(l.medida))).toBe(true);
+    // Las de «jueves, viernes, sábado y lunes» volvieron a precio normal.
+    expect(bf.llantas.map((l) => l.codigo)).not.toContain("A0477");
     expect(new Set(bf.llantas.map((l) => l.codigo)).size).toBe(bf.llantas.length);
     for (const l of bf.llantas) {
       expect(medidaCanonica(l.medida)).toBe(l.medida);
@@ -63,28 +67,28 @@ describe("la lista de Black Friday en la política", () => {
 
 describe("se prende y se apaga a la hora exacta", () => {
   const bf = politica.preciosEspeciales!;
-  it("vigente el 30-nov a las 23:59:59 y apagado el 1-dic a las 00:00:00 (hora de Ecuador)", () => {
+  it("vigente el 5-dic a las 23:59:59 y apagado el 6-dic a las 00:00:00 (hora de Ecuador)", () => {
     expect(preciosEspecialesVigentes(bf, new Date("2026-11-20T18:00:00-05:00"))).toBe(true);
-    expect(preciosEspecialesVigentes(bf, new Date("2026-11-30T23:59:59-05:00"))).toBe(true);
-    expect(preciosEspecialesVigentes(bf, new Date("2026-12-01T00:00:00-05:00"))).toBe(false);
+    expect(preciosEspecialesVigentes(bf, new Date("2026-12-05T23:59:59-05:00"))).toBe(true);
+    expect(preciosEspecialesVigentes(bf, new Date("2026-12-06T00:00:00-05:00"))).toBe(false);
     expect(preciosEspecialesVigentes(bf, new Date("2026-11-19T23:59:59-05:00"))).toBe(false);
   });
 
   it("el temporizador apunta al segundo después del cierre", () => {
-    expect(msHastaElProximoCambio(bf, new Date("2026-11-30T23:59:00-05:00"))).toBe(60_000);
-    expect(msHastaElProximoCambio(bf, new Date("2026-12-01T00:00:01-05:00"))).toBeNull();
+    expect(msHastaElProximoCambio(bf, new Date("2026-12-05T23:59:00-05:00"))).toBe(60_000);
+    expect(msHastaElProximoCambio(bf, new Date("2026-12-06T00:00:01-05:00"))).toBeNull();
   });
 
   it("aplicada: el precio de hoy es el de Black Friday y el P2 queda tachado; vencida: el P2 de siempre", () => {
-    const enVigencia = [item("A0477", "185/65R14", 49.45)];
+    const enVigencia = [item("A0545", "225/60R18", 88.25)];
     const r = aplicarPreciosEspeciales(enVigencia, bf, new Date("2026-11-25T12:00:00-05:00"));
     expect(r.aplicadas).toBe(1);
-    expect(enVigencia[0]).toMatchObject({ minimumPriceWithTax: 42, customerPriceWithTax: 49.45 });
-    expect(enVigencia[0].promocionDePrecio?.vigenciaCorta).toBe("hasta el lunes 30-nov");
+    expect(enVigencia[0]).toMatchObject({ minimumPriceWithTax: 75, customerPriceWithTax: 88.25 });
+    expect(enVigencia[0].promocionDePrecio?.vigenciaCorta).toBe("hasta el sábado 5-dic");
 
-    const vencida = [item("A0477", "185/65R14", 49.45)];
-    expect(aplicarPreciosEspeciales(vencida, bf, new Date("2026-12-01T00:00:00-05:00")).aplicadas).toBe(0);
-    expect(vencida[0]).toMatchObject({ minimumPriceWithTax: 49.45, customerPriceWithTax: 49.45 });
+    const vencida = [item("A0545", "225/60R18", 88.25)];
+    expect(aplicarPreciosEspeciales(vencida, bf, new Date("2026-12-06T00:00:00-05:00")).aplicadas).toBe(0);
+    expect(vencida[0]).toMatchObject({ minimumPriceWithTax: 88.25, customerPriceWithTax: 88.25 });
     expect(vencida[0].promocionDePrecio).toBeUndefined();
   });
 
@@ -153,15 +157,15 @@ describe("el cruce no adivina", () => {
 describe("la cotización muestra el P2 tachado y el precio de Black Friday", () => {
   const bf = politica.preciosEspeciales!;
   const conPromo = () => {
-    const items = [item("A0477", "185/65R14", 49.45)];
+    const items = [item("A0545", "225/60R18", 88.25)];
     aplicarPreciosEspeciales(items, bf, new Date("2026-11-25T12:00:00-05:00"));
     return items[0];
   };
 
   it("la línea de la pieza lleva la franja con la vigencia", async () => {
     const linea = await toRenderLine(conPromo(), 4);
-    expect(linea).toMatchObject({ unitConIva: 42, pvpConIva: 49.45 });
-    expect(linea.promocionDePrecio?.vigenciaLarga).toBe("hasta el lunes 30 de noviembre");
+    expect(linea).toMatchObject({ unitConIva: 75, pvpConIva: 88.25 });
+    expect(linea.promocionDePrecio?.vigenciaLarga).toBe("hasta el sábado 5 de diciembre");
     const png = await renderQuoteImage({
       number: "COT-1", dateLabel: "20/11/2026", plantilla: "diaNoche", modo: "dia",
       lines: [linea], subtotal: 146.09, iva: 21.91, total: 168,
@@ -171,8 +175,8 @@ describe("la cotización muestra el P2 tachado y el precio de Black Friday", () 
 
   it("el texto (cuando la foto no sale) dice el precio, el de antes y Black Friday con su vigencia", () => {
     const texto = buildSingleQuoteMessageDetallado({ product: conPromo(), quantity: 4 });
-    expect(texto).toContain("💰 $42.00 c/u (antes $49.45, −15%)");
+    expect(texto).toContain("💰 $75.00 c/u (antes $88.25, −15%)");
     expect(texto).toContain(lineaDePromocionDePrecio(conPromo().promocionDePrecio)!);
-    expect(texto).toContain("🖤 *Black Friday* hasta el lunes 30-nov");
+    expect(texto).toContain("🖤 *Black Friday* hasta el sábado 5-dic");
   });
 });

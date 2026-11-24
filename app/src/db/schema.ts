@@ -43,7 +43,10 @@ import { runRecordatoriosDeVisitaMigration } from "./migrations/034_recordatorio
 import { VENTAS_REGISTRADAS_MIGRATION_ID, runVentasRegistradasMigration } from "./migrations/035_ventas_registradas.js";
 import { VENTA_EN_TICKET_MIGRATION_ID, runVentaEnTicketMigration } from "./migrations/036_venta_registrada_en_ticket.js";
 import { HISTORIAL_DEL_PANEL_MIGRATION_ID, runHistorialDelPanelMigration } from "./migrations/037_historial_del_panel.js";
-import { TOKENS_ESCRITOS_EN_CACHE_MIGRATION_ID, runTokensEscritosEnCacheMigration } from "./migrations/038_tokens_escritos_en_cache.js";
+import { AVISOS_EN_LA_APP_MIGRATION_ID, runAvisosEnLaAppMigration } from "./migrations/038_avisos_en_la_app.js";
+import { runMediosDelChatMigration } from "./migrations/039_medios_del_chat.js";
+import { PROMOCIONES_MIGRATION_ID, runPromocionesMigration } from "./migrations/040_promociones.js";
+import { TOKENS_ESCRITOS_EN_CACHE_MIGRATION_ID, runTokensEscritosEnCacheMigration } from "./migrations/041_tokens_escritos_en_cache.js";
 
 export const SCHEMA = /* sql */ `
 create table if not exists conversations (
@@ -455,6 +458,9 @@ async function aplicarEsquema(db: Sql): Promise<void> {
   await runVentasRegistradasMigration(db);
   await runVentaEnTicketMigration(db);
   await runHistorialDelPanelMigration(db);
+  await runAvisosEnLaAppMigration(db);
+  await runMediosDelChatMigration(db);
+  await runPromocionesMigration(db);
   await runTokensEscritosEnCacheMigration(db);
   // 030 NO va acá: crea índices con CONCURRENTLY y corre después de abrir el
   // puerto (`crearIndicesEnSegundoPlano`), para que un deploy con la base

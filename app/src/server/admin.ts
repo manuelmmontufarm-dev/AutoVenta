@@ -6,14 +6,19 @@
  * x-admin-key (las páginas del hub piden la clave una vez y la recuerdan).
  * Sin ADMIN_KEY la API queda abierta — solo aceptable durante el piloto.
  */
+import { randomBytes } from "node:crypto";
 import express from "express";
-import { claveDeRegistros, claveDelEnlace, listarVentasRegistradas, ventasACsv } from "../services/registroDeVentas.js";
+import { tel9 } from "../services/fuentes/contifico.js";
+import { miVentana } from "../services/ventanaDelAsesor.js";
+import { anularRegistro, claveDeRegistros, claveDelEnlace, guardarFactura, leerMonto, listarVentasRegistradas, registrarVenta, validarEntrada, ventasACsv } from "../services/registroDeVentas.js";
 import { z } from "zod";
 import { sql } from "../db/client.js";
 import { AnunciosActivosSchema } from "../domain/anunciosActivos.js";
 import { anunciosVistos, getAnunciosActivos, saveAnunciosActivos } from "../services/anunciosActivos.js";
 import { business, config } from "../config.js";
-import { appendMessage, pauseBot } from "../services/conversations.js";
+import { appendMessage, logQuote, pauseBot } from "../services/conversations.js";
+import { achicarPieza, guardarPieza, piezaEnMemoria } from "../services/piezasDelChat.js";
+import { guardarMedio, medioDelMensaje } from "../services/mediosDelChat.js";
 import { forceSyncNow, interbotPricesState } from "../services/interbotPrices.js";
 import { PLANTILLA_NAMES, MODO_NAMES,
   getAiConfig,
@@ -51,11 +56,19 @@ import {
   findById,
   findByCode,
   searchByText,
+  catalogoParaPromociones,
+  syncCatalog,
 } from "../services/catalog.js";
+import { TIPOS_DE_PROMOCION, TIPOS_PARA_EL_PANEL, errorDeParametros, productoParaCantidad, textosDeRegalos, tipoParaElPanel, type FilaDePromocion, type TipoDePromocion } from "../domain/promociones.js";
+import {
+  PromocionInvalida, actualizarPromocion, archivarPromocion, crearPromocion, excelDePromocion, leerExcelDePromocion,
+  leerPromocion, listarPromociones, paraElPanel, parametrosLimpios, vistaPreviaDe,
+} from "../services/promociones.js";
 import {
   buildQuote,
   renderComparisonPdf,
   renderQuotePdf,
+  pngToQuotePdf,
 } from "../services/quotePdf.js";
 import {
   buildComparisonMessageDetallado,
@@ -143,7 +156,14 @@ import {
   getNivelesAviso,
   mensajeCambioDeBot,
   saveNivelesAviso,
+  asesoresActivos,
+  cabeceraDeEvento,
+  type AdvisorEventType,
 } from "../services/advisorNotifications.js";
+import {
+  EVENTOS_POR_LA_APP, borrarSuscripcion, clavesPush, enviarPushAAsesores, guardarSuscripcion,
+  historialDeAvisos, leerSuscripcion, telefonoDelUsuario,
+} from "../services/avisosEnLaApp.js";
 import { getAsesoresPorLocal, localesAsignables, saveAsesoresPorLocal } from "../services/asesoresPorLocal.js";
 import {
   activarUsuarioHub,
@@ -157,7 +177,9 @@ import {
   usuariosHub,
   type UsuarioHub,
 } from "../services/hubUsers.js";
-import { sendImage, reloadWa, listarPlantillasDeMeta } from "../wa/client.js";
+import { downloadMedia, sendApprovedTemplate, sendImage, sendPdf, reloadWa, listarPlantillasDeMeta } from "../wa/client.js";
+import { negocio } from "../negocio/index.js";
+import { nombreDelResponsable } from "./privacidad.js";
 import { enviarAvisoDeLaManana, getAvisoManana, saveAvisoManana, ultimoResultadoAvisoManana } from "../services/avisoDeLaManana.js";
 import { sincronizarPlantillas } from "../services/plantillasMeta.js";
 import { registrarEnviado } from "../wa/outboundRegistry.js";
@@ -232,6 +254,17 @@ const QuoteSchema = z.object({
   customerName: z.string().max(120).default("Cliente"),
   customerPhone: z.string().max(30).default(""),
 });
+
+/** Lo que ve el asesor cuando escribe y la ventana de 24 h ya se cerró (Manuel, 22-nov-2026). */
+const VENTANA_CERRADA = "No se pudo mandar el mensaje porque se cerró la ventana de 24 h. Puede mandarle la plantilla para retomar la venta.";
+/** La plantilla aprobada que sí sale con la ventana cerrada (en cada WABA, mismo nombre). */
+const PLANTILLA_RETOMAR = "retomar_venta_v1";
+
+/** `data:image/jpeg;base64,…` → los bytes; null si no es eso (foto adjunta desde el chat del panel). */
+function miniaturaABuffer(valor: unknown): Buffer | null {
+  const m = /^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/.exec(String(valor ?? ""));
+  return m ? Buffer.from(m[1], "base64") : null;
+}
 
 /**
  * Envío directo por la Graph API (en vez de whatsapp-api-js) para poder
@@ -737,6 +770,47 @@ export function createAdminRouter(): express.Router {
     res.json({ ok: true, messages: await getHubMessages(id) });
   });
 
+  // ── Fotos, audios y archivos del chat (23-nov-2026) ───────────────────────
+  // El archivo de un mensaje (del cliente, o del asesor desde su WhatsApp).
+  // Ver services/mediosDelChat.ts. Si al llegar no se pudo bajar de Meta, se
+  // vuelve a intentar aquí.
+  router.get("/hub/messages/:id/media", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      if (!Number.isInteger(id)) return res.status(400).json({ ok: false, error: "id inválido" });
+      const medio = await medioDelMensaje(id, downloadMedia);
+      if (!medio) return res.status(404).json({ ok: false, error: "Ese archivo ya no está disponible." });
+      res.setHeader("Content-Type", medio.mime);
+      res.setHeader("Content-Length", String(medio.bytes.byteLength));
+      res.setHeader("Content-Disposition", `inline; filename*=UTF-8''${encodeURIComponent(medio.nombre)}`);
+      res.setHeader("X-Content-Type-Options", "nosniff");
+      res.setHeader("Cache-Control", "private, max-age=86400");
+      res.send(medio.bytes);
+    } catch (error) {
+      console.error("❌ media del mensaje:", error);
+      res.status(500).json({ ok: false, error: "No se pudo abrir el archivo." });
+    }
+  });
+
+  // Un error del panel en el teléfono (pantalla rota, promesa suelta): queda en
+  // el log del servidor. Sin esto «se me quedó en blanco» no deja rastro.
+  let erroresDelPanel = 0;
+  setInterval(() => { erroresDelPanel = 0; }, 60_000).unref();
+  router.post("/hub/error-del-panel", (req, res) => {
+    if (erroresDelPanel++ < 20) {
+      const c = (v: unknown, n: number) => String(v ?? "").slice(0, n);
+      console.warn("📱 Error en el panel:", JSON.stringify({
+        quien: req.usuario?.nombre ?? null,
+        mensaje: c(req.body?.mensaje, 300),
+        donde: c(req.body?.donde, 500),
+        ruta: c(req.body?.ruta, 80),
+        agente: c(req.body?.agente, 160),
+        pila: c(req.body?.pila, 1500),
+      }));
+    }
+    res.json({ ok: true });
+  });
+
   router.get("/hub/feed", async (_req, res) => {
     res.json({ ok: true, feed: await getHubFeed() });
   });
@@ -1225,6 +1299,16 @@ export function createAdminRouter(): express.Router {
    */
   router.get("/hub/messages/:id/pieza.png", async (req, res) => {
     try {
+      // `?chica=1`: la versión de 560 px para la burbuja del chat. Las dos
+      // versiones se guardan en memoria (ver services/piezasDelChat.ts).
+      const chica = req.query.chica === "1";
+      const claveDePieza = `${Number(req.params.id)}:${chica ? "chica" : "grande"}`;
+      const guardada = piezaEnMemoria(claveDePieza);
+      if (guardada) {
+        res.setHeader("Content-Type", "image/png");
+        res.setHeader("Cache-Control", "private, max-age=1800");
+        return res.send(guardada);
+      }
       const [row] = await sql<{
         type: string;
         metadata: Record<string, unknown> | null;
@@ -1238,8 +1322,18 @@ export function createAdminRouter(): express.Router {
       if (!row || (row.type !== "image" && row.type !== "pdf")) {
         return res.status(404).json({ ok: false, error: "Ese mensaje no llevaba una pieza" });
       }
-      await ensureCatalogReady().catch(() => undefined);
       const meta = row.metadata ?? {};
+      // Una foto que adjuntó el asesor: no hay nada que redibujar, se sirve su miniatura.
+      if (meta.adjunto === "foto") {
+        // Al ampliar va la foto entera (guardada desde el 23-nov); en la burbuja, la miniatura.
+        const entera = chica ? null : await medioDelMensaje(Number(req.params.id), downloadMedia).catch(() => null);
+        const foto = entera?.bytes ?? miniaturaABuffer(meta.miniatura);
+        if (!foto) return res.status(404).json({ ok: false, error: "Esa foto no guardó miniatura" });
+        res.setHeader("Content-Type", "image/jpeg");
+        res.setHeader("Cache-Control", "private, max-age=86400");
+        return res.send(foto);
+      }
+      await ensureCatalogReady().catch(() => undefined);
       const pieza = String(meta.piece ?? (meta.quoteNumber ? "quote" : "options"));
       const codes = Array.isArray(meta.codes) ? (meta.codes as string[]) : [];
       const tema = { ...(await getPiecesConfig()), brandProfiles: await brandProfilesForRender() };
@@ -1287,8 +1381,13 @@ export function createAdminRouter(): express.Router {
           ? await renderCompareImage(comun)
           : await renderOptionsImage(comun);
       }
+      guardarPieza(`${Number(req.params.id)}:grande`, png);
+      if (chica) {
+        png = achicarPieza(png, 560);
+        guardarPieza(claveDePieza, png);
+      }
       res.setHeader("Content-Type", "image/png");
-      res.setHeader("Cache-Control", "private, max-age=300");
+      res.setHeader("Cache-Control", "private, max-age=1800");
       res.send(png);
     } catch (error) {
       console.error("❌ No se pudo re-dibujar la pieza:", error);
@@ -1687,7 +1786,7 @@ export function createAdminRouter(): express.Router {
         subtotal: quote.subtotal,
         iva: quote.tax,
         total: quote.total,
-        benefits: await applicableBenefitTexts({ brands: [product.brand], quantity }),
+        benefits: [...await applicableBenefitTexts({ brands: [product.brand], quantity }), ...textosDeRegalos(product)],
         ...(await temaDePiezas()),
       });
       enviarPng(res, png, `Cotizacion-${business.name.replace(/\s/g, "")}-${quote.number}.png`);
@@ -1732,10 +1831,10 @@ export function createAdminRouter(): express.Router {
     }
   });
 
-  router.post("/catalog/quote-pdf", async (req, res) => {
-    try {
+  /** La cotización que arma el panel (Cotizador y chat): un producto, una cantidad, su PDF. */
+  async function cotizacionDelPanel(body: unknown) {
       await ensureCatalogReady();
-      const input = QuoteSchema.parse(req.body);
+      const input = QuoteSchema.parse(body);
       const [selection] = resolveCatalogSelections([input.item]);
       const { product, quantity } = selection;
       const warranty = warrantyForBrand(product.brand);
@@ -1761,14 +1860,37 @@ export function createAdminRouter(): express.Router {
         input.customerName,
         input.customerPhone,
       );
-      const pdf = await renderQuotePdf(quote);
+      // La misma pieza que manda el bot (22-nov-2026): el PDF clásico de pdfmake
+      // era el «formato viejo» que les llegaba a los clientes desde el panel.
+      // El PDF ahora es esa imagen en una página; el pdfmake queda solo si el
+      // render falla.
+      let png: Buffer | null = null;
+      try {
+        png = await renderQuoteImage({
+          number: quote.number,
+          dateLabel: fechaDePieza(),
+          lines: [await toRenderLine(product, quantity)],
+          subtotal: quote.subtotal,
+          iva: quote.tax,
+          total: quote.total,
+          benefits: [...await applicableBenefitTexts({ brands: [product.brand], quantity }), ...textosDeRegalos(product)],
+          ...(await temaDePiezas()),
+        });
+      } catch (error) {
+        console.error(`❌ render de la cotización ${quote.number} falló; sale el PDF clásico:`, error);
+      }
+      const pdf = png ? await pngToQuotePdf(png) : await renderQuotePdf(quote);
+      const base = `Cotizacion-${business.name.replace(/\s/g, "")}-${quote.number}`;
+      return { quote, png, pdf, filename: `${base}.pdf`, pngFilename: `${base}.png`, product, quantity };
+  }
+
+  router.post("/catalog/quote-pdf", async (req, res) => {
+    try {
+      const { pdf, filename } = await cotizacionDelPanel(req.body);
       res
         .status(200)
         .type("application/pdf")
-        .setHeader(
-          "Content-Disposition",
-          `attachment; filename="Cotizacion-${business.name.replace(/\s/g, "")}-${quote.number}.pdf"`,
-        )
+        .setHeader("Content-Disposition", `attachment; filename="${filename}"`)
         .send(pdf);
     } catch (error) {
       const message = error instanceof Error ? error.message : "No se pudo generar la cotización";
@@ -1823,6 +1945,166 @@ export function createAdminRouter(): express.Router {
       res.json({ ok: true, mapeo: await guardarMapeoCatalogo(req.body?.mapeo ?? req.body) });
     } catch (error) {
       res.status(400).json({ ok: false, error: error instanceof Error ? error.message : "Mapeo inválido" });
+    }
+  });
+
+  // ── Promociones que el negocio arma solo (pestaña «Promociones», 24-nov-2026) ──
+  // Elegir tipo → bajar el Excel con el stock y el precio de hoy → llenarlo →
+  // subirlo (se ve cómo queda cada llanta ANTES de guardar) → guardar. Las
+  // cuentas viven en `domain/promociones.ts`. Cambian el precio que cotiza el
+  // bot, así que las maneja quien puede entrar a Ajustes.
+  const exigirPromociones = (req: express.Request, res: express.Response, next: express.NextFunction): void => {
+    if (!req.usuario || req.usuario.rol === "admin" || permisosDeUsuario(req.usuario.id).verAjustes) {
+      next();
+      return;
+    }
+    res.status(403).json({ ok: false, error: "Su usuario no tiene permiso para manejar promociones (Ajustes → Usuarios)." });
+  };
+  /** Lo que se subió y todavía no se guardó: el panel manda de vuelta solo la llave. */
+  const subidasDePromocion = new Map<string, { tipo: TipoDePromocion; filas: FilaDePromocion[]; en: number }>();
+  const guardarSubida = (tipo: TipoDePromocion, filas: FilaDePromocion[]): string => {
+    const ahora = Date.now();
+    for (const [k, v] of subidasDePromocion) if (ahora - v.en > 2 * 60 * 60_000) subidasDePromocion.delete(k);
+    const llave = randomBytes(12).toString("hex");
+    subidasDePromocion.set(llave, { tipo, filas, en: ahora });
+    return llave;
+  };
+  const tipoDelPedido = (v: unknown): TipoDePromocion | null =>
+    (TIPOS_DE_PROMOCION as readonly string[]).includes(String(v)) ? (String(v) as TipoDePromocion) : null;
+  const jsonDelPedido = (v: unknown): Record<string, unknown> => {
+    try { return v ? (JSON.parse(String(v)) as Record<string, unknown>) : {}; } catch { return {}; }
+  };
+  const errorDePromocion = (res: express.Response, error: unknown) =>
+    res.status(error instanceof PromocionInvalida ? 400 : 500).json({
+      ok: false,
+      error: error instanceof PromocionInvalida ? error.message : "No se pudo completar. Intente de nuevo.",
+    });
+  /** Tras un cambio: el catálogo se vuelve a armar ya, para que el bot cotice con la promo al momento. */
+  const reaplicarPromociones = async () => {
+    await syncCatalog().catch((error) => console.warn("⚠️ No se pudo rearmar el catálogo tras cambiar una promoción:", error instanceof Error ? error.message : error));
+  };
+
+  router.get("/promociones", exigirPromociones, async (_req, res) => {
+    try {
+      await ensureCatalogReady().catch(() => undefined);
+      const { items, bases } = catalogoParaPromociones();
+      const promociones = (await listarPromociones()).map((p) => paraElPanel(p, items, bases));
+      res.json({ ok: true, tipos: TIPOS_PARA_EL_PANEL, promociones, llantasEnInventario: items.length });
+    } catch (error) {
+      errorDePromocion(res, error);
+    }
+  });
+
+  router.get("/promociones/excel", exigirPromociones, async (req, res) => {
+    try {
+      await ensureCatalogReady();
+      const { items, bases } = catalogoParaPromociones();
+      const guardada = req.query.id ? await leerPromocion(Number(req.query.id)) : null;
+      const tipo = guardada?.tipo ?? tipoDelPedido(req.query.tipo);
+      if (!tipo) return res.status(400).json({ ok: false, error: "Elija un tipo de promoción." });
+      if (!items.length) return res.status(409).json({ ok: false, error: "Todavía no hay inventario cargado: suba primero el inventario." });
+      const nombre = guardada?.nombre ?? (String(req.query.nombre ?? "").trim().slice(0, 40) || null);
+      const excel = await excelDePromocion({ tipo, nombre, filas: guardada?.filas, items, bases });
+      const archivo = `Promocion-${(nombre ?? tipoParaElPanel(tipo).nombre).normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^A-Za-z0-9]+/g, "-").replace(/^-|-$/g, "") || "AutoVenta"}.xlsx`;
+      res.type("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet").attachment(archivo).send(excel);
+    } catch (error) {
+      errorDePromocion(res, error);
+    }
+  });
+
+  router.post("/promociones/leer", exigirPromociones, archivoCrudo, async (req, res) => {
+    const cuerpo = cuerpoDelArchivo(req);
+    if (!cuerpo) return res.status(400).json({ ok: false, error: "Falta el archivo (cuerpo vacío)" });
+    try {
+      const tipo = tipoDelPedido(req.query.tipo);
+      if (!tipo) throw new PromocionInvalida("Elija un tipo de promoción.");
+      const parametros = parametrosLimpios(tipo, jsonDelPedido(req.query.parametros) as never);
+      const problema = errorDeParametros(tipo, parametros);
+      if (problema) throw new PromocionInvalida(problema);
+      await ensureCatalogReady();
+      const { items, bases } = catalogoParaPromociones();
+      const leido = await leerExcelDePromocion(tipo, nombreDelArchivo(req), cuerpo);
+      const vista = vistaPreviaDe(tipo, parametros, leido.filas, items, bases);
+      const entran = new Set(vista.entran.map((l) => l.codigo.trim().toLowerCase()));
+      // Se guardan solo las que entran hoy: lo que el negocio vio es lo que queda.
+      const filas: FilaDePromocion[] = leido.filas
+        .filter((f) => entran.has(f.codigo.trim().toLowerCase()))
+        .map(({ filaDelExcel: _f, ...resto }) => { void _f; return resto; });
+      res.json({
+        ok: true,
+        subida: filas.length ? guardarSubida(tipo, filas) : null,
+        entran: vista.entran,
+        noEntran: [...leido.ilegibles.map((i) => ({ fila: i.fila, codigo: i.codigo, nombre: null, motivo: i.motivo })), ...vista.noEntran],
+        sinLlenar: leido.sinLlenar,
+      });
+    } catch (error) {
+      errorDePromocion(res, error);
+    }
+  });
+
+  router.get("/promociones/:id", exigirPromociones, async (req, res) => {
+    try {
+      const promo = await leerPromocion(Number(req.params.id));
+      if (!promo) return res.status(404).json({ ok: false, error: "Esa promoción ya no existe." });
+      await ensureCatalogReady().catch(() => undefined);
+      const { items, bases } = catalogoParaPromociones();
+      const vista = vistaPreviaDe(promo.tipo, promo.parametros, promo.filas, items, bases);
+      res.json({ ok: true, promocion: paraElPanel(promo, items, bases), entran: vista.entran, noEntran: vista.noEntran });
+    } catch (error) {
+      errorDePromocion(res, error);
+    }
+  });
+
+  router.post("/promociones", exigirPromociones, async (req, res) => {
+    try {
+      const subida = subidasDePromocion.get(String(req.body?.subida ?? ""));
+      if (!subida) throw new PromocionInvalida("Suba el Excel lleno antes de guardar (la subida anterior ya caducó).");
+      if (subida.tipo !== req.body?.tipo) throw new PromocionInvalida("El Excel subido es de otro tipo de promoción.");
+      const promo = await crearPromocion(req.body, subida.filas, req.usuario?.nombre ?? null);
+      subidasDePromocion.delete(String(req.body.subida));
+      await reaplicarPromociones();
+      const { items, bases } = catalogoParaPromociones();
+      res.json({ ok: true, promocion: paraElPanel(promo, items, bases) });
+    } catch (error) {
+      errorDePromocion(res, error);
+    }
+  });
+
+  router.patch("/promociones/:id", exigirPromociones, async (req, res) => {
+    try {
+      const cuerpo = (req.body ?? {}) as Record<string, unknown>;
+      const cambios: Parameters<typeof actualizarPromocion>[1] = {};
+      if (typeof cuerpo.nombre === "string") cambios.nombre = cuerpo.nombre;
+      if ("textoExtra" in cuerpo) cambios.textoExtra = cuerpo.textoExtra as string | null;
+      if ("desde" in cuerpo) cambios.desde = (cuerpo.desde as string | null) || null;
+      if ("hasta" in cuerpo) cambios.hasta = (cuerpo.hasta as string | null) || null;
+      if (typeof cuerpo.activa === "boolean") cambios.activa = cuerpo.activa;
+      if (cuerpo.parametros && typeof cuerpo.parametros === "object") cambios.parametros = cuerpo.parametros as never;
+      if (cuerpo.subida) {
+        const actual = await leerPromocion(Number(req.params.id));
+        const subida = subidasDePromocion.get(String(cuerpo.subida));
+        if (!subida) throw new PromocionInvalida("La subida ya caducó: suba el Excel otra vez.");
+        if (actual && subida.tipo !== actual.tipo) throw new PromocionInvalida("El Excel subido es de otro tipo de promoción.");
+        cambios.filas = subida.filas;
+      }
+      const promo = await actualizarPromocion(Number(req.params.id), cambios);
+      if (cuerpo.subida) subidasDePromocion.delete(String(cuerpo.subida));
+      await reaplicarPromociones();
+      const { items, bases } = catalogoParaPromociones();
+      res.json({ ok: true, promocion: paraElPanel(promo, items, bases) });
+    } catch (error) {
+      errorDePromocion(res, error);
+    }
+  });
+
+  router.delete("/promociones/:id", exigirPromociones, async (req, res) => {
+    try {
+      const quitada = await archivarPromocion(Number(req.params.id));
+      if (!quitada) return res.status(404).json({ ok: false, error: "Esa promoción ya no existe." });
+      await reaplicarPromociones();
+      res.json({ ok: true });
+    } catch (error) {
+      errorDePromocion(res, error);
     }
   });
 
@@ -1916,7 +2198,7 @@ export function createAdminRouter(): express.Router {
       return res.status(409).json({
         ok: false,
         error: decision.code === "window_closed"
-          ? "La ventana de 24 h está cerrada. Selecciona una plantilla aprobada; no se enviará texto libre."
+          ? VENTANA_CERRADA
           : `Envío bloqueado por seguridad: ${decision.code}`,
         policyCode: decision.code,
         windowClosesAt: decision.windowClosesAt?.toISOString() ?? null,
@@ -1941,6 +2223,284 @@ export function createAdminRouter(): express.Router {
     emitLiveEvent("message", id);
     emitLiveEvent("sync", id);
     res.json({ ok: true, id: sent.id, botPausadoHoras: config.pipeline.botPauseHours });
+  });
+
+  // ── Adjuntos desde el chat del panel (22-nov-2026) ────────────────────────
+  // El «+» del chat en el teléfono: una foto del carrete o una cotización en
+  // PDF, sin salir de la conversación. Misma política que el texto del asesor
+  // (ventana de 24 h, opt-out) y el mismo traspaso: quien adjunta, atiende.
+  async function conversacionParaAdjuntar(req: express.Request, res: express.Response, contentType: "image" | "pdf") {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      res.status(400).json({ ok: false, error: "Conversación inválida" });
+      return null;
+    }
+    const [conversation] = await sql<{ id: number; phone: string; name: string | null }[]>`
+      select id, phone, name from conversations where id = ${id}
+    `;
+    if (!conversation) {
+      res.status(404).json({ ok: false, error: "Conversación no encontrada" });
+      return null;
+    }
+    const decision = await authorizeConversationOutbound({ conversationId: id, contentType, actor: "owner" });
+    if (!decision.allowed) {
+      res.status(409).json({
+        ok: false,
+        error: decision.code === "window_closed"
+          ? VENTANA_CERRADA
+          : `Envío bloqueado por seguridad: ${decision.code}`,
+        policyCode: decision.code,
+      });
+      return null;
+    }
+    return conversation;
+  }
+
+  async function trasAdjuntar(req: express.Request, id: number, detalle: Record<string, unknown>) {
+    await pauseBot(id, undefined, "persona_escribio");
+    await setConversationAssignee(id, "human", "persona_escribio");
+    await registrarAccion(id, "mensaje", quienEnElPanel(req), detalle);
+    emitLiveEvent("message", id);
+    emitLiveEvent("sync", id);
+  }
+
+  // La foto llega ya achicada por el panel (JPEG ≤ 1600 px) más una miniatura
+  // para pintarla en el chat: la imagen se sube a Meta y no se guarda acá.
+  // Tipo propio: el `express.json()` general del panel corta en 100 kB y solo mira
+  // `application/json`, así que la foto pasa de largo y la lee este, con su tope.
+  const fotoEnJson = express.json({ limit: "6mb", type: "application/vnd.autoventa.foto+json" });
+  router.post("/conversations/:id/send-image", fotoEnJson, async (req, res) => {
+    try {
+      const conversation = await conversacionParaAdjuntar(req, res, "image");
+      if (!conversation) return;
+      const imagen = miniaturaABuffer(req.body?.imagen);
+      const miniatura = String(req.body?.miniatura ?? "");
+      if (!imagen || imagen.length > 4_500_000) {
+        return res.status(400).json({ ok: false, error: "La foto no se pudo leer o pesa demasiado." });
+      }
+      const caption = String(req.body?.caption ?? "").trim().slice(0, 900) || undefined;
+      const providerId = await sendImage(conversation.id, conversation.phone, imagen, caption, "foto.jpg", "owner", "image/jpeg");
+      await appendMessage(conversation.id, "assistant", caption ? `Foto: ${caption}` : "Foto enviada", providerId, {
+        type: "image",
+        authorKind: "owner",
+        status: "sent",
+        metadata: {
+          autor: quienEnElPanel(req),
+          adjunto: "foto",
+          ...(miniaturaABuffer(miniatura) && miniatura.length < 400_000 ? { miniatura } : {}),
+        },
+      });
+      // La foto entera, para ampliarla en el chat (antes solo quedaba la miniatura).
+      if (providerId) {
+        await guardarMedio({ waMessageId: providerId, conversationId: conversation.id, kind: "image", mime: "image/jpeg", filename: "foto.jpg", bytes: imagen });
+      }
+      await trasAdjuntar(req, conversation.id, { adjunto: "foto" });
+      res.json({ ok: true, id: providerId ?? null });
+    } catch (error) {
+      console.error("❌ send-image:", error);
+      res.status(502).json({ ok: false, error: mensaje(error, "No se pudo enviar la foto") });
+    }
+  });
+
+  // «Opciones» y «Comparación» desde el «+» del chat (22-nov-2026, tarde): la
+  // misma pieza que dibuja el Cotizador, pero se le manda al cliente en vez de
+  // descargarse. Con esto el teléfono ya no necesita la pestaña Cotizador.
+  // Se guarda igual que cuando la manda el bot (`piece` + `codes`): que el
+  // cliente vio esas opciones es un hecho, lo haya mandado quien lo haya mandado.
+  const MAX_OPCIONES_CHAT = 4;
+  const PiezaDelChatSchema = z.discriminatedUnion("piece", [
+    z.object({
+      piece: z.literal("options"),
+      // Máximo 4 opciones por envío (Manuel, 22-nov-2026).
+      items: z.array(z.object({ id: z.string().min(1).max(80) })).min(1).max(MAX_OPCIONES_CHAT),
+      medidaPedida: z.string().max(40).optional(),
+    }),
+    z.object({
+      piece: z.literal("comparison"),
+      items: z.array(z.object({ id: z.string().min(1).max(80) })).min(2).max(3),
+    }),
+  ]);
+
+  router.post("/conversations/:id/send-piece", async (req, res) => {
+    try {
+      const conversation = await conversacionParaAdjuntar(req, res, "image");
+      if (!conversation) return;
+      let png: Buffer;
+      let products: ReturnType<typeof resolveCatalogProducts>;
+      let input: z.infer<typeof PiezaDelChatSchema>;
+      let sizeLabel: string | null = null;
+      try {
+        await ensureCatalogReady();
+        input = PiezaDelChatSchema.parse(req.body);
+        products = resolveCatalogProducts(input.items.map(({ id }) => id));
+        const medidas = new Set(products.map((p) => p.sizeLabel).filter(Boolean));
+        sizeLabel = medidas.size === 1 ? (products[0]?.sizeLabel ?? null) : null;
+        const lineas = await Promise.all(products.map((p) => toRenderLine(p)));
+        png = input.piece === "comparison"
+          ? await renderCompareImage({ dateLabel: fechaDePieza(), sizeLabel: products[0]?.sizeLabel ?? null, products: lineas, ...(await temaDePiezas()) })
+          : await renderOptionsImage({
+            dateLabel: fechaDePieza(), sizeLabel,
+            medidaPedida: input.medidaPedida?.trim() || null,
+            products: lineas, ...(await temaDePiezas()),
+          });
+      } catch (error) {
+        // Un pedido mal formado (una sola llanta para comparar, más de 4 opciones)
+        // se dice en cristiano, no con el detalle interno de la validación.
+        const texto = error instanceof z.ZodError
+          ? `Elige entre 1 y ${MAX_OPCIONES_CHAT} llantas para las opciones, o 2 o 3 para comparar.`
+          : mensaje(error, "No se pudo armar la pieza");
+        return res.status(400).json({ ok: false, error: texto });
+      }
+      const esComparacion = input.piece === "comparison";
+      const nombres = products.map((p) => `${p.brand} ${p.design}`);
+      const filename = `${esComparacion ? "Comparativa" : "Opciones"}-${business.name.replace(/\s/g, "")}.png`;
+      const providerId = await sendImage(conversation.id, conversation.phone, png, undefined, filename, "owner");
+      await appendMessage(
+        conversation.id,
+        "assistant",
+        esComparacion ? `Comparativa enviada: ${nombres.join(" vs ")}` : `Opciones enviadas: ${nombres.join(", ")}`,
+        providerId,
+        {
+          type: "image",
+          authorKind: "owner",
+          status: "sent",
+          metadata: {
+            autor: quienEnElPanel(req), piece: input.piece, filename, origen: "panel",
+            codes: products.map((p) => p.code),
+            ...(input.piece === "options" ? { sizeLabel: input.medidaPedida?.trim() || sizeLabel } : {}),
+          },
+        },
+      );
+      // La pieza ya está dibujada: queda en memoria para que el chat la abra al instante.
+      if (providerId) {
+        const [guardado] = await sql<{ id: number }[]>`select id from messages where wa_message_id = ${providerId}`;
+        if (guardado) {
+          guardarPieza(`${Number(guardado.id)}:grande`, png);
+          guardarPieza(`${Number(guardado.id)}:chica`, achicarPieza(png, 560));
+        }
+      }
+      await trasAdjuntar(req, conversation.id, { adjunto: input.piece, productos: products.map((p) => p.code) });
+      res.json({ ok: true, id: providerId ?? null, productos: products.length });
+    } catch (error) {
+      console.error("❌ send-piece:", error);
+      res.status(502).json({ ok: false, error: mensaje(error, "No se pudo enviar la pieza") });
+    }
+  });
+
+  router.post("/conversations/:id/send-quote", async (req, res) => {
+    try {
+      // Desde el chat (teléfono o escritorio) la cotización sale SIEMPRE como
+      // imagen, igual que cuando cotiza el bot (Manuel, 22-nov-2026).
+      const conversation = await conversacionParaAdjuntar(req, res, "image");
+      if (!conversation) return;
+      let armada: Awaited<ReturnType<typeof cotizacionDelPanel>>;
+      try {
+        armada = await cotizacionDelPanel({
+          item: req.body?.item,
+          customerName: conversation.name ?? "Cliente",
+          customerPhone: conversation.phone,
+        });
+      } catch (error) {
+        return res.status(400).json({ ok: false, error: mensaje(error, "No se pudo armar la cotización") });
+      }
+      const { quote, png, pngFilename, product, quantity } = armada;
+      if (!png) {
+        return res.status(502).json({ ok: false, error: "No se pudo dibujar la imagen de la cotización. Intente de nuevo." });
+      }
+      const filename = pngFilename;
+      const providerId = await sendImage(conversation.id, conversation.phone, png, "Su cotización 🏁", filename, "owner");
+      // Igual que cuando cotiza el bot: queda en `quotes` (cuenta en Métricas y
+      // el chat puede volver a dibujar la pieza desde ahí).
+      await logQuote(conversation.id, quote.lines, quote.subtotal, quote.tax, quote.total, quote.number);
+      await appendMessage(
+        conversation.id,
+        "assistant",
+        `Cotización ${quote.number} enviada por $${quote.total.toFixed(2)} · ${quantity} × ${product.brand} ${product.design}`,
+        providerId,
+        {
+          type: "image",
+          authorKind: "owner",
+          status: "sent",
+          metadata: { autor: quienEnElPanel(req), piece: "quote", filename, quoteNumber: quote.number, codes: [product.code], quantity, origen: "panel" },
+        },
+      );
+      // La pieza ya está dibujada: queda en memoria para que el chat la abra al instante.
+      if (providerId) {
+        const [guardado] = await sql<{ id: number }[]>`select id from messages where wa_message_id = ${providerId}`;
+        if (guardado) {
+          guardarPieza(`${Number(guardado.id)}:grande`, png);
+          guardarPieza(`${Number(guardado.id)}:chica`, achicarPieza(png, 560));
+        }
+      }
+      await trasAdjuntar(req, conversation.id, { adjunto: "cotizacion", cotizacion: quote.number, total: quote.total });
+      res.json({ ok: true, id: providerId ?? null, numero: quote.number, total: quote.total });
+    } catch (error) {
+      console.error("❌ send-quote:", error);
+      res.status(502).json({ ok: false, error: mensaje(error, "No se pudo enviar la cotización") });
+    }
+  });
+
+  // ── «Retomar la venta»: la plantilla que sí sale con la ventana cerrada ──
+  // (22-nov-2026). Manuel: «que tengamos una plantilla aprobada simple que
+  // podamos mandar ahí». Texto fijo aprobado por Meta en cada WABA
+  // (`retomar_venta_v1`, ver docs/cliente-nuevo/PLANTILLAS.md) con dos botones:
+  // «Sí, continuar» y «Ya no las necesito» (no «No, gracias»: para el bot eso
+  // significa «quiero otra opción», no «ya no quiero»).
+  router.post("/conversations/:id/send-retomar", async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return res.status(400).json({ ok: false, error: "Conversación inválida" });
+    const [conversation] = await sql<{ id: number; phone: string; name: string | null }[]>`
+      select id, phone, name from conversations where id = ${id}
+    `;
+    if (!conversation) return res.status(404).json({ ok: false, error: "Conversación no encontrada" });
+    const decision = await authorizeConversationOutbound({ conversationId: id, contentType: "template", actor: "owner" });
+    if (!decision.allowed) {
+      const motivo: Record<string, string> = {
+        opted_out: "El cliente pidió que no le escriban: no se le puede mandar la plantilla.",
+        negative_sentiment: "El cliente estaba molesto: no se le manda la plantilla. Mejor llámelo.",
+        conversation_closed: "El ticket está cerrado: reábralo para escribirle.",
+      };
+      return res.status(409).json({ ok: false, error: motivo[decision.code] ?? `No se puede mandar la plantilla: ${decision.code}`, policyCode: decision.code });
+    }
+    const nombre = conversation.name?.trim().split(/\s+/)[0] || "";
+    // Meta no acepta un hueco vacío: sin nombre va un saludo neutro.
+    const variables = [nombre || "qué tal", nombreDelResponsable(negocio)];
+    try {
+      const providerId = await sendApprovedTemplate({
+        conversationId: id,
+        to: conversation.phone,
+        templateName: PLANTILLA_RETOMAR,
+        language: "es",
+        variables,
+        callbackData: `retomar_venta:${id}`,
+        actor: "owner",
+      });
+      const texto = `Hola ${variables[0]}, le saluda ${variables[1]}. Quedamos pendientes con las llantas que estaba cotizando. ¿Le gustaría continuar con su compra?`;
+      await appendMessage(id, "assistant", texto, providerId, {
+        authorKind: "owner",
+        status: "sent",
+        metadata: {
+          autor: quienEnElPanel(req), plantilla: PLANTILLA_RETOMAR,
+          botones: [{ id: "retomar_si", titulo: "Sí, continuar" }, { id: "retomar_no", titulo: "Ya no las necesito" }],
+        },
+      });
+      await registrarAccion(id, "mensaje", quienEnElPanel(req), { plantilla: PLANTILLA_RETOMAR });
+      await pauseBot(id, undefined, "persona_escribio");
+      await setConversationAssignee(id, "human", "persona_escribio");
+      emitLiveEvent("message", id);
+      emitLiveEvent("sync", id);
+      res.json({ ok: true, id: providerId ?? null });
+    } catch (error) {
+      const crudo = mensaje(error, "");
+      console.error("❌ send-retomar:", crudo);
+      // 132001 = la plantilla no existe (o no está aprobada) en esta cuenta.
+      const texto = /132001|132000|does not exist|not approved|template name/i.test(crudo)
+        ? "La plantilla para retomar la venta todavía no está aprobada por Meta. Pruebe más tarde."
+        : /131042|payment/i.test(crudo)
+          ? "WhatsApp no envía plantillas: la cuenta no tiene método de pago."
+          : `No se pudo mandar la plantilla. ${crudo}`.trim();
+      res.status(502).json({ ok: false, error: texto });
+    }
   });
 
   router.post("/conversations/:id/bot", async (req, res) => {
@@ -2062,6 +2622,149 @@ export function createAdminRouter(): express.Router {
   router.get("/hub/registro-venta", async (_req, res) => {
     const config = await getVentaRegistradaConfig();
     res.json({ ok: true, enlace: `/venta?k=${encodeURIComponent(claveDelEnlace())}`, ...config });
+  });
+
+  // ── Avisos en la app del teléfono (22-nov-2026) ───────────────────────────
+  // Ver services/avisosEnLaApp.ts. La clave cruda (sin usuario) puede leer el
+  // historial, pero suscribirse es de un usuario con nombre.
+  router.get("/hub/avisos", async (req, res) => {
+    try {
+      const telefono = req.usuario ? await telefonoDelUsuario(req.usuario.id) : null;
+      const avisos = await historialDeAvisos(telefono);
+      res.json({
+        ok: true,
+        soloMios: Boolean(telefono),
+        porLaApp: EVENTOS_POR_LA_APP,
+        avisos: avisos.map((a) => ({
+          ...a,
+          titulo: cabeceraDeEvento(a.evento as AdvisorEventType).replace(/\*/g, "").trim(),
+        })),
+      });
+    } catch (error) {
+      res.status(500).json({ ok: false, error: mensaje(error, "No se pudieron cargar los avisos") });
+    }
+  });
+
+  // La ventana de 24 h del asesor que está usando la app (ver services/ventanaDelAsesor.ts).
+  router.get("/hub/mi-ventana", async (req, res) => {
+    try {
+      res.json({ ok: true, ...(await miVentana(req.usuario ? { id: req.usuario.id, nombre: req.usuario.nombre } : null)) });
+    } catch (error) {
+      res.status(500).json({ ok: false, error: mensaje(error, "No se pudo leer la ventana") });
+    }
+  });
+
+  router.get("/hub/push/config", async (req, res) => {
+    try {
+      const { publicKey } = await clavesPush();
+      const asesores = await asesoresActivos();
+      res.json({
+        ok: true,
+        publicKey,
+        miTelefono: req.usuario ? await telefonoDelUsuario(req.usuario.id) : null,
+        // Para el «¿cuál eres tú?» al activar: nombre y número de cada asesor que recibe avisos.
+        asesores: asesores.map((a) => ({ nombre: a.nombre, telefono: a.telefono })),
+      });
+    } catch (error) {
+      res.status(500).json({ ok: false, error: mensaje(error, "No se pudo preparar la app") });
+    }
+  });
+
+  router.post("/hub/push/suscribir", async (req, res) => {
+    if (!req.usuario) return res.status(403).json({ ok: false, error: "Entra con tu usuario para activar las notificaciones." });
+    const suscripcion = leerSuscripcion(req.body?.suscripcion);
+    if (!suscripcion) return res.status(400).json({ ok: false, error: "El teléfono no entregó una suscripción válida." });
+    try {
+      await guardarSuscripcion({
+        userId: req.usuario.id,
+        userName: req.usuario.nombre,
+        advisorPhone: req.body?.telefono ? String(req.body.telefono) : null,
+        suscripcion,
+        userAgent: req.header("user-agent"),
+      });
+      // La confirmación sale por el mismo camino que los avisos de verdad.
+      if (req.body?.telefono) {
+        await enviarPushAAsesores([String(req.body.telefono)], {
+          titulo: "Notificaciones activadas",
+          cuerpo: "Desde ahora las cotizaciones enviadas y las ventas confirmadas te llegan por aquí.",
+          ruta: "#/avisos",
+          etiqueta: "activadas",
+        });
+      }
+      res.json({ ok: true });
+    } catch (error) {
+      res.status(500).json({ ok: false, error: mensaje(error, "No se pudo activar") });
+    }
+  });
+
+  router.post("/hub/push/desuscribir", async (req, res) => {
+    const endpoint = String(req.body?.endpoint ?? "");
+    if (!endpoint) return res.status(400).json({ ok: false, error: "Falta la suscripción" });
+    await borrarSuscripcion(endpoint);
+    res.json({ ok: true });
+  });
+
+  // ── «Validar» dentro del panel (22-nov-2026) ──────────────────────────────
+  // Lo mismo que la página `/venta`, pero con la sesión del panel: el vendedor
+  // es el usuario que entró (no se escribe a mano) y el permiso `validarNumeros`
+  // de Ajustes → Usuarios decide quién ve la pestaña. La clave cruda (sin
+  // usuario) también pasa, como en el resto del panel.
+  const exigirValidar = (req: express.Request, res: express.Response, next: express.NextFunction): void => {
+    if (!req.usuario || permisosDeUsuario(req.usuario.id).validarNumeros) {
+      next();
+      return;
+    }
+    res.status(403).json({ ok: false, error: "Tu usuario no tiene activada la validación de números." });
+  };
+
+  router.post("/hub/validar/numero", exigirValidar, async (req, res) => {
+    const validacion = validarEntrada({ vendedor: quienEnElPanel(req), telefono: req.body?.telefono });
+    if (!validacion.ok) return res.status(400).json(validacion);
+    try {
+      const resultado = await registrarVenta(validacion.entrada, validacion.tel9);
+      emitLiveEvent("sync", resultado.venta.conversationId ?? undefined);
+      res.json({ ok: true, ...resultado });
+    } catch (error) {
+      console.error("❌ /hub/validar/numero:", error);
+      res.status(500).json({ ok: false, error: "No se pudo guardar. Intenta de nuevo." });
+    }
+  });
+
+  router.post("/hub/validar/factura", exigirValidar, async (req, res) => {
+    const cuerpo = (req.body ?? {}) as Record<string, unknown>;
+    const llave = tel9(cuerpo.telefono);
+    if (!Number.isInteger(cuerpo.id) || !llave || !String(cuerpo.factura ?? "").trim()) {
+      return res.status(400).json({ ok: false, campo: "factura", error: "Escribe el número de factura o la referencia." });
+    }
+    if (leerMonto(cuerpo.monto) == null) {
+      return res.status(400).json({ ok: false, campo: "monto", error: "Revisa el monto: escribe solo el número, por ejemplo 230.50." });
+    }
+    try {
+      const venta = await guardarFactura(cuerpo.id as number, llave, cuerpo.factura, cuerpo.monto);
+      if (!venta) return res.status(404).json({ ok: false, error: "No se encontró ese registro. Vuelve a validar el número." });
+      emitLiveEvent("sync", venta.conversationId ?? undefined);
+      res.json({ ok: true, venta });
+    } catch (error) {
+      console.error("❌ /hub/validar/factura:", error);
+      res.status(500).json({ ok: false, error: "No se pudo guardar. Intenta de nuevo." });
+    }
+  });
+
+  router.post("/hub/validar/anular", exigirValidar, async (req, res) => {
+    const cuerpo = (req.body ?? {}) as Record<string, unknown>;
+    const llave = tel9(cuerpo.telefono);
+    if (!Number.isInteger(cuerpo.id) || !llave) {
+      return res.status(400).json({ ok: false, error: "Falta el registro a corregir." });
+    }
+    try {
+      const resultado = await anularRegistro(cuerpo.id as number, llave);
+      if (!resultado) return res.status(404).json({ ok: false, error: "No se encontró ese registro." });
+      emitLiveEvent("sync", resultado.venta.conversationId ?? undefined);
+      res.json({ ok: true, ...resultado });
+    } catch (error) {
+      console.error("❌ /hub/validar/anular:", error);
+      res.status(500).json({ ok: false, error: "No se pudo corregir. Intenta de nuevo." });
+    }
   });
 
   router.put("/hub/registro-venta", async (req, res) => {
@@ -2566,7 +3269,9 @@ function resolveCatalogSelections(
     if (product.availability === "out") {
       throw new Error(`${product.brand} ${product.design} está agotada`);
     }
-    return { product, quantity };
+    // Promoción por cantidad (pestaña Promociones): con la cantidad en la mano
+    // la llanta ya sale al precio de la promo, igual que en el bot.
+    return { product: productoParaCantidad(product, quantity), quantity };
   });
 }
 

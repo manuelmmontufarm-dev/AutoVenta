@@ -45,6 +45,14 @@ export function estadoClave(u: Pick<UsuarioHub, "claveCompartida" | "pinHash">):
   return u.claveCompartida ? "compartida" : "pendiente";
 }
 
+/**
+ * «Validar números» (22-nov-2026, tarde): nace PRENDIDO en todo negocio que no
+ * sea Depot. Depot cruza las ventas con Contífico y no la usa; Competimotor sí
+ * (Manuel: «no me sale el Validar en la app de Competi»). Se puede apagar por
+ * usuario en Ajustes → Usuarios.
+ */
+const VALIDAR_POR_DEFECTO = negocio.id !== "depot";
+
 const PermisosSchema = z.object({
   verInbox: z.boolean().default(true),
   verKanban: z.boolean().default(true),
@@ -54,9 +62,12 @@ const PermisosSchema = z.object({
   usarCotizador: z.boolean().default(true),
   verAjustes: z.boolean().default(true),
   verErrores: z.boolean().default(true),
+  // Ver `Permisos.validarNumeros`: prendido en los negocios sin sistema contable
+  // (Competimotor), apagado en Depot.
+  validarNumeros: z.boolean().default(VALIDAR_POR_DEFECTO),
 });
 
-export const PERMISOS_COMPLETOS: Permisos = { verInbox: true, verKanban: true, verOportunidades: true, verMetricas: true, verFinanzas: true, usarCotizador: true, verAjustes: true, verErrores: true };
+export const PERMISOS_COMPLETOS: Permisos = { verInbox: true, verKanban: true, verOportunidades: true, verMetricas: true, verFinanzas: true, usarCotizador: true, verAjustes: true, verErrores: true, validarNumeros: VALIDAR_POR_DEFECTO };
 
 /**
  * El id es el username del desplegable: minúsculas y sin espacios para que
@@ -72,10 +83,8 @@ const UsuarioHubSchema = z.object({
   pinHash: z.string().max(300).nullable().default(null),
   /**
    * Hash (scrypt, como la clave) del código de invitación de una cuenta
-   * pendiente. Con él, la cuenta se activa SOLO desde su enlace (19-nov-2026):
-   * `/auth/users` es pública y dice qué cuentas están pendientes, así que sin
-   * esto cualquiera que abriera el login podía crearle la clave a otro. null =
-   * cuenta activa, o pendiente creada antes del enlace (se activa como antes).
+   * pendiente. Desde el 22-nov-2026 ya no se exige para activar la cuenta (ver
+   * `activarUsuarioHub`); queda para que el panel sepa si hay un enlace vigente.
    */
   invitacionHash: z.string().max(300).nullable().default(null),
 });
@@ -262,11 +271,12 @@ export async function activarUsuarioHub(id: string, input: unknown): Promise<Usu
   const actual = espejo.find((u) => u.id === id);
   if (!actual) throw new Error("Usuario no encontrado");
   if (estadoClave(actual) !== "pendiente") throw new Error("Esta cuenta ya tiene su clave creada");
-  // Con invitación, solo su código la activa. Sin ella (pendiente creada antes
-  // del 19-nov), como siempre.
-  if (actual.invitacionHash && !(datos.invitacion && claveCoincide(datos.invitacion, actual.invitacionHash))) {
-    throw new Error("Para crear tu clave abre el enlace de invitación que te mandaron. Si no lo tienes, pídele uno nuevo a quien administra el panel.");
-  }
+  // El enlace de invitación ya NO es obligatorio (Manuel, 22-nov-2026): a
+  // Joaquín y a Jenny les bloqueaba entrar a Competimotor —sobre todo desde la
+  // app instalada en el teléfono, que abre sin el `?invitacion=` del enlace—.
+  // Una cuenta pendiente se activa eligiendo su nombre y creando su clave; el
+  // enlace solo sirve para dejar el nombre ya elegido. `datos.invitacion` se
+  // acepta y se ignora para que los enlaces viejos sigan abriendo.
   const editado: UsuarioHub = { ...actual, email: datos.email, pinHash: crearHashDeClave(datos.pin), invitacionHash: null };
   await guardar(espejo.map((u) => (u.id === id ? editado : u)));
   return { ...editado, permisos: { ...editado.permisos } };

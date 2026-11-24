@@ -12,6 +12,9 @@
 import type { PoliticaComercial } from "../politica.js";
 import { LLANTAS_BLACK_FRIDAY } from "../politicas/mundillantasBlackFriday.js";
 
+/** Primera fila del «cuadro rojo» de la lista de Black Friday («PROMOCIÓN TODO EL MES»). */
+const FILA_DEL_CUADRO_ROJO = 116;
+
 /** El envío a otras ciudades, en una frase: es la única que hay que cambiar para un envío gratis. */
 const ENVIO_A_OTRAS_CIUDADES =
   "Envíos a otras ciudades: sí, por Laar Courier o Transportes Bemaut, y el envío lo paga el cliente. Cuánto cuesta lo confirma un asesor.";
@@ -35,19 +38,21 @@ export const POLITICA_MUNDILLANTAS: PoliticaComercial = {
   // Manuel, 20-nov-2026 (capacitación con Carlos): la lista de 2 o 3 opciones
   // cierra con botones 1 / 2 / 3 para tocar, en vez de escribir el número.
   botonesDeOpciones: true,
-  // Black Friday (lista de Carlos, 20-nov). Manuel: rige desde ya hasta el
-  // lunes 30-nov-2026 a las 23:59 de Ecuador, las dos secciones de la lista
-  // («jueves a lunes» y «todo el mes»), y después se apaga solo. El precio de
-  // la lista es el final por llanta, con IVA y servicios
-  // (docs/clientes/competimotor-black-friday-2026.md). Para cambiarlo: volver
-  // a correr scripts/competimotor/black-friday.ts con la lista nueva.
+  // Black Friday (lista de Carlos, 20-nov). Rigió entera (las dos secciones)
+  // hasta el 24-nov. Carlos, 24-nov-2026 8:14: «de esta lista hay un cuadro
+  // rojo. Ese cuadro va a estar con promoción hasta el 05 de diciembre, las
+  // otras llantas vuelven a precio normal». El cuadro rojo es la sección
+  // «LLANTAS PROMOCIÓN TODO EL MES» (filas 116 en adelante, aros 18 a 20): 27
+  // de las 116 que cruzaron. Las otras 89 («jueves, viernes, sábado y lunes»)
+  // vuelven a P2. El precio de la lista es el final por llanta, con IVA y
+  // servicios (docs/clientes/competimotor-black-friday-2026.md).
   preciosEspeciales: {
     nombre: "Black Friday",
     desde: "2026-11-20T00:00:00-05:00",
-    hasta: "2026-11-30T23:59:59-05:00",
-    vigenciaLarga: "hasta el lunes 30 de noviembre",
-    vigenciaCorta: "hasta el lunes 30-nov",
-    llantas: LLANTAS_BLACK_FRIDAY,
+    hasta: "2026-12-05T23:59:59-05:00",
+    vigenciaLarga: "hasta el sábado 5 de diciembre",
+    vigenciaCorta: "hasta el sábado 5-dic",
+    llantas: LLANTAS_BLACK_FRIDAY.filter((l) => l.fila >= FILA_DEL_CUADRO_ROJO),
   },
   // Manuel, 20-nov: «no gracias» a secas es «esa no»: se le ofrece otra (CM28).
   noGraciasPideOtraOpcion: true,

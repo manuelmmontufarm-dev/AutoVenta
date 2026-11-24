@@ -1,6 +1,6 @@
 import type { Sql } from "../client.js";
 
-export const TOKENS_ESCRITOS_EN_CACHE_MIGRATION_ID = "038_tokens_escritos_en_cache";
+export const TOKENS_ESCRITOS_EN_CACHE_MIGRATION_ID = "041_tokens_escritos_en_cache";
 
 /**
  * CUÁNTO SE ESCRIBIÓ AL CACHÉ, POR CORRIDA (22-nov-2026).
@@ -17,7 +17,7 @@ export async function runTokensEscritosEnCacheMigration(sql: Sql): Promise<void>
       alter table ai_runs add column if not exists cache_write_tokens integer not null default 0;
 
       insert into schema_migrations (id)
-      values ('038_tokens_escritos_en_cache')
+      values ('041_tokens_escritos_en_cache')
       on conflict (id) do nothing;
     `);
   });

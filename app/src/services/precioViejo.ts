@@ -7,15 +7,16 @@
  * donde lo hay. Nunca rompe un envío: ante un error, el texto sale como vino.
  */
 import { sql } from "../db/client.js";
+import { preciosPorCantidad } from "../domain/promociones.js";
 import { findByCode } from "./catalog.js";
-import { getInterbotPrice } from "./interbotPrices.js";
+import { precioDeVenta } from "./precioDeVenta.js";
 import { createBotAlert } from "./followUps.js";
 import { montosViejosDeLaCotizacion, sinMontosViejos, type CotizacionFirmada, type PreciosDeHoy } from "../domain/precioViejo.js";
 
 export function preciosDeHoy(codigo: string): PreciosDeHoy | null {
   const producto = findByCode(codigo);
   if (!producto) return null;
-  const vivo = getInterbotPrice(codigo);
+  const vivo = precioDeVenta(codigo, producto.sourcePrice);
   return [
     producto.minimumPriceWithTax,
     // Con precio de promoción por código (Black Friday de Competimotor), el de
@@ -26,6 +27,11 @@ export function preciosDeHoy(codigo: string): PreciosDeHoy | null {
     vivo?.precioPromoConIva,
     vivo?.pvpMinConIva,
     vivo?.pvpFullConIva,
+    // Promoción por cantidad del panel: el precio por llanta que da con cada
+    // cantidad sigue siendo un precio de hoy mientras la promo esté vigente.
+    ...(producto.promocionPorCantidad
+      ? preciosPorCantidad(producto.promocionPorCantidad, 8).map((c) => c.unidad)
+      : []),
   ];
 }
 

@@ -21,7 +21,49 @@
     <link rel="icon" id="favicon" type="image/svg+xml" href="favicon.svg" />
   </head>
   <body>
-    <div id="root"></div>
+    <!-- PANTALLA DE CARGA (23-nov-2026). Va escrita aquí, no en React: se ve
+         desde el primer instante, antes de que baje el programa (900 kB). React
+         la reemplaza al pintar. Si el programa no llega o se rompe al arrancar,
+         el vigilante de abajo ofrece «Reintentar» en vez de dejar la pantalla
+         en blanco hasta cerrar la app. -->
+    <style>
+      #arranque { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: #f7f6f3; color: #1c1b19; font: 500 15px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 24px; text-align: center; }
+      #arranque img { width: 72px; height: 72px; border-radius: 16px; }
+      #arranque .rueda { width: 28px; height: 28px; border-radius: 50%; border: 3px solid rgba(28, 27, 25, 0.15); border-top-color: #b4453a; animation: arranque-gira 0.8s linear infinite; }
+      #arranque p { margin: 0; color: #6b6963; }
+      #arranque button { display: none; height: 48px; padding: 0 28px; border: 0; border-radius: 8px; background: #b4453a; color: #fff; font: 600 16px/1 inherit; font-family: inherit; }
+      #arranque.lento button { display: block; }
+      #arranque.fallo .rueda { display: none; }
+      @keyframes arranque-gira { to { transform: rotate(360deg); } }
+    </style>
+    <div id="root">
+      <div id="arranque" role="status" aria-live="polite" data-testid="pantalla-de-carga">
+        <img src="icon-192.png" alt="" />
+        <div class="rueda"></div>
+        <p id="arranque-texto">Abriendo…</p>
+        <button type="button" onclick="window.location.reload()">Reintentar</button>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var caja = function () { return document.getElementById("arranque"); };
+        var decir = function (texto, fallo) {
+          var c = caja();
+          if (!c) return; // React ya pintó: no hay nada que avisar.
+          c.className = fallo ? "lento fallo" : "lento";
+          document.getElementById("arranque-texto").textContent = texto;
+        };
+        // El programa no bajó (sin señal, servidor reiniciando): se dice ya.
+        window.addEventListener("error", function (e) {
+          var t = e.target;
+          if (t && t.tagName === "SCRIPT") decir("No se pudo abrir. Revisa tu conexión.", true);
+          else if (!t || t === window) decir("Algo falló al abrir.", true);
+        }, true);
+        window.addEventListener("unhandledrejection", function () { decir("Algo falló al abrir.", true); });
+        // Tarda más de la cuenta: se ofrece reintentar sin dejar de esperar.
+        setTimeout(function () { decir("Está tardando más de lo normal…", false); }, 10000);
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
