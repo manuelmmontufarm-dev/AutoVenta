@@ -3,7 +3,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { ConnectionChip, ConnectionGate, SalirButton, UserChip } from "./components/admin-key";
 import { hasAdminKey } from "./data/catalog";
 import { Confetti, Toasts } from "./components/overlays";
-import { IconAjustes, IconAlert, IconCampana, IconRefresh, IconChart, IconDiana, IconDoc, IconEtiqueta, IconInbox, IconKanban, IconPhone, IconPlay, IconSilencio, IconSonido, IconStop, IconTire } from "./components/icons";
+import { IconAjustes, IconAlert, IconCampana, IconChevronR, IconSliders, IconRefresh, IconChart, IconDiana, IconDoc, IconEtiqueta, IconInbox, IconKanban, IconPhone, IconPlay, IconSilencio, IconSonido, IconStop, IconTire } from "./components/icons";
 import { PageHeader } from "./components/ui";
 import { VersionBadge } from "./components/version-badge";
 import { setSonidoActivo, sonidoActivo, sonidoBoton } from "./lib/sound";
@@ -36,24 +36,33 @@ import type { Permisos } from "./data/realSource";
 // rail (y arriba a la derecha en el teléfono). `requiere`: fase que
 // desbloquea cada pantalla (null = núcleo, siempre). «Inventario» solo existe
 // en negocios con catálogo por archivo (Competimotor): ver `porArchivo`.
-const NAV: readonly { id: string; label: string; icon: typeof IconInbox; requiere: "fase3" | null; soloEscritorio?: boolean }[] = [
+const NAV: readonly { id: string; label: string; icon: typeof IconInbox; requiere: "fase3" | null; soloEscritorio?: boolean; herramienta?: boolean }[] = [
   { id: "inbox", label: "Inbox", icon: IconInbox, requiere: null },
-  { id: "inventario", label: "Inventario", icon: IconDoc, requiere: null },
-  // «Promociones» (24-nov): el negocio arma sus promos con un Excel de ida y
-  // vuelta. Es trabajo de escritorio y la barra del teléfono ya va llena.
-  { id: "promociones", label: "Promociones", icon: IconEtiqueta, requiere: null, soloEscritorio: true },
   // El tablero es de escritorio: en el teléfono no entra y nadie arrastra
   // tarjetas con el dedo (Manuel, 22-nov). `soloEscritorio` lo saca de la barra.
   { id: "pipeline", label: "Pipeline", icon: IconKanban, requiere: null, soloEscritorio: true },
   { id: "para-cerrar", label: "Para cerrar", icon: IconDiana, requiere: null },
-  // En el teléfono se cotiza desde el «+» del chat (opciones, comparación y
-  // cotización en PDF): la pestaña queda solo para el escritorio (Manuel, 22-nov).
-  { id: "cotizador", label: "Cotizador", icon: IconTire, requiere: "fase3", soloEscritorio: true },
+  { id: "dashboard", label: "Métricas", icon: IconChart, requiere: "fase3" },
+  // ── HERRAMIENTAS (Manuel, 24-nov): lo que no se mira todo el tiempo va al
+  // final, dentro de un grupo que se despliega, para que el menú no se aplaste.
+  // En el teléfono no hay grupo: de estas solo queda «Validar».
+  //
+  // Inventario y Promociones son trabajo de Excel: solo en la computadora.
+  { id: "inventario", label: "Inventario", icon: IconDoc, requiere: null, soloEscritorio: true, herramienta: true },
+  { id: "promociones", label: "Promociones", icon: IconEtiqueta, requiere: null, soloEscritorio: true, herramienta: true },
   // «Validar»: el vendedor valida el número de un comprador. Solo para quien
   // tiene el permiso en Ajustes → Usuarios (Depot no lo usa).
-  { id: "validar", label: "Validar", icon: IconPhone, requiere: null },
-  { id: "dashboard", label: "Métricas", icon: IconChart, requiere: "fase3" },
+  { id: "validar", label: "Validar", icon: IconPhone, requiere: null, herramienta: true },
+  // En el teléfono se cotiza desde el «+» del chat (opciones, comparación y
+  // cotización en PDF): la pestaña queda solo para el escritorio (Manuel, 22-nov).
+  { id: "cotizador", label: "Cotizador", icon: IconTire, requiere: "fase3", soloEscritorio: true, herramienta: true },
 ];
+
+/** Si el grupo «Herramientas» quedó abierto la última vez (se recuerda en este navegador). */
+const HERRAMIENTAS_ABIERTAS = "autoventa.herramientas.abiertas";
+function herramientasGuardadas(): boolean {
+  try { return window.localStorage.getItem(HERRAMIENTAS_ABIERTAS) === "1"; } catch { return false; }
+}
 
 /**
  * Qué permiso del usuario abre cada pantalla. Los interruptores se editan en
@@ -182,6 +191,20 @@ export default function App() {
   const navVisible = NAV.filter((item) =>
     (!item.requiere || phases[item.requiere]) && pantallaPermitida(item.id, phases, permisos, porArchivo));
   const navMovil = navVisible.filter((item) => !item.soloEscritorio);
+  // «Herramientas»: Inventario, Promociones, Validar y Cotizador, plegadas al final del rail.
+  const herramientas = navVisible.filter((item) => item.herramienta);
+  const enHerramienta = herramientas.some((item) => item.id === route.vista);
+  const [herramientasAbiertas, setHerramientasAbiertas] = useState(herramientasGuardadas);
+  const alternarHerramientas = () => {
+    const abrir = !herramientasAbiertas;
+    setHerramientasAbiertas(abrir);
+    try { window.localStorage.setItem(HERRAMIENTAS_ABIERTAS, abrir ? "1" : "0"); } catch { /* sin almacenamiento: no se recuerda */ }
+  };
+  // Entrar a una herramienta por enlace (o desde un aviso) abre el grupo: nunca
+  // se está en una pantalla que el menú no muestra.
+  useEffect(() => {
+    if (enHerramienta) setHerramientasAbiertas(true);
+  }, [enHerramienta]);
   const faseActiva = phases.fase4 ? 4 : phases.fase3 ? 3 : phases.fase2 ? 2 : 1;
   // El gate solo aplica al producto real; el demo usa fixtures y no tiene clave.
   const bloqueado =
@@ -199,7 +222,7 @@ export default function App() {
     }
   }, [route.vista, phases, permisos, porArchivo, inventario.porArchivo]);
 
-  // En el teléfono Pipeline y Cotizador no existen: un enlace viejo cae en el Inbox.
+  // En el teléfono Pipeline, Cotizador, Inventario y Promociones no existen: un enlace viejo cae en el Inbox.
   useEffect(() => {
     if (movil && NAV.some((n) => n.soloEscritorio && n.id === route.vista)) navigate("inbox");
   }, [movil, route.vista]);
@@ -259,7 +282,7 @@ export default function App() {
             <span className="text-[12px] text-text2">Hub de ventas</span>
           </div>
           <nav className="flex flex-col gap-0.5" aria-label="Principal">
-            {navVisible.map((item) => (
+            {navVisible.filter((item) => !item.herramienta).map((item) => (
               <NavItem
                 key={item.id}
                 activo={navActivo(route) === item.id}
@@ -270,6 +293,39 @@ export default function App() {
                 aside={item.id === "inbox" && abiertos > 0 ? abiertos : item.id === "para-cerrar" && faltan ? faltan : undefined}
               />
             ))}
+            {herramientas.length > 0 && (
+              <>
+                <button
+                  type="button"
+                  onClick={alternarHerramientas}
+                  aria-expanded={herramientasAbiertas}
+                  aria-controls="nav-herramientas"
+                  data-testid="nav-herramientas"
+                  className={`mt-1.5 flex h-10 items-center gap-3 rounded-[6px] px-3 text-[14px] font-medium transition-colors hover:bg-black/[.03] ${
+                    !herramientasAbiertas && enHerramienta ? "bg-signal-tint font-semibold text-signal" : "text-text"
+                  }`}
+                >
+                  <IconSliders size={18} />
+                  <span className="flex-1 text-left">Herramientas</span>
+                  <IconChevronR size={15} className={`text-text2 transition-transform ${herramientasAbiertas ? "rotate-90" : ""}`} />
+                </button>
+                {herramientasAbiertas && (
+                  <div id="nav-herramientas" className="ml-[21px] flex flex-col gap-0.5 border-l border-line pl-2">
+                    {herramientas.map((item) => (
+                      <NavItem
+                        key={item.id}
+                        activo={navActivo(route) === item.id}
+                        onClick={() => navigate(item.id)}
+                        icon={<item.icon size={16} />}
+                        label={item.label}
+                        tour={`nav-${item.id}`}
+                        className="!h-9 !text-[13px]"
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
           </nav>
 
           <div className="mt-auto flex flex-col gap-0.5">
@@ -367,7 +423,7 @@ export default function App() {
           )}
 
           {porArchivo && route.vista !== "inventario" && !enTicket && inventarioViejo(inventario.estado) && (
-            <AvisoInventarioViejo estado={inventario.estado} />
+            <AvisoInventarioViejo estado={inventario.estado} movil={movil} />
           )}
 
           {versionNueva && (
@@ -526,7 +582,7 @@ function EstadoBot({ activo, compacto = false }: { activo: boolean; compacto?: b
  * Arriba de cualquier pantalla, cuando el inventario por archivo tiene más de
  * un día (o no hay ninguno): imposible de no ver, y lleva a subirlo.
  */
-function AvisoInventarioViejo({ estado }: { estado: EstadoInventario | null }) {
+function AvisoInventarioViejo({ estado, movil = false }: { estado: EstadoInventario | null; movil?: boolean }) {
   const cuando = estado
     ? (() => {
       const dias = Math.floor(horasDelInventario(estado) / 24);
@@ -537,15 +593,17 @@ function AvisoInventarioViejo({ estado }: { estado: EstadoInventario | null }) {
   return (
     <button
       type="button"
-      onClick={() => navigate("inventario")}
+      // En el teléfono no hay pantalla de Inventario (24-nov): el aviso informa y no lleva a ningún lado.
+      onClick={() => { if (!movil) navigate("inventario"); }}
       data-testid="aviso-inventario-viejo"
       className="mx-5 mt-2 flex items-center gap-2 rounded-[6px] bg-signal-tint px-3 py-2.5 text-left text-[13px] text-signal md:mx-8 md:mt-4"
     >
       <IconAlert size={16} className="shrink-0" />
       <span className="flex-1">
         {cuando ? <><b>El inventario tiene más de un día</b>: {cuando}.</> : <b>No hay inventario cargado: el bot no tiene llantas para cotizar.</b>}
+        {movil && " Se sube desde la computadora."}
       </span>
-      <span className="font-semibold whitespace-nowrap underline">Subir el de hoy</span>
+      {!movil && <span className="font-semibold whitespace-nowrap underline">Subir el de hoy</span>}
     </button>
   );
 }
