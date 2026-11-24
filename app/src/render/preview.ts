@@ -6,6 +6,7 @@
  * cuando hay, y un ejemplo cuando no — la pantalla de ajustes tiene que
  * funcionar aunque Contífico esté caído.
  */
+import type { ConfigDeTema } from "../domain/temaDePieza.js";
 import { ensureCatalogReady, searchByText } from "../services/catalog.js";
 import { normalizeContificoProduct, type CatalogItem } from "../domain/catalog.js";
 import { brandProfilesForRender } from "../services/brandProfiles.js";
@@ -26,6 +27,8 @@ export interface PreviewOptions {
   beneficios?: readonly string[];
   /** La marca comercial de la muestra (id de identidad); sin ella, la de la presentación. */
   identidad?: string;
+  /** El tema que se está eligiendo en Ajustes (cinta de Navidad, personalizada…). */
+  tema?: Partial<ConfigDeTema> | null;
 }
 
 /** Ejemplo de respaldo: una marca por fila, precios y stock verosímiles. */
@@ -82,6 +85,7 @@ export async function renderPreviewPiece(options: PreviewOptions): Promise<Buffe
     promocion: { modo: options.promocion ?? null },
     brandProfiles: await brandProfilesForRender(),
     identidad: options.identidad,
+    tema: options.tema ?? null,
   };
   const fecha = new Date().toLocaleDateString("es-EC", {
     day: "2-digit", month: "2-digit", year: "numeric", timeZone: "America/Guayaquil",

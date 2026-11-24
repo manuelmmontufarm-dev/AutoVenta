@@ -118,7 +118,14 @@ const MODO_NOTA: Record<string, string> = {
   noche: "Sale siempre la oscura",
 };
 
-interface ConfigPiezas { paleta: string; fuente: string; plantilla: string; modo: string; promocion?: { modo: string } }
+interface DisenoDeTema { titulo: string; bajada: string; fondo: string; texto: string; acento: string; adorno: string }
+interface ConfigTema { id: string; personalizado: DisenoDeTema }
+interface TemaDisponible { id: string; nombre: string; diseno: DisenoDeTema | null }
+const TEMA_INICIAL: ConfigTema = {
+  id: "automatico",
+  personalizado: { titulo: "PROMOCIÓN ESPECIAL", bajada: "", fondo: "#111111", texto: "#ffffff", acento: "#ffc93c", adorno: "rayas" },
+};
+interface ConfigPiezas { paleta: string; fuente: string; plantilla: string; modo: string; promocion?: { modo: string }; tema?: ConfigTema }
 
 /** La que sale ahora mismo con el modo automático. Misma regla que render/diaNoche.ts. */
 function modoDeAhora(): "dia" | "noche" {
@@ -165,6 +172,8 @@ export function Ajustes() {
   const [plantilla, setPlantilla] = useState("clasica");
   const [modo, setModo] = useState("auto");
   const [promocion, setPromocion] = useState("porcentaje");
+  const [tema, setTema] = useState<ConfigTema>(TEMA_INICIAL);
+  const [temas, setTemas] = useState<TemaDisponible[]>([]);
   const [plantillas, setPlantillas] = useState<string[]>(["clasica"]);
   const [modos, setModos] = useState<string[]>([]);
   const [guardado, setGuardado] = useState<ConfigPiezas | null>(null);
@@ -181,7 +190,7 @@ export function Ajustes() {
   const cargar = useCallback(async () => {
     try {
       const [cfg, ben, br, hrs] = await Promise.all([
-        api<{ config: ConfigPiezas; paletas: string[]; muestras: Record<string, string[]>; fuentes: string[]; plantillas?: string[]; modos?: string[] }>("/api/pieces-config"),
+        api<{ config: ConfigPiezas; paletas: string[]; muestras: Record<string, string[]>; fuentes: string[]; plantillas?: string[]; modos?: string[]; temas?: TemaDisponible[] }>("/api/pieces-config"),
         api<{ benefits: Benefit[] }>("/api/benefits"),
         api<{ profiles: BrandProfile[] }>("/api/brand-profiles"),
         api<{ hours: StoreHours }>("/api/store-hours"),
@@ -196,6 +205,8 @@ export function Ajustes() {
       setPlantilla(cfg.config.plantilla ?? "clasica");
       setModo(cfg.config.modo ?? "auto");
       setPromocion(cfg.config.promocion?.modo ?? "porcentaje");
+      setTema(cfg.config.tema ?? TEMA_INICIAL);
+      setTemas(cfg.temas ?? []);
       // Un servidor anterior a las plantillas no manda estos dos campos.
       setGuardado({ ...cfg.config, plantilla: cfg.config.plantilla ?? "clasica", modo: cfg.config.modo ?? "auto" });
       setPlantillas(cfg.plantillas ?? ["clasica"]);
@@ -228,6 +239,7 @@ export function Ajustes() {
     guardado.paleta !== paleta || guardado.fuente !== fuente
     || guardado.plantilla !== plantilla || guardado.modo !== modo
     || (guardado.promocion?.modo ?? "porcentaje") !== promocion
+    || JSON.stringify(guardado.tema ?? TEMA_INICIAL) !== JSON.stringify(tema)
   );
 
   const aplicar = async () => {
@@ -235,9 +247,10 @@ export function Ajustes() {
     try {
       const r = await api<{ config: ConfigPiezas }>("/api/pieces-config", {
         method: "PUT",
-        body: JSON.stringify({ paleta, fuente, plantilla, modo, promocion: { modo: promocion } }),
+        body: JSON.stringify({ paleta, fuente, plantilla, modo, promocion: { modo: promocion }, tema }),
       });
       setGuardado(r.config);
+      if (r.config.tema) setTema(r.config.tema);
       setError("");
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo aplicar");
@@ -321,6 +334,12 @@ export function Ajustes() {
               onPlantilla={setPlantilla} onModo={setModo}
               sinAplicar={sinAplicar} guardando={guardando} onAplicar={aplicar}
             />
+            {temas.length > 0 && (
+              <SeccionDecoracion
+                tema={tema} temas={temas} onTema={setTema}
+                sinAplicar={sinAplicar} guardando={guardando} onAplicar={aplicar}
+              />
+            )}
             <SeccionTemporada onError={setError} />
             <SeccionPromociones benefits={benefits} setBenefits={setBenefits} onError={setError} />
             <SeccionPromocionModo promocion={promocion} onPromocion={setPromocion} onError={setError} />
@@ -329,7 +348,7 @@ export function Ajustes() {
           <VistaPrevia
             pieza={pieza} setPieza={setPieza}
             paleta={paleta} fuente={fuente} plantilla={plantilla} modo={modo} beneficios={beneficiosPreview}
-            promocion={promocion}
+            promocion={promocion} tema={tema}
           />
         </div>
       )}
@@ -927,6 +946,112 @@ function SeccionHorarios({ hours, setHours, locales, onError }: { hours: StoreHo
   </Tarjeta>;
 }
 
+/**
+ * EL TEMA DE LA PIEZA (24-nov-2026): la cinta de Black Friday, Navidad, Año
+ * Nuevo… o una a gusto. Solo cambia cómo se ve la cotización y las opciones
+ * (y el PDF, que es la misma imagen); los precios salen de Promociones.
+ */
+function SeccionDecoracion({ tema, temas, onTema, sinAplicar, guardando, onAplicar }: {
+  tema: ConfigTema; temas: TemaDisponible[]; onTema: (t: ConfigTema) => void;
+  sinAplicar: boolean; guardando: boolean; onAplicar: () => void;
+}) {
+  const p = tema.personalizado;
+  const cambiar = (campo: keyof DisenoDeTema, valor: string) =>
+    onTema({ id: "personalizado", personalizado: { ...p, [campo]: valor } });
+  const NOTA: Record<string, string> = {
+    automatico: "Como siempre: la franja del Black Friday sale sola mientras la promo corre",
+    ninguno: "Sin cinta",
+    personalizado: "Título, texto, colores y adorno a su gusto",
+  };
+  const seleccionado = temas.find((t) => t.id === tema.id);
+  return (
+    <Tarjeta
+      titulo="Tema de la cotización"
+      sub="La cinta de temporada que va arriba de la cotización, las opciones y el PDF. No cambia ningún precio: las promociones se prenden en la pestaña Promociones."
+      extra={
+        <button
+          onClick={onAplicar}
+          disabled={!sinAplicar || guardando}
+          className={`rounded-full px-4 py-2 text-[12px] font-semibold transition ${
+            sinAplicar ? "bg-[var(--color-ok)] text-[#06210f] hover:opacity-90" : "cursor-default bg-bg text-text2"
+          }`}
+        >
+          {guardando ? "Aplicando…" : sinAplicar ? "Aplicar cambios" : "Aplicado"}
+        </button>
+      }
+    >
+      <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {temas.map((t) => {
+          const d = t.id === "personalizado" ? p : t.diseno;
+          const activo = t.id === tema.id;
+          return (
+            <button
+              key={t.id} type="button" data-testid={`tema-${t.id}`}
+              onClick={() => onTema({ ...tema, id: t.id })}
+              className={`flex flex-col items-start gap-1.5 rounded-[6px] border px-3 py-2 text-left text-[12px] transition ${
+                activo ? "border-[var(--color-ok)] bg-bg font-semibold ring-1 ring-[var(--color-ok)]" : "border-line bg-bg"
+              }`}
+            >
+              {d ? (
+                <span className="flex h-6 w-full items-center gap-1 overflow-hidden rounded-[4px] px-2" style={{ backgroundColor: d.fondo }}>
+                  <span className="h-3 w-1.5 -skew-x-12" style={{ backgroundColor: d.acento }} />
+                  <span className="truncate text-[10px] font-black uppercase" style={{ color: d.texto }}>{d.titulo || " "}</span>
+                </span>
+              ) : (
+                <span className="flex h-6 w-full items-center rounded-[4px] border border-dashed border-line px-2 text-[10px] text-text2">
+                  {t.id === "automatico" ? "como siempre" : "sin cinta"}
+                </span>
+              )}
+              <span>{t.nombre}</span>
+              {NOTA[t.id] && <span className="text-[11px] font-normal text-text2">{NOTA[t.id]}</span>}
+            </button>
+          );
+        })}
+      </div>
+
+      {seleccionado?.diseno && tema.id !== "personalizado" && (
+        <button
+          type="button" className="mb-3 text-[12px] font-semibold underline"
+          onClick={() => onTema({ id: "personalizado", personalizado: { ...seleccionado.diseno! } })}
+        >
+          Editar «{seleccionado.nombre}» a mi gusto
+        </button>
+      )}
+
+      {tema.id === "personalizado" && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="flex flex-col gap-1 text-[12px]">
+            <span className="microlabel">Título (grande)</span>
+            <input className="rounded-[6px] border border-line bg-bg px-3 py-2 text-[13px]" maxLength={30}
+              value={p.titulo} onChange={(e) => cambiar("titulo", e.target.value)} data-testid="tema-titulo" />
+          </label>
+          <label className="flex flex-col gap-1 text-[12px]">
+            <span className="microlabel">Texto de abajo</span>
+            <input className="rounded-[6px] border border-line bg-bg px-3 py-2 text-[13px]" maxLength={60}
+              value={p.bajada} onChange={(e) => cambiar("bajada", e.target.value)} placeholder="Opcional" />
+          </label>
+          {([["fondo", "Color de la cinta"], ["texto", "Color del título"], ["acento", "Color del detalle"]] as const).map(([campo, rotulo]) => (
+            <label key={campo} className="flex items-center gap-2 text-[12px]">
+              <input type="color" className="h-8 w-10 cursor-pointer rounded border border-line bg-bg"
+                value={p[campo]} onChange={(e) => cambiar(campo, e.target.value)} />
+              <span>{rotulo}</span>
+            </label>
+          ))}
+          <label className="flex flex-col gap-1 text-[12px]">
+            <span className="microlabel">Adorno</span>
+            <select className="rounded-[6px] border border-line bg-bg px-3 py-2 text-[13px]"
+              value={p.adorno} onChange={(e) => cambiar("adorno", e.target.value)}>
+              <option value="rayas">Rayas en diagonal</option>
+              <option value="puntos">Puntos (nieve, confeti)</option>
+              <option value="ninguno">Ninguno</option>
+            </select>
+          </label>
+        </div>
+      )}
+    </Tarjeta>
+  );
+}
+
 function SeccionTema({
   paleta, fuente, paletas, fuentes, muestras, onPaleta, onFuente,
   plantilla, modo, plantillas, modos, onPlantilla, onModo,
@@ -1478,9 +1603,10 @@ function SeccionMarcas({ profiles, setProfiles, onError }: {
  * Vista previa. Re-renderiza con retardo para no disparar una imagen por cada
  * tecla mientras se escribe una promoción.
  */
-function VistaPrevia({ pieza, setPieza, paleta, fuente, plantilla, modo, beneficios, promocion }: {
+function VistaPrevia({ pieza, setPieza, paleta, fuente, plantilla, modo, beneficios, promocion, tema }: {
   pieza: string; setPieza: (p: string) => void;
   paleta: string; fuente: string; plantilla: string; modo: string; beneficios: string[]; promocion: string;
+  tema: ConfigTema;
 }) {
   // Con el modo automático se pueden ver las dos: la que sale ahora y la otra.
   const [verModo, setVerModo] = useState<"dia" | "noche">(() => modoDeAhora());
@@ -1490,7 +1616,8 @@ function VistaPrevia({ pieza, setPieza, paleta, fuente, plantilla, modo, benefic
   const [fallo, setFallo] = useState("");
   const objectUrl = useRef<string>("");
 
-  const clave = `${pieza}|${paleta}|${fuente}|${plantilla}|${modoPreview}|${promocion}|${beneficios.join("|")}`;
+  const temaJson = tema.id === "automatico" ? "" : JSON.stringify(tema);
+  const clave = `${pieza}|${paleta}|${fuente}|${plantilla}|${modoPreview}|${promocion}|${beneficios.join("|")}|${temaJson}`;
 
   useEffect(() => {
     let cancelado = false;
@@ -1501,6 +1628,7 @@ function VistaPrevia({ pieza, setPieza, paleta, fuente, plantilla, modo, benefic
         if (modoPreview) params.set("modo", modoPreview);
         if (promocion !== "porcentaje") params.set("promocion", promocion);
         if (beneficios.length) params.set("beneficios", beneficios.join("|"));
+        if (temaJson) params.set("tema", temaJson);
         // Misma credencial que el resto de la pantalla: con sesión de usuario
         // esto daba «Error 401» dentro del recuadro de la vista previa.
         const r = await fetch(`/api/pieces/preview.png?${params}`, {

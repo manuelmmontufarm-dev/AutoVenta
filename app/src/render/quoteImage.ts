@@ -15,6 +15,7 @@ import { medidaEstaPedida } from "../domain/medidaPedida.js";
 import { modoDePromocion } from "../domain/promocion.js";
 import { hastaEnPalabras, marcaConSegundaLlanta, segundaLlantaDe, type SegundaLlanta } from "../domain/promocionDeTemporada.js";
 import { politica } from "../negocio/politica.js";
+import type { ConfigDeTema } from "../domain/temaDePieza.js";
 import { garantiaDelPerfil, warrantyForBrand } from "../services/quoteMessages.js";
 import { loadFonts, loadFontsDiaNoche, productPhoto, type FontSpec, type RasterImage } from "./assets.js";
 import { DEFAULT_BRAND_PROFILES, resolveTheme, type SatoriNode, type Theme } from "./depotDesign.js";
@@ -108,6 +109,8 @@ export interface PieceTheme {
    * Final; por ahora la pasan explícita las pruebas y las vistas previas.
    */
   identidad?: string;
+  /** El tema (cinta de Navidad, Año Nuevo, personalizada…): `pieces_config.tema`. */
+  tema?: Partial<ConfigDeTema> | null;
 }
 
 function themeOf(data: PieceTheme): Theme {
@@ -238,6 +241,7 @@ export async function renderQuoteImage(data: QuoteRenderData): Promise<Buffer> {
           ? data.offerExpiresAt.toLocaleDateString("es-EC", { timeZone: "America/Guayaquil" })
           : null,
         benefits: data.benefits,
+        tema: data.tema,
       },
       resolverModo(data.modo, data.ahora),
     );
@@ -258,6 +262,7 @@ export async function renderQuoteImage(data: QuoteRenderData): Promise<Buffer> {
         ? data.offerExpiresAt.toLocaleDateString("es-EC", { timeZone: "America/Guayaquil" })
         : null,
       benefits: data.benefits,
+      tema: data.tema,
     },
     themeOf(data),
   );
@@ -336,6 +341,7 @@ export async function renderOptionsImage(data: OptionsRenderData): Promise<Buffe
         medidaConocida: Boolean(data.medidaPedida),
         benefits: data.benefits,
         identidad: data.identidad,
+        tema: data.tema,
       },
       resolverModo(data.modo, data.ahora),
     );
@@ -352,6 +358,7 @@ export async function renderOptionsImage(data: OptionsRenderData): Promise<Buffe
       lines,
       medidaConocida: Boolean(data.medidaPedida),
       benefits: data.benefits,
+      tema: data.tema,
     },
     themeOf(data),
   );
