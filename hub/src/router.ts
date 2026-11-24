@@ -7,6 +7,7 @@ export type Route =
   | { vista: "dashboard" }
   | { vista: "cotizador" }
   | { vista: "inventario" }
+  | { vista: "promociones" }
   | { vista: "validar" }
   | { vista: "avisos" }
   | { vista: "ajustes" }
@@ -22,6 +23,7 @@ function parse(): Route {
   if (seg === "dashboard") return { vista: "dashboard" };
   if (seg === "cotizador") return { vista: "cotizador" };
   if (seg === "inventario") return { vista: "inventario" };
+  if (seg === "promociones") return { vista: "promociones" };
   if (seg === "validar") return { vista: "validar" };
   if (seg === "avisos") return { vista: "avisos" };
   if (seg === "ajustes") return { vista: "ajustes" };

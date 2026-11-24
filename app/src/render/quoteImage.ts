@@ -6,6 +6,7 @@
  * marcas, bloques compartidos) y `depotPosters.ts` (las piezas). Este módulo
  * solo traduce el catálogo al diseño y rasteriza.
  */
+import { productoParaCantidad } from "../domain/promociones.js";
 import satori from "satori";
 import { renderAsync } from "@resvg/resvg-js";
 import { type CatalogAvailability, type CatalogItem } from "../domain/catalog.js";
@@ -162,7 +163,8 @@ function toPosterLine(
           temporada: {
             nombre: line.promocionDePrecio.nombre,
             bajada: null,
-            hasta: line.promocionDePrecio.vigenciaLarga.replace(/^hasta (?:el )?/, ""),
+            // Una promoción sin fecha de fin (pestaña Promociones) no dice «válido hasta».
+            hasta: line.promocionDePrecio.vigenciaLarga.replace(/^hasta (?:el )?/, "") || null,
             precioEspecial: true,
           },
         }
@@ -411,9 +413,13 @@ export async function renderPng(
  * garantía sale de la misma fuente que los mensajes de texto.
  */
 export async function toRenderLine(
-  product: CatalogItem,
+  producto: CatalogItem,
   quantity = 1,
 ): Promise<RenderLine> {
+  // Promoción por cantidad (pestaña Promociones: 4x3, precio por llanta…): con
+  // la cantidad en la mano la línea sale al precio de la promo, como cualquier
+  // llanta con precio de promoción. Sin promo o sin rebaja, es la misma llanta.
+  const product = productoParaCantidad(producto, quantity);
   const warranty = warrantyForBrand(product.brand);
   const pvp =
     product.customerPriceWithTax > product.minimumPriceWithTax

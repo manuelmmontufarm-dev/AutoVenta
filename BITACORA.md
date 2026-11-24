@@ -1,3 +1,26 @@
+## 24-nov-2026 · Panel + bot · Pestaña «Promociones»: el negocio arma sus promociones solo (rama `feat/promociones-autoservicio`)
+
+- **Qué:** pestaña nueva en el panel (escritorio, permiso «Ajustes»). Se elige el tipo, se le pone nombre, texto
+  extra y fechas, se baja un Excel con todo el stock y el precio de hoy, se llena, se sube, se ve cómo queda cada
+  llanta (precio tachado, precio de promo, %, y qué fila no entra y por qué) y se guarda. Después se prende y se
+  apaga con un interruptor, se le cambian fechas o llantas, o se quita (se archiva). Nueve tipos: precio de
+  promoción, % de descuento, $ de descuento, precio por llanta 1-2-3-4, lleva N paga M, la N.ª con descuento,
+  precio por par o juego, descuento por cantidad y regalo. Tabla `promociones` (migración 040).
+- **Cómo cuadran las cuentas:** toda promo termina en un precio por llanta sobre el mecanismo del precio tachado
+  del Black Friday de Competimotor, así que la pieza, el PDF, el texto, las cuotas y el Guardián leen la misma
+  cifra. Las que dependen de la cantidad se resuelven al cotizar (`productoParaCantidad`): total ÷ cantidad,
+  hacia abajo al centavo. Candados: precio menor que el de hoy, misma medida, dentro de fechas.
+- **Black Friday de Competimotor:** la lista del código se siembra una vez en la tabla; desde ahora la apaga o le
+  cambia la fecha el negocio. Si la base no contesta, el catálogo cae a la lista del código.
+- **Por qué:** Manuel, 24-nov: «la idea es que yo ya no haga las promociones sino ellos».
+- **Probado:** `promociones.test.ts` (35: cuentas de cada tipo, candados, fechas, Excel de ida y vuelta, pieza y
+  texto de los 8 tipos con precio); suite completa (las 4 rojas ya lo estaban en main; los hashes de las piezas
+  de Depot salen idénticos con y sin el cambio); simulador de Competimotor: Black Friday sembrado (27 llantas),
+  promo 4x3 creada con el Excel, el bot cotizó 4 Kenda KR20 205/55R16 a $74.17 c/u (antes $98.90, −25 %, total
+  $296.68) con lista, pieza y texto iguales y el Guardián aprobando; apagar y prender cambia el precio al momento.
+  Detalle en `docs/PROMOCIONES.md`.
+- **Horas:** 3
+
 ## 24-nov-2026 · Bot · Competimotor: de Black Friday queda solo el «cuadro rojo», hasta el 5-dic (rama `fix/black-friday-cuadro-rojo`)
 
 - **Qué:** la promoción por lista de Competimotor ahora cubre solo la sección «PROMOCIÓN TODO EL MES» del Excel

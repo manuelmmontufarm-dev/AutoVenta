@@ -3,7 +3,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { ConnectionChip, ConnectionGate, SalirButton, UserChip } from "./components/admin-key";
 import { hasAdminKey } from "./data/catalog";
 import { Confetti, Toasts } from "./components/overlays";
-import { IconAjustes, IconAlert, IconCampana, IconRefresh, IconChart, IconDiana, IconDoc, IconInbox, IconKanban, IconPhone, IconPlay, IconSilencio, IconSonido, IconStop, IconTire } from "./components/icons";
+import { IconAjustes, IconAlert, IconCampana, IconRefresh, IconChart, IconDiana, IconDoc, IconEtiqueta, IconInbox, IconKanban, IconPhone, IconPlay, IconSilencio, IconSonido, IconStop, IconTire } from "./components/icons";
 import { PageHeader } from "./components/ui";
 import { VersionBadge } from "./components/version-badge";
 import { setSonidoActivo, sonidoActivo, sonidoBoton } from "./lib/sound";
@@ -14,6 +14,7 @@ import { Dashboard } from "./screens/Dashboard";
 import { Cotizador } from "./screens/Cotizador";
 import { Inbox } from "./screens/Inbox";
 import { Inventario } from "./screens/Inventario";
+import { Promociones } from "./screens/Promociones";
 import { ParaCerrar } from "./screens/ParaCerrar";
 import { Pipeline } from "./screens/Pipeline";
 import { TicketDetail } from "./screens/TicketDetail";
@@ -38,6 +39,9 @@ import type { Permisos } from "./data/realSource";
 const NAV: readonly { id: string; label: string; icon: typeof IconInbox; requiere: "fase3" | null; soloEscritorio?: boolean }[] = [
   { id: "inbox", label: "Inbox", icon: IconInbox, requiere: null },
   { id: "inventario", label: "Inventario", icon: IconDoc, requiere: null },
+  // «Promociones» (24-nov): el negocio arma sus promos con un Excel de ida y
+  // vuelta. Es trabajo de escritorio y la barra del teléfono ya va llena.
+  { id: "promociones", label: "Promociones", icon: IconEtiqueta, requiere: null, soloEscritorio: true },
   // El tablero es de escritorio: en el teléfono no entra y nadie arrastra
   // tarjetas con el dedo (Manuel, 22-nov). `soloEscritorio` lo saca de la barra.
   { id: "pipeline", label: "Pipeline", icon: IconKanban, requiere: null, soloEscritorio: true },
@@ -63,6 +67,8 @@ const PERMISO_DE_VISTA: Record<string, keyof Permisos> = {
   "para-cerrar": "verKanban",
   cotizador: "usarCotizador",
   validar: "validarNumeros",
+  // Cambian el precio que cotiza el bot: las maneja quien entra a Ajustes.
+  promociones: "verAjustes",
   dashboard: "verMetricas",
   ajustes: "verAjustes",
 };
@@ -90,6 +96,7 @@ const TITULOS: Record<string, { titulo: string; sub: string }> = {
   avisos: { titulo: "Avisos", sub: "Lo que el bot le avisó al equipo, por día" },
   validar: { titulo: "Validar número", sub: "¿Este comprador vino por WhatsApp? Escriba su número y registre la factura" },
   inventario: { titulo: "Inventario", sub: "El Excel de Fénix con el que el bot cotiza: súbalo cada día" },
+  promociones: { titulo: "Promociones", sub: "Arme, prenda y apague sus promociones: el bot las cotiza solo" },
   settings: { titulo: "Configuración técnica", sub: "WhatsApp, encendido y manual del bot" },
   ticket: { titulo: "Conversación", sub: "" },
 };
@@ -387,6 +394,7 @@ export default function App() {
               {route.vista === "ajustes" && <Ajustes />}
               {route.vista === "cotizador" && phases.fase3 && <Cotizador />}
               {route.vista === "inventario" && <Inventario />}
+              {route.vista === "promociones" && <Promociones />}
               {route.vista === "validar" && <Validar />}
               {route.vista === "avisos" && <Avisos />}
               {route.vista === "settings" && <Settings />}

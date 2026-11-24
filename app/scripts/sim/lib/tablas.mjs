@@ -26,6 +26,9 @@ export const TABLAS_CONFIG = [
   "follow_up_templates",
   "follow_up_policies",
   "pending_discount_rules",
+  // Promociones que el negocio arma en el panel (24-nov-2026): cambian el
+  // precio que cotiza el bot, así que el simulador las copia.
+  "promociones",
 ];
 
 /** NO se copia: son clientes, conversaciones y su rastro. */

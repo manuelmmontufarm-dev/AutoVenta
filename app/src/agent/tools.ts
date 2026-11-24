@@ -93,6 +93,8 @@ import {
   cargaAlcanza, direccionPedida, direccionVigente, equivaleAAlguna, equivalenciaEnPulgadas, esEquivalente, ordenarPorCercania, porQueNoEquivale, pulgadasEquivalentes,
   requisitoDeCarga, respetaDireccion,
 } from "../domain/equivalencia.js";
+import { hechoDePromocionPorCantidad, productoParaCantidad, textosDeRegalos, type PromocionPorCantidad, type RegaloDePromocion } from "../domain/promociones.js";
+import { nombreConVigencia } from "../domain/preciosEspeciales.js";
 import { avisoDeMedidaEnOpciones, LINEA_SIN_STOCK_EXACTO, siguientePasoPorMedidaDistinta } from "../domain/equivalenciaEnTexto.js";
 import { CAMPO_EQUIVALENTES, equivalentesAMostrar, reglaDeMostrarEquivalentes } from "../domain/equivalentesPorMostrar.js";
 import { CAMPO_SIN_STOCK, REGLA_SIN_NO_HAY_VENDEDOR, type PedidoSinStock } from "../domain/sinNoHay.js";
@@ -2267,7 +2269,11 @@ export function buildTools(ctx: AgentContext) {
           regla: "Responde usando exactamente mensaje_para_enviar. NO llames generar_cotizacion ni vuelvas a llamar preparar_opciones: el cliente pidió más opciones y ya las vio todas.",
         });
       }
-      const products = porMarca ? porMarca.opciones : delUso.length > 3 ? tresOpciones(delUso) : delUso;
+      // Promociones por cantidad del panel (4x3, precio por llanta…): la lámina
+      // y la lista muestran el precio de la cantidad que se está cotizando, el
+      // mismo que después firma la cotización. Sin promo, es la misma llanta.
+      const products = (porMarca ? porMarca.opciones : delUso.length > 3 ? tresOpciones(delUso) : delUso)
+        .map((p) => productoParaCantidad(p, cantidadResuelta.cantidad));
 
       // CANDADO 3 — la medida de lo que se enseña. El 13-ago (chat 5499) el
       // cliente pidió 265/70R16 y esta pieza salió con 215/60R16, 245/70R16 y
@@ -3697,11 +3703,21 @@ export function buildTools(ctx: AgentContext) {
         // contesta, queda el del último barrido y la cotización sale igual.
         await refreshPriceForSize(product.sizeLabel ?? "");
         const vivo = getInterbotPrice(product.code);
-        const hoyConIva = vivo
+        const delSistema = vivo
           ? (vivo.tienePromo && vivo.precioPromoConIva ? vivo.precioPromoConIva : vivo.pvpMinConIva)
           : product.minimumPriceWithTax;
-        const antesConIva =
-          vivo && vivo.pvpFullConIva > hoyConIva ? vivo.pvpFullConIva : product.customerPriceWithTax;
+        // PROMOCIONES DEL PANEL (24-nov-2026). `conPromo` es la misma llanta
+        // con el precio de su promoción para ESTA cantidad (pareja o por
+        // cantidad: 4x3, precio por llanta…). Si esa promo la deja más barata
+        // que lo que dice el sistema en vivo, se firma con ella; el precio en
+        // vivo del Interbot no la pisa.
+        const conPromo = productoParaCantidad(product, item.cantidad);
+        const promoDelPanel = conPromo.promocionDePrecio?.promocionId !== undefined
+          && conPromo.minimumPriceWithTax < delSistema;
+        const hoyConIva = promoDelPanel ? conPromo.minimumPriceWithTax : delSistema;
+        const antesConIva = promoDelPanel
+          ? Math.max(conPromo.customerPriceWithTax, vivo?.pvpFullConIva ?? 0)
+          : vivo && vivo.pvpFullConIva > hoyConIva ? vivo.pvpFullConIva : product.customerPriceWithTax;
         // Black Friday (nov-2026): en Falken/Kenda el 60 % de las pares
         // REEMPLAZA el −25 % del catálogo (Manuel, 6-nov): la línea se firma al
         // precio de LISTA y las pares van a lista × 0,4. Null fuera de fechas,
@@ -3784,8 +3800,11 @@ export function buildTools(ctx: AgentContext) {
       // en el aviso al asesor. Conservando el sufijo entero es único por
       // construcción.
       const saleNumber = `AV-${quote.number.replace(/^COT-/, "")}`;
-      const [product] = await resolvePresentedProduct(ctx.conversation.id, items[0].code);
-      if (!product) throw new Error("La opción confirmada dejó de ser inequívoca; vuelve a mostrar las opciones antes de cotizar");
+      const [productoDelCatalogo] = await resolvePresentedProduct(ctx.conversation.id, items[0].code);
+      if (!productoDelCatalogo) throw new Error("La opción confirmada dejó de ser inequívoca; vuelve a mostrar las opciones antes de cotizar");
+      // Con la promoción por cantidad del panel ya aplicada para esta cantidad:
+      // la pieza y el texto leen el mismo precio que se firmó arriba.
+      const product = productoParaCantidad(productoDelCatalogo, items[0].cantidad);
 
       // Los números que el cliente lee en el chat salen de la MISMA cotización
       // que se firma, no del catálogo en memoria. `lines[0]` ya trae el precio
@@ -3804,10 +3823,11 @@ export function buildTools(ctx: AgentContext) {
 
       // Los mismos beneficios que van en el texto van dibujados en la pieza,
       // filtrados por marca y cantidad de esta compra concreta.
-      const beneficiosPieza = await applicableBenefitTexts({
-        brands: [product.brand],
-        quantity: items[0].cantidad,
-      });
+      const beneficiosPieza = [
+        ...await applicableBenefitTexts({ brands: [product.brand], quantity: items[0].cantidad }),
+        // Regalos de la pestaña Promociones: van dibujados con los demás beneficios.
+        ...textosDeRegalos(product),
+      ];
 
       // Imagen de cotización (pieza principal); PDF si lo piden o si falla.
       const imageName = `Cotizacion-${business.name.replace(/\s/g, "")}-${quote.number}.png`;
@@ -4751,7 +4771,9 @@ export function toolItem(item: {
   minimumPriceWithTax?: number;
   stock: number;
   availability?: string;
-  promocionDePrecio?: { nombre: string; vigenciaCorta: string } | null;
+  promocionDePrecio?: { nombre: string; vigenciaCorta: string; detalle?: string | null } | null;
+  promocionPorCantidad?: PromocionPorCantidad;
+  regalosDePromocion?: RegaloDePromocion[];
   preciosPorPago?: { tarjetaConIva: number; efectivoConIva: number };
 }, cantidad: number = politica.juegoCompleto) {
   // El tipo (H/T, A/T, R/T…) no viene de Contífico: sale de la base que entregó
@@ -4793,7 +4815,16 @@ export function toolItem(item: {
     // hoy ya es el de la promo y el de lista el de siempre. Solo viaja si la
     // llanta lo lleva: el ítem de Depot queda idéntico.
     ...(item.promocionDePrecio
-      ? { promocion: `${item.promocionDePrecio.nombre} ${item.promocionDePrecio.vigenciaCorta}: precio_hoy_con_iva ya es el de la promoción` }
+      ? { promocion: `${nombreConVigencia(item.promocionDePrecio)}${item.promocionDePrecio.detalle ? ` (${item.promocionDePrecio.detalle})` : ""}: precio_hoy_con_iva ya es el de la promoción` }
+      : {}),
+    // Promoción por cantidad del panel (4x3, precio por llanta 1-2-3-4, por
+    // juego…): precio_hoy_con_iva es el precio NORMAL; la cotización aplica la
+    // promo sola según cuántas lleve. Acá van la regla y la cifra de cada cantidad.
+    ...(item.promocionPorCantidad
+      ? { promocion_por_cantidad: `${hechoDePromocionPorCantidad(item.promocionPorCantidad)}. Dísela al cliente con la cifra de SU cantidad; no inventes otra.` }
+      : {}),
+    ...(item.regalosDePromocion?.length
+      ? { regalo_de_promocion: item.regalosDePromocion.map((r) => `${nombreConVigencia(r)}: ${r.texto}`).join(" · ") }
       : {}),
     // Cotiza con tarjeta (Competimotor): el precio de hoy ES el de tarjeta; en
     // efectivo o transferencia, este (nunca más caro que el de hoy).

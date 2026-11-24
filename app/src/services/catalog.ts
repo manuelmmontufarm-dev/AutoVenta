@@ -21,6 +21,8 @@ import { ordenarPorCercania, type Direccion } from "../domain/equivalencia.js";
 import { mencionaProducto } from "../domain/guardianNoVendeSolo.js";
 import { formatTireSize, type TireSize } from "../domain/tireSize.js";
 import { aplicarPreciosEspeciales, msHastaElProximoCambio } from "../domain/preciosEspeciales.js";
+import { aplicarPromociones, msHastaElProximoCambioDePromociones, preciosBaseDe, type PrecioBase, type Promocion } from "../domain/promociones.js";
+import { promocionesParaElCatalogo } from "./promociones.js";
 import { politica } from "../negocio/politica.js";
 import { fuenteDeCatalogo, type IdFuente } from "./fuentes/index.js";
 import {
@@ -90,17 +92,32 @@ export async function syncCatalog(): Promise<SyncReport> {
       }
       const resultado = await fuente.sincronizar();
       if (fuente.id === "contifico") applyInterbotPrices(resultado.items);
-      // Precios de promoción por código (Black Friday de Competimotor,
-      // 20-nov-2026). Sin lista (Depot) o fuera de fechas no toca nada; cada
+      // La foto de precios ANTES de toda promoción: de aquí sale el Excel que
+      // el negocio baja en la pestaña Promociones y la base de sus cuentas.
+      const bases = preciosBaseDe(resultado.items);
+      const { promos, politicaSembrada } = await promocionesParaElCatalogo();
+      // Precios de promoción por código escritos en el código (Black Friday de
+      // Competimotor, 20-nov-2026). Desde el 24-nov esa lista se siembra en la
+      // tabla `promociones` y la maneja el negocio; acá solo se aplica directo
+      // mientras no esté sembrada (o si la base no contesta). Cada
       // sincronización arma el catálogo de cero, así que vencida desaparece.
-      if (politica.preciosEspeciales) {
+      if (politica.preciosEspeciales && !politicaSembrada) {
         const promo = aplicarPreciosEspeciales(resultado.items, politica.preciosEspeciales);
         if (promo.aplicadas || promo.omitidas.length) {
           console.log(`🖤 ${politica.preciosEspeciales.nombre}: ${promo.aplicadas} llantas con precio especial`
             + (promo.omitidas.length ? `, ${promo.omitidas.length} sin aplicar (${promo.omitidas.slice(0, 5).map((o) => `${o.codigo}: ${o.motivo}`).join("; ")})` : ""));
         }
-        programarCambioDePrecios();
       }
+      // Las promociones que el negocio arma en el panel (pestaña Promociones).
+      for (const informe of aplicarPromociones(resultado.items, promos, new Date(), bases)) {
+        const firma = `${informe.promocionId}:${informe.aplicadas}:${informe.omitidas.length}`;
+        if (firmasDePromociones.get(informe.promocionId) === firma) continue;
+        firmasDePromociones.set(informe.promocionId, firma);
+        console.log(`🏷️ Promoción «${informe.nombre}»: ${informe.aplicadas} llantas`
+          + (informe.omitidas.length ? `, ${informe.omitidas.length} sin aplicar (${informe.omitidas.slice(0, 5).map((o) => `${o.codigo}: ${o.motivo}`).join("; ")})` : ""));
+      }
+      programarCambioDePrecios(promos, politicaSembrada);
+      preciosBase = bases;
       items = resultado.items;
       cargarArosDelCatalogo(resultado.aros);
       lastReport = resultado.report;
@@ -122,18 +139,36 @@ export async function syncCatalog(): Promise<SyncReport> {
  * saldría con Black Friday. Un solo temporizador, para el próximo cambio.
  */
 let cambioProgramado: ReturnType<typeof setTimeout> | null = null;
-function programarCambioDePrecios(): void {
-  if (cambioProgramado) return;
-  const ms = msHastaElProximoCambio(politica.preciosEspeciales);
+function programarCambioDePrecios(promos: readonly Promocion[], politicaSembrada: boolean): void {
+  // Se reprograma en cada sincronización: las promociones del panel cambian
+  // de fechas sin reiniciar el proceso.
+  if (cambioProgramado) clearTimeout(cambioProgramado);
+  cambioProgramado = null;
+  const candidatos = [
+    politicaSembrada ? null : msHastaElProximoCambio(politica.preciosEspeciales),
+    msHastaElProximoCambioDePromociones(promos),
+  ].filter((ms): ms is number => ms !== null);
+  if (!candidatos.length) return;
+  const ms = Math.min(...candidatos);
   // setTimeout no acepta más de ~24,8 días: si falta más, lo reprograma la
   // sincronización de cada 5 minutos cuando ya quepa.
-  if (ms === null || ms > 2_000_000_000) return;
+  if (ms > 2_000_000_000) return;
   cambioProgramado = setTimeout(() => {
     cambioProgramado = null;
-    console.log(`🖤 ${politica.preciosEspeciales?.nombre ?? "Precios especiales"}: cambio de vigencia, se vuelve a armar el catálogo.`);
+    console.log("🏷️ Cambio de vigencia de una promoción: se vuelve a armar el catálogo.");
     void syncCatalog().catch(() => undefined);
   }, ms);
   cambioProgramado.unref?.();
+}
+
+/** Lo que cada promoción aplicó la última vez, para no repetir el log cada 5 minutos. */
+const firmasDePromociones = new Map<number, string>();
+/** Los precios de hoy antes de toda promoción (ver `syncCatalog`). */
+let preciosBase: ReadonlyMap<string, PrecioBase> = new Map();
+
+/** Las llantas de hoy y sus precios sin promociones: lo que necesita la pestaña Promociones. */
+export function catalogoParaPromociones(): { items: readonly CatalogItem[]; bases: ReadonlyMap<string, PrecioBase> } {
+  return { items, bases: preciosBase };
 }
 
 export async function ensureCatalogReady(): Promise<SyncReport> {
