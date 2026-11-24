@@ -19,6 +19,7 @@ import {
   reglaEnPalabras, tipoParaElPanel,
   type EstadoDePromocion, type FilaDePromocion, type ParametrosDePromocion, type PrecioBase, type Promocion,
   type TipoDePromocion,
+  descuentoParaTodas,
 } from "../domain/promociones.js";
 import { filasDelArchivo, numeroDelArchivo } from "./fuentes/archivo.js";
 
@@ -131,12 +132,13 @@ export function parametrosLimpios(tipo: TipoDePromocion, p: ParametrosDePromocio
     };
   }
   if (tipo === "regalo") return { regalo: String(p.regalo ?? "").replace(/\s+/g, " ").trim().slice(0, TEXTO_MAXIMO) };
+  if (tipo === "porcentaje" && p.todas === true) return { todas: true, porcentaje: n(p.porcentaje) };
   return {};
 }
 
 export async function crearPromocion(datos: DatosDePromocion, filas: FilaDePromocion[], quien: string | null, origen = "panel"): Promise<Promocion> {
   const d = datosValidados(datos);
-  if (!filas.length) throw new PromocionInvalida("La promoción no tiene ninguna llanta: suba el Excel lleno.");
+  if (!filas.length && !d.parametros.todas) throw new PromocionInvalida("La promoción no tiene ninguna llanta: suba el Excel lleno.");
   const [fila] = await sql<FilaDeLaBase[]>`
     insert into promociones (nombre, tipo, texto_extra, activa, desde, hasta, parametros, filas, origen, creada_por)
     values (${d.nombre}, ${d.tipo}, ${d.textoExtra}, ${d.activa}, ${d.desde}, ${d.hasta},
@@ -164,7 +166,7 @@ export async function actualizarPromocion(
     parametros: cambios.parametros ?? actual.parametros,
   });
   const filas = cambios.filas ?? actual.filas;
-  if (!filas.length) throw new PromocionInvalida("La promoción no tiene ninguna llanta: suba el Excel lleno.");
+  if (!filas.length && !d.parametros.todas) throw new PromocionInvalida("La promoción no tiene ninguna llanta: suba el Excel lleno.");
   const [fila] = await sql<FilaDeLaBase[]>`
     update promociones set nombre = ${d.nombre}, texto_extra = ${d.textoExtra}, activa = ${d.activa},
       desde = ${d.desde}, hasta = ${d.hasta}, parametros = ${sql.json(d.parametros as never)},
@@ -199,7 +201,13 @@ function recordar(promos: Promocion[] | null): void {
  * directo, para que una caída de la base no apague el Black Friday. Si ya se
  * habían cargado, se usan las últimas.
  */
-export async function promocionesParaElCatalogo(): Promise<{ promos: Promocion[]; deLaBase: boolean; politicaSembrada: boolean }> {
+export async function promocionesParaElCatalogo(): Promise<{
+  promos: Promocion[];
+  deLaBase: boolean;
+  politicaSembrada: boolean;
+  /** % que se descuenta a todas las llantas hoy (el «Descuento de siempre»). */
+  descuentoDeSiempre: number;
+}> {
   try {
     const promos = await listarPromociones();
     const lista = politica.preciosEspeciales;
@@ -207,13 +215,58 @@ export async function promocionesParaElCatalogo(): Promise<{ promos: Promocion[]
     const [sembrada] = lista
       ? await sql<{ id: number }[]>`select id from promociones where origen = ${`politica:${lista.nombre}`} limit 1`
       : [];
+    const [descuentoSembrado] = politica.descuentoDeSiempre
+      ? await sql<{ id: number }[]>`select id from promociones where origen = ${ORIGEN_DESCUENTO_DE_SIEMPRE} limit 1`
+      : [];
     recordar(promos);
     politicaYaSembrada = Boolean(sembrada);
-    return { promos, deLaBase: true, politicaSembrada: politicaYaSembrada };
+    descuentoYaSembrado = Boolean(descuentoSembrado);
+    return { promos, deLaBase: true, politicaSembrada: politicaYaSembrada, descuentoDeSiempre: descuentoDeHoy(promos, descuentoYaSembrado) };
   } catch (error) {
-    if (cargadas) return { promos: cargadas, deLaBase: true, politicaSembrada: politicaYaSembrada };
+    if (cargadas) {
+      return { promos: cargadas, deLaBase: true, politicaSembrada: politicaYaSembrada, descuentoDeSiempre: descuentoDeHoy(cargadas, descuentoYaSembrado) };
+    }
     console.warn("⚠️ No se pudieron leer las promociones de la base:", error instanceof Error ? error.message : error);
-    return { promos: [], deLaBase: false, politicaSembrada: false };
+    // Una caída de la base no le quita a Depot su precio de hoy.
+    return { promos: [], deLaBase: false, politicaSembrada: false, descuentoDeSiempre: descuentoDeHoy([], false) };
+  }
+}
+
+export const ORIGEN_DESCUENTO_DE_SIEMPRE = "politica:descuento-de-siempre";
+let descuentoYaSembrado = false;
+
+/**
+ * Sin sembrar (o sin base), manda el de la política; sembrado, manda el panel:
+ * apagado, vencido o quitado = 0 %, aunque la política diga 25.
+ */
+function descuentoDeHoy(promos: readonly Promocion[], sembrado: boolean): number {
+  const dePolitica = politica.descuentoDeSiempre?.porcentaje ?? 0;
+  if (!dePolitica) return descuentoParaTodas(promos);
+  return sembrado ? descuentoParaTodas(promos) : dePolitica;
+}
+
+/**
+ * EL DESCUENTO DE SIEMPRE PASA AL PANEL, UNA VEZ (24-nov-2026). Depot daba
+ * −25 % en todas las llantas, escondido en el «precio mínimo» del Interbot.
+ * Ahora es una promoción «para todas» que el negocio ve, apaga y prende. No se
+ * vuelve a sembrar aunque la quiten (el índice único de `origen`).
+ */
+export async function sembrarDescuentoDeSiempre(): Promise<void> {
+  const d = politica.descuentoDeSiempre;
+  if (!d) return;
+  try {
+    const [ya] = await sql<{ id: number }[]>`select id from promociones where origen = ${ORIGEN_DESCUENTO_DE_SIEMPRE} limit 1`;
+    if (ya) return;
+    await sql`
+      insert into promociones (nombre, tipo, texto_extra, activa, desde, hasta, parametros, filas, origen, creada_por)
+      values (${d.nombre}, 'porcentaje', null, true, null, null,
+              ${sql.json({ todas: true, porcentaje: d.porcentaje } as never)}, '[]'::jsonb, ${ORIGEN_DESCUENTO_DE_SIEMPRE}, 'AutoVenta')
+      on conflict do nothing
+    `;
+    recordar(null);
+    console.log(`🏷️ «${d.nombre}» (−${d.porcentaje} % en todas las llantas) pasado a la pestaña Promociones.`);
+  } catch (error) {
+    console.warn("⚠️ No se pudo sembrar el descuento de siempre:", error instanceof Error ? error.message : error);
   }
 }
 
@@ -351,13 +404,14 @@ export function paraElPanel(
     : promo.tipo === "enesima" ? (p.porcentaje! >= 100 ? `La ${p.posicion}.ª llanta gratis` : `${p.porcentaje} % menos en la ${p.posicion}.ª llanta`)
     : promo.tipo === "escalonado" ? (p.escalones ?? []).map((e) => `${e.desde}+ llantas: ${e.porcentaje} %`).join(" · ")
     : promo.tipo === "regalo" ? (p.regalo ?? null)
+    : p.todas ? `${p.porcentaje} % menos en todas las llantas`
     : null;
   return {
     ...resto,
     estado: estadoDePromocion(promo),
     tipoNombre: tipoParaElPanel(promo.tipo).nombre,
-    llantas: promo.filas.length,
-    entranHoy: vista.entran.length,
+    llantas: p.todas ? items.length : promo.filas.length,
+    entranHoy: p.todas ? items.length : vista.entran.length,
     noEntranHoy: vista.noEntran.length,
     resumen,
   };

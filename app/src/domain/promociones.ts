@@ -52,6 +52,13 @@ export interface ParametrosDePromocion {
   escalones?: Array<{ desde: number; porcentaje: number }>;
   /** regalo: lo que se lleva («alineación gratis»). */
   regalo?: string;
+  /**
+   * porcentaje: `todas` = el `porcentaje` va a TODAS las llantas del inventario,
+   * sin Excel (el «Descuento de siempre» de Depot, 24-nov-2026). No es una
+   * promo como las demás: baja el PRECIO DE HOY de cada llanta (sin rótulo de
+   * promoción) y las promos del panel se cuentan sobre ese precio.
+   */
+  todas?: boolean;
 }
 
 /** Una llanta de la promoción, como quedó guardada. */
@@ -355,6 +362,7 @@ export function errorDeParametros(tipo: TipoDePromocion, p: ParametrosDePromocio
     if (new Set(e.map((x) => x.desde)).size !== e.length) return "Hay dos escalones para la misma cantidad.";
   }
   if (tipo === "regalo" && !(p.regalo ?? "").trim()) return "Escriba qué se lleva de regalo.";
+  if (tipo === "porcentaje" && p.todas && !entre(p.porcentaje, 1, 99)) return "El porcentaje tiene que estar entre 1 y 99.";
   return null;
 }
 
@@ -470,6 +478,19 @@ export interface InformeDeAplicacion {
 
 const clave = (codigo: string) => codigo.trim().toLowerCase();
 
+/** ¿Es el descuento para todas las llantas (sin Excel)? */
+export const esParaTodas = (p: Pick<Promocion, "tipo" | "parametros">): boolean =>
+  p.tipo === "porcentaje" && p.parametros.todas === true;
+
+/**
+ * EL DESCUENTO DE SIEMPRE, HOY. El % de la promoción «para todas» vigente (la
+ * más nueva si hubiera dos), o 0 si está apagada, vencida o archivada.
+ */
+export function descuentoParaTodas(promos: readonly Promocion[], ahora: Date = new Date()): number {
+  const vigente = promos.find((p) => esParaTodas(p) && promocionVigente(p, ahora));
+  return vigente && entre(vigente.parametros.porcentaje, 0, 99) ? vigente.parametros.porcentaje! : 0;
+}
+
 /** La foto de precios antes de aplicar promociones (para el Excel y las cuentas). */
 export function preciosBaseDe(items: readonly CatalogItem[]): Map<string, PrecioBase> {
   return new Map(items.map((i) => [clave(i.code), { hoy: i.minimumPriceWithTax, lista: Math.max(i.customerPriceWithTax, i.minimumPriceWithTax) }]));
@@ -491,6 +512,8 @@ export function aplicarPromociones(
   const informes: InformeDeAplicacion[] = [];
   for (const promo of promos) {
     if (!promocionVigente(promo, ahora)) continue;
+    // El descuento para todas ya está dentro del precio de hoy (`descuentoParaTodas`).
+    if (esParaTodas(promo)) continue;
     const informe: InformeDeAplicacion = { promocionId: promo.id, nombre: promo.nombre, aplicadas: 0, omitidas: [] };
     const vigencia = vigenciaEnPalabras(promo.hasta);
     const hastaIso = promo.hasta ? finDelDiaIso(promo.hasta) : SIN_FIN_ISO;

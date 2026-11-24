@@ -9,14 +9,14 @@
 import { sql } from "../db/client.js";
 import { preciosPorCantidad } from "../domain/promociones.js";
 import { findByCode } from "./catalog.js";
-import { getInterbotPrice } from "./interbotPrices.js";
+import { precioDeVenta } from "./precioDeVenta.js";
 import { createBotAlert } from "./followUps.js";
 import { montosViejosDeLaCotizacion, sinMontosViejos, type CotizacionFirmada, type PreciosDeHoy } from "../domain/precioViejo.js";
 
 export function preciosDeHoy(codigo: string): PreciosDeHoy | null {
   const producto = findByCode(codigo);
   if (!producto) return null;
-  const vivo = getInterbotPrice(codigo);
+  const vivo = precioDeVenta(codigo, producto.sourcePrice);
   return [
     producto.minimumPriceWithTax,
     // Con precio de promoción por código (Black Friday de Competimotor), el de

@@ -37,7 +37,7 @@ import { arosDelCatalogo } from "../domain/aroProducto.js";
 import { herramientasDeAros } from "./herramientasAros.js";
 import { alcanzaParaVender, avisoStockCorto, recordatorioStockCorto } from "../domain/stockCorto.js";
 import { faltanteDeLaCotizacionVigente } from "../services/stockCorto.js";
-import { getInterbotPrice, refreshPriceForSize } from "../services/interbotPrices.js";
+import { confirmarPrecioDeMedida, precioDeVenta } from "../services/precioDeVenta.js";
 import {
   buildQuote,
   pngToQuotePdf,
@@ -2509,8 +2509,10 @@ export function buildTools(ctx: AgentContext) {
       // van a salir dibujados. Es la MISMA fuente y el MISMO momento que usa la
       // cotización, así que los dos números coinciden por construcción.
       const medidasAConfirmar = [...new Set(products.map((p) => p.sizeLabel).filter(Boolean))] as string[];
-      await Promise.all(medidasAConfirmar.map((medida) => refreshPriceForSize(medida)));
-      applyInterbotPrices(products);
+      await Promise.all(medidasAConfirmar.map((medida) => confirmarPrecioDeMedida(medida)));
+      // Volver a poner el precio borraba de la pieza las promociones del panel
+      // (24-nov): con `conPromociones` se montan otra vez encima, como en el catálogo.
+      applyInterbotPrices(products, { conPromociones: true });
 
       // La recomendación tiene que ser una de las opciones mostradas. Si el
       // modelo apunta a otra cosa, se cae a la primera en vez de recomendar algo
@@ -3701,8 +3703,10 @@ export function buildTools(ctx: AgentContext) {
         // servidor); ahora el barrido solo refresca la vitrina y el número que
         // firma la cotización se pregunta en el momento. Si el Interbot no
         // contesta, queda el del último barrido y la cotización sale igual.
-        await refreshPriceForSize(product.sizeLabel ?? "");
-        const vivo = getInterbotPrice(product.code);
+        // Desde el 24-nov la lista es la de Contífico (empresa que factura),
+        // con el Interbot de respaldo, y «hoy» = lista − Descuento de siempre.
+        await confirmarPrecioDeMedida(product.sizeLabel ?? "");
+        const vivo = precioDeVenta(product.code, product.sourcePrice);
         const delSistema = vivo
           ? (vivo.tienePromo && vivo.precioPromoConIva ? vivo.precioPromoConIva : vivo.pvpMinConIva)
           : product.minimumPriceWithTax;

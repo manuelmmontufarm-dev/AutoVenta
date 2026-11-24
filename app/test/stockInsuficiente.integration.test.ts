@@ -64,7 +64,7 @@ vi.mock("../src/services/catalog.js", async () => {
 // El precio del Interbot no es lo que se prueba aquí: sin respuesta viva, el
 // precio que firma la cotización es el del catálogo, que es determinístico.
 vi.mock("../src/services/interbotPrices.js", () => ({
-  refreshPriceForSize: async () => undefined,
+  refreshPriceForSize: async () => undefined, interbotDisponible: () => false,
   getInterbotPrice: () => undefined,
 }));
 
