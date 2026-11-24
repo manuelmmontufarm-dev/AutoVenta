@@ -1,3 +1,13 @@
+## 24-nov-2026 · Panel · Menú: «Herramientas» agrupa Inventario, Promociones, Validar y Cotizador (rama `feat/menu-herramientas`)
+
+- **Qué:** en la computadora el menú queda Inbox, Pipeline, Para cerrar, Métricas y, al final, un grupo
+  «Herramientas» que se despliega con Inventario, Promociones, Validar y Cotizador (recuerda si quedó abierto y se
+  abre solo al entrar a una de ellas). En el teléfono ya no salen Inventario ni Promociones (Cotizador y Pipeline
+  ya no salían); el aviso de inventario viejo dice «Se sube desde la computadora» en vez de llevar a la pantalla.
+- **Por qué:** Manuel, 24-nov: esas no se miran todo el tiempo y el menú se aplastaba.
+- **Probado:** `tsc` y build del hub; en el navegador, escritorio (grupo plegado y desplegado) y teléfono.
+- **Horas:** 0,3
+
 ## 24-nov-2026 · Panel + bot · Pestaña «Promociones»: el negocio arma sus promociones solo (rama `feat/promociones-autoservicio`)
 
 - **Qué:** pestaña nueva en el panel (escritorio, permiso «Ajustes»). Se elige el tipo, se le pone nombre, texto
