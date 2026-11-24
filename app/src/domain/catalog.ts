@@ -64,7 +64,22 @@ export interface CatalogItem {
    * `minimumPriceWithTax` es el precio de la promo y `customerPriceWithTax` el
    * de siempre (el tachado). Sin ella, nada cambia.
    */
-  promocionDePrecio?: { nombre: string; hasta: string; vigenciaLarga: string; vigenciaCorta: string };
+  promocionDePrecio?: {
+    nombre: string; hasta: string; vigenciaLarga: string; vigenciaCorta: string;
+    /** La regla o el texto libre del negocio («4x3: lleva 4 y paga 3»). Pestaña Promociones. */
+    detalle?: string | null;
+    /** La promoción de la pestaña Promociones de la que sale. */
+    promocionId?: number;
+  };
+  /**
+   * Promoción POR CANTIDAD de la pestaña Promociones (4x3, precio por llanta
+   * 1-2-3-4, por juego…): el precio depende de cuántas lleva, así que no se
+   * aplica acá sino al cotizar (`productoParaCantidad`). `minimumPriceWithTax`
+   * sigue siendo el precio normal.
+   */
+  promocionPorCantidad?: import("./promociones.js").PromocionPorCantidad;
+  /** Regalos o beneficios de la pestaña Promociones: no cambian el precio. */
+  regalosDePromocion?: import("./promociones.js").RegaloDePromocion[];
 }
 
 const PRICE_TIERS: PriceTier[] = ["pvp1", "pvp2", "pvp3", "pvp4"];

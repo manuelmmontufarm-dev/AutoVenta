@@ -31,6 +31,8 @@ export interface PromocionDePrecio {
   hasta: string;
   vigenciaLarga: string;
   vigenciaCorta: string;
+  /** La regla o el texto libre del negocio (pestaña Promociones). */
+  detalle?: string | null;
 }
 
 /** ¿La lista rige en este instante? */
@@ -108,7 +110,18 @@ export function aplicarPreciosEspeciales(
   return resultado;
 }
 
-/** «Black Friday hasta el lunes 30-nov»: la línea del texto de la cotización. */
+/**
+ * «🖤 *Black Friday* hasta el lunes 30-nov»: la línea del texto de la cotización.
+ * El corazón negro es del Black Friday; cualquier otra promoción lleva la
+ * etiqueta. Con `detalle` (la regla o el texto del negocio) va detrás.
+ */
 export function lineaDePromocionDePrecio(promo: PromocionDePrecio | null | undefined): string | null {
-  return promo ? `🖤 *${promo.nombre}* ${promo.vigenciaCorta}` : null;
+  if (!promo) return null;
+  const icono = /black/i.test(promo.nombre) ? "🖤" : "🏷️";
+  return [`${icono} *${promo.nombre}*`, promo.vigenciaCorta, promo.detalle ? `· ${promo.detalle}` : ""].filter(Boolean).join(" ");
+}
+
+/** «Black Friday hasta el sábado 5-dic»: nombre y vigencia, sin espacio de más si no tiene fin. */
+export function nombreConVigencia(promo: { nombre: string; vigenciaCorta: string }): string {
+  return [promo.nombre, promo.vigenciaCorta].filter(Boolean).join(" ");
 }

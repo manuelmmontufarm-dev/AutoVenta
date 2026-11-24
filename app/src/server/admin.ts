@@ -6,6 +6,7 @@
  * x-admin-key (las páginas del hub piden la clave una vez y la recuerdan).
  * Sin ADMIN_KEY la API queda abierta — solo aceptable durante el piloto.
  */
+import { randomBytes } from "node:crypto";
 import express from "express";
 import { tel9 } from "../services/fuentes/contifico.js";
 import { miVentana } from "../services/ventanaDelAsesor.js";
@@ -55,7 +56,14 @@ import {
   findById,
   findByCode,
   searchByText,
+  catalogoParaPromociones,
+  syncCatalog,
 } from "../services/catalog.js";
+import { TIPOS_DE_PROMOCION, TIPOS_PARA_EL_PANEL, errorDeParametros, productoParaCantidad, textosDeRegalos, tipoParaElPanel, type FilaDePromocion, type TipoDePromocion } from "../domain/promociones.js";
+import {
+  PromocionInvalida, actualizarPromocion, archivarPromocion, crearPromocion, excelDePromocion, leerExcelDePromocion,
+  leerPromocion, listarPromociones, paraElPanel, parametrosLimpios, vistaPreviaDe,
+} from "../services/promociones.js";
 import {
   buildQuote,
   renderComparisonPdf,
@@ -1778,7 +1786,7 @@ export function createAdminRouter(): express.Router {
         subtotal: quote.subtotal,
         iva: quote.tax,
         total: quote.total,
-        benefits: await applicableBenefitTexts({ brands: [product.brand], quantity }),
+        benefits: [...await applicableBenefitTexts({ brands: [product.brand], quantity }), ...textosDeRegalos(product)],
         ...(await temaDePiezas()),
       });
       enviarPng(res, png, `Cotizacion-${business.name.replace(/\s/g, "")}-${quote.number}.png`);
@@ -1865,7 +1873,7 @@ export function createAdminRouter(): express.Router {
           subtotal: quote.subtotal,
           iva: quote.tax,
           total: quote.total,
-          benefits: await applicableBenefitTexts({ brands: [product.brand], quantity }),
+          benefits: [...await applicableBenefitTexts({ brands: [product.brand], quantity }), ...textosDeRegalos(product)],
           ...(await temaDePiezas()),
         });
       } catch (error) {
@@ -1937,6 +1945,166 @@ export function createAdminRouter(): express.Router {
       res.json({ ok: true, mapeo: await guardarMapeoCatalogo(req.body?.mapeo ?? req.body) });
     } catch (error) {
       res.status(400).json({ ok: false, error: error instanceof Error ? error.message : "Mapeo inválido" });
+    }
+  });
+
+  // ── Promociones que el negocio arma solo (pestaña «Promociones», 24-nov-2026) ──
+  // Elegir tipo → bajar el Excel con el stock y el precio de hoy → llenarlo →
+  // subirlo (se ve cómo queda cada llanta ANTES de guardar) → guardar. Las
+  // cuentas viven en `domain/promociones.ts`. Cambian el precio que cotiza el
+  // bot, así que las maneja quien puede entrar a Ajustes.
+  const exigirPromociones = (req: express.Request, res: express.Response, next: express.NextFunction): void => {
+    if (!req.usuario || req.usuario.rol === "admin" || permisosDeUsuario(req.usuario.id).verAjustes) {
+      next();
+      return;
+    }
+    res.status(403).json({ ok: false, error: "Su usuario no tiene permiso para manejar promociones (Ajustes → Usuarios)." });
+  };
+  /** Lo que se subió y todavía no se guardó: el panel manda de vuelta solo la llave. */
+  const subidasDePromocion = new Map<string, { tipo: TipoDePromocion; filas: FilaDePromocion[]; en: number }>();
+  const guardarSubida = (tipo: TipoDePromocion, filas: FilaDePromocion[]): string => {
+    const ahora = Date.now();
+    for (const [k, v] of subidasDePromocion) if (ahora - v.en > 2 * 60 * 60_000) subidasDePromocion.delete(k);
+    const llave = randomBytes(12).toString("hex");
+    subidasDePromocion.set(llave, { tipo, filas, en: ahora });
+    return llave;
+  };
+  const tipoDelPedido = (v: unknown): TipoDePromocion | null =>
+    (TIPOS_DE_PROMOCION as readonly string[]).includes(String(v)) ? (String(v) as TipoDePromocion) : null;
+  const jsonDelPedido = (v: unknown): Record<string, unknown> => {
+    try { return v ? (JSON.parse(String(v)) as Record<string, unknown>) : {}; } catch { return {}; }
+  };
+  const errorDePromocion = (res: express.Response, error: unknown) =>
+    res.status(error instanceof PromocionInvalida ? 400 : 500).json({
+      ok: false,
+      error: error instanceof PromocionInvalida ? error.message : "No se pudo completar. Intente de nuevo.",
+    });
+  /** Tras un cambio: el catálogo se vuelve a armar ya, para que el bot cotice con la promo al momento. */
+  const reaplicarPromociones = async () => {
+    await syncCatalog().catch((error) => console.warn("⚠️ No se pudo rearmar el catálogo tras cambiar una promoción:", error instanceof Error ? error.message : error));
+  };
+
+  router.get("/promociones", exigirPromociones, async (_req, res) => {
+    try {
+      await ensureCatalogReady().catch(() => undefined);
+      const { items, bases } = catalogoParaPromociones();
+      const promociones = (await listarPromociones()).map((p) => paraElPanel(p, items, bases));
+      res.json({ ok: true, tipos: TIPOS_PARA_EL_PANEL, promociones, llantasEnInventario: items.length });
+    } catch (error) {
+      errorDePromocion(res, error);
+    }
+  });
+
+  router.get("/promociones/excel", exigirPromociones, async (req, res) => {
+    try {
+      await ensureCatalogReady();
+      const { items, bases } = catalogoParaPromociones();
+      const guardada = req.query.id ? await leerPromocion(Number(req.query.id)) : null;
+      const tipo = guardada?.tipo ?? tipoDelPedido(req.query.tipo);
+      if (!tipo) return res.status(400).json({ ok: false, error: "Elija un tipo de promoción." });
+      if (!items.length) return res.status(409).json({ ok: false, error: "Todavía no hay inventario cargado: suba primero el inventario." });
+      const nombre = guardada?.nombre ?? (String(req.query.nombre ?? "").trim().slice(0, 40) || null);
+      const excel = await excelDePromocion({ tipo, nombre, filas: guardada?.filas, items, bases });
+      const archivo = `Promocion-${(nombre ?? tipoParaElPanel(tipo).nombre).normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^A-Za-z0-9]+/g, "-").replace(/^-|-$/g, "") || "AutoVenta"}.xlsx`;
+      res.type("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet").attachment(archivo).send(excel);
+    } catch (error) {
+      errorDePromocion(res, error);
+    }
+  });
+
+  router.post("/promociones/leer", exigirPromociones, archivoCrudo, async (req, res) => {
+    const cuerpo = cuerpoDelArchivo(req);
+    if (!cuerpo) return res.status(400).json({ ok: false, error: "Falta el archivo (cuerpo vacío)" });
+    try {
+      const tipo = tipoDelPedido(req.query.tipo);
+      if (!tipo) throw new PromocionInvalida("Elija un tipo de promoción.");
+      const parametros = parametrosLimpios(tipo, jsonDelPedido(req.query.parametros) as never);
+      const problema = errorDeParametros(tipo, parametros);
+      if (problema) throw new PromocionInvalida(problema);
+      await ensureCatalogReady();
+      const { items, bases } = catalogoParaPromociones();
+      const leido = await leerExcelDePromocion(tipo, nombreDelArchivo(req), cuerpo);
+      const vista = vistaPreviaDe(tipo, parametros, leido.filas, items, bases);
+      const entran = new Set(vista.entran.map((l) => l.codigo.trim().toLowerCase()));
+      // Se guardan solo las que entran hoy: lo que el negocio vio es lo que queda.
+      const filas: FilaDePromocion[] = leido.filas
+        .filter((f) => entran.has(f.codigo.trim().toLowerCase()))
+        .map(({ filaDelExcel: _f, ...resto }) => { void _f; return resto; });
+      res.json({
+        ok: true,
+        subida: filas.length ? guardarSubida(tipo, filas) : null,
+        entran: vista.entran,
+        noEntran: [...leido.ilegibles.map((i) => ({ fila: i.fila, codigo: i.codigo, nombre: null, motivo: i.motivo })), ...vista.noEntran],
+        sinLlenar: leido.sinLlenar,
+      });
+    } catch (error) {
+      errorDePromocion(res, error);
+    }
+  });
+
+  router.get("/promociones/:id", exigirPromociones, async (req, res) => {
+    try {
+      const promo = await leerPromocion(Number(req.params.id));
+      if (!promo) return res.status(404).json({ ok: false, error: "Esa promoción ya no existe." });
+      await ensureCatalogReady().catch(() => undefined);
+      const { items, bases } = catalogoParaPromociones();
+      const vista = vistaPreviaDe(promo.tipo, promo.parametros, promo.filas, items, bases);
+      res.json({ ok: true, promocion: paraElPanel(promo, items, bases), entran: vista.entran, noEntran: vista.noEntran });
+    } catch (error) {
+      errorDePromocion(res, error);
+    }
+  });
+
+  router.post("/promociones", exigirPromociones, async (req, res) => {
+    try {
+      const subida = subidasDePromocion.get(String(req.body?.subida ?? ""));
+      if (!subida) throw new PromocionInvalida("Suba el Excel lleno antes de guardar (la subida anterior ya caducó).");
+      if (subida.tipo !== req.body?.tipo) throw new PromocionInvalida("El Excel subido es de otro tipo de promoción.");
+      const promo = await crearPromocion(req.body, subida.filas, req.usuario?.nombre ?? null);
+      subidasDePromocion.delete(String(req.body.subida));
+      await reaplicarPromociones();
+      const { items, bases } = catalogoParaPromociones();
+      res.json({ ok: true, promocion: paraElPanel(promo, items, bases) });
+    } catch (error) {
+      errorDePromocion(res, error);
+    }
+  });
+
+  router.patch("/promociones/:id", exigirPromociones, async (req, res) => {
+    try {
+      const cuerpo = (req.body ?? {}) as Record<string, unknown>;
+      const cambios: Parameters<typeof actualizarPromocion>[1] = {};
+      if (typeof cuerpo.nombre === "string") cambios.nombre = cuerpo.nombre;
+      if ("textoExtra" in cuerpo) cambios.textoExtra = cuerpo.textoExtra as string | null;
+      if ("desde" in cuerpo) cambios.desde = (cuerpo.desde as string | null) || null;
+      if ("hasta" in cuerpo) cambios.hasta = (cuerpo.hasta as string | null) || null;
+      if (typeof cuerpo.activa === "boolean") cambios.activa = cuerpo.activa;
+      if (cuerpo.parametros && typeof cuerpo.parametros === "object") cambios.parametros = cuerpo.parametros as never;
+      if (cuerpo.subida) {
+        const actual = await leerPromocion(Number(req.params.id));
+        const subida = subidasDePromocion.get(String(cuerpo.subida));
+        if (!subida) throw new PromocionInvalida("La subida ya caducó: suba el Excel otra vez.");
+        if (actual && subida.tipo !== actual.tipo) throw new PromocionInvalida("El Excel subido es de otro tipo de promoción.");
+        cambios.filas = subida.filas;
+      }
+      const promo = await actualizarPromocion(Number(req.params.id), cambios);
+      if (cuerpo.subida) subidasDePromocion.delete(String(cuerpo.subida));
+      await reaplicarPromociones();
+      const { items, bases } = catalogoParaPromociones();
+      res.json({ ok: true, promocion: paraElPanel(promo, items, bases) });
+    } catch (error) {
+      errorDePromocion(res, error);
+    }
+  });
+
+  router.delete("/promociones/:id", exigirPromociones, async (req, res) => {
+    try {
+      const quitada = await archivarPromocion(Number(req.params.id));
+      if (!quitada) return res.status(404).json({ ok: false, error: "Esa promoción ya no existe." });
+      await reaplicarPromociones();
+      res.json({ ok: true });
+    } catch (error) {
+      errorDePromocion(res, error);
     }
   });
 
@@ -3101,7 +3269,9 @@ function resolveCatalogSelections(
     if (product.availability === "out") {
       throw new Error(`${product.brand} ${product.design} está agotada`);
     }
-    return { product, quantity };
+    // Promoción por cantidad (pestaña Promociones): con la cantidad en la mano
+    // la llanta ya sale al precio de la promo, igual que en el bot.
+    return { product: productoParaCantidad(product, quantity), quantity };
   });
 }
 

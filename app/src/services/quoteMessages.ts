@@ -724,6 +724,8 @@ export function buildSingleQuoteMessageDetallado(
     ...(!segunda && rebaja > 0 && lineaDePromocionDePrecio(product.promocionDePrecio)
       ? [lineaDePromocionDePrecio(product.promocionDePrecio)!]
       : []),
+    // Regalos de la pestaña Promociones: no cambian el precio, se dicen.
+    ...(product.regalosDePromocion ?? []).map((r) => `🎁 *${r.nombre}*: ${r.texto}${r.vigenciaCorta ? ` (${r.vigenciaCorta})` : ""}`),
     `🛞 ${quantity} llanta${quantity === 1 ? "" : "s"}: ${money(total)}`,
     ...(offerDiscount ? [
       `1️⃣ Descuento base ${business.name}: de ${money(lista)} a ${money(hoy)} c/u (${sello}).`,

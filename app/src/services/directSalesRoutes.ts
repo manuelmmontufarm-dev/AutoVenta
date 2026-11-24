@@ -26,6 +26,7 @@ import { renderQuoteImage, toRenderLine } from "../render/quoteImage.js";
 import { politica } from "../negocio/politica.js";
 import { segundaLlantaDe, type SegundaLlanta } from "../domain/promocionDeTemporada.js";
 import { sendImage } from "../wa/client.js";
+import { textosDeRegalos } from "../domain/promociones.js";
 
 interface StoredQuoteLine {
   code?: string;
@@ -166,7 +167,7 @@ export async function resendLatestQuoteImage(
     identidad: identidadDeLaPieza(negocio, datosLocal?.nearest_store ?? null),
     ...(await getPiecesConfig()),
     brandProfiles: await brandProfilesForRender(),
-    benefits: await applicableBenefitTexts({ brands: [product.brand], quantity }),
+    benefits: [...await applicableBenefitTexts({ brands: [product.brand], quantity }), ...textosDeRegalos(product)],
     lines: [line],
     subtotal: conPromo.subtotal,
     iva: conPromo.tax,
