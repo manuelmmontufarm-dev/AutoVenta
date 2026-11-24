@@ -1,3 +1,15 @@
+## 24-nov-2026 · Panel · Posponer eligiendo el día en un calendario, y los pospuestos se ven (rama `feat/posponer-calendario`)
+
+- **Qué:** «Posponer» abre un calendario: se toca el día (o un atajo: mañana, en 3 días, el lunes, quincena/fin
+  de mes) y un botón confirma «Posponer hasta el …». Cada día del selector muestra un puntito si ya hay clientes.
+  La API devuelve `pospuestosLista` con el día en que vuelve cada uno; en el calendario de Para cerrar salen con
+  un rombo morado ese día, y hay un atajo «Pospuestos» con la lista. Su tarjeta trae «Cambiar día» y «Traer ya».
+- **Por qué:** Manuel, 24-nov: el equipo de Competimotor pospuso a Jhonnycoloma y a Erick Acosta y parecía que se
+  habían perdido (solo se veía «2 pospuestos» abajo). Pidió elegir el día tocando un calendario y verlos siempre.
+- **Probado:** `vitest` de paraCerrar y llegada (33), `tsc` del hub; hub local con datos de prueba, en escritorio
+  y en teléfono: posponer, cambiar día, traer ya, la lista de pospuestos.
+- **Horas:** 0,6
+
 ## 23-nov-2026 · Panel · Los meses del selector, en corto (rama `fix/meses-cortos`)
 
 - **Qué:** el selector de mes dice «Nov», «Oct», «Sept»… en vez del nombre entero, sin «· este mes» (el mes en curso ya va resaltado), y es más chico (12 px). De otro año lleva el año en dos cifras («Dic 25»).

@@ -807,6 +807,20 @@ export interface ClienteArchivado {
   sacado: boolean;
 }
 
+export interface ClientePospuesto {
+  ticketId: number;
+  atiendeAsesor?: boolean;
+  nombre: string | null;
+  telefono: string;
+  medida: string | null;
+  llantas: string;
+  total: number;
+  local: string;
+  /** Cuándo vuelve a la lista (ISO). */
+  hasta: string;
+  pospuestoEn: string | null;
+}
+
 export interface ParaCerrar {
   tope: number;
   contactadosHoy: number;
@@ -814,6 +828,8 @@ export interface ParaCerrar {
   empujando: ClienteEmpujando[];
   archivo: ClienteArchivado[];
   pospuestos: number;
+  /** Puede faltar si el servidor todavía es el de antes. */
+  pospuestosLista?: ClientePospuesto[];
   compraron: number;
   estadistica: EstadisticaLlegada;
 }
