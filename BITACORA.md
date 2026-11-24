@@ -1,3 +1,25 @@
+## 24-nov-2026 · Piezas + panel · Tema de la cotización (Black Friday, Navidad… o personalizado) y el ahorro doble del Black Friday (rama `feat/plantillas-cotizacion`)
+
+- **Qué:**
+  - Ajustes → Piezas → «Tema de la cotización»: una cinta de temporada arriba de la cotización y de
+    las opciones, en las dos plantillas (y en el PDF, que es la misma imagen). 11 temas listos
+    (Black Friday, Cyber Monday, Navidad, Año Nuevo, San Valentín, Día de la Madre, Día del Padre,
+    Vacaciones, Regreso a clases, Aniversario, Liquidación), «Automático» (como siempre), «Sin tema» y
+    «Personalizado» (título, texto, 3 colores y adorno). «Editar … a mi gusto» copia uno listo al
+    personalizado. Vista previa en vivo. Se guarda en `pieces_config.tema`; lo guardado antes queda
+    en «Automático», así que en producción nada cambia hasta que alguien elija otro.
+    Código: `domain/temaDePieza.ts` (qué cinta), `render/cintaDeTema.ts` (cómo se dibuja).
+  - Arreglo: con el Black Friday la pieza decía «$252.66 ANTES $252.66» y «Ahorra $555.84» en 4 KR628
+    R17 (son $303.20): sumaba el −25 % del catálogo, que el 60 % reemplaza. El texto del bot ya lo
+    decía bien; ahora la pieza también (`ahorroDeLaCotizacion` y el «ANTES» de las dos plantillas).
+- **Por qué:** Manuel, 24-nov: «que también puedas elegir la template de cómo sale, tipo que salga con
+  promo de Black Friday o la de Navidad… o una editable que puedan cambiar todo lo que quieran». El
+  ahorro doble apareció al probarlo en el simulador con la cotización real.
+- **Probado:** simulador con el catálogo de hoy: tema Navidad elegido por API → cotización de 4 KR628
+  con la cinta, total $707,44 y «Ahorra $303.20»; personalizado por la vista previa; la pantalla de
+  Ajustes en el navegador (elegir, «Editar a mi gusto», cambiar el título, aplicar y quedó guardado).
+- **Horas:** 3.
+
 ## 24-nov-2026 · Bot + panel (Depot) · El Black Friday (2.ª llanta al 60 %) pasa a la pestaña Promociones (rama `feat/black-friday-en-promociones`)
 
 - **Qué:** la promo de temporada de Depot se siembra una vez como fila de Promociones («Black Friday»,
@@ -6394,6 +6416,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-11-24 | _(este mismo)_ | Tema de la cotización (Black Friday, Navidad… o personalizado) y el ahorro doble del Black Friday en la pieza | 3 |
 | 2026-11-24 | _(este mismo)_ | Depot: el Black Friday (2.ª llanta) pasa a la pestaña Promociones con interruptor y fechas | 1,5 |
 | 2026-11-24 | _(este mismo)_ | Depot: precios desde Contífico (Interbot de respaldo) y el −25 % como promoción con interruptor | 3,5 |
 | 2026-11-20 | _(este mismo)_ | Competimotor: seguro solo Kenda y Falken; «pantanera» = M/T, tipos por nombre, «23575r15», 30X9.5R15 = 235/75R15 | 1,5 |

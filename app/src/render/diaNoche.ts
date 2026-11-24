@@ -28,6 +28,8 @@ import { depotLogo, logoOficial } from "./assets.js";
 import { el, img, stripEmoji, text, type SatoriNode } from "./depotDesign.js";
 import { ahorroDeLaCotizacion, rotulosDeSegundaLlanta, textoVitrinaSegundaLlanta, type PosterLine } from "./depotPosters.js";
 import { cuentaDeSegundaLlanta } from "../domain/promocionDeTemporada.js";
+import { cintaDelTema, type ConfigDeTema } from "../domain/temaDePieza.js";
+import { cintaDeTema } from "./cintaDeTema.js";
 import { etiquetaDePromocion } from "../domain/promocion.js";
 import type { PerfilDeNegocio } from "../negocio/perfil.js";
 import { negocio, pieDeLocales, localesEnUnaLinea, plazoDeFabrica, plazoDeFabricaEnTexto, sinPendiente, textosDelSeguro } from "../negocio/index.js";
@@ -549,7 +551,9 @@ function panelSegundaLlanta(line: PosterLine, t: Tokens): SatoriNode[] {
   const pct = porcentaje(line);
   // El «ANTES» del catálogo va al lado del precio normal, que es el que rebajó;
   // pegado a la insignia no cabía en los 272 px y la insignia lo tapaba.
-  const antes = pct !== null && line.pvpConIva ? dinero(line.pvpConIva) : null;
+  // Con el 60 % el precio normal YA es la lista: un «ANTES» igual al precio
+  // de al lado no rebaja nada (salía «$252.66 ANTES $252.66», 24-nov).
+  const antes = pct !== null && line.pvpConIva && line.pvpConIva > bf.precioNormalConIva + 0.005 ? dinero(line.pvpConIva) : null;
   const bloque = (rotulo: string, monto: string, color: string, chip: string | null, tachado: string | null) =>
     el({ flexDirection: "column", marginTop: 8 },
       el({ alignItems: "center", gap: 6 },
@@ -616,6 +620,8 @@ export function loIncluidoEnElJuego(lines: readonly Pick<PosterLine, "golpesMese
 const MAX_OPCIONES = 6;
 
 export interface OptionsDiaNocheData {
+  /** El tema de la pieza (Ajustes → Piezas): la cinta de Navidad, Año Nuevo, personalizada… */
+  tema?: Partial<ConfigDeTema> | null;
   dateLabel: string;
   /** Lo que va en la píldora amarilla: la medida pedida, o «RIN 16» sin medida. */
   sizeLabel?: string | null;
@@ -949,6 +955,8 @@ export function optionsPosterDiaNoche(data: OptionsDiaNocheData, modo: ModoPieza
           : null,
       ),
     ),
+    cintaDeTema(cintaDelTema(data.tema, { hayFranjaDeTemporada: Boolean(franjaBF) }),
+      { escala: 1.1, fuenteTitulo: ANCHO(900), fuenteBajada: BARLOW(600), marginTop: 18 }),
     text({ ...ARCHIVO, fontSize: 30, lineHeight: 1, letterSpacing: -0.2, marginTop: 20, color: t.txt, whiteSpace: "nowrap" }, titulo),
     franjaBF,
     // La dorada, si queda: con Black Friday es solo de las marcas que siguen
@@ -981,6 +989,8 @@ export function optionsPosterDiaNoche(data: OptionsDiaNocheData, modo: ModoPieza
 // ===========================================================================
 
 export interface QuoteDiaNocheData {
+  /** El tema de la pieza (Ajustes → Piezas): la cinta de Navidad, Año Nuevo, personalizada… */
+  tema?: Partial<ConfigDeTema> | null;
   number: string;
   dateLabel: string;
   line: PosterLine;
@@ -1064,6 +1074,8 @@ export function quotePosterDiaNoche(data: QuoteDiaNocheData, modo: ModoPieza): S
       ),
     ),
 
+    cintaDeTema(cintaDelTema(data.tema, { hayFranjaDeTemporada: Boolean(bf || line.temporada?.precioEspecial) }),
+      { escala: 1, fuenteTitulo: ANCHO(900), fuenteBajada: BARLOW(600) }),
     bf || line.temporada?.precioEspecial ? franjaTemporadaDiaNoche(line) : null,
 
     // Héroe

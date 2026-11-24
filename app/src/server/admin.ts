@@ -6,6 +6,7 @@
  * x-admin-key (las páginas del hub piden la clave una vez y la recuerdan).
  * Sin ADMIN_KEY la API queda abierta — solo aceptable durante el piloto.
  */
+import { TEMAS, TEMAS_LISTOS, nombreDelTema } from "../domain/temaDePieza.js";
 import { randomBytes } from "node:crypto";
 import express from "express";
 import { tel9 } from "../services/fuentes/contifico.js";
@@ -2546,6 +2547,12 @@ export function createAdminRouter(): express.Router {
       // Cómo se nombra la rebaja (26-oct). Con el descuento de la llanta de
       // la vista previa, Ajustes avisa si con 3x4 saldría como porcentaje.
       modosPromocion: MODOS_PROMOCION,
+      // Los temas de la pieza (24-nov): los listos con su diseño, para pintar
+      // las muestras y copiarlos a «personalizado».
+      temas: TEMAS.map((id) => ({
+        id, nombre: nombreDelTema(id),
+        diseno: id === "automatico" || id === "ninguno" ? null : id === "personalizado" ? null : TEMAS_LISTOS[id].diseno,
+      })),
       descuentoDeMuestra: await descuentoDeLaMuestra().catch(() => null),
     });
   });
@@ -2554,7 +2561,7 @@ export function createAdminRouter(): express.Router {
     try {
       res.json({ ok: true, config: await savePiecesConfig(req.body) });
     } catch {
-      res.status(400).json({ ok: false, error: "Plantilla, modo, paleta, fuente o promoción inválidos" });
+      res.status(400).json({ ok: false, error: "Plantilla, modo, paleta, fuente, promoción o tema inválidos" });
     }
   });
 
@@ -3160,12 +3167,14 @@ export function createAdminRouter(): express.Router {
       const plantilla = req.query.plantilla ? String(req.query.plantilla) : undefined;
       const modo = req.query.modo ? String(req.query.modo) : undefined;
       const promocion = req.query.promocion ? String(req.query.promocion) : undefined;
+      // El tema llega como JSON ({ id, personalizado }); lo limpia `cintaDelTema` al dibujar.
+      const tema = req.query.tema ? jsonDelPedido(req.query.tema) as never : undefined;
       const beneficios = req.query.beneficios
         ? String(req.query.beneficios).split("|").map((b) => b.trim()).filter(Boolean)
         // La vista previa dibuja un juego completo: con esa cantidad entran
         // también los beneficios con mínimo (alineación de Mundillantas).
         : await applicableBenefitTexts({ quantity: politica.juegoCompleto });
-      const png = await comoVistaPrevia(() => renderPreviewPiece({ pieza, paleta, fuente, plantilla, modo, promocion, beneficios }));
+      const png = await comoVistaPrevia(() => renderPreviewPiece({ pieza, paleta, fuente, plantilla, modo, promocion, beneficios, tema }));
       res.setHeader("Content-Type", "image/png");
       res.setHeader("Cache-Control", "no-store");
       res.send(png);
