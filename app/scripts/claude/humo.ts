@@ -157,7 +157,9 @@ for (const modelo of MODELOS) {
     }
   }
 
-  // 5) El Guardián, con su rúbrica y su esquema reales. Dos veces: la segunda
+  // 5) El Guardián, con su rúbrica y su esquema reales. El borrador «correcto»
+  //    es el que gpt-5.5 aprueba hoy: opciones numeradas con total y «¿la 1 o
+  //    la 2?» (24-nov: el anterior lo corregían gpt-5.5 y los 4 Claude por igual). Dos veces: la segunda
   //    tiene que leer la rúbrica del caché (es el 60 % de lo que paga Depot).
   const guardian = (borrador: string) => () => completarChat(sinOpenAI, {
     model: modelo,
@@ -175,7 +177,7 @@ for (const modelo of MODELOS) {
       return v.veredicto === esperado ? null : `esperaba «${esperado}» y dijo «${v.veredicto}»`;
     } catch { return `no devolvió JSON: ${(r.choices[0].message.content ?? "").slice(0, 120)}`; }
   };
-  await medir(modelo, "guardián · borrador correcto", guardian("Tenemos dos opciones en 205/55R16:\n• KENDA KR203 — $78.50 c/u\n• FALKEN ZE310 — $96.00 c/u\n¿Le cotizo el juego de 4 llantas?"), veredicto("aprobar"));
+  await medir(modelo, "guardián · borrador correcto", guardian("Tenemos dos opciones en 205/55R16:\n\n1 · KENDA KR203 — $78.50 c/u · 4 = $314.00\n2 · FALKEN ZE310 — $96.00 c/u · 4 = $384.00\n\n¿Le cotizo la 1 o la 2?"), veredicto("aprobar"));
   await medir(modelo, "guardián · precio inventado (+caché)", guardian("Tenemos la KENDA KR203 en 205/55R16 a $59.90 c/u con envío gratis a todo el país. ¿Le cotizo el juego de 4 llantas?"),
     (r) => veredicto("corregir")(r) ?? ((r.usage!.prompt_tokens_details?.cached_tokens ?? 0) === 0 ? "corrigió, pero la rúbrica NO se leyó del caché" : null));
 

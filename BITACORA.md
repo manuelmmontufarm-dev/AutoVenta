@@ -1,3 +1,17 @@
+## 24-nov-2026 · Bot · Claude contra gpt-5.5: humo real y criba de 20 conversaciones (rama `feat/proveedor-fable`)
+
+- **Qué:** con la clave de pruebas de Anthropic, `npm run claude:humo` contra la API real (Fable, Opus, Sonnet, Haiku:
+  todas las formas de petición aceptadas, caché pegando, 1–3 s el vendedor). El caso «borrador correcto» del humo
+  estaba mal: gpt-5.5 lo corrige igual que los 4 Claude; se cambió por el que gpt-5.5 aprueba. `grafico-canary.mjs`
+  acepta `--configs/--titulo/--sub/--que-ves` y dibuja por orden de caso. Criba de 20 casos (1–10 y 26–35 de
+  `dificiles-50`) por combinación: control gpt-5.5, Sonnet+Haiku, Sonnet+gpt-5.4-mini, Opus+Haiku.
+- **Por qué:** Manuel quiere pasar Depot a Claude si mantiene la calidad y baja el costo; descartó Fable por caro.
+- **Probado:** diferencia de nota contra el control (juez gpt-5.5) −0,40 ± 0,69 / −0,20 ± 0,63 / −0,25 ± 0,81: sin señal.
+  Costo por conversación $0,085 / $0,082 / $0,163 contra $0,261 del control. 0 fallas técnicas en las tres (control 2).
+  Claude contó ~2× los tokens de gpt por el mismo texto. Es UNA corrida de 20 casos: falta completar los 50 y repetir
+  (regla de las 3 corridas). Reporte: `docs/reportes-historicos/2026-11-24-claude-control-chart.html`. Nada desplegado.
+- **Horas:** 1.5.
+
 ## 24-nov-2026 · Bot · Claude: respaldo en OpenAI si Anthropic falla, y rama al día con main (rama `feat/proveedor-fable`)
 
 - **Qué:** si una llamada a un modelo `claude-` falla (caída, límite de cuenta nueva, créditos agotados, clave vencida,

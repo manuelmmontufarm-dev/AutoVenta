@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Canary modelo barato · gráfico de control</title>
+<style>
+  :root { --bg:#fafaf8; --card:#fff; --fg:#1d1d1b; --fg2:#55554f; --muted:#7a7a73; --grid:#ecebe6; --line:#e4e3de; --band:#f1f0ea; --good:#15803d; --bad:#c2410c; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#161615; --card:#1f1f1d; --fg:#ecebe7; --fg2:#bdbcb5; --muted:#8f8e87; --grid:#2b2b28; --line:#33332f; --band:#262624; --good:#4ade80; --bad:#fb923c; } }
+  * { box-sizing:border-box } body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif }
+  main { max-width:900px; margin:0 auto; padding:28px 16px 56px }
+  h1 { font-size:24px; margin:0 0 6px } h2 { font-size:18px; margin:0 0 10px; color:var(--c) }
+  .sub { color:var(--muted); margin:0 0 20px; font-size:15px }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:16px; margin:0 0 16px }
+  .tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; margin-bottom:10px }
+  .tile { border:1px solid var(--line); border-radius:6px; padding:8px 10px } .tile .l { font-size:12px; color:var(--muted) }
+  .tile .n { font-size:22px; font-weight:650; font-variant-numeric:tabular-nums } .vs { font-size:13px; font-weight:400; color:var(--muted) }
+  .n.bad { color:var(--bad) } .n.good { color:var(--good) }
+  .chart svg { width:100%; height:auto; display:block } .lost { margin:8px 0 0; font-size:14px; color:var(--fg2) }
+  .leyenda { font-size:14px; color:var(--fg2); margin:0 0 18px } .leyenda b { color:var(--fg) }
+</style>
+</head>
+<body><main>
+<h1>Claude en Depot: ¿vende igual y cuesta menos?</h1>
+<p class="sub">20 conversaciones reales difíciles, repetidas en el simulador con gpt-5.5 (control) y con tres combinaciones de Claude · juez gpt-5.5 · 24 de noviembre de 2026</p>
+<section class="card"><h2 style="color:var(--fg)">Qué estás viendo</h2><p class="leyenda" style="margin:0">Primera criba con 20 conversaciones. <b>Línea central y límites</b> salen de la diferencia de nota contra el control (gpt-5.5, el bot de hoy), caso por caso. <b>Dentro de la franja gris es ruido</b>, no «mejor» ni «peor». Señal sería un punto bajo el límite inferior o una media corrida más de 2 errores estándar. Resultado: <b>ninguna combinación da señal de pérdida</b> y las tres cuestan menos que el control. Con 20 casos solo se ven diferencias grandes (más de ~0,7 puntos de nota).</p></section>
+<p class="leyenda">Cada punto es un caso: <b>nota con el modelo barato menos nota del control</b> (escala 1–10). La franja gris son los límites de control: dentro de ella es ruido del propio bot (dos corridas iguales tampoco dan la misma nota). Un punto <b>por debajo del límite inferior</b> es una pérdida real.</p>
+
+<section class="card" style="--c:#eb6834;--cd:#d95926">
+  <h2>Vendedor Sonnet 5.5 + Guardián Haiku 5.5</h2>
+  <div class="tiles">
+    <div class="tile"><div class="l">Nota media (control)</div><div class="n">5.6 <span class="vs">vs 6.0</span></div></div>
+    <div class="tile"><div class="l">Diferencia media ± 2 EE</div><div class="n good">-0.40 <span class="vs">± 0.69</span></div></div>
+    <div class="tile"><div class="l">Casos bajo el límite</div><div class="n good">0<span class="vs"> de 20</span></div></div>
+    <div class="tile"><div class="l">Turnos con falla técnica</div><div class="n">0 <span class="vs">vs 2</span></div></div>
+    <div class="tile"><div class="l">Cotizaciones · visitas</div><div class="n">2 · 5 <span class="vs">vs 1 · 4</span></div></div>
+    <div class="tile"><div class="l">Costo contra el control</div><div class="n">33 %</div></div>
+    <div class="tile"><div class="l">Costo por conversación</div><div class="n">$0.085 <span class="vs">vs $0.261</span></div></div>
+    <div class="tile"><div class="l">Segundos por conversación</div><div class="n">131 <span class="vs">vs 143</span></div></div>
+  </div>
+  <div class="chart"><svg viewBox="0 0 860 260" role="img" aria-label="Diferencia de nota contra el control, caso por caso, con límites de control"><rect x="36" y="53.96666666666666" width="808" height="152.60000000000002" fill="var(--band)"/><line x1="36" x2="844" y1="232" y2="232" stroke="var(--grid)"/><text x="30" y="236" text-anchor="end" font-size="11" fill="var(--muted)">-6</text><line x1="36" x2="844" y1="195.66666666666669" y2="195.66666666666669" stroke="var(--grid)"/><text x="30" y="199.66666666666669" text-anchor="end" font-size="11" fill="var(--muted)">-4</text><line x1="36" x2="844" y1="159.33333333333331" y2="159.33333333333331" stroke="var(--grid)"/><text x="30" y="163.33333333333331" text-anchor="end" font-size="11" fill="var(--muted)">-2</text><line x1="36" x2="844" y1="123" y2="123" stroke="var(--grid)"/><text x="30" y="127" text-anchor="end" font-size="11" fill="var(--muted)">0</text><line x1="36" x2="844" y1="86.66666666666666" y2="86.66666666666666" stroke="var(--grid)"/><text x="30" y="90.66666666666666" text-anchor="end" font-size="11" fill="var(--muted)">+2</text><line x1="36" x2="844" y1="50.33333333333333" y2="50.33333333333333" stroke="var(--grid)"/><text x="30" y="54.33333333333333" text-anchor="end" font-size="11" fill="var(--muted)">+4</text><line x1="36" x2="844" y1="14" y2="14" stroke="var(--grid)"/><text x="30" y="18" text-anchor="end" font-size="11" fill="var(--muted)">+6</text><line x1="36" x2="844" y1="123" y2="123" stroke="var(--fg2)" stroke-width="1"/><line x1="36" x2="844" y1="130.26666666666665" y2="130.26666666666665" stroke="var(--c)" stroke-dasharray="5 4"/><line x1="36" x2="844" y1="53.96666666666666" y2="53.96666666666666" stroke="var(--muted)" stroke-dasharray="2 3"/><line x1="36" x2="844" y1="206.5666666666667" y2="206.5666666666667" stroke="var(--muted)" stroke-dasharray="2 3"/><text x="844" y="49.96666666666666" text-anchor="end" font-size="11" fill="var(--muted)">límite superior +3.8</text><text x="844" y="219.5666666666667" text-anchor="end" font-size="11" fill="var(--muted)">límite inferior -4.6</text><text x="40" y="125.26666666666665" font-size="11" fill="var(--c)">media -0.40</text><path d="M56.2,141.2 L96.6,141.2 L137.0,141.2 L177.4,159.3 L217.8,141.2 L258.2,141.2 L298.6,141.2 L339.0,141.2 L379.4,123.0 L419.8,123.0 L460.2,123.0 L500.6,104.8 L541.0,159.3 L581.4,50.3 L621.8,159.3 L662.2,123.0 L702.6,141.2 L743.0,68.5 L783.4,141.2 L823.8,141.2" fill="none" stroke="var(--c)" stroke-width="1.5" opacity=".6"/><circle cx="56.2" cy="141.16666666666669" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 1 · cantidad
+«Un par de llantas» y luego «Sería 2»: la cantidad llega en palabras y el bot ya había cotizado juegos de 2
+barato 6 · control 7 · diferencia -1</title></circle><circle cx="96.6" cy="141.16666666666669" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 2 · medida
+Medida con error de tipeo (235/79), duda entre 235/70 y 235/75, y luego otra medida mal escrita que corrige
+barato 4 · control 5 · diferencia -1</title></circle><circle cx="137" cy="141.16666666666669" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 3 · repregunta
+Sin stock en su medida: el bot repite cuatro veces «¿qué día cree que puede pasar?» mientras el cliente pide primero saber si consiguen la llanta
+barato 3 · control 4 · diferencia -1</title></circle><circle cx="177.39999999999998" cy="159.33333333333331" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 4 · precio
+Costo de las 4 Falken, «en efectivo mismo valor, cierto?» y un bloque largo de mensajes seguidos hasta «cambié las 4 llantas» (venta)
+barato 3 · control 5 · diferencia -2</title></circle><circle cx="217.8" cy="141.16666666666669" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 5 · fecha_visita
+Ciclo nuevo: «hoy a las 2:30 a 3:00» y el botón «ninguno de esos días»; termina visitando (venta)
+barato 7 · control 8 · diferencia -1</title></circle><circle cx="258.20000000000005" cy="141.16666666666669" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 6 · cierre
+«Ok gracias» tras «¿Le cotizo la 1, la 2 o la 3?»: no eligió nada y el bot mandó la cotización más cara
+barato 7 · control 8 · diferencia -1</title></circle><circle cx="298.6" cy="141.16666666666669" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 7 · invento
+«¿Cuántas lonas vienen?» sobre una llanta sin ese dato en ficha; el bot debe no inventar
+barato 5 · control 6 · diferencia -1</title></circle><circle cx="339" cy="141.16666666666669" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 8 · guardian
+Rechaza equivalentes porque rozan en su carro, pide pedir la medida exacta, pregunta si es un chat virtual y exige asesor (17 correcciones del guardián)
+barato 2 · control 3 · diferencia -1</title></circle><circle cx="379.4" cy="123" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 9 · tono
+«Jefe», «le molesto mil disculpas» y Riobamba: cortesía ecuatoriana que no debe leerse como cliente molesto
+barato 8 · control 8 · diferencia 0</title></circle><circle cx="419.79999999999995" cy="123" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 10 · ciudad
+Pide 4 llantas y dice «estoy acá en Manta»: no hay local ni envío y el bot ya había cotizado
+barato 5 · control 5 · diferencia 0</title></circle><circle cx="460.20000000000005" cy="123" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 26 · otro
+Ubicación, cuánto duran, tarjeta, calles, Continental y hora de llegada con asesor humano alternando con el bot (venta)
+barato 7 · control 7 · diferencia 0</title></circle><circle cx="500.59999999999997" cy="104.83333333333334" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 27 · cantidad
+«Las 4» como única respuesta a un menú de medidas del aro 15: no eligió modelo y el bot cotizó igual
+barato 7 · control 6 · diferencia +1</title></circle><circle cx="541" cy="159.33333333333331" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 28 · medida
+Medida a pedazos («la a 65 Rin 13»), «no nos entendemos» y cambio a 175/50 con comparación de precio ajeno
+barato 3 · control 5 · diferencia -2</title></circle><circle cx="581.4000000000001" cy="50.33333333333333" r="6" fill="var(--c)" stroke="var(--c)" stroke-width="2"><title>Caso 29 · repregunta
+Local ya elegido y el bot lo vuelve a preguntar; el cliente solo responde con emojis al final
+barato 7 · control 3 · diferencia +4</title></circle><text x="581.4000000000001" y="40.33333333333333" text-anchor="middle" font-size="11" fill="var(--fg)">29</text><circle cx="621.8" cy="159.33333333333331" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 30 · precio
+Pide descuento en efectivo, luego «$80 de descuento» y precio final: el bot repite la política y el descuento ya estaba incluido
+barato 4 · control 6 · diferencia -2</title></circle><circle cx="662.2" cy="123" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 31 · fecha_visita
+Vive en Riobamba y dice «el próximo sábado» un sábado: el bot registró el sábado 31 en vez del 24
+barato 7 · control 7 · diferencia 0</title></circle><circle cx="702.5999999999999" cy="141.16666666666669" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 32 · cierre
+«Gracias» tras el menú de opciones y luego solo «Quito Sur»: la cotización sale sin elección
+barato 7 · control 8 · diferencia -1</title></circle><circle cx="743" cy="68.5" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 33 · invento
+Exige medida exacta 335/50R18 sin stock, pregunta «¿de dónde son?» y condiciona la visita a lo que haya
+barato 7 · control 4 · diferencia +3</title></circle><circle cx="783.4000000000001" cy="141.16666666666669" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 34 · guardian
+Ciclo nuevo: elige la 1, agradece, dice «con eso suficiente» y manda un 🤝; el bot sigue contestando
+barato 6 · control 7 · diferencia -1</title></circle><circle cx="823.8" cy="141.16666666666669" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 35 · tono
+«Ya que me entreguen les molesto para visitarlos»: el verbo cortés apagó el bot en ese hilo
+barato 7 · control 8 · diferencia -1</title></circle><text x="56.2" y="252" text-anchor="middle" font-size="11" fill="var(--muted)">caso 1</text><text x="137" y="252" text-anchor="middle" font-size="11" fill="var(--muted)">caso 3</text><text x="217.8" y="252" text-anchor="middle" font-size="11" fill="var(--muted)">caso 5</text><text x="298.6" y="252" text-anchor="middle" font-size="11" fill="var(--muted)">caso 7</text><text x="379.4" y="252" text-anchor="middle" font-size="11" fill="var(--muted)">caso 9</text><text x="460.20000000000005" y="252" text-anchor="middle" font-size="11" fill="var(--muted)">caso 26</text><text x="541" y="252" text-anchor="middle" font-size="11" fill="var(--muted)">caso 28</text><text x="621.8" y="252" text-anchor="middle" font-size="11" fill="var(--muted)">caso 30</text><text x="702.5999999999999" y="252" text-anchor="middle" font-size="11" fill="var(--muted)">caso 32</text><text x="783.4000000000001" y="252" text-anchor="middle" font-size="11" fill="var(--muted)">caso 34</text></svg></div>
+  <p class="lost">Ningún caso cae bajo el límite y la media no se mueve: las diferencias son ruido del bot.</p>
+</section>
+
+<section class="card" style="--c:#2a78d6;--cd:#3987e5">
+  <h2>Vendedor Sonnet 5.5 + Guardián gpt-5.4-mini</h2>
+  <div class="tiles">
+    <div class="tile"><div class="l">Nota media (control)</div><div class="n">5.8 <span class="vs">vs 6.0</span></div></div>
+    <div class="tile"><div class="l">Diferencia media ± 2 EE</div><div class="n good">-0.20 <span class="vs">± 0.63</span></div></div>
+    <div class="tile"><div class="l">Casos bajo el límite</div><div class="n good">0<span class="vs"> de 20</span></div></div>
+    <div class="tile"><div class="l">Turnos con falla técnica</div><div class="n">0 <span class="vs">vs 2</span></div></div>
+    <div class="tile"><div class="l">Cotizaciones · visitas</div><div class="n">2 · 4 <span class="vs">vs 1 · 4</span></div></div>
+    <div class="tile"><div class="l">Costo contra el control</div><div class="n">32 %</div></div>
+    <div class="tile"><div class="l">Costo por conversación</div><div class="n">$0.082 <span class="vs">vs $0.261</span></div></div>
+    <div class="tile"><div class="l">Segundos por conversación</div><div class="n">133 <span class="vs">vs 143</span></div></div>
+  </div>
+  <div class="chart"><svg viewBox="0 0 860 260" role="img" aria-label="Diferencia de nota contra el control, caso por caso, con límites de control"><rect x="36" y="50.33333333333333" width="808" height="152.60000000000002" fill="var(--band)"/><line x1="36" x2="844" y1="232" y2="232" stroke="var(--grid)"/><text x="30" y="236" text-anchor="end" font-size="11" fill="var(--muted)">-6</text><line x1="36" x2="844" y1="195.66666666666669" y2="195.66666666666669" stroke="var(--grid)"/><text x="30" y="199.66666666666669" text-anchor="end" font-size="11" fill="var(--muted)">-4</text><line x1="36" x2="844" y1="159.33333333333331" y2="159.33333333333331" stroke="var(--grid)"/><text x="30" y="163.33333333333331" text-anchor="end" font-size="11" fill="var(--muted)">-2</text><line x1="36" x2="844" y1="123" y2="123" stroke="var(--grid)"/><text x="30" y="127" text-anchor="end" font-size="11" fill="var(--muted)">0</text><line x1="36" x2="844" y1="86.66666666666666" y2="86.66666666666666" stroke="var(--grid)"/><text x="30" y="90.66666666666666" text-anchor="end" font-size="11" fill="var(--muted)">+2</text><line x1="36" x2="844" y1="50.33333333333333" y2="50.33333333333333" stroke="var(--grid)"/><text x="30" y="54.33333333333333" text-anchor="end" font-size="11" fill="var(--muted)">+4</text><line x1="36" x2="844" y1="14" y2="14" stroke="var(--grid)"/><text x="30" y="18" text-anchor="end" font-size="11" fill="var(--muted)">+6</text><line x1="36" x2="844" y1="123" y2="123" stroke="var(--fg2)" stroke-width="1"/><line x1="36" x2="844" y1="126.63333333333334" y2="126.63333333333334" stroke="var(--c)" stroke-dasharray="5 4"/><line x1="36" x2="844" y1="50.33333333333333" y2="50.33333333333333" stroke="var(--muted)" stroke-dasharray="2 3"/><line x1="36" x2="844" y1="202.93333333333334" y2="202.93333333333334" stroke="var(--muted)" stroke-dasharray="2 3"/><text x="844" y="46.33333333333333" text-anchor="end" font-size="11" fill="var(--muted)">límite superior +4.0</text><text x="844" y="215.93333333333334" text-anchor="end" font-size="11" fill="var(--muted)">límite inferior -4.4</text><text x="40" y="121.63333333333334" font-size="11" fill="var(--c)">media -0.20</text><path d="M56.2,141.2 L96.6,123.0 L137.0,141.2 L177.4,141.2 L217.8,159.3 L258.2,123.0 L298.6,159.3 L339.0,141.2 L379.4,141.2 L419.8,104.8 L460.2,141.2 L500.6,86.7 L541.0,141.2 L581.4,50.3 L621.8,123.0 L662.2,123.0 L702.6,123.0 L743.0,104.8 L783.4,123.0 L823.8,141.2" fill="none" stroke="var(--c)" stroke-width="1.5" opacity=".6"/><circle cx="56.2" cy="141.16666666666669" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 1 · cantidad
+«Un par de llantas» y luego «Sería 2»: la cantidad llega en palabras y el bot ya había cotizado juegos de 2
+barato 6 · control 7 · diferencia -1</title></circle><circle cx="96.6" cy="123" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 2 · medida
+Medida con error de tipeo (235/79), duda entre 235/70 y 235/75, y luego otra medida mal escrita que corrige
+barato 5 · control 5 · diferencia 0</title></circle><circle cx="137" cy="141.16666666666669" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 3 · repregunta
+Sin stock en su medida: el bot repite cuatro veces «¿qué día cree que puede pasar?» mientras el cliente pide primero saber si consiguen la llanta
+barato 3 · control 4 · diferencia -1</title></circle><circle cx="177.39999999999998" cy="141.16666666666669" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 4 · precio
+Costo de las 4 Falken, «en efectivo mismo valor, cierto?» y un bloque largo de mensajes seguidos hasta «cambié las 4 llantas» (venta)
+barato 4 · control 5 · diferencia -1</title></circle><circle cx="217.8" cy="159.33333333333331" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 5 · fecha_visita
+Ciclo nuevo: «hoy a las 2:30 a 3:00» y el botón «ninguno de esos días»; termina visitando (venta)
+barato 6 · control 8 · diferencia -2</title></circle><circle cx="258.20000000000005" cy="123" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 6 · cierre
+«Ok gracias» tras «¿Le cotizo la 1, la 2 o la 3?»: no eligió nada y el bot mandó la cotización más cara
+barato 8 · control 8 · diferencia 0</title></circle><circle cx="298.6" cy="159.33333333333331" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 7 · invento
+«¿Cuántas lonas vienen?» sobre una llanta sin ese dato en ficha; el bot debe no inventar
+barato 4 · control 6 · diferencia -2</title></circle><circle cx="339" cy="141.16666666666669" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 8 · guardian
+Rechaza equivalentes porque rozan en su carro, pide pedir la medida exacta, pregunta si es un chat virtual y exige asesor (17 correcciones del guardián)
+barato 2 · control 3 · diferencia -1</title></circle><circle cx="379.4" cy="141.16666666666669" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 9 · tono
+«Jefe», «le molesto mil disculpas» y Riobamba: cortesía ecuatoriana que no debe leerse como cliente molesto
+barato 7 · control 8 · diferencia -1</title></circle><circle cx="419.79999999999995" cy="104.83333333333334" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 10 · ciudad
+Pide 4 llantas y dice «estoy acá en Manta»: no hay local ni envío y el bot ya había cotizado
+barato 6 · control 5 · diferencia +1</title></circle><circle cx="460.20000000000005" cy="141.16666666666669" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 26 · otro
+Ubicación, cuánto duran, tarjeta, calles, Continental y hora de llegada con asesor humano alternando con el bot (venta)
+barato 6 · control 7 · diferencia -1</title></circle><circle cx="500.59999999999997" cy="86.66666666666666" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 27 · cantidad
+«Las 4» como única respuesta a un menú de medidas del aro 15: no eligió modelo y el bot cotizó igual
+barato 8 · control 6 · diferencia +2</title></circle><circle cx="541" cy="141.16666666666669" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 28 · medida
+Medida a pedazos («la a 65 Rin 13»), «no nos entendemos» y cambio a 175/50 con comparación de precio ajeno
+barato 4 · control 5 · diferencia -1</title></circle><circle cx="581.4000000000001" cy="50.33333333333333" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 29 · repregunta
+Local ya elegido y el bot lo vuelve a preguntar; el cliente solo responde con emojis al final
+barato 7 · control 3 · diferencia +4</title></circle><circle cx="621.8" cy="123" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 30 · precio
+Pide descuento en efectivo, luego «$80 de descuento» y precio final: el bot repite la política y el descuento ya estaba incluido
+barato 6 · control 6 · diferencia 0</title></circle><circle cx="662.2" cy="123" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 31 · fecha_visita
+Vive en Riobamba y dice «el próximo sábado» un sábado: el bot registró el sábado 31 en vez del 24
+barato 7 · control 7 · diferencia 0</title></circle><circle cx="702.5999999999999" cy="123" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 32 · cierre
+«Gracias» tras el menú de opciones y luego solo «Quito Sur»: la cotización sale sin elección
+barato 8 · control 8 · diferencia 0</title></circle><circle cx="743" cy="104.83333333333334" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 33 · invento
+Exige medida exacta 335/50R18 sin stock, pregunta «¿de dónde son?» y condiciona la visita a lo que haya
+barato 5 · control 4 · diferencia +1</title></circle><circle cx="783.4000000000001" cy="123" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 34 · guardian
+Ciclo nuevo: elige la 1, agradece, dice «con eso suficiente» y manda un 🤝; el bot sigue contestando
+barato 7 · control 7 · diferencia 0</title></circle><circle cx="823.8" cy="141.16666666666669" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 35 · tono
+«Ya que me entreguen les molesto para visitarlos»: el verbo cortés apagó el bot en ese hilo
+barato 7 · control 8 · diferencia -1</title></circle><text x="56.2" y="252" text-anchor="middle" font-size="11" fill="var(--muted)">caso 1</text><text x="137" y="252" text-anchor="middle" font-size="11" fill="var(--muted)">caso 3</text><text x="217.8" y="252" text-anchor="middle" font-size="11" fill="var(--muted)">caso 5</text><text x="298.6" y="252" text-anchor="middle" font-size="11" fill="var(--muted)">caso 7</text><text x="379.4" y="252" text-anchor="middle" font-size="11" fill="var(--muted)">caso 9</text><text x="460.20000000000005" y="252" text-anchor="middle" font-size="11" fill="var(--muted)">caso 26</text><text x="541" y="252" text-anchor="middle" font-size="11" fill="var(--muted)">caso 28</text><text x="621.8" y="252" text-anchor="middle" font-size="11" fill="var(--muted)">caso 30</text><text x="702.5999999999999" y="252" text-anchor="middle" font-size="11" fill="var(--muted)">caso 32</text><text x="783.4000000000001" y="252" text-anchor="middle" font-size="11" fill="var(--muted)">caso 34</text></svg></div>
+  <p class="lost">Ningún caso cae bajo el límite y la media no se mueve: las diferencias son ruido del bot.</p>
+</section>
+
+<section class="card" style="--c:#1baf7a;--cd:#199e70">
+  <h2>Vendedor Opus 5.5 + Guardián Haiku 5.5</h2>
+  <div class="tiles">
+    <div class="tile"><div class="l">Nota media (control)</div><div class="n">5.8 <span class="vs">vs 6.0</span></div></div>
+    <div class="tile"><div class="l">Diferencia media ± 2 EE</div><div class="n good">-0.25 <span class="vs">± 0.81</span></div></div>
+    <div class="tile"><div class="l">Casos bajo el límite</div><div class="n good">0<span class="vs"> de 20</span></div></div>
+    <div class="tile"><div class="l">Turnos con falla técnica</div><div class="n">0 <span class="vs">vs 2</span></div></div>
+    <div class="tile"><div class="l">Cotizaciones · visitas</div><div class="n">3 · 5 <span class="vs">vs 1 · 4</span></div></div>
+    <div class="tile"><div class="l">Costo contra el control</div><div class="n">62 %</div></div>
+    <div class="tile"><div class="l">Costo por conversación</div><div class="n">$0.162 <span class="vs">vs $0.261</span></div></div>
+    <div class="tile"><div class="l">Segundos por conversación</div><div class="n">137 <span class="vs">vs 143</span></div></div>
+  </div>
+  <div class="chart"><svg viewBox="0 0 860 260" role="img" aria-label="Diferencia de nota contra el control, caso por caso, con límites de control"><rect x="36" y="40.56875" width="808" height="171.675" fill="var(--band)"/><line x1="36" x2="844" y1="232" y2="232" stroke="var(--grid)"/><text x="30" y="236" text-anchor="end" font-size="11" fill="var(--muted)">-8</text><line x1="36" x2="844" y1="204.75" y2="204.75" stroke="var(--grid)"/><text x="30" y="208.75" text-anchor="end" font-size="11" fill="var(--muted)">-6</text><line x1="36" x2="844" y1="177.5" y2="177.5" stroke="var(--grid)"/><text x="30" y="181.5" text-anchor="end" font-size="11" fill="var(--muted)">-4</text><line x1="36" x2="844" y1="150.25" y2="150.25" stroke="var(--grid)"/><text x="30" y="154.25" text-anchor="end" font-size="11" fill="var(--muted)">-2</text><line x1="36" x2="844" y1="123" y2="123" stroke="var(--grid)"/><text x="30" y="127" text-anchor="end" font-size="11" fill="var(--muted)">0</text><line x1="36" x2="844" y1="95.75" y2="95.75" stroke="var(--grid)"/><text x="30" y="99.75" text-anchor="end" font-size="11" fill="var(--muted)">+2</text><line x1="36" x2="844" y1="68.5" y2="68.5" stroke="var(--grid)"/><text x="30" y="72.5" text-anchor="end" font-size="11" fill="var(--muted)">+4</text><line x1="36" x2="844" y1="41.25" y2="41.25" stroke="var(--grid)"/><text x="30" y="45.25" text-anchor="end" font-size="11" fill="var(--muted)">+6</text><line x1="36" x2="844" y1="14" y2="14" stroke="var(--grid)"/><text x="30" y="18" text-anchor="end" font-size="11" fill="var(--muted)">+8</text><line x1="36" x2="844" y1="123" y2="123" stroke="var(--fg2)" stroke-width="1"/><line x1="36" x2="844" y1="126.40625" y2="126.40625" stroke="var(--c)" stroke-dasharray="5 4"/><line x1="36" x2="844" y1="40.56875" y2="40.56875" stroke="var(--muted)" stroke-dasharray="2 3"/><line x1="36" x2="844" y1="212.24375" y2="212.24375" stroke="var(--muted)" stroke-dasharray="2 3"/><text x="844" y="36.56875" text-anchor="end" font-size="11" fill="var(--muted)">límite superior +6.0</text><text x="844" y="225.24375" text-anchor="end" font-size="11" fill="var(--muted)">límite inferior -6.5</text><text x="40" y="121.40625" font-size="11" fill="var(--c)">media -0.25</text><path d="M56.2,136.6 L96.6,109.4 L137.0,136.6 L177.4,150.3 L217.8,150.3 L258.2,123.0 L298.6,136.6 L339.0,123.0 L379.4,163.9 L419.8,95.8 L460.2,150.3 L500.6,109.4 L541.0,150.3 L581.4,68.5 L621.8,123.0 L662.2,123.0 L702.6,123.0 L743.0,82.1 L783.4,123.0 L823.8,150.3" fill="none" stroke="var(--c)" stroke-width="1.5" opacity=".6"/><circle cx="56.2" cy="136.625" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 1 · cantidad
+«Un par de llantas» y luego «Sería 2»: la cantidad llega en palabras y el bot ya había cotizado juegos de 2
+barato 6 · control 7 · diferencia -1</title></circle><circle cx="96.6" cy="109.375" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 2 · medida
+Medida con error de tipeo (235/79), duda entre 235/70 y 235/75, y luego otra medida mal escrita que corrige
+barato 6 · control 5 · diferencia +1</title></circle><circle cx="137" cy="136.625" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 3 · repregunta
+Sin stock en su medida: el bot repite cuatro veces «¿qué día cree que puede pasar?» mientras el cliente pide primero saber si consiguen la llanta
+barato 3 · control 4 · diferencia -1</title></circle><circle cx="177.39999999999998" cy="150.25" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 4 · precio
+Costo de las 4 Falken, «en efectivo mismo valor, cierto?» y un bloque largo de mensajes seguidos hasta «cambié las 4 llantas» (venta)
+barato 3 · control 5 · diferencia -2</title></circle><circle cx="217.8" cy="150.25" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 5 · fecha_visita
+Ciclo nuevo: «hoy a las 2:30 a 3:00» y el botón «ninguno de esos días»; termina visitando (venta)
+barato 6 · control 8 · diferencia -2</title></circle><circle cx="258.20000000000005" cy="123" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 6 · cierre
+«Ok gracias» tras «¿Le cotizo la 1, la 2 o la 3?»: no eligió nada y el bot mandó la cotización más cara
+barato 8 · control 8 · diferencia 0</title></circle><circle cx="298.6" cy="136.625" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 7 · invento
+«¿Cuántas lonas vienen?» sobre una llanta sin ese dato en ficha; el bot debe no inventar
+barato 5 · control 6 · diferencia -1</title></circle><circle cx="339" cy="123" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 8 · guardian
+Rechaza equivalentes porque rozan en su carro, pide pedir la medida exacta, pregunta si es un chat virtual y exige asesor (17 correcciones del guardián)
+barato 3 · control 3 · diferencia 0</title></circle><circle cx="379.4" cy="163.875" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 9 · tono
+«Jefe», «le molesto mil disculpas» y Riobamba: cortesía ecuatoriana que no debe leerse como cliente molesto
+barato 5 · control 8 · diferencia -3</title></circle><circle cx="419.79999999999995" cy="95.75" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 10 · ciudad
+Pide 4 llantas y dice «estoy acá en Manta»: no hay local ni envío y el bot ya había cotizado
+barato 7 · control 5 · diferencia +2</title></circle><circle cx="460.20000000000005" cy="150.25" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 26 · otro
+Ubicación, cuánto duran, tarjeta, calles, Continental y hora de llegada con asesor humano alternando con el bot (venta)
+barato 5 · control 7 · diferencia -2</title></circle><circle cx="500.59999999999997" cy="109.375" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 27 · cantidad
+«Las 4» como única respuesta a un menú de medidas del aro 15: no eligió modelo y el bot cotizó igual
+barato 7 · control 6 · diferencia +1</title></circle><circle cx="541" cy="150.25" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 28 · medida
+Medida a pedazos («la a 65 Rin 13»), «no nos entendemos» y cambio a 175/50 con comparación de precio ajeno
+barato 3 · control 5 · diferencia -2</title></circle><circle cx="581.4000000000001" cy="68.5" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 29 · repregunta
+Local ya elegido y el bot lo vuelve a preguntar; el cliente solo responde con emojis al final
+barato 7 · control 3 · diferencia +4</title></circle><circle cx="621.8" cy="123" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 30 · precio
+Pide descuento en efectivo, luego «$80 de descuento» y precio final: el bot repite la política y el descuento ya estaba incluido
+barato 6 · control 6 · diferencia 0</title></circle><circle cx="662.2" cy="123" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 31 · fecha_visita
+Vive en Riobamba y dice «el próximo sábado» un sábado: el bot registró el sábado 31 en vez del 24
+barato 7 · control 7 · diferencia 0</title></circle><circle cx="702.5999999999999" cy="123" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 32 · cierre
+«Gracias» tras el menú de opciones y luego solo «Quito Sur»: la cotización sale sin elección
+barato 8 · control 8 · diferencia 0</title></circle><circle cx="743" cy="82.125" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 33 · invento
+Exige medida exacta 335/50R18 sin stock, pregunta «¿de dónde son?» y condiciona la visita a lo que haya
+barato 7 · control 4 · diferencia +3</title></circle><circle cx="783.4000000000001" cy="123" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 34 · guardian
+Ciclo nuevo: elige la 1, agradece, dice «con eso suficiente» y manda un 🤝; el bot sigue contestando
+barato 7 · control 7 · diferencia 0</title></circle><circle cx="823.8" cy="150.25" r="4" fill="var(--card)" stroke="var(--c)" stroke-width="2"><title>Caso 35 · tono
+«Ya que me entreguen les molesto para visitarlos»: el verbo cortés apagó el bot en ese hilo
+barato 6 · control 8 · diferencia -2</title></circle><text x="56.2" y="252" text-anchor="middle" font-size="11" fill="var(--muted)">caso 1</text><text x="137" y="252" text-anchor="middle" font-size="11" fill="var(--muted)">caso 3</text><text x="217.8" y="252" text-anchor="middle" font-size="11" fill="var(--muted)">caso 5</text><text x="298.6" y="252" text-anchor="middle" font-size="11" fill="var(--muted)">caso 7</text><text x="379.4" y="252" text-anchor="middle" font-size="11" fill="var(--muted)">caso 9</text><text x="460.20000000000005" y="252" text-anchor="middle" font-size="11" fill="var(--muted)">caso 26</text><text x="541" y="252" text-anchor="middle" font-size="11" fill="var(--muted)">caso 28</text><text x="621.8" y="252" text-anchor="middle" font-size="11" fill="var(--muted)">caso 30</text><text x="702.5999999999999" y="252" text-anchor="middle" font-size="11" fill="var(--muted)">caso 32</text><text x="783.4000000000001" y="252" text-anchor="middle" font-size="11" fill="var(--muted)">caso 34</text></svg></div>
+  <p class="lost">Ningún caso cae bajo el límite y la media no se mueve: las diferencias son ruido del bot.</p>
+</section>
+<section class="card">
+  <h2 style="color:var(--fg)">Control (gpt-5.5)</h2>
+  <div class="tiles">
+    <div class="tile"><div class="l">Nota media</div><div class="n">6.0</div></div>
+    <div class="tile"><div class="l">Casos con nota ≤ 4</div><div class="n">4<span class="vs"> de 20</span></div></div>
+    <div class="tile"><div class="l">Turnos con falla técnica</div><div class="n">2<span class="vs"> de 123</span></div></div>
+    <div class="tile"><div class="l">Cotizaciones · visitas</div><div class="n">1 · 4</div></div>
+    <div class="tile"><div class="l">Costo del lote</div><div class="n">$5.22</div></div>
+  </div>
+</section>
+</main></body></html>

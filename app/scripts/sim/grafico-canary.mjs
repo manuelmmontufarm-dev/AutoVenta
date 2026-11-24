@@ -16,12 +16,19 @@ import { resolve } from "node:path";
 const dir = resolve(import.meta.dirname, "mediciones");
 const leer = async (e) => JSON.parse(await readFile(resolve(dir, `canary-${e}.json`), "utf8")).casos;
 const control = await leer("control");
-const CONFIGS = [
+// `--configs etiqueta=Nombre;etiqueta=Nombre` cambia qué se compara (24-nov:
+// las combinaciones con Claude) y `--titulo`/`--sub`/`--que-ves` el encabezado.
+const argv = (n, d = null) => { const i = process.argv.indexOf(`--${n}`); return i >= 0 ? process.argv[i + 1] : d; };
+const PALETA = [["#eb6834", "#d95926"], ["#2a78d6", "#3987e5"], ["#1baf7a", "#199e70"], ["#eda100", "#c98500"]];
+const CONFIGS_FIJAS = [
   { etiqueta: "mini-ambos", nombre: "Vendedor + Guardián en mini", color: "#eb6834", colorDark: "#d95926" },
   { etiqueta: "mini-guardian", nombre: "Solo el Guardián en mini", color: "#2a78d6", colorDark: "#3987e5" },
   { etiqueta: "mini-vendedor", nombre: "Solo el vendedor en mini", color: "#1baf7a", colorDark: "#199e70" },
   { etiqueta: "v54-gmini", nombre: "Vendedor gpt-5.4 + Guardián en mini", color: "#eda100", colorDark: "#c98500" },
 ];
+const CONFIGS = argv("configs")
+  ? argv("configs").split(";").map((par, i) => { const [etiqueta, nombre] = par.split("="); return { etiqueta, nombre: nombre ?? etiqueta, color: PALETA[i % 4][0], colorDark: PALETA[i % 4][1] }; })
+  : CONFIGS_FIJAS;
 const porN = (xs) => new Map(xs.map((c) => [c.n, c]));
 const C = porN(control);
 
@@ -47,6 +54,7 @@ for (const cfg of CONFIGS) {
   const casos = await leer(cfg.etiqueta).catch(() => []);
   const M = porN(casos);
   const comunes = [...M.keys()].filter((n) => C.has(n)).sort((a, b) => a - b);
+  if (!comunes.length) continue;
   const puntos = comunes.map((n) => {
     const a = M.get(n).juez?.nota, b = C.get(n).juez?.nota;
     return { n, a, b, d: a != null && b != null ? a - b : null, familia: M.get(n).familia, titulo: M.get(n).titulo };
@@ -70,7 +78,8 @@ const pct = (a, b) => (b ? `${Math.round((a / b) * 100)} %` : "—");
 function chart(s) {
   const W = 860, H = 260, m = { l: 36, r: 16, t: 14, b: 28 };
   const xs = s.puntos.map((p) => p.n);
-  const x = (n) => m.l + ((n - 1) / 49) * (W - m.l - m.r);
+  const orden = new Map(xs.map((n, i) => [n, i]));
+  const x = (n) => m.l + ((orden.get(n) + 0.5) / Math.max(1, xs.length)) * (W - m.l - m.r);
   const yMin = Math.min(-6, Math.floor(s.lcl) - 1), yMax = Math.max(6, Math.ceil(s.ucl) + 1);
   const y = (v) => m.t + ((yMax - v) / (yMax - yMin)) * (H - m.t - m.b);
   let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Diferencia de nota contra el control, caso por caso, con límites de control">`;
@@ -90,7 +99,7 @@ function chart(s) {
     svg += `<circle cx="${x(p.n)}" cy="${y(p.d)}" r="${fuera ? 6 : 4}" fill="${fuera ? "var(--c)" : "var(--card)"}" stroke="var(--c)" stroke-width="2"><title>Caso ${p.n} · ${p.familia}\n${p.titulo}\nbarato ${p.a} · control ${p.b} · diferencia ${p.d > 0 ? "+" : ""}${p.d}</title></circle>`;
     if (fuera) svg += `<text x="${x(p.n)}" y="${y(p.d) + (p.d < 0 ? 18 : -10)}" text-anchor="middle" font-size="11" fill="var(--fg)">${p.n}</text>`;
   }
-  for (const n of [1, 10, 20, 30, 40, 50]) svg += `<text x="${x(n)}" y="${H - 8}" text-anchor="middle" font-size="11" fill="var(--muted)">caso ${n}</text>`;
+  for (const n of xs.filter((_, i) => i % Math.ceil(xs.length / 10) === 0)) svg += `<text x="${x(n)}" y="${H - 8}" text-anchor="middle" font-size="11" fill="var(--muted)">caso ${n}</text>`;
   return svg + `</svg>`;
 }
 
@@ -104,6 +113,8 @@ const bloque = (s) => `
     <div class="tile"><div class="l">Turnos con falla técnica</div><div class="n">${s.r.tecnicos} <span class="vs">vs ${s.rc.tecnicos}</span></div></div>
     <div class="tile"><div class="l">Cotizaciones · visitas</div><div class="n">${s.r.cotizaciones} · ${s.r.visitas} <span class="vs">vs ${s.rc.cotizaciones} · ${s.rc.visitas}</span></div></div>
     <div class="tile"><div class="l">Costo contra el control</div><div class="n">${pct(s.r.usd, s.rc.usd)}</div></div>
+    <div class="tile"><div class="l">Costo por conversación</div><div class="n">$${(s.r.usd / Math.max(1, s.r.casos)).toFixed(3)} <span class="vs">vs $${(s.rc.usd / Math.max(1, s.rc.casos)).toFixed(3)}</span></div></div>
+    <div class="tile"><div class="l">Segundos por conversación</div><div class="n">${Math.round(s.r.segundos)} <span class="vs">vs ${Math.round(s.rc.segundos)}</span></div></div>
   </div>
   <div class="chart">${chart(s)}</div>
   ${s.fuera.length ? `<p class="lost">Pierde de verdad en: ${s.fuera.map((p) => `caso ${p.n} (${p.familia}, ${p.d})`).join(" · ")}.</p>` : `<p class="lost">${s.corrida ? "Ningún caso solo cae bajo el límite, pero la media está corrida hacia abajo: pierde un poco en muchos casos." : "Ningún caso cae bajo el límite y la media no se mueve: las diferencias son ruido del bot."}</p>`}
@@ -133,8 +144,9 @@ process.stdout.write(`<!doctype html>
 </style>
 </head>
 <body><main>
-<h1>Canary de modelo barato: ¿pierde ventas?</h1>
-<p class="sub">${control.length} conversaciones reales difíciles, repetidas en el simulador con gpt-5.5 (control) y con gpt-5.4-mini en cada pieza · juez gpt-5.5 · ${new Date().toLocaleDateString("es-EC", { day: "numeric", month: "long", year: "numeric" })}</p>
+<h1>${argv("titulo", "Canary de modelo barato: ¿pierde ventas?")}</h1>
+<p class="sub">${control.length} conversaciones reales difíciles, repetidas en el simulador con gpt-5.5 (control) y ${argv("sub", "con gpt-5.4-mini en cada pieza")} · juez gpt-5.5 · ${new Date().toLocaleDateString("es-EC", { day: "numeric", month: "long", year: "numeric" })}</p>
+${argv("que-ves") ? `<section class="card"><h2 style="color:var(--fg)">Qué estás viendo</h2><p class="leyenda" style="margin:0">${argv("que-ves")}</p></section>` : ""}
 <p class="leyenda">Cada punto es un caso: <b>nota con el modelo barato menos nota del control</b> (escala 1–10). La franja gris son los límites de control: dentro de ella es ruido del propio bot (dos corridas iguales tampoco dan la misma nota). Un punto <b>por debajo del límite inferior</b> es una pérdida real.</p>
 ${series.map(bloque).join("\n")}
 <section class="card">
