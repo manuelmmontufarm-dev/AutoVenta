@@ -38,9 +38,13 @@ for (const n of comunes) {
 }
 const casosA = comunes.map((n) => A.get(n)), casosB = comunes.map((n) => B.get(n));
 const media = (xs) => { const c = xs.filter((x) => x.juez?.nota); return c.length ? suma(c, (x) => x.juez.nota) / c.length : null; };
+// El otro juez (lotes desde el 22-nov-2026): si los dos coinciden en quién gana, no es gusto de la casa.
+const mediaClaude = (xs) => { const c = xs.filter((x) => x.juez_claude?.nota); return c.length ? suma(c, (x) => x.juez_claude.nota) / c.length : null; };
+const hayJuezClaude = [...casosA, ...casosB].some((x) => x.juez_claude?.nota);
 console.log(`
 RESUMEN
-  nota media        A ${fmt(media(casosA))}   B ${fmt(media(casosB))}
+  nota media        A ${fmt(media(casosA))}   B ${fmt(media(casosB))}${hayJuezClaude ? `
+  nota juez Claude  A ${fmt(mediaClaude(casosA))}   B ${fmt(mediaClaude(casosB))}` : ""}
   A peor que B (>1 punto): ${peor} · igual: ${igual} · A mejor: ${mejor}
   nota ≤4           A ${casosA.filter((x) => (x.juez?.nota ?? 10) <= 4).length}   B ${casosB.filter((x) => (x.juez?.nota ?? 10) <= 4).length}
   invariantes rotos A ${casosA.filter((x) => x.invariantes?.length).length}   B ${casosB.filter((x) => x.invariantes?.length).length}
@@ -51,6 +55,26 @@ RESUMEN
   costo total       A $${fmt(suma(casosA, (x) => x.costo?.usd))}   B $${fmt(suma(casosB, (x) => x.costo?.usd))}  (A/B = ${fmt(suma(casosA, (x) => x.costo?.usd) / Math.max(1e-9, suma(casosB, (x) => x.costo?.usd)))})
   segundos por caso A ${fmt(suma(casosA, (x) => x.segundos) / Math.max(1, casosA.length), 0)}   B ${fmt(suma(casosB, (x) => x.segundos) / Math.max(1, casosB.length), 0)}
 `);
+// DE DÓNDE SALE EL COSTO: tokens y latencia por modelo y pieza (lotes desde el 22-nov-2026).
+const piezas = (xs) => {
+  const m = new Map();
+  for (const x of xs) for (const [k, p] of Object.entries(x.costo?.porModelo ?? {})) {
+    if (p.entrada == null) continue;
+    const t = m.get(k) ?? { runs: 0, usd: 0, entrada: 0, en_cache: 0, escritos: 0, salida: 0, razonamiento: 0, msPorRun: 0 };
+    t.msPorRun = (t.msPorRun * t.runs + p.ms * p.runs) / (t.runs + p.runs);
+    for (const c of ["runs", "usd", "entrada", "en_cache", "escritos", "salida", "razonamiento"]) t[c] += p[c] ?? 0;
+    m.set(k, t);
+  }
+  return [...m.entries()].sort((p, q) => q[1].usd - p[1].usd);
+};
+for (const [nombre, xs] of [["A", casosA], ["B", casosB]]) {
+  const filas = piezas(xs);
+  if (!filas.length) continue;
+  console.log(`DETALLE ${nombre}  (modelo·pieza: corridas · $ · entrada · % leído de caché · % escrito a caché · salida · de eso razonamiento · seg/llamada)`);
+  for (const [k, t] of filas) {
+    console.log(`  ${k.padEnd(30)} ${String(t.runs).padStart(4)} · $${fmt(t.usd, 3)} · ${Math.round(t.entrada / 1000)}k · ${Math.round(100 * t.en_cache / Math.max(1, t.entrada))}% · ${Math.round(100 * t.escritos / Math.max(1, t.entrada))}% · ${Math.round(t.salida / 1000)}k · ${Math.round(t.razonamiento / 1000)}k · ${fmt(t.msPorRun / 1000, 1)}`);
+  }
+}
 const fallas = (xs) => { const m = new Map(); for (const x of xs) for (const f of x.juez?.fallas ?? []) m.set(f, (m.get(f) ?? 0) + 1); return [...m.entries()].sort((p, q) => q[1] - p[1]); };
 console.log("FALLAS DEL JUEZ   A:", fallas(casosA).map(([f, n]) => `${f}×${n}`).join(", ") || "ninguna");
 console.log("                  B:", fallas(casosB).map(([f, n]) => `${f}×${n}`).join(", ") || "ninguna");

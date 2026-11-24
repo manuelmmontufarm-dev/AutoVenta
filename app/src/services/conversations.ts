@@ -1204,6 +1204,8 @@ export async function logAiRun(input: {
   inputTokens: number;
   outputTokens: number;
   cachedInputTokens?: number;
+  /** Tokens escritos al caché (solo Claude los cobra aparte). Van DENTRO de `inputTokens`. */
+  cacheWriteTokens?: number;
   reasoningTokens?: number;
   iterations?: number;
   route?: string;
@@ -1214,7 +1216,7 @@ export async function logAiRun(input: {
   await sql`
     insert into ai_runs (
       conversation_id, stage, prompt_version_id, model, latency_ms,
-      input_tokens, output_tokens, cached_input_tokens, reasoning_tokens,
+      input_tokens, output_tokens, cached_input_tokens, cache_write_tokens, reasoning_tokens,
       iterations, route, call_type, tools, error
     )
     values (
@@ -1226,6 +1228,7 @@ export async function logAiRun(input: {
       ${input.inputTokens},
       ${input.outputTokens},
       ${input.cachedInputTokens ?? 0},
+      ${input.cacheWriteTokens ?? 0},
       ${input.reasoningTokens ?? 0},
       ${input.iterations ?? 1},
       ${input.route ?? null},

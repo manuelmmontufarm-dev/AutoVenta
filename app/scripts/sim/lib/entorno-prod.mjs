@@ -141,6 +141,8 @@ export function perfilDeSimulacion(id) {
 export const DEFINIDAS_POR_EL_SIM = [
   "DATABASE_URL", "PGSSL", "PGUSER", "PORT",
   "OPENAI_API_KEY", "OPENAI_API_KEY_SIM", "OPENAI_BASE_URL", "OPENAI_ADMIN_KEY",
+  // Claude: la clave de pruebas sale de app/.env.sim, nunca del servicio.
+  "ANTHROPIC_API_KEY", "ANTHROPIC_API_KEY_SIM",
   "GRAPH_BASE_URL", "CONTIFICO_BASE_URL", "CONTIFICO_API_KEY", "CONTIFICO_TOKEN",
   // El catálogo lo sirve el simulador desde su foto, y lo resincroniza rápido
   // para que el stock que se fuerza en pantalla entre en segundos. El respaldo

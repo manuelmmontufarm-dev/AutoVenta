@@ -1,3 +1,20 @@
+## 22-nov-2026 · Bot · Claude como proveedor alterno, listo para probar (rama `feat/proveedor-fable`)
+
+- **Qué:** una sola puerta a un modelo de chat (`agent/chat.ts`): si el nombre empieza con `claude-` lo atiende
+  Anthropic con traducción de ida y vuelta (`agent/chatClaude.ts`), si no OpenAI igual que antes. Pasan por ahí el
+  vendedor, el rescate, el Guardián, el clasificador, la visión y la redacción de seguimientos. El canary valida cada
+  modelo en su proveedor y se apaga solo sin `ANTHROPIC_API_KEY`. Migración 038 (`ai_runs.cache_write_tokens`) y
+  tarifas de Claude en `billing.ts`. Simulador con clave de Anthropic de pruebas aparte; lotes con costo de Claude,
+  tokens por pieza y segundo juez; `npm run claude:humo`. Plan con números reales: `docs/planning/PLAN-CAMBIO-A-CLAUDE.md`.
+- **Por qué:** Manuel quiere saber si pasar Depot de OpenAI a Claude Fable abarata o vende más, con prueba
+  pares/impares. Con los tokens reales de 30 días: Fable en todo sería 3 a 8 veces lo de hoy ($248); lo que sí
+  abarata es Haiku 5.5 en el Guardián. Si vende más solo lo dice la prueba.
+- **Probado:** SIN clave todavía. `chatClaude` 20, `chatClaudeHttp` 8 (SDK real contra un Anthropic de mentira que
+  aplica las reglas de la API), `canaryModeloBarato` 8, `costoClaude` 5; suite completa 4.598 pasan (los 4 archivos
+  en rojo ya fallan en `main`); `tsc` ✅; `sim:humo` ✅ y el bot real del simulador contra el doble: 0 rechazos.
+  Falta: humo y lotes contra la API real cuando llegue la clave. No hay nada desplegado ni mergeado.
+- **Horas:** 1.5.
+
 ## 21-nov-2026 · Panel · Todo cambio del panel queda con nombre (rama `fix/auditar-todo`)
 
 - **Qué:** middleware `registrarCambioDelPanel` después del login: todo POST/PUT/PATCH/DELETE de `/api` (incluidas

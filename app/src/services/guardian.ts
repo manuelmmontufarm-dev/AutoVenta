@@ -44,6 +44,7 @@ import { mencionaVehiculo } from "../domain/vehiculoEnTexto.js";
 import { z } from "zod";
 import { business, config } from "../config.js";
 import { modeloCanary, rutaCanary } from "../agent/canary.js";
+import { completarChat, tokensEscritosEnCache } from "../agent/chat.js";
 import { sql } from "../db/client.js";
 import type { Stage } from "../domain/pipeline.js";
 import { ahorroDeLaCotizacion } from "../domain/ahorro.js";
@@ -1138,7 +1139,7 @@ export async function revisarConGuardian(
       conversation.id, conversation.current_cycle, borrador, huella, opciones,
     );
     const reasoningEffort = chatReasoningEffort(modeloGuardian, false);
-    const completar = dependencias.completar ?? (() => openai.chat.completions.create({
+    const completar = dependencias.completar ?? (() => completarChat(openai, {
         model: modeloGuardian,
         messages: [
           { role: "system", content: INSTRUCCIONES },
@@ -1150,7 +1151,7 @@ export async function revisarConGuardian(
         max_completion_tokens: 2000,
         ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
         stream: false,
-      }));
+      }, { esfuerzo: config.anthropic.effortGuardian }));
     const respuesta = await conTiempoMaximo(completar(), timeoutMs);
     const ms = Date.now() - inicio;
     const texto = respuesta.choices[0]?.message?.content ?? "";
@@ -1164,6 +1165,7 @@ export async function revisarConGuardian(
       inputTokens: respuesta.usage?.prompt_tokens ?? 0,
       outputTokens: respuesta.usage?.completion_tokens ?? 0,
       cachedInputTokens: respuesta.usage?.prompt_tokens_details?.cached_tokens ?? 0,
+      cacheWriteTokens: tokensEscritosEnCache(respuesta),
       route: rutaCanary(opciones.tipo === "seguimiento" ? "guardian_seguimiento" : "guardian", conversation.phone),
       callType: "guardian",
       tools: [],

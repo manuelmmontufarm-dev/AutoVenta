@@ -5,6 +5,7 @@
  */
 import OpenAI from "openai";
 import { nuevoClienteOpenAI } from "./openaiCliente.js";
+import { completarChat } from "./chat.js";
 import { config } from "../config.js";
 import { logAiRun, setStage, type Conversation } from "../services/conversations.js";
 import { sql } from "../db/client.js";
@@ -45,7 +46,7 @@ export async function classifyStage(
     return;
   }
   try {
-    const response = await openai.chat.completions.create({
+    const response = await completarChat(openai, {
       model: config.openai.classifierModel,
       max_completion_tokens: 128,
       response_format: { type: "json_object" },
