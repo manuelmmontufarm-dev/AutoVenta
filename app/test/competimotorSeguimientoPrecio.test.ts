@@ -41,10 +41,13 @@ const townhall = (): CatalogItem => ({
   stock: 101, availability: "available", imageUrl: null, imageSource: null, loadSpeed: null, active: true, source: "archivo",
   preciosPorPago: { tarjetaConIva: 49.45, efectivoConIva: 44.85 },
 });
-const catalogoEn = (instante: string) => {
+// La Townhall estuvo en Black Friday del 20 al 24-nov (sección «jueves a lunes»);
+// desde el 24-nov solo queda el cuadro rojo. `conLaTownhall` es la lista de antes.
+const conLaTownhall = { ...politica.preciosEspeciales!, llantas: [{ codigo: "A0477", medida: "185/65R14", precioConIva: 42 }] };
+const catalogoEn = (instante: string, lista = politica.preciosEspeciales) => {
   CATALOGO.length = 0;
   CATALOGO.push(townhall());
-  aplicarPreciosEspeciales(CATALOGO, politica.preciosEspeciales, new Date(instante));
+  aplicarPreciosEspeciales(CATALOGO, lista, new Date(instante));
 };
 const cotizada = (precio: number) => ({ total: Math.round(precio * 4 * 100) / 100, items: [{ code: "A0477", quantity: 4, salePriceWithTax: precio }] });
 const seguimiento = (precio: number) =>
@@ -60,14 +63,20 @@ describe("seguimientos de Competimotor con P2 y Black Friday", () => {
     expect(texto).not.toMatch(/\$/);
   });
 
-  it("después del 30-nov: P2 sigue viva y el precio Black Friday ya no", () => {
-    catalogoEn("2026-12-01T00:00:00-05:00");
+  it("24-nov: la Townhall salió de la promo (solo queda el cuadro rojo): su $42 firmado ya no se repite", () => {
+    catalogoEn("2026-11-25T12:00:00-05:00");
+    expect(limpiar(49.45).quitados).toEqual([]);
+    expect(limpiar(42).quitados).toEqual(["$42.00", "$168.00"]);
+  });
+
+  it("después del cierre: P2 sigue viva y el precio Black Friday ya no", () => {
+    catalogoEn("2026-12-06T00:00:00-05:00", conLaTownhall);
     expect(limpiar(49.45).quitados).toEqual([]);
     expect(limpiar(42).quitados).toEqual(["$42.00", "$168.00"]);
   });
 
   it("mientras rige Black Friday: la de Black Friday vive y la firmada a P2 se va (el P2 es el tachado)", () => {
-    catalogoEn("2026-11-25T12:00:00-05:00");
+    catalogoEn("2026-11-25T12:00:00-05:00", conLaTownhall);
     expect(limpiar(42).quitados).toEqual([]);
     expect(limpiar(49.45).quitados).toEqual(["$49.45", "$197.80"]);
   });
