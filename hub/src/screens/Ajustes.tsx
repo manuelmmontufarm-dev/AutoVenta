@@ -2,18 +2,17 @@
  * Ajustes del negocio — lo que el cliente cambia sin desarrollador.
  *
  * Separado a propósito de «Configuración técnica» (el logo DT): aquí no aparece
- * ningún token ni nada que pueda dejar al bot mudo. Cada sección que afecta lo
- * que ve el cliente tiene vista previa antes de aplicar, como pide el §20 del
- * PDF de especificaciones.
+ * ningún token. Lo que cambia la cotización que ve el cliente (tema, plantilla,
+ * beneficios) vive en la pantalla Promociones, con su vista previa antes de
+ * aplicar, como pide el §20 del PDF de especificaciones.
  */
-import { SeccionPromocionModo } from "../components/promocion";
-import { motion } from "framer-motion";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { inicialesDelNegocio, negocioActual, useNegocio, type LocalDelNegocio } from "../data/negocio";
+import { useCallback, useEffect, useState } from "react";
+import { useNegocio, type LocalDelNegocio } from "../data/negocio";
 import { authHeaders } from "../data/realSource";
 import { useHub } from "../store";
 import { Segmented } from "../components/ui";
-import { BotPowerSwitch, FollowUpSettingsPanel } from "./Settings";
+import { BotPowerSwitch } from "./Settings";
+import { FollowUpSettingsPanel } from "../components/seguimientos";
 import { SeccionAnuncios } from "../components/anuncios";
 import { SeccionCatalogoArchivo, SeccionFacturasArchivo } from "../components/catalogo-archivo";
 
@@ -43,17 +42,6 @@ async function api<T extends object = { ok: true }>(url: string, init: RequestIn
   return payload;
 }
 
-interface Benefit {
-  id: number;
-  text: string;
-  position: number;
-  active: boolean;
-  brand: string | null;
-  minQuantity: number | null;
-  store: string | null;
-  expiresAt: string | null;
-}
-
 interface BrandProfile {
   brand: string;
   tag: string;
@@ -75,123 +63,51 @@ interface Store { dias: Record<Dia, StorePeriod>; excepciones: StoreException[] 
 type StoreHours = Record<string, Store>;
 interface PreciosEstado { fuente: string; actualizadoEn: string | null; productos: number; error: string | null }
 
-/**
- * Las paletas `depot` y `depotRojo` son los colores del sitio de Depot. En su
- * panel se llaman como siempre; en el de otro cliente son solo un negro y un
- * rojo más — llamarlas «Depot Tire» ahí sería mostrarle la marca de otro.
- */
-const esDepot = () => negocioActual().id === "depot";
-const paletaLabel = (p: string): string => ({
-  grafito: "Grafito", carbon: "Carbón", rojo: "Rojo", verde: "Verde",
-  espresso: "Espresso", navy: "Azul marino",
-  depot: esDepot() ? `${negocioActual().nombre} negro` : "Negro intenso",
-  depotRojo: esDepot() ? `${negocioActual().nombre} rojo` : "Rojo intenso",
-} as Record<string, string>)[p] ?? p;
-/** Las paletas sacadas del sitio del cliente, no propuestas de estilo. */
-const paletaNota = (p: string): string | undefined => (esDepot() ? ({
-  depot: "Colores de tiredepotec.com · el negro del logo manda",
-  depotRojo: "Colores de tiredepotec.com · el rojo del logo manda · sin beige",
-} as Record<string, string>)[p] : undefined);
-const FUENTE_LABEL: Record<string, string> = {
-  exo: "Exo 2", barlow: "Barlow", kanit: "Kanit", chakra: "Chakra Petch",
-  saira: "Saira", rajdhani: "Rajdhani", archivo: "Archivo Black",
-};
-/**
- * Las plantillas de las piezas. «Clásica» es la de siempre, teñida con la paleta
- * y la tipografía de abajo. «Depot día y noche» es la que propuso el cliente el
- * 12-sep: la única que cambia sola entre clara y oscura.
- */
-const plantillaLabel = (p: string): string => ({
-  clasica: "Clásica",
-  diaNoche: esDepot() ? `${negocioActual().nombre.split(/\s+/)[0]} día y noche` : "Día y noche",
-} as Record<string, string>)[p] ?? p;
-const plantillaNota = (p: string): string | undefined => ({
-  clasica: "Usa la paleta y la tipografía de abajo",
-  diaNoche: esDepot()
-    ? "La nueva del cliente · clara de día, oscura de noche · logos oficiales"
-    : "Clara de día, oscura de noche · logos oficiales",
-} as Record<string, string>)[p];
-const MODO_LABEL: Record<string, string> = { auto: "Automático", dia: "Siempre de día", noche: "Siempre de noche" };
-const MODO_NOTA: Record<string, string> = {
-  auto: "Clara de 6:00 a 16:59 · oscura de 17:00 a 5:59 (hora de Quito)",
-  dia: "Sale siempre la clara",
-  noche: "Sale siempre la oscura",
-};
-
-interface DisenoDeTema { titulo: string; bajada: string; fondo: string; texto: string; acento: string; adorno: string }
-interface ConfigTema { id: string; personalizado: DisenoDeTema }
-interface TemaDisponible { id: string; nombre: string; diseno: DisenoDeTema | null }
-const TEMA_INICIAL: ConfigTema = {
-  id: "automatico",
-  personalizado: { titulo: "PROMOCIÓN ESPECIAL", bajada: "", fondo: "#111111", texto: "#ffffff", acento: "#ffc93c", adorno: "rayas" },
-};
-interface ConfigPiezas { paleta: string; fuente: string; plantilla: string; modo: string; promocion?: { modo: string }; tema?: ConfigTema }
-
-/** La que sale ahora mismo con el modo automático. Misma regla que render/diaNoche.ts. */
-function modoDeAhora(): "dia" | "noche" {
-  const hora = Number(new Intl.DateTimeFormat("en-US", {
-    hour: "numeric", hourCycle: "h23", timeZone: "America/Guayaquil",
-  }).format(new Date()));
-  return hora >= 6 && hora < 17 ? "dia" : "noche";
-}
-
-const PIEZAS = [
-  { id: "cotizacion", label: "Cotización" },
-  { id: "comparativa", label: "Comparativa" },
-  { id: "opciones", label: "Opciones" },
-] as const;
-
 // ---------------------------------------------------------------------------
 
 /**
  * Ajustes creció hasta volverse una sola página interminable; estas pestañas
- * lo parten en lo que el negocio busca: el bot, el local, las piezas que ve el
- * cliente, los avisos de WhatsApp y quién entra al panel.
+ * lo parten en lo que el negocio busca: el local, los seguimientos, los avisos
+ * de WhatsApp y quién entra al panel.
+ *
+ * 24-nov-2026 (Manuel): «Piezas» se mudó a la pantalla Promociones, al lado de
+ * las promociones y con su vista previa; el cupón de confirmación salió del
+ * panel (nunca se prendió); y «Bot» —guardián, origen de los precios, archivos,
+ * qué decir de cada marca— queda solo para soporte: «no veo nada que les
+ * interese de ahí». El interruptor de encender y apagar el bot NO se esconde:
+ * es el botón de emergencia del negocio y pasó a ser lo primero de «Negocio».
  */
-type TabAjustes = "bot" | "negocio" | "seguimientos" | "piezas" | "avisos" | "usuarios";
-const TABS_AJUSTES: { id: TabAjustes; label: string; soloAdmin?: boolean }[] = [
-  { id: "bot", label: "Bot" },
+type TabAjustes = "negocio" | "seguimientos" | "avisos" | "usuarios" | "bot";
+const TABS_AJUSTES: { id: TabAjustes; label: string; soloAdmin?: boolean; soloSoporte?: boolean }[] = [
   { id: "negocio", label: "Negocio" },
   // Horarios y tiempos de seguimiento vivían en Configuración técnica; son
   // decisiones del negocio, así que ahora están acá (DESIGN.md §17).
   { id: "seguimientos", label: "Seguimientos" },
-  { id: "piezas", label: "Piezas" },
   { id: "avisos", label: "Avisos" },
   // Crear usuarios y repartir accesos es del nivel más alto (Joaquín, Andrés,
   // Manuel). Entrar con la clave cruda también vale: esa llave ya abre todo.
   { id: "usuarios", label: "Usuarios", soloAdmin: true },
+  { id: "bot", label: "Bot", soloSoporte: true },
 ];
 
-export function Ajustes() {
-  const [paleta, setPaleta] = useState("grafito");
-  const [fuente, setFuente] = useState("exo");
-  const [paletas, setPaletas] = useState<string[]>([]);
-  // dark / accent / gold / base de cada paleta, tal como las usa el motor.
-  const [muestras, setMuestras] = useState<Record<string, string[]>>({});
-  const [fuentes, setFuentes] = useState<string[]>([]);
-  const [plantilla, setPlantilla] = useState("clasica");
-  const [modo, setModo] = useState("auto");
-  const [promocion, setPromocion] = useState("porcentaje");
-  const [tema, setTema] = useState<ConfigTema>(TEMA_INICIAL);
-  const [temas, setTemas] = useState<TemaDisponible[]>([]);
-  const [plantillas, setPlantillas] = useState<string[]>(["clasica"]);
-  const [modos, setModos] = useState<string[]>([]);
-  const [guardado, setGuardado] = useState<ConfigPiezas | null>(null);
+/**
+ * Quién es soporte de AutoVenta en el panel de cualquier cliente: el usuario
+ * `manuel` (sembrado igual en todos, `services/hubUsers.ts`) y quien entra con
+ * la clave cruda, que solo tiene soporte. Solo decide qué pestañas se muestran;
+ * los permisos de verdad los sigue poniendo el servidor.
+ */
+const USUARIOS_DE_SOPORTE = ["manuel"];
 
-  const [benefits, setBenefits] = useState<Benefit[]>([]);
+export function Ajustes() {
   const [profiles, setProfiles] = useState<BrandProfile[]>([]);
   const [hours, setHours] = useState<StoreHours | null>(null);
   const [precios, setPrecios] = useState<PreciosEstado | null>(null);
-  const [pieza, setPieza] = useState<string>("cotizacion");
   const [error, setError] = useState("");
-  const [guardando, setGuardando] = useState(false);
   const [cargando, setCargando] = useState(true);
 
   const cargar = useCallback(async () => {
     try {
-      const [cfg, ben, br, hrs] = await Promise.all([
-        api<{ config: ConfigPiezas; paletas: string[]; muestras: Record<string, string[]>; fuentes: string[]; plantillas?: string[]; modos?: string[]; temas?: TemaDisponible[] }>("/api/pieces-config"),
-        api<{ benefits: Benefit[] }>("/api/benefits"),
+      const [br, hrs] = await Promise.all([
         api<{ profiles: BrandProfile[] }>("/api/brand-profiles"),
         api<{ hours: StoreHours }>("/api/store-hours"),
       ]);
@@ -200,21 +116,6 @@ export function Ajustes() {
       api<{ precios: PreciosEstado }>("/api/precios")
         .then((r) => setPrecios(r.precios))
         .catch(() => setPrecios(null));
-      setPaleta(cfg.config.paleta);
-      setFuente(cfg.config.fuente);
-      setPlantilla(cfg.config.plantilla ?? "clasica");
-      setModo(cfg.config.modo ?? "auto");
-      setPromocion(cfg.config.promocion?.modo ?? "porcentaje");
-      setTema(cfg.config.tema ?? TEMA_INICIAL);
-      setTemas(cfg.temas ?? []);
-      // Un servidor anterior a las plantillas no manda estos dos campos.
-      setGuardado({ ...cfg.config, plantilla: cfg.config.plantilla ?? "clasica", modo: cfg.config.modo ?? "auto" });
-      setPlantillas(cfg.plantillas ?? ["clasica"]);
-      setModos(cfg.modos ?? []);
-      setPaletas(cfg.paletas);
-      setMuestras(cfg.muestras ?? {});
-      setFuentes(cfg.fuentes);
-      setBenefits(ben.benefits);
       setProfiles(br.profiles);
       // Un servidor anterior al horario por día manda {weekday, weekend}: se
       // expande acá para que un rollback del backend no rompa toda la pantalla.
@@ -235,37 +136,6 @@ export function Ajustes() {
 
   useEffect(() => { void cargar(); }, [cargar]);
 
-  const sinAplicar = guardado !== null && (
-    guardado.paleta !== paleta || guardado.fuente !== fuente
-    || guardado.plantilla !== plantilla || guardado.modo !== modo
-    || (guardado.promocion?.modo ?? "porcentaje") !== promocion
-    || JSON.stringify(guardado.tema ?? TEMA_INICIAL) !== JSON.stringify(tema)
-  );
-
-  const aplicar = async () => {
-    setGuardando(true);
-    try {
-      const r = await api<{ config: ConfigPiezas }>("/api/pieces-config", {
-        method: "PUT",
-        body: JSON.stringify({ paleta, fuente, plantilla, modo, promocion: { modo: promocion }, tema }),
-      });
-      setGuardado(r.config);
-      if (r.config.tema) setTema(r.config.tema);
-      setError("");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "No se pudo aplicar");
-    } finally {
-      setGuardando(false);
-    }
-  };
-
-  // Los beneficios activos entran a la vista previa aunque no se hayan
-  // guardado: el negocio ve la promoción en la pieza mientras la escribe.
-  const beneficiosPreview = useMemo(
-    () => benefits.filter((b) => b.active && b.text.trim()).map((b) => b.text.trim()),
-    [benefits],
-  );
-
   // El negocio de este servidor (R-29/R-30/R-32): sus locales para los
   // horarios y lo que todavía falta cargar para encender el bot.
   const negocio = useNegocio();
@@ -273,8 +143,9 @@ export function Ajustes() {
   // Entrar con la clave cruda deja `usuario` en null: esa llave ya abre todo.
   const usuario = useHub((s) => s.usuario);
   const esNivelMaximo = !usuario || usuario.rol === "admin";
-  const [tab, setTab] = useState<TabAjustes>("bot");
-  const tabs = TABS_AJUSTES.filter((t) => !t.soloAdmin || esNivelMaximo);
+  const esSoporte = !usuario || USUARIOS_DE_SOPORTE.includes(usuario.id);
+  const [tab, setTab] = useState<TabAjustes>("negocio");
+  const tabs = TABS_AJUSTES.filter((t) => (!t.soloAdmin || esNivelMaximo) && (!t.soloSoporte || esSoporte));
 
   if (cargando) {
     return <div className="p-6 text-[14px] text-text2">Cargando ajustes…</div>;
@@ -299,59 +170,18 @@ export function Ajustes() {
           pendientes (Depot) la tarjeta no existe. */}
       {negocio.faltantes.length > 0 && <TarjetaDeArranque id={negocio.id} faltantes={negocio.faltantes} />}
 
-      {tab === "bot" && (
+      {tab === "negocio" && (
         <div className="flex flex-col gap-4">
           {/* El interruptor va primero: apagar el bot tiene que ser lo más
               fácil de encontrar en toda la pantalla. */}
           <BotPowerSwitch />
-          <SeccionGuardian onError={setError} />
-          {precios && <SeccionPrecios precios={precios} setPrecios={setPrecios} onError={setError} />}
-          {/* Catálogo y facturas por archivo (R-28): el cliente sin API —
-              Mundillantas con Fénix— sube acá su Excel y sus facturas. */}
-          <SeccionCatalogoArchivo onError={setError} />
-          <SeccionFacturasArchivo onError={setError} />
-        </div>
-      )}
-
-      {tab === "negocio" && (
-        <div className="flex flex-col gap-4">
           {hours && <SeccionHorarios hours={hours} setHours={setHours} locales={negocio.locales} onError={setError} />}
-          <SeccionCupones onError={setError} />
           <SeccionVentaRegistrada onError={setError} />
           <SeccionAnuncios onError={setError} />
         </div>
       )}
 
       {tab === "seguimientos" && <FollowUpSettingsPanel />}
-
-      {tab === "piezas" && (
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_460px]">
-          <div className="flex flex-col gap-4">
-            <SeccionTema
-              paleta={paleta} fuente={fuente} paletas={paletas} fuentes={fuentes} muestras={muestras}
-              onPaleta={setPaleta} onFuente={setFuente}
-              plantilla={plantilla} modo={modo} plantillas={plantillas} modos={modos}
-              onPlantilla={setPlantilla} onModo={setModo}
-              sinAplicar={sinAplicar} guardando={guardando} onAplicar={aplicar}
-            />
-            {temas.length > 0 && (
-              <SeccionDecoracion
-                tema={tema} temas={temas} onTema={setTema}
-                sinAplicar={sinAplicar} guardando={guardando} onAplicar={aplicar}
-              />
-            )}
-            <SeccionTemporada onError={setError} />
-            <SeccionPromociones benefits={benefits} setBenefits={setBenefits} onError={setError} />
-            <SeccionPromocionModo promocion={promocion} onPromocion={setPromocion} onError={setError} />
-            <SeccionMarcas profiles={profiles} setProfiles={setProfiles} onError={setError} />
-          </div>
-          <VistaPrevia
-            pieza={pieza} setPieza={setPieza}
-            paleta={paleta} fuente={fuente} plantilla={plantilla} modo={modo} beneficios={beneficiosPreview}
-            promocion={promocion} tema={tema}
-          />
-        </div>
-      )}
 
       {tab === "avisos" && (
         <div className="flex flex-col gap-4">
@@ -364,6 +194,19 @@ export function Ajustes() {
       {tab === "usuarios" && esNivelMaximo && (
         <div className="flex flex-col gap-4">
           <SeccionUsuarios onError={setError} />
+        </div>
+      )}
+
+      {tab === "bot" && esSoporte && (
+        <div className="flex flex-col gap-4">
+          <p className="text-[12px] text-text2">Solo soporte ve esta pestaña: el negocio no la tiene en su panel.</p>
+          <SeccionGuardian onError={setError} />
+          {precios && <SeccionPrecios precios={precios} setPrecios={setPrecios} onError={setError} />}
+          {/* Catálogo y facturas por archivo (R-28): el cliente sin API —
+              Mundillantas con Fénix— sube su Excel de cada día en «Inventario». */}
+          <SeccionCatalogoArchivo onError={setError} />
+          <SeccionFacturasArchivo onError={setError} />
+          <SeccionMarcas profiles={profiles} setProfiles={setProfiles} onError={setError} />
         </div>
       )}
     </div>
@@ -504,140 +347,6 @@ function SeccionGuardian({ onError }: { onError: (v: string) => void }) {
   </Tarjeta>;
 }
 
-interface TemporadaEstado {
-  config: { modo: string; telefonos: string[] };
-  modos: string[];
-  promo: { nombre: string; lema: string; desde: string; hasta: string } | null;
-}
-
-const MODO_TEMPORADA: Record<string, { label: string; nota: string }> = {
-  apagada: { label: "Apagada", nota: "Nadie la ve, aunque esté en fechas." },
-  pruebas: { label: "Solo números de prueba", nota: "La ven solo los teléfonos de abajo: para probarla por WhatsApp." },
-  todos: { label: "Todos los clientes", nota: "La ve todo el que escribe, dentro de las fechas." },
-};
-
-/**
- * La promo de temporada (Black Friday, nov-2026): quién la ve. Las fechas y
- * las cifras vienen de la política del cliente; acá solo se abre o se cierra.
- * Nace en «solo números de prueba» para probarla antes de soltarla. Se guarda
- * al tocar, como el guardián.
- */
-function SeccionTemporada({ onError }: { onError: (v: string) => void }) {
-  const [estado, setEstado] = useState<TemporadaEstado | null>(null);
-  const [nuevo, setNuevo] = useState("");
-  const [cambiando, setCambiando] = useState(false);
-
-  useEffect(() => {
-    api<TemporadaEstado & { ok: boolean }>("/api/temporada")
-      .then((r) => setEstado(r))
-      .catch(() => setEstado(null));
-  }, []);
-
-  const guardar = async (cambio: Partial<TemporadaEstado["config"]>): Promise<boolean> => {
-    if (!estado) return false;
-    setCambiando(true);
-    try {
-      const r = await api<{ config: TemporadaEstado["config"] }>("/api/temporada", {
-        method: "PUT",
-        body: JSON.stringify(cambio),
-      });
-      setEstado({ ...estado, config: r.config });
-      onError("");
-      return true;
-    } catch (e) { onError(e instanceof Error ? e.message : "No se pudo guardar la promoción"); return false; }
-    finally { setCambiando(false); }
-  };
-
-  // Un servidor sin promo de temporada (otro cliente) no muestra el panel.
-  if (!estado?.promo) return null;
-  const { config, promo } = estado;
-  const agregar = () => {
-    const t = nuevo.trim();
-    if (!t) return;
-    void guardar({ telefonos: [...config.telefonos, t] }).then((ok) => ok && setNuevo(""));
-  };
-
-  return <Tarjeta
-    titulo={`Modo promoción · ${promo.nombre}`}
-    sub={`«${promo.lema}» · del ${promo.desde} al ${promo.hasta}. Cambia la cotización, el PDF y lo que dice el bot. Se guarda al tocar.`}
-  >
-    <div className="flex flex-wrap gap-2">
-      {estado.modos.map((m) => (
-        <button
-          key={m} disabled={cambiando} onClick={() => void guardar({ modo: m })}
-          className={`flex flex-col items-start gap-1 rounded-[6px] border px-3.5 py-2 text-left text-[12px] transition disabled:opacity-50 ${
-            m === config.modo ? "border-signal bg-bg font-semibold" : "border-line bg-bg hover:bg-bg"
-          }`}
-        >
-          <span>{MODO_TEMPORADA[m]?.label ?? m}</span>
-          {MODO_TEMPORADA[m] && <span className="text-[12px] font-normal text-text2">{MODO_TEMPORADA[m].nota}</span>}
-        </button>
-      ))}
-    </div>
-    {config.modo === "pruebas" && <div className="mt-4">
-      <p className="mb-2 text-[12px] font-semibold">Números de prueba</p>
-      {!config.telefonos.length && <p className="mb-2 text-[12px] font-semibold text-warn">Sin números: así nadie la ve.</p>}
-      <div className="flex flex-wrap gap-2">
-        {config.telefonos.map((t) => (
-          <span key={t} className="flex items-center gap-1.5 rounded-full bg-bg px-2.5 py-1 text-[12px]">
-            {t}
-            <button
-              disabled={cambiando} aria-label={`Quitar ${t}`}
-              onClick={() => void guardar({ telefonos: config.telefonos.filter((x) => x !== t) })}
-              className="text-text2 hover:text-text disabled:opacity-50"
-            >×</button>
-          </span>
-        ))}
-      </div>
-      <div className="mt-2 flex gap-2">
-        <input
-          value={nuevo} onChange={(e) => setNuevo(e.target.value)} onKeyDown={(e) => e.key === "Enter" && agregar()}
-          placeholder="0991234567" inputMode="tel"
-          className="w-44 rounded-[6px] border border-line bg-bg px-2.5 py-1.5 text-[12px]"
-        />
-        <button disabled={cambiando || !nuevo.trim()} onClick={agregar}
-          className="rounded-full bg-bg px-3 py-1 text-[12px] font-semibold hover:bg-bg disabled:opacity-50">Agregar</button>
-      </div>
-    </div>}
-  </Tarjeta>;
-}
-
-interface CuponVerificado {
-  codigo: string;
-  porcentaje: number;
-  conversationId: number;
-  cliente: string | null;
-  telefono: string | null;
-  medida: string | null;
-  totalCotizado: number | null;
-  local: string | null;
-  visita: string | null;
-}
-
-interface CuponesEstado {
-  config: { activo: boolean; porcentaje: number };
-  resumen: {
-    emitidos: number;
-    canjeados: number;
-    tasaCanje: number;
-    ultimos: Array<{
-      codigo: string; estado: string; porcentaje: number;
-      conversationId: number; emitidoEn: string; canjeadoEn: string | null; canjeadoPor: string | null;
-    }>;
-  };
-}
-
-/**
- * El cupón de confirmación: el código que el cliente lleva a caja.
- *
- * Está APAGADO y así se queda hasta que Andrés dé la luz verde y los cajeros
- * estén capacitados — un código que nadie sabe honrar es peor que no prometer
- * nada. Por eso el interruptor está aquí y no en el código: el día de la
- * capacitación se prende desde el celular, sin esperar un deploy.
- *
- * El canje también vive aquí porque es lo que se hace en el mostrador: se
- * teclea lo que el cliente dicta y el panel dice si vale.
- */
 function SeccionVentaRegistrada({ onError }: { onError: (v: string) => void }) {
   const { registroVenta, cambiarExigirVentaRegistrada } = useHub();
   const [cambiando, setCambiando] = useState(false);
@@ -664,178 +373,6 @@ function SeccionVentaRegistrada({ onError }: { onError: (v: string) => void }) {
       : null}
   >
     {!registroVenta && <p className="text-[12px] text-text2">Cargando el ajuste…</p>}
-  </Tarjeta>;
-}
-
-function SeccionCupones({ onError }: { onError: (v: string) => void }) {
-  const [estado, setEstado] = useState<CuponesEstado | null>(null);
-  const [cambiando, setCambiando] = useState(false);
-  const [codigo, setCodigo] = useState("");
-  const [canjeando, setCanjeando] = useState(false);
-  const [veredicto, setVeredicto] = useState<{ ok: boolean; texto: string } | null>(null);
-  // El cupón verificado y todavía SIN canjear: es lo que el cajero coteja con
-  // la persona que tiene enfrente antes de aplicar nada.
-  const [verificado, setVerificado] = useState<CuponVerificado | null>(null);
-
-  const cargar = () => {
-    api<CuponesEstado & { ok: boolean }>("/api/cupones")
-      .then((r) => setEstado(r))
-      .catch(() => setEstado(null));
-  };
-  useEffect(cargar, []);
-
-  const guardar = async (cambio: Partial<{ activo: boolean; porcentaje: number }>) => {
-    if (!estado) return;
-    setCambiando(true);
-    try {
-      const r = await api<{ config: CuponesEstado["config"] }>("/api/cupones", {
-        method: "PUT",
-        body: JSON.stringify(cambio),
-      });
-      setEstado({ ...estado, config: r.config });
-      onError("");
-    } catch (e) { onError(e instanceof Error ? e.message : "No se pudo guardar el cupón"); }
-    finally { setCambiando(false); }
-  };
-
-  /**
-   * Paso 1: ¿el código es real y de quién? NO lo canjea.
-   *
-   * Verificar y canjear están separados porque en caja son dos momentos: se
-   * comprueba el código cuando el cliente lo dicta, y se aplica cuando la venta
-   * se cierra. Si comprobar quemara el cupón, un cliente que se arrepiente se
-   * quedaría sin él y con el código marcado como usado.
-   */
-  const verificar = async () => {
-    if (!codigo.trim()) return;
-    setCanjeando(true); setVeredicto(null); setVerificado(null);
-    try {
-      const r = await api<{ resultado: { ok: boolean; cupon?: CuponVerificado; detalle?: string } }>(
-        `/api/cupones/consulta?codigo=${encodeURIComponent(codigo.trim())}`,
-      );
-      if (r.resultado.ok && r.resultado.cupon) setVerificado(r.resultado.cupon);
-      else setVeredicto({ ok: false, texto: `${r.resultado.detalle ?? "Código inválido"}` });
-    } catch (e) {
-      // Un código rechazado llega como 404 y eso NO es un error del panel: es la
-      // respuesta. Se muestra donde el cajero está mirando, no en la franja de
-      // errores de arriba.
-      setVeredicto({ ok: false, texto: `${e instanceof Error ? e.message : "No se pudo verificar"}` });
-    }
-    finally { setCanjeando(false); }
-  };
-
-  /** Paso 2: aplicar el descuento. Aquí sí se quema el cupón. */
-  const canjear = async () => {
-    if (!verificado) return;
-    setCanjeando(true);
-    try {
-      const r = await api<{ resultado: { ok: boolean; cupon?: CuponVerificado; detalle?: string } }>(
-        "/api/cupones/canje",
-        { method: "POST", body: JSON.stringify({ codigo: verificado.codigo }) },
-      );
-      setVeredicto(r.resultado.ok
-        ? { ok: true, texto: `${verificado.codigo} canjeado — aplique el ${verificado.porcentaje} % adicional.` }
-        : { ok: false, texto: `${r.resultado.detalle ?? "No se pudo canjear"}` });
-      if (r.resultado.ok) { setCodigo(""); setVerificado(null); cargar(); }
-    } catch (e) {
-      setVeredicto({ ok: false, texto: `${e instanceof Error ? e.message : "No se pudo canjear"}` });
-    }
-    finally { setCanjeando(false); }
-  };
-
-  const activo = estado?.config.activo ?? false;
-  return <Tarjeta
-    titulo="Cupón de confirmación"
-    sub={`Cuando el cliente dice qué día viene, el bot le manda un código tipo ${inicialesDelNegocio()}-PUMA47. En caja se le aplica ese porcentaje adicional y el cajero copia el código en la descripción de la factura — así sabemos qué cotización terminó en venta. APAGADO hasta que los cajeros estén capacitados.`}
-    extra={estado
-      ? <button
-          onClick={() => void guardar({ activo: !activo })}
-          disabled={cambiando}
-          className={`rounded-full px-4 py-2 text-[12px] font-semibold disabled:opacity-50 ${
-            activo ? "bg-ok text-text" : "bg-bg text-text2 hover:bg-bg"
-          }`}
-        >{cambiando ? "Cambiando…" : activo ? "● Prendido" : "○ Apagado"}</button>
-      : null}
-  >
-    {!estado && <p className="text-[12px] text-text2">Cargando el estado del cupón…</p>}
-    {estado && <>
-      {!activo && <p className="mb-2 rounded-[6px] bg-bg p-2.5 text-[12px] text-text2">
-        Mientras esté apagado el bot <b>no emite ni un código</b> y los clientes no ven nada. Préndalo el día que caja esté lista.
-      </p>}
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[12px]">
-        <label className="flex items-center gap-2">
-          <span className="text-text2">Descuento adicional:</span>
-          <input
-            type="number" min={0.5} max={10} step={0.5}
-            value={estado.config.porcentaje}
-            onChange={(e) => setEstado({ ...estado, config: { ...estado.config, porcentaje: Number(e.target.value) } })}
-            onBlur={(e) => void guardar({ porcentaje: Number(e.target.value) })}
-            className="w-16 rounded-[6px] bg-bg px-2 py-1 text-[12px] font-semibold"
-          />
-          <span className="text-text2">%</span>
-        </label>
-        <span>
-          <span className="text-text2">Últimos 30 días:</span> <b>{estado.resumen.emitidos}</b> emitidos ·{" "}
-          <b>{estado.resumen.canjeados}</b> canjeados · <b>{estado.resumen.tasaCanje} %</b> volvió
-        </span>
-      </div>
-
-      <div className="mt-3 rounded-[6px] bg-bg p-2.5">
-        <p className="mb-1.5 text-[12px] font-semibold">Verificar código en caja</p>
-        <div className="flex flex-wrap items-center gap-2">
-          <input
-            value={codigo}
-            onChange={(e) => { setCodigo(e.target.value); setVerificado(null); setVeredicto(null); }}
-            onKeyDown={(e) => { if (e.key === "Enter") void verificar(); }}
-            placeholder={`${inicialesDelNegocio()}-PUMA47`}
-            className="w-40 rounded-[6px] bg-bg px-2.5 py-1.5 text-[12px] font-semibold"
-          />
-          <button
-            onClick={() => void verificar()}
-            disabled={canjeando || !codigo.trim()}
-            className="rounded-full bg-bg px-3.5 py-1.5 text-[12px] font-semibold hover:bg-bg disabled:opacity-50"
-          >{canjeando ? "Buscando…" : "Verificar"}</button>
-        </div>
-
-        {/* Verificado y sin canjear: aquí el cajero coteja contra la persona
-            que tiene enfrente antes de aplicar el descuento. */}
-        {verificado && <div className="mt-2 rounded-[6px] bg-ok p-2.5 text-[12px]">
-          <p className="text-[12px] font-semibold text-ok">{verificado.codigo} es válido</p>
-          <p className="mt-1">
-            {verificado.cliente ?? "Cliente sin nombre"}
-            {verificado.telefono ? ` · ${verificado.telefono}` : ""}
-          </p>
-          <p className="text-text2">
-            {verificado.medida ? `Medida ${verificado.medida}` : ""}
-            {verificado.totalCotizado != null ? ` · Cotizó $${verificado.totalCotizado.toFixed(2)}` : ""}
-            {verificado.local ? ` · ${verificado.local}` : ""}
-          </p>
-          {verificado.visita && <p className="text-text2">
-            Dijo que venía el {new Date(verificado.visita).toLocaleDateString("es-EC", { timeZone: "America/Guayaquil", weekday: "long", day: "numeric", month: "long" })}
-          </p>}
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => void canjear()}
-              disabled={canjeando}
-              className="rounded-full bg-ok px-3.5 py-1.5 text-[12px] font-semibold text-text disabled:opacity-50"
-            >{canjeando ? "Aplicando…" : `Aplicar ${verificado.porcentaje} % y canjear`}</button>
-            <a className="text-[12px] underline" href={`#/ticket/${verificado.conversationId}`}>ver el chat</a>
-          </div>
-        </div>}
-
-        {veredicto && <p className={`mt-1.5 text-[12px] ${veredicto.ok ? "text-ok" : "text-text2"}`}>{veredicto.texto}</p>}
-      </div>
-
-      {estado.resumen.ultimos.length > 0 && <div className="mt-2 max-h-56 overflow-y-auto rounded-[6px] bg-bg p-2.5">
-        {estado.resumen.ultimos.map((c) => <div key={c.codigo} className="mb-1.5 flex flex-wrap items-center gap-x-2 border-b border-line pb-1.5 text-[12px] last:mb-0 last:border-0 last:pb-0">
-          <b>{c.codigo}</b>
-          <span className={`rounded-full px-2 py-0.5 text-[12px] font-semibold ${
-            c.estado === "canjeado" ? "bg-ok text-ok" : "bg-bg text-text2"}`}>{c.estado}</span>
-          <a className="underline" href={`#/ticket/${c.conversationId}`}>chat #{c.conversationId}</a>
-          {c.canjeadoPor && <span className="text-text2">por {c.canjeadoPor}</span>}
-        </div>)}
-      </div>}
-    </>}
   </Tarjeta>;
 }
 
@@ -944,342 +481,6 @@ function SeccionHorarios({ hours, setHours, locales, onError }: { hours: StoreHo
       </div>;
     })}</div>
   </Tarjeta>;
-}
-
-/**
- * EL TEMA DE LA PIEZA (24-nov-2026): la cinta de Black Friday, Navidad, Año
- * Nuevo… o una a gusto. Solo cambia cómo se ve la cotización y las opciones
- * (y el PDF, que es la misma imagen); los precios salen de Promociones.
- */
-function SeccionDecoracion({ tema, temas, onTema, sinAplicar, guardando, onAplicar }: {
-  tema: ConfigTema; temas: TemaDisponible[]; onTema: (t: ConfigTema) => void;
-  sinAplicar: boolean; guardando: boolean; onAplicar: () => void;
-}) {
-  const p = tema.personalizado;
-  const cambiar = (campo: keyof DisenoDeTema, valor: string) =>
-    onTema({ id: "personalizado", personalizado: { ...p, [campo]: valor } });
-  const NOTA: Record<string, string> = {
-    automatico: "Como siempre: la franja del Black Friday sale sola mientras la promo corre",
-    ninguno: "Sin cinta",
-    personalizado: "Título, texto, colores y adorno a su gusto",
-  };
-  const seleccionado = temas.find((t) => t.id === tema.id);
-  return (
-    <Tarjeta
-      titulo="Tema de la cotización"
-      sub="La cinta de temporada que va arriba de la cotización, las opciones y el PDF. No cambia ningún precio: las promociones se prenden en la pestaña Promociones."
-      extra={
-        <button
-          onClick={onAplicar}
-          disabled={!sinAplicar || guardando}
-          className={`rounded-full px-4 py-2 text-[12px] font-semibold transition ${
-            sinAplicar ? "bg-[var(--color-ok)] text-[#06210f] hover:opacity-90" : "cursor-default bg-bg text-text2"
-          }`}
-        >
-          {guardando ? "Aplicando…" : sinAplicar ? "Aplicar cambios" : "Aplicado"}
-        </button>
-      }
-    >
-      <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-        {temas.map((t) => {
-          const d = t.id === "personalizado" ? p : t.diseno;
-          const activo = t.id === tema.id;
-          return (
-            <button
-              key={t.id} type="button" data-testid={`tema-${t.id}`}
-              onClick={() => onTema({ ...tema, id: t.id })}
-              className={`flex flex-col items-start gap-1.5 rounded-[6px] border px-3 py-2 text-left text-[12px] transition ${
-                activo ? "border-[var(--color-ok)] bg-bg font-semibold ring-1 ring-[var(--color-ok)]" : "border-line bg-bg"
-              }`}
-            >
-              {d ? (
-                <span className="flex h-6 w-full items-center gap-1 overflow-hidden rounded-[4px] px-2" style={{ backgroundColor: d.fondo }}>
-                  <span className="h-3 w-1.5 -skew-x-12" style={{ backgroundColor: d.acento }} />
-                  <span className="truncate text-[10px] font-black uppercase" style={{ color: d.texto }}>{d.titulo || " "}</span>
-                </span>
-              ) : (
-                <span className="flex h-6 w-full items-center rounded-[4px] border border-dashed border-line px-2 text-[10px] text-text2">
-                  {t.id === "automatico" ? "como siempre" : "sin cinta"}
-                </span>
-              )}
-              <span>{t.nombre}</span>
-              {NOTA[t.id] && <span className="text-[11px] font-normal text-text2">{NOTA[t.id]}</span>}
-            </button>
-          );
-        })}
-      </div>
-
-      {seleccionado?.diseno && tema.id !== "personalizado" && (
-        <button
-          type="button" className="mb-3 text-[12px] font-semibold underline"
-          onClick={() => onTema({ id: "personalizado", personalizado: { ...seleccionado.diseno! } })}
-        >
-          Editar «{seleccionado.nombre}» a mi gusto
-        </button>
-      )}
-
-      {tema.id === "personalizado" && (
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="flex flex-col gap-1 text-[12px]">
-            <span className="microlabel">Título (grande)</span>
-            <input className="rounded-[6px] border border-line bg-bg px-3 py-2 text-[13px]" maxLength={30}
-              value={p.titulo} onChange={(e) => cambiar("titulo", e.target.value)} data-testid="tema-titulo" />
-          </label>
-          <label className="flex flex-col gap-1 text-[12px]">
-            <span className="microlabel">Texto de abajo</span>
-            <input className="rounded-[6px] border border-line bg-bg px-3 py-2 text-[13px]" maxLength={60}
-              value={p.bajada} onChange={(e) => cambiar("bajada", e.target.value)} placeholder="Opcional" />
-          </label>
-          {([["fondo", "Color de la cinta"], ["texto", "Color del título"], ["acento", "Color del detalle"]] as const).map(([campo, rotulo]) => (
-            <label key={campo} className="flex items-center gap-2 text-[12px]">
-              <input type="color" className="h-8 w-10 cursor-pointer rounded border border-line bg-bg"
-                value={p[campo]} onChange={(e) => cambiar(campo, e.target.value)} />
-              <span>{rotulo}</span>
-            </label>
-          ))}
-          <label className="flex flex-col gap-1 text-[12px]">
-            <span className="microlabel">Adorno</span>
-            <select className="rounded-[6px] border border-line bg-bg px-3 py-2 text-[13px]"
-              value={p.adorno} onChange={(e) => cambiar("adorno", e.target.value)}>
-              <option value="rayas">Rayas en diagonal</option>
-              <option value="puntos">Puntos (nieve, confeti)</option>
-              <option value="ninguno">Ninguno</option>
-            </select>
-          </label>
-        </div>
-      )}
-    </Tarjeta>
-  );
-}
-
-function SeccionTema({
-  paleta, fuente, paletas, fuentes, muestras, onPaleta, onFuente,
-  plantilla, modo, plantillas, modos, onPlantilla, onModo,
-  sinAplicar, guardando, onAplicar,
-}: {
-  paleta: string; fuente: string; paletas: string[]; fuentes: string[]; muestras: Record<string, string[]>;
-  onPaleta: (v: string) => void; onFuente: (v: string) => void;
-  plantilla: string; modo: string; plantillas: string[]; modos: string[];
-  onPlantilla: (v: string) => void; onModo: (v: string) => void;
-  sinAplicar: boolean; guardando: boolean; onAplicar: () => void;
-}) {
-  return (
-    <Tarjeta
-      titulo="Plantilla y colores de las piezas"
-      sub="Se aplica a cotizaciones y opciones (la comparativa sigue con la clásica). La vista previa cambia al instante; el cliente lo ve recién al aplicar."
-      extra={
-        <button
-          onClick={onAplicar}
-          disabled={!sinAplicar || guardando}
-          className={`rounded-full px-4 py-2 text-[12px] font-semibold transition ${
-            sinAplicar
-              ? "bg-[var(--color-ok)] text-[#06210f] hover:opacity-90"
-              : "cursor-default bg-bg text-text2"
-          }`}
-        >
-          {guardando ? "Aplicando…" : sinAplicar ? "Aplicar cambios" : "Aplicado"}
-        </button>
-      }
-    >
-      <p className="microlabel mb-2">Plantilla</p>
-      <div className="mb-4 flex flex-wrap gap-2">
-        {plantillas.map((p) => (
-          <button
-            key={p} onClick={() => onPlantilla(p)}
-            className={`flex flex-col items-start gap-1 rounded-[6px] border px-3.5 py-2 text-left text-[12px] transition ${
-              p === plantilla
-                ? "border-line bg-bg font-semibold"
-                : "border-line bg-bg hover:bg-bg"
-            }`}
-          >
-            <span>{plantillaLabel(p)}</span>
-            {plantillaNota(p) && <span className="text-[12px] font-normal text-text2">{plantillaNota(p)}</span>}
-          </button>
-        ))}
-      </div>
-      {plantilla === "diaNoche" && (
-        <>
-          <p className="microlabel mb-2">Cuándo sale la clara y cuándo la oscura</p>
-          <div className="mb-3 flex flex-wrap gap-2">
-            {modos.map((m) => (
-              <button
-                key={m} onClick={() => onModo(m)}
-                className={`flex flex-col items-start gap-1 rounded-[6px] border px-3.5 py-2 text-left text-[12px] transition ${
-              m === modo
-                ? "border-line bg-bg font-semibold"
-                : "border-line bg-bg hover:bg-bg"
-            }`}
-              >
-                <span>{MODO_LABEL[m] ?? m}</span>
-                {MODO_NOTA[m] && <span className="text-[12px] font-normal text-text2">{MODO_NOTA[m]}</span>}
-              </button>
-            ))}
-          </div>
-          <p className="mb-4 text-[12px] text-text2">
-            La paleta y la tipografía de abajo no cambian esta plantilla: valen para la comparativa y para cuando se vuelva a la clásica.
-          </p>
-        </>
-      )}
-      <p className="microlabel mb-2">Paleta</p>
-      <div className="mb-4 flex flex-wrap gap-2">
-        {paletas.map((p) => (
-          <button
-            key={p} onClick={() => onPaleta(p)}
-            title={paletaNota(p)}
-            className={`flex flex-col items-start gap-1.5 rounded-[6px] border px-3.5 py-2 text-[12px] transition ${
-              p === paleta
-                ? "border-line bg-bg font-semibold"
-                : "border-line bg-bg hover:bg-bg"
-            }`}
-          >
-            <span>{paletaLabel(p)}</span>
-            {/* Los cuatro colores que mandan en la pieza: oscuro, acento, dorado
-                y fondo. Con siete paletas el nombre solo ya no alcanzaba para
-                saber cuál es cuál sin abrir la vista previa. */}
-            <span className="flex overflow-hidden rounded-full border border-line">
-              {(muestras[p] ?? []).map((c, i) => (
-                <span key={i} className="h-2.5 w-4" style={{ background: c }} />
-              ))}
-            </span>
-            {paletaNota(p) && (
-              <span className="text-[12px] font-normal text-text2">{paletaNota(p)}</span>
-            )}
-          </button>
-        ))}
-      </div>
-      <p className="microlabel mb-2">Tipografía de los precios</p>
-      <div className="flex flex-wrap gap-2">
-        {fuentes.map((f) => (
-          <button
-            key={f} onClick={() => onFuente(f)}
-            className={`rounded-[6px] border px-3.5 py-2 text-[12px] transition ${
-              f === fuente
-                ? "border-line bg-bg font-semibold"
-                : "border-line bg-bg hover:bg-bg"
-            }`}
-          >
-            {FUENTE_LABEL[f] ?? f}
-          </button>
-        ))}
-      </div>
-    </Tarjeta>
-  );
-}
-
-function SeccionPromociones({ benefits, setBenefits, onError }: {
-  benefits: Benefit[]; setBenefits: (b: Benefit[]) => void; onError: (e: string) => void;
-}) {
-  const [nuevo, setNuevo] = useState("");
-
-  const agregar = async () => {
-    if (!nuevo.trim()) return;
-    try {
-      const r = await api<{ benefit: Benefit }>("/api/benefits", {
-        method: "POST",
-        body: JSON.stringify({ text: nuevo.trim(), position: benefits.length }),
-      });
-      setBenefits([...benefits, r.benefit]);
-      setNuevo("");
-    } catch (e) {
-      onError(e instanceof Error ? e.message : "No se pudo agregar");
-    }
-  };
-
-  const guardar = async (b: Benefit) => {
-    try {
-      await api(`/api/benefits/${b.id}`, { method: "PUT", body: JSON.stringify(b) });
-    } catch (e) {
-      onError(e instanceof Error ? e.message : "No se pudo guardar");
-    }
-  };
-
-  const borrar = async (id: number) => {
-    try {
-      await api(`/api/benefits/${id}`, { method: "DELETE" });
-      setBenefits(benefits.filter((b) => b.id !== id));
-    } catch (e) {
-      onError(e instanceof Error ? e.message : "No se pudo borrar");
-    }
-  };
-
-  const editar = (id: number, patch: Partial<Benefit>) =>
-    setBenefits(benefits.map((b) => (b.id === id ? { ...b, ...patch } : b)));
-
-  return (
-    <Tarjeta
-      titulo="Promociones y beneficios"
-      sub="El bloque INCLUYE que sale en el chat y dibujado en la cotización. Las condiciones limitan a quién se le promete."
-    >
-      <div className="flex flex-col gap-2">
-        {benefits.map((b) => (
-          <div key={b.id} className="rounded-[8px] border border-line bg-bg p-3">
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox" checked={b.active}
-                onChange={(e) => { editar(b.id, { active: e.target.checked }); void guardar({ ...b, active: e.target.checked }); }}
-                className="size-4 shrink-0 accent-[var(--color-ok)]"
-                title={b.active ? "Activo" : "Inactivo"}
-              />
-              <input
-                value={b.text}
-                onChange={(e) => editar(b.id, { text: e.target.value })}
-                onBlur={() => void guardar(b)}
-                className={`${inputCls} ${b.active ? "" : "opacity-50 line-through"}`}
-              />
-              <button
-                onClick={() => void borrar(b.id)}
-                className="shrink-0 rounded-[6px] px-2 py-1 text-[16px] leading-none text-text2 hover:text-[var(--color-signal)]"
-                title="Quitar"
-              >×</button>
-            </div>
-            <div className="mt-2 grid grid-cols-3 gap-2">
-              <label className="flex flex-col gap-1">
-                <span className="text-[12px] text-text2">Solo marca</span>
-                <input
-                  value={b.brand ?? ""} placeholder="todas"
-                  onChange={(e) => editar(b.id, { brand: e.target.value || null })}
-                  onBlur={() => void guardar(b)} className={inputCls}
-                />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-[12px] text-text2">Desde N llantas</span>
-                <input
-                  type="number" min={1} value={b.minQuantity ?? ""} placeholder="sin mínimo"
-                  onChange={(e) => editar(b.id, { minQuantity: e.target.value ? Number(e.target.value) : null })}
-                  onBlur={() => void guardar(b)} className={inputCls}
-                />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-[12px] text-text2">Vence</span>
-                <input
-                  type="date" value={b.expiresAt ? b.expiresAt.slice(0, 10) : ""}
-                  onChange={(e) => editar(b.id, { expiresAt: e.target.value || null })}
-                  onBlur={() => void guardar(b)} className={inputCls}
-                />
-              </label>
-            </div>
-          </div>
-        ))}
-        {!benefits.length && (
-          <p className="rounded-[8px] border border-dashed border-line p-4 text-center text-[12px] text-text2">
-            Sin promociones cargadas. El bot no promete nada hasta que agregues una.
-          </p>
-        )}
-      </div>
-      <div className="mt-3 flex gap-2">
-        <input
-          value={nuevo} onChange={(e) => setNuevo(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && void agregar()}
-          placeholder="Ej. Alineación gratuita el primer mes"
-          className={inputCls}
-        />
-        <button
-          onClick={() => void agregar()}
-          className="shrink-0 rounded-[6px] bg-bg px-4 text-[12px] font-semibold hover:bg-bg"
-        >Agregar</button>
-      </div>
-    </Tarjeta>
-  );
 }
 
 type RolAsesor = string;
@@ -1596,115 +797,6 @@ function SeccionMarcas({ profiles, setProfiles, onError }: {
         ))}
       </div>
     </Tarjeta>
-  );
-}
-
-/**
- * Vista previa. Re-renderiza con retardo para no disparar una imagen por cada
- * tecla mientras se escribe una promoción.
- */
-function VistaPrevia({ pieza, setPieza, paleta, fuente, plantilla, modo, beneficios, promocion, tema }: {
-  pieza: string; setPieza: (p: string) => void;
-  paleta: string; fuente: string; plantilla: string; modo: string; beneficios: string[]; promocion: string;
-  tema: ConfigTema;
-}) {
-  // Con el modo automático se pueden ver las dos: la que sale ahora y la otra.
-  const [verModo, setVerModo] = useState<"dia" | "noche">(() => modoDeAhora());
-  const modoPreview = plantilla === "diaNoche" ? (modo === "auto" ? verModo : modo) : "";
-  const [src, setSrc] = useState("");
-  const [cargando, setCargando] = useState(true);
-  const [fallo, setFallo] = useState("");
-  const objectUrl = useRef<string>("");
-
-  const temaJson = tema.id === "automatico" ? "" : JSON.stringify(tema);
-  const clave = `${pieza}|${paleta}|${fuente}|${plantilla}|${modoPreview}|${promocion}|${beneficios.join("|")}|${temaJson}`;
-
-  useEffect(() => {
-    let cancelado = false;
-    setCargando(true);
-    const t = setTimeout(async () => {
-      try {
-        const params = new URLSearchParams({ pieza, paleta, fuente, plantilla });
-        if (modoPreview) params.set("modo", modoPreview);
-        if (promocion !== "porcentaje") params.set("promocion", promocion);
-        if (beneficios.length) params.set("beneficios", beneficios.join("|"));
-        if (temaJson) params.set("tema", temaJson);
-        // Misma credencial que el resto de la pantalla: con sesión de usuario
-        // esto daba «Error 401» dentro del recuadro de la vista previa.
-        const r = await fetch(`/api/pieces/preview.png?${params}`, {
-          headers: authHeaders(),
-        });
-        if (!r.ok) throw new Error(`Error ${r.status}`);
-        const blob = await r.blob();
-        if (cancelado) return;
-        if (objectUrl.current) URL.revokeObjectURL(objectUrl.current);
-        objectUrl.current = URL.createObjectURL(blob);
-        setSrc(objectUrl.current);
-        setFallo("");
-      } catch (e) {
-        if (!cancelado) setFallo(e instanceof Error ? e.message : "No se pudo renderizar");
-      } finally {
-        if (!cancelado) setCargando(false);
-      }
-    }, 350);
-    return () => { cancelado = true; clearTimeout(t); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clave]);
-
-  useEffect(() => () => { if (objectUrl.current) URL.revokeObjectURL(objectUrl.current); }, []);
-
-  return (
-    <motion.aside
-      initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-      className="border border-line bg-surface h-fit rounded-[10px] p-5 xl:sticky xl:top-4"
-    >
-      <div className="mb-3">
-        <p className="microlabel">Vista previa</p>
-        <p className="mt-1 text-[12px] text-text2">
-          Lo que recibiría el cliente ahora mismo, con estos ajustes.
-        </p>
-      </div>
-      <div className="mb-3 flex gap-1.5">
-        {PIEZAS.map((p) => (
-          <button
-            key={p.id} onClick={() => setPieza(p.id)}
-            className={`rounded-full px-3 py-1.5 text-[12px] transition ${
-              p.id === pieza ? "bg-bg font-semibold" : "text-text2 hover:bg-bg"
-            }`}
-          >{p.label}</button>
-        ))}
-      </div>
-      {plantilla === "diaNoche" && modo === "auto" && pieza !== "comparativa" && (
-        <div className="mb-3 flex items-center gap-1.5">
-          <span className="text-[12px] text-text2">Ver la de</span>
-          {(["dia", "noche"] as const).map((m) => (
-            <button
-              key={m} onClick={() => setVerModo(m)}
-              className={`rounded-full px-3 py-1 text-[12px] transition ${
-                m === verModo ? "bg-bg font-semibold" : "text-text2 hover:bg-bg"
-              }`}
-            >{m === "dia" ? "Día" : "Noche"}{m === modoDeAhora() ? " · ahora" : ""}</button>
-          ))}
-        </div>
-      )}
-      {plantilla === "diaNoche" && pieza === "comparativa" && (
-        <p className="mb-3 text-[12px] text-text2">La comparativa no tiene versión día y noche: sale con la plantilla clásica.</p>
-      )}
-      <div className="relative overflow-hidden rounded-[8px] border border-line bg-bg">
-        {fallo ? (
-          <p className="p-6 text-center text-[12px] text-[var(--color-signal)]">{fallo}</p>
-        ) : (
-          <>
-            {src && <img src={src} alt="Vista previa de la pieza" className="block w-full" />}
-            {cargando && (
-              <div className="absolute inset-0 flex items-center justify-center bg-bg/80">
-                <span className="text-[12px] text-text2">Renderizando…</span>
-              </div>
-            )}
-          </>
-        )}
-      </div>
-    </motion.aside>
   );
 }
 

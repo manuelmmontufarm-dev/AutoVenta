@@ -3174,7 +3174,9 @@ export function createAdminRouter(): express.Router {
         // La vista previa dibuja un juego completo: con esa cantidad entran
         // también los beneficios con mínimo (alineación de Mundillantas).
         : await applicableBenefitTexts({ quantity: politica.juegoCompleto });
-      const png = await comoVistaPrevia(() => renderPreviewPiece({ pieza, paleta, fuente, plantilla, modo, promocion, beneficios, tema }));
+      // El panel pide la imagen al ancho de su recuadro: llega mucho antes (render/quoteImage.ts).
+      const ancho = req.query.ancho ? Number(req.query.ancho) : undefined;
+      const png = await comoVistaPrevia(() => renderPreviewPiece({ pieza, paleta, fuente, plantilla, modo, promocion, beneficios, tema, ancho }));
       res.setHeader("Content-Type", "image/png");
       res.setHeader("Cache-Control", "no-store");
       res.send(png);

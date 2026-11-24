@@ -83,8 +83,9 @@ fila de la pestaña, sembrada una vez (origen `politica:temporada`, tipo `enesim
 - Las cuentas siguen en `domain/promocionDeTemporada.ts`; el panel solo pone encima interruptor,
   fechas, % y lema (`fijarTemporadaDelPanel`, en cada sincronización del catálogo).
   `aplicarPromociones` no la toca. Sin sembrar o sin base, rige la política tal cual.
-- «Modo promoción» de Ajustes sigue existiendo (apagada / solo números de prueba / todos): las dos
-  llaves tienen que estar abiertas.
+- «Quién ve Black Friday» (apagada / solo números de prueba / todos; antes «Modo promoción» en
+  Ajustes) está plegado debajo de las promociones: las dos llaves tienen que estar abiertas. Se abre
+  solo y avisa cuando no está en «todos».
 - Prenderla a mitad de una conversación no rehace la cotización que el cliente ya tiene: la
   siguiente cotización nueva sí sale con la promo.
 
@@ -105,3 +106,18 @@ negocio. Si la base no contesta y nunca se cargó, el catálogo cae a la lista d
 
 - La lámina de comparación no conoce la cantidad: muestra el precio normal en promos por cantidad.
 - La pestaña no está en el teléfono.
+
+## La pantalla: precio, lo que incluye y diseño (24-nov-2026)
+
+Promociones absorbió Ajustes → Piezas. Tres pasos y, a la derecha, la cotización como le llega al
+cliente (`hub/src/components/piezas.tsx`):
+
+- **Promociones**: lo de arriba. Se guarda al tocar.
+- **Lo que incluye**: los beneficios («INCLUYE»), cada uno con su interruptor y, si hace falta,
+  condiciones (solo una marca, desde N llantas, hasta una fecha). Se guarda al tocar.
+- **Diseño**: el tema (cinta de temporada), cómo se dice el descuento (25 % o 3x4) y, plegado,
+  plantilla, colores y letra. Esto se prueba en la vista previa y sale a los clientes con
+  **Aplicar**; «Deshacer» vuelve a lo que está saliendo.
+
+La vista previa se pide al ancho del recuadro (`/api/pieces/preview.png?ancho=860`): mismo dibujo,
+menos píxeles, ~0,3 s. La pieza que recibe el cliente sale a su tamaño de siempre.
