@@ -1,3 +1,23 @@
+## 24-nov-2026 · Bot (Depot) · Las llantas que el Interbot no tiene se cotizan al precio con que se factura (rama `fix/competimotor-precio-proforma`)
+
+- **Qué:** si el Interbot no conoce un código, el bot ya no inventa el precio con la fórmula ÷0,5625: lo lee del
+  Contífico donde Depot factura (`CONTIFICO_FACTURAS_API_KEY`, API v1 por código, una vez por hora) y le pone ese
+  pvp1 + IVA, con el «precio hoy» al 75 % como el Interbot. Si tampoco está ahí, queda la fórmula y el log lo dice
+  («SIN PRECIO CONFIRMADO»). `src/services/precioDeFacturacion.ts`, llamado desde `syncCatalog`. El simulador
+  ahora sirve también la empresa que factura (`datos/facturacion.json`) con una clave de mentira.
+- **Por qué:** Joaquín, 24-nov: dos clientes llegaron con la proforma más barata que la factura. KENDA KR628
+  265/70R17 (K557B738): el bot daba $246,42 c/u (4 con Black Friday = $689,98) y el POS $219,70 + IVA = $252,66
+  (4 = $707,44). El Interbot no tiene ese código y el Contífico del catálogo trae el costo ($120,53), así que caía
+  a la fórmula, que se sabe errada desde el 7-ago. Eran 6 llantas en esa situación y las 6 salían mal
+  (−$16,46 a +$3,90). La causa no era la fórmula: era que una llanta sin precio real se cotizaba igual, callada.
+- **Ojo (no arreglado acá):** la foto del simulador de agosto (`datos/catalogo.json`) es de la empresa que factura,
+  no de la del catálogo de producción (la `CONTIFICO_API_KEY` del `.env` local es otra que la de Railway). Y hay 5
+  llantas donde el Interbot y el POS no coinciden (p. ej. Winrun R330 235/50ZR19: $134,67 vs $149,01).
+- **Probado:** simulador con la foto del catálogo de producción de hoy + la empresa que factura: «2 × $252.66 +
+  2 × $101.06 = $707.44» y la cotización guardada con K557B738; log «Precio de facturación para 6/6 llantas sin
+  Interbot». `vitest` del caso (6) + interbotPrices (6), suite completa (4 fallas que ya están en `main`),
+  fidelidad del simulador y perfiles ajenos (38), `sim:humo`.
+- **Horas:** 1,5
 ## 24-nov-2026 · Panel · Menú: «Herramientas» agrupa Inventario, Promociones, Validar y Cotizador (rama `feat/menu-herramientas`)
 
 - **Qué:** en la computadora el menú queda Inbox, Pipeline, Para cerrar, Métricas y, al final, un grupo
@@ -6332,6 +6352,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-11-24 | _(este mismo)_ | Depot: las llantas sin Interbot se cotizan al precio del POS, no con la fórmula (KR628 265/70R17) | 1,5 |
 | 2026-11-20 | _(este mismo)_ | Competimotor: seguro solo Kenda y Falken; «pantanera» = M/T, tipos por nombre, «23575r15», 30X9.5R15 = 235/75R15 | 1,5 |
 | 2026-11-20 | _(este mismo)_ | Competimotor cotiza con P2 y ofrece P3; Black Friday por código con P2 tachado y fin exacto el 30-nov | 3 |
 | 2026-10-21 | _(este mismo)_ | La guía de medida no sale a quien ya escribió la suya aunque el modelo diga que la pidió | 0,5 |

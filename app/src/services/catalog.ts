@@ -31,6 +31,7 @@ import {
   interbotDisponible,
   interbotPricesState,
 } from "./interbotPrices.js";
+import { completarConPrecioDeFacturacion } from "./precioDeFacturacion.js";
 
 export type { CatalogItem } from "../domain/catalog.js";
 
@@ -79,6 +80,24 @@ export function applyInterbotPrices(list: CatalogItem[]): number {
   return applied;
 }
 
+/**
+ * Las llantas que el Interbot no conoce no se quedan con la fórmula: se les
+ * pone el precio con que Depot factura (24-nov, KR628 265/70R17 cotizada a
+ * $246,42 y facturada a $252,66). Ver `precioDeFacturacion.ts`.
+ */
+export async function completarLasQueElInterbotNoTiene(list: CatalogItem[]): Promise<void> {
+  if (!interbotDisponible() || !config.contifico?.facturasApiKey) return;
+  const sinInterbot = list.filter((item) => !getInterbotPrice(item.code));
+  if (!sinInterbot.length) return;
+  const { aplicadas, sinConfirmar } = await completarConPrecioDeFacturacion(sinInterbot);
+  console.log(
+    `💲 Precio de facturación para ${aplicadas}/${sinInterbot.length} llantas sin Interbot` +
+      (sinConfirmar.length
+        ? ` · ⚠️ SIN PRECIO CONFIRMADO (queda la fórmula): ${sinConfirmar.slice(0, 10).join(", ")}`
+        : ""),
+  );
+}
+
 export async function syncCatalog(): Promise<SyncReport> {
   if (syncInFlight) return syncInFlight;
   syncInFlight = (async () => {
@@ -91,7 +110,10 @@ export async function syncCatalog(): Promise<SyncReport> {
         await ensureInterbotPricesFresh();
       }
       const resultado = await fuente.sincronizar();
-      if (fuente.id === "contifico") applyInterbotPrices(resultado.items);
+      if (fuente.id === "contifico") {
+        applyInterbotPrices(resultado.items);
+        await completarLasQueElInterbotNoTiene(resultado.items);
+      }
       // La foto de precios ANTES de toda promoción: de aquí sale el Excel que
       // el negocio baja en la pestaña Promociones y la base de sus cuentas.
       const bases = preciosBaseDe(resultado.items);

@@ -18,10 +18,18 @@ import { dirname } from "node:path";
 
 const POR_PAGINA = 100;
 
+/** La «clave» con que el bot del simulador pide precios a la empresa que factura. */
+export const CLAVE_FACTURACION_SIM = "sim-facturas";
+
 /**
- * @param {{ puerto: number, snapshot: string, apiKey: string|null, urlReal: string, refrescar: boolean }} opciones
+ * @param {{ puerto: number, snapshot: string, apiKey: string|null, urlReal: string, refrescar: boolean, facturacion?: Array<Record<string, unknown>>|null }} opciones
+ *
+ * `facturacion`: foto de la OTRA empresa de Contífico, donde Depot factura (la
+ * de `CONTIFICO_FACTURAS_API_KEY`). Su pvp1 es el precio del POS; el bot lo
+ * pide por código para las llantas que el Interbot no tiene (24-nov-2026). Se
+ * sirve en la misma ruta, distinguida por la clave, como en el Contífico real.
  */
-export async function levantarContificoSim({ puerto, snapshot, apiKey, urlReal, refrescar }) {
+export async function levantarContificoSim({ puerto, snapshot, apiKey, urlReal, refrescar, facturacion = null }) {
   let productos = [];
 
   if (!refrescar && existsSync(snapshot)) {
@@ -62,6 +70,11 @@ export async function levantarContificoSim({ puerto, snapshot, apiKey, urlReal, 
       return;
     }
     if (!url.pathname.startsWith("/producto")) return json(res, 404, { error: "ruta no simulada" });
+    if (req.headers.authorization === CLAVE_FACTURACION_SIM) {
+      if (!facturacion) return json(res, 401, { error: "sin foto de la empresa que factura" });
+      const codigo = url.searchParams.get("codigo");
+      return json(res, 200, codigo ? facturacion.filter((p) => String(p.codigo ?? "") === codigo) : []);
+    }
     if (averia === "caido") return json(res, 503, { error: "Contífico simulado caído (avería inyectada)" });
     if (averia === "timeout") return void setTimeout(() => json(res, 503, { error: "timeout inyectado" }), 45_000);
     const pagina = Math.max(1, Number(url.searchParams.get("page") ?? "1"));
