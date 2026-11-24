@@ -63,6 +63,12 @@ export function pngDelIcono(nombre: string, lado: number): Buffer {
 
 export function manifiestoDeLaApp(nombre: string): Record<string, unknown> {
   return {
+    // `id` fijo + `handle_links`: en Android, un link al panel (los avisos de
+    // WhatsApp mandan `…/admin/#/ticket/123`) abre la app instalada y no Chrome.
+    // `navigate-existing` reusa la ventana abierta en vez de abrir otra.
+    id: "./",
+    handle_links: "preferred",
+    launch_handler: { client_mode: ["navigate-existing", "auto"] },
     name: nombre,
     short_name: nombre,
     description: `Panel de ventas de ${nombre}: inbox, oportunidades y pipeline.`,
