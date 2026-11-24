@@ -1,3 +1,18 @@
+## 24-nov-2026 · Bot · Competimotor: sin stock ya no se nombra — «Claro» y recomendar (rama `fix/competimotor-claro-y-recomendar`)
+
+- **Qué:** cuando lo pedido no tiene stock el bot ya no dice «no me sale en stock»: empieza con «Claro» y
+  recomienda las más cercanas. Si el cliente pregunta el **precio** de la que quiere y no hay: «Claro, ya le estoy
+  revisando el valor promocional con el que me llegó esa mercadería. Hasta eso, le puedo recomendar…», y el asesor
+  recibe un aviso aparte («está esperando el precio»). La frase del 21-nov pasa a estar prohibida: el detector la
+  atrapa (también «no la veo en stock») y el candado la reescribe. Depot no cambia.
+- **Por qué:** Carlos Romero, 24-nov, sobre una respuesta real («De CONTINENTAL no me sale en stock en este
+  momento…»): «que no diga lo de no hay Stock… decir sí claro, y recomendar»; la frase del precio es suya y el
+  «hasta eso, le puedo recomendar» es de Manuel.
+- **Probado:** `competimotorSinNoHay.test.ts` (13; las nuevas vistas en rojo antes), suite completa (las 4 rojas
+  ya lo estaban en main) y el caso en el simulador de Competimotor (185/65R15 + «no dispone en continental» +
+  «qué precio tiene la continental»).
+- **Horas:** 0,5
+
 ## 24-nov-2026 · Panel · Posponer eligiendo el día en un calendario, y los pospuestos se ven (rama `feat/posponer-calendario`)
 
 - **Qué:** «Posponer» abre un calendario: se toca el día (o un atajo: mañana, en 3 días, el lunes, quincena/fin
