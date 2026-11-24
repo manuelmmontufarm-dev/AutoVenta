@@ -112,7 +112,7 @@ import { contextoDeEquivalencias } from "./medidasDelPedido.js";
 import { sinEquivalenciasFalsas } from "../domain/equivalenciaEnTexto.js";
 import { equivalentesDevueltos } from "../domain/equivalentesPorMostrar.js";
 import { soloLoDelTurno } from "../pipeline/corteDelTurno.js";
-import { LINEA_ASESOR_REVISANDO, sinNoHay } from "../domain/sinNoHay.js";
+import { LINEA_ASESOR_REVISANDO, pideElPrecio, sinNoHay } from "../domain/sinNoHay.js";
 import { avisarPedidoSinStock, codigosMostrados } from "./sinStockAlAsesor.js";
 
 /**
@@ -614,8 +614,10 @@ export const PASOS: readonly PasoDeSalida[] = [
     // EN COMPETIMOTOR NO EXISTE «NO HAY» (Carlos y Jenny, 21-nov-2026; conv 469:
     // «no me aparece stock disponible… no puedo darle precio real»). Después
     // del Guardián, que es el último que reescribe: lo que se le escapó al
-    // vendedor y al revisor se cambia por «No me sale en stock en este
-    // momento…», y el vendedor recibe el aviso con lo pedido y lo mostrado.
+    // vendedor y al revisor se cambia por «Claro… le recomiendo estas
+    // opciones» (24-nov: ya no se nombra el stock; si preguntó el precio, «ya
+    // le estoy revisando el valor promocional…»), y el vendedor recibe el
+    // aviso con lo pedido y lo mostrado.
     // Sin `politica.nuncaDecirNoHay` (Depot) no hace nada. Ver domain/sinNoHay.ts.
     nombre: "sin_no_hay",
     corre: ["respuesta", "retomada", "seguimiento"],
@@ -623,6 +625,7 @@ export const PASOS: readonly PasoDeSalida[] = [
       if (!politica.nuncaDecirNoHay) return texto;
       const huella = ctx.huella ?? [];
       const hayOpciones = codigosMostrados(huella).length > 0;
+      const pidePrecio = ctx.tipo !== "seguimiento" && pideElPrecio(ctx.textoDelCliente);
       if (ctx.tipo !== "seguimiento") {
         const aviso = await avisarPedidoSinStock({
           conversation: ctx.conversation,
@@ -630,7 +633,7 @@ export const PASOS: readonly PasoDeSalida[] = [
           textoDelCliente: ctx.textoDelCliente,
           borrador: [ctx.textoAntesDelGuardian, texto].filter(Boolean).join("\n"),
         });
-        const limpio = sinNoHay(texto, { hayOpciones });
+        const limpio = sinNoHay(texto, { hayOpciones, pidePrecio });
         // Sin ninguna parecida, el cliente se queda con quién se la busca.
         if (aviso.avisado && !hayOpciones && !/\basesor\b/i.test(limpio)) {
           return `${limpio}\n---\n${LINEA_ASESOR_REVISANDO}`;
