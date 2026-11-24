@@ -4,7 +4,7 @@ import { IconX } from "../components/icons";
 import { AgregarFactura, CamposCierreGanado, DATOS_VACIOS, faltaParaCerrar } from "../components/venta";
 import { EmptyState, MarcaAsesor, MedidaChip, Modal, PageHeader, Segmented, SkeletonRows } from "../components/ui";
 import { useParaCerrar } from "../data/paraCerrar";
-import type { AccionParaCerrar, ClienteArchivado, ClienteEmpujando, ClienteParaCerrar, CurvaLlegada, DatosCierreGanado, Temperatura, VentasPendientes } from "../data/types";
+import type { AccionParaCerrar, ClienteArchivado, ClienteEmpujando, ClienteParaCerrar, ClientePospuesto, CurvaLlegada, DatosCierreGanado, Temperatura, VentasPendientes } from "../data/types";
 import { money, relTime } from "../lib/format";
 import { navigate } from "../router";
 import { source, useHub, useNow } from "../store";
@@ -27,6 +27,9 @@ const MOTIVOS = ["Precio", "Compró en otro lado", "No contestó", "Ya no necesi
 
 interface Deshacer { texto: string; accion?: () => Promise<void> }
 
+/** A quién se está posponiendo; `hasta` si ya estaba pospuesto (para «Cambiar día»). */
+interface PorPosponer { ticketId: number; nombre: string | null; hasta?: string }
+
 export function ParaCerrar() {
   const { datos, error, cargar, decidir } = useParaCerrar();
   const { dataMode, cerrar, deshacerVenta, registroVenta } = useHub();
@@ -41,7 +44,7 @@ export function ParaCerrar() {
   const pideVenta = registroVenta?.confirmarGanado ?? true;
   const venderA = (v: PorVender) => { setVentaVendido(DATOS_VACIOS); setVendiendo(v); };
   const [perdiendo, setPerdiendo] = useState<ClienteParaCerrar | null>(null);
-  const [posponiendo, setPosponiendo] = useState<ClienteParaCerrar | null>(null);
+  const [posponiendo, setPosponiendo] = useState<PorPosponer | null>(null);
   const [aviso, setAviso] = useState<Deshacer | null>(null);
 
   useEffect(() => { if (dataMode === "real") void cargar(); }, [dataMode, cargar]);
@@ -130,13 +133,14 @@ export function ParaCerrar() {
             empujando={datos.empujando}
             tope={datos.tope}
             contactados={datos.contactadosHoy}
-            pospuestos={datos.pospuestos}
+            pospuestos={datos.pospuestosLista ?? []}
             compraron={datos.compraron}
             now={now}
             onSacar={(c) => void hacer(`${c.nombre ?? "Cliente"} salió de Empujando`, accion(c.ticketId, { accion: "sacar" }), accion(c.ticketId, { accion: "devolver" }))}
             onVendido={(c) => venderA({ ticketId: c.ticketId, nombre: c.nombre, telefono: c.telefono, detalle: `${money(c.total)} · ${c.llantas}` })}
             onPerdido={setPerdiendo}
             onPosponer={setPosponiendo}
+            onTraer={(c) => void hacer(`${c.nombre ?? "Cliente"} volvió a la lista`, accion(c.ticketId, { accion: "no_posponer" }), accion(c.ticketId, { accion: "posponer", hasta: c.hasta }))}
           />
         )}
         {datos && vista === "empujando" && (
@@ -199,16 +203,22 @@ export function ParaCerrar() {
           </Modal>
         )}
         {posponiendo && (
-          <Modal onClose={() => setPosponiendo(null)}>
-            <Hoja titulo={`Posponer a ${posponiendo.nombre ?? "este cliente"}`} detalle="Sale de la lista hasta ese día. Si escribe antes, vuelve solo." onCerrar={() => setPosponiendo(null)}>
-              <div className="flex flex-wrap gap-2">
-                {opcionesPosponer(now).map((o) => (
-                  <button key={o.label} className="btn-quiet h-9 rounded-[6px] px-3.5 text-[13px]" onClick={() => {
-                    const c = posponiendo; setPosponiendo(null);
-                    void hacer(`Vuelve ${o.label.toLowerCase()}`, accion(c.ticketId, { accion: "posponer", hasta: o.hasta.toISOString() }), accion(c.ticketId, { accion: "no_posponer" }));
-                  }}>{o.label}</button>
-                ))}
-              </div>
+          <Modal onClose={() => setPosponiendo(null)} ancho={440}>
+            <Hoja titulo={`¿Hasta qué día pospones a ${posponiendo.nombre ?? "este cliente"}?`} detalle="Toca el día en el calendario. Ese día aparece en el calendario de Para cerrar; si escribe antes, vuelve solo." onCerrar={() => setPosponiendo(null)}>
+              <ElegirDia
+                now={now}
+                actual={posponiendo.hasta}
+                ocupados={ocupadosPorDia(datos)}
+                onListo={(hasta) => {
+                  const c = posponiendo; setPosponiendo(null);
+                  const antes = c.hasta;
+                  void hacer(
+                    `${c.nombre ?? "Cliente"} vuelve el ${fechaLarga(claveDia(hasta))}`,
+                    accion(c.ticketId, { accion: "posponer", hasta: hasta.toISOString() }),
+                    antes ? accion(c.ticketId, { accion: "posponer", hasta: antes }) : accion(c.ticketId, { accion: "no_posponer" }),
+                  );
+                }}
+              />
             </Hoja>
           </Modal>
         )}
@@ -231,8 +241,15 @@ export function ParaCerrar() {
    «+3 más». El panel de la derecha es el desglose de lo que se toque: un día,
    los que no vinieron en el mes que se mira, o los que no dijeron día. */
 
-type Lado = { tipo: "dia"; dia: string } | { tipo: "novinieron" } | { tipo: "sindia" } | { tipo: "estadistica" };
-type Cita = { tipo: "cerrar"; c: ClienteParaCerrar; dia: string } | { tipo: "empujando"; c: ClienteEmpujando; dia: string };
+type Lado = { tipo: "dia"; dia: string } | { tipo: "novinieron" } | { tipo: "sindia" } | { tipo: "pospuestos" } | { tipo: "estadistica" };
+type Cita =
+  | { tipo: "cerrar"; c: ClienteParaCerrar; dia: string }
+  | { tipo: "empujando"; c: ClienteEmpujando; dia: string }
+  /** Pospuesto: va en el día que vuelve a la lista (Manuel, 24-nov). */
+  | { tipo: "pospuesto"; c: ClientePospuesto; dia: string };
+
+/** La hora con que se ordena en el día. */
+const cuando = (cita: Cita) => (cita.tipo === "pospuesto" ? cita.c.hasta : cita.c.visita ?? "");
 
 const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
 const SEMANA = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
@@ -246,6 +263,11 @@ function desdeClave(k: string): Date {
   const [y, m, d] = k.split("-").map(Number);
   return new Date(y, m - 1, d);
 }
+/** «jueves 26 de noviembre». */
+function fechaLarga(k: string): string {
+  const d = desdeClave(k);
+  return `${SEMANA[d.getDay()]} ${d.getDate()} de ${MESES[d.getMonth()]}`;
+}
 /** «Hoy», «Mañana», «Ayer» o «jue 29». */
 function diaCorto(k: string, hoy: string): string {
   const n = Math.round((desdeClave(k).getTime() - desdeClave(hoy).getTime()) / 86_400_000);
@@ -256,10 +278,9 @@ function diaCorto(k: string, hoy: string): string {
   return `${CORTO[d.getDay()]} ${d.getDate()}`;
 }
 
-function VistaCerrar({ lista, empujando, tope, contactados, pospuestos, compraron, now, onVendido, onPerdido, onPosponer, onSacar }: {
-  lista: ClienteParaCerrar[]; empujando: ClienteEmpujando[]; tope: number; contactados: number; pospuestos: number; compraron: number; now: number;
-  onVendido: (c: ClienteParaCerrar) => void; onPerdido: (c: ClienteParaCerrar) => void; onPosponer: (c: ClienteParaCerrar) => void; onSacar: (c: ClienteEmpujando) => void;
-}) {
+function VistaCerrar({ lista, empujando, tope, contactados, pospuestos, compraron, now, onVendido, onPerdido, onPosponer, onSacar, onTraer }: {
+  lista: ClienteParaCerrar[]; empujando: ClienteEmpujando[]; tope: number; contactados: number; pospuestos: ClientePospuesto[]; compraron: number; now: number;
+} & Acciones) {
   const hoy = claveDia(new Date(now));
   const [mes, setMes] = useState(() => ({ y: new Date(now).getFullYear(), m: new Date(now).getMonth() }));
   const [lado, setLadoBase] = useState<Lado>({ tipo: "dia", dia: hoy });
@@ -277,21 +298,23 @@ function VistaCerrar({ lista, empujando, tope, contactados, pospuestos, compraro
     const poner = (cita: Cita) => { const l = mapa.get(cita.dia); if (l) l.push(cita); else mapa.set(cita.dia, [cita]); };
     for (const c of lista) if (c.visita) poner({ tipo: "cerrar", c, dia: claveDia(new Date(c.visita)) });
     for (const c of empujando) if (c.visita) poner({ tipo: "empujando", c, dia: claveDia(new Date(c.visita)) });
+    for (const c of pospuestos) poner({ tipo: "pospuesto", c, dia: claveDia(new Date(c.hasta)) });
     // En el día: primero los que atiende un asesor (que no se pierdan), después
     // la hora; a igual hora, primero a quien le toca escribir.
-    for (const l of mapa.values()) l.sort((a, b) => Number(Boolean(b.c.atiendeAsesor)) - Number(Boolean(a.c.atiendeAsesor)) || (a.c.visita ?? "").localeCompare(b.c.visita ?? "") || (a.tipo === "cerrar" ? -1 : 1));
+    for (const l of mapa.values()) l.sort((a, b) => Number(Boolean(b.c.atiendeAsesor)) - Number(Boolean(a.c.atiendeAsesor)) || cuando(a).localeCompare(cuando(b)) || (a.tipo === "cerrar" ? -1 : 1));
     return mapa;
-  }, [lista, empujando]);
+  }, [lista, empujando, pospuestos]);
 
   const prefijo = `${mes.y}-${String(mes.m + 1).padStart(2, "0")}`;
   const noVinieron = [...porDia.entries()]
     .filter(([d]) => d < hoy && d.startsWith(prefijo))
     .sort(([a], [b]) => b.localeCompare(a))
-    .flatMap(([, l]) => l);
+    .flatMap(([, l]) => l)
+    .filter((c) => c.tipo !== "pospuesto");
   const sinDia = lista.filter((c) => !c.visita);
   const quedan = Math.max(0, tope - contactados);
   const irAMes = (delta: number) => setMes((x) => { const d = new Date(x.y, x.m + delta, 1); return { y: d.getFullYear(), m: d.getMonth() }; });
-  const acciones = { onVendido, onPerdido, onPosponer, onSacar };
+  const acciones = { onVendido, onPerdido, onPosponer, onSacar, onTraer };
 
   return (
     <div className="flex flex-col gap-5">
@@ -308,6 +331,7 @@ function VistaCerrar({ lista, empujando, tope, contactados, pospuestos, compraro
             <>
               <Atajo activo={lado.tipo === "novinieron"} tono="signal" n={noVinieron.length} onClick={() => setLado({ tipo: "novinieron" })}>No vinieron en {MESES[mes.m]}</Atajo>
               <Atajo activo={lado.tipo === "sindia"} tono="warn" n={sinDia.length} onClick={() => setLado({ tipo: "sindia" })}>Sin día</Atajo>
+              <Atajo activo={lado.tipo === "pospuestos"} tono="text" n={pospuestos.length} onClick={() => setLado({ tipo: "pospuestos" })}>Pospuestos</Atajo>
               <button
                 type="button"
                 onClick={() => setLado({ tipo: "estadistica" })}
@@ -323,16 +347,13 @@ function VistaCerrar({ lista, empujando, tope, contactados, pospuestos, compraro
         <aside ref={panel} className="scroll-mt-3 rounded-[10px] border border-line bg-surface xl:sticky xl:top-4 xl:max-h-[calc(100vh-32px)] xl:overflow-y-auto">
           {lado.tipo === "dia" && <LadoDia dia={lado.dia} hoy={hoy} citas={porDia.get(lado.dia) ?? []} now={now} {...acciones} />}
           {lado.tipo === "novinieron" && <LadoNoVinieron mes={MESES[mes.m]} citas={noVinieron} hoy={hoy} now={now} {...acciones} />}
+          {lado.tipo === "pospuestos" && <LadoPospuestos lista={pospuestos} hoy={hoy} now={now} {...acciones} />}
           {lado.tipo === "sindia" && <LadoSinDia lista={sinDia} quedan={quedan} hoy={hoy} now={now} {...acciones} />}
           {lado.tipo === "estadistica" && <LadoEstadistica now={now} />}
         </aside>
       </div>
 
-      {(pospuestos > 0 || compraron > 0) && (
-        <p className="px-0.5 text-[12px] text-text2">
-          {[pospuestos > 0 && `${pospuestos} pospuestos`, compraron > 0 && `${compraron} ya compraron (factura en Contífico)`].filter(Boolean).join(" · ")}
-        </p>
-      )}
+      {compraron > 0 && <p className="px-0.5 text-[12px] text-text2">{compraron} ya compraron (factura en Contífico)</p>}
     </div>
   );
 }
@@ -356,8 +377,8 @@ function Contador({ tope, contactados }: { tope: number; contactados: number }) 
   );
 }
 
-function Atajo({ activo, tono, n, onClick, children }: { activo: boolean; tono: "signal" | "warn"; n: number; onClick: () => void; children: React.ReactNode }) {
-  const color = tono === "signal" ? "text-signal" : "text-warn";
+function Atajo({ activo, tono, n, onClick, children }: { activo: boolean; tono: "signal" | "warn" | "text"; n: number; onClick: () => void; children: React.ReactNode }) {
+  const color = tono === "signal" ? "text-signal" : tono === "warn" ? "text-warn" : "text-text2";
   return (
     <button
       type="button"
@@ -401,6 +422,7 @@ function Calendario({ y, m, hoy, porDia, seleccionado, onDia, onMes, onHoy, ataj
           <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-warn" />escribir hoy</span>
           <span className="flex items-center gap-1.5 text-text3 line-through decoration-text3"><span className="h-2 w-2 rounded-full bg-text3/60" />ya no viene</span>
           <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full border-[1.5px] border-text3" />ya le escribieron</span>
+          <span className="flex items-center gap-1.5"><MarcaPospuesto />pospuesto: vuelve ese día</span>
         </span>
       </div>
       <div className="grid grid-cols-7 border-b border-line">
@@ -448,7 +470,13 @@ function Calendario({ y, m, hoy, porDia, seleccionado, onDia, onMes, onHoy, ataj
 const LLENO: Record<Temperatura, string> = { caliente: "bg-ok", ultima: "bg-warn", fria: "bg-text3/60" };
 const HUECO: Record<Temperatura, string> = { caliente: "border-ok", ultima: "border-warn", fria: "border-text3/60" };
 
+/** Pospuesto: un rombo, para que no se confunda con los puntos de temperatura. */
+function MarcaPospuesto({ grande = false }: { grande?: boolean }) {
+  return <span className={`${grande ? "h-2.5 w-2.5" : "h-2 w-2"} shrink-0 rotate-45 rounded-[1.5px] bg-[#6b5bd6]`} />;
+}
+
 function Punto({ cita, grande = false }: { cita: Cita; grande?: boolean }) {
+  if (cita.tipo === "pospuesto") return <MarcaPospuesto grande={grande} />;
   const t = cita.c.temperatura;
   const tam = grande ? "h-2.5 w-2.5" : "h-1.5 w-1.5";
   return cita.tipo === "empujando"
@@ -457,6 +485,15 @@ function Punto({ cita, grande = false }: { cita: Cita; grande?: boolean }) {
 }
 
 function Renglon({ cita, tenue }: { cita: Cita; tenue: boolean }) {
+  if (cita.tipo === "pospuesto") {
+    return (
+      <span className={`grid grid-cols-[8px_minmax(0,1fr)] items-center gap-x-1.5 rounded-[4px] bg-[#6b5bd6]/[.08] px-1 py-[2px] ${tenue ? "opacity-60" : ""}`}>
+        <MarcaPospuesto />
+        <span className="min-w-0 text-[12px] leading-[1.25] font-medium break-words text-[#4b3fb0]">{cita.c.nombre ?? "Sin nombre"}</span>
+        <span className="col-start-2 truncate font-mono text-[10.5px] text-text2">vuelve</span>
+      </span>
+    );
+  }
   return (
     <span className={`grid grid-cols-[8px_minmax(0,1fr)] items-center gap-x-1.5 rounded-[4px] px-1 py-[2px] ${tenue ? "opacity-60" : ""}`}>
       <Punto cita={cita} />
@@ -475,7 +512,9 @@ function Renglon({ cita, tenue }: { cita: Cita; tenue: boolean }) {
 
 type Acciones = {
   onVendido: (c: ClienteParaCerrar) => void; onPerdido: (c: ClienteParaCerrar) => void;
-  onPosponer: (c: ClienteParaCerrar) => void; onSacar: (c: ClienteEmpujando) => void;
+  onPosponer: (c: PorPosponer) => void; onSacar: (c: ClienteEmpujando) => void;
+  /** Saca un pospuesto antes de tiempo: vuelve ya a la lista. */
+  onTraer: (c: ClientePospuesto) => void;
 };
 
 function CabezaLado({ titulo, n, tono = "signal", detalle }: { titulo: string; n?: number; tono?: "signal" | "warn" | "text"; detalle: string }) {
@@ -511,7 +550,7 @@ function LadoDia({ dia, hoy, citas, now, ...acciones }: { dia: string; hoy: stri
     <>
       <CabezaLado titulo={titulo} n={citas.length} tono={dia < hoy ? "text" : "signal"} detalle={detalle} />
       {citas.length === 0
-        ? <p className="px-5 pb-6 text-[13px] text-text2">Nadie dijo que viene este día.</p>
+        ? <p className="px-5 pb-6 text-[13px] text-text2">Nadie dijo que viene este día, y nadie está pospuesto para este día.</p>
         : <ListaCitas citas={citas} hoy={hoy} now={now} {...acciones} />}
     </>
   );
@@ -558,9 +597,63 @@ function LadoSinDia({ lista, quedan, hoy, now, ...acciones }: { lista: ClientePa
   );
 }
 
+function LadoPospuestos({ lista, hoy, now, ...acciones }: { lista: ClientePospuesto[]; hoy: string; now: number } & Acciones) {
+  const citas: Cita[] = lista.map((c) => ({ tipo: "pospuesto", c, dia: claveDia(new Date(c.hasta)) }));
+  const dias = [...new Set(citas.map((c) => c.dia))];
+  return (
+    <>
+      <CabezaLado titulo="Pospuestos" n={lista.length} tono="text" detalle="Les dieron «Posponer». Cada uno vuelve a la lista el día marcado, o antes si escribe." />
+      {lista.length === 0
+        ? <p className="px-5 pb-6 text-[13px] text-text2">No hay nadie pospuesto.</p>
+        : dias.map((dia) => (
+          <div key={dia}>
+            <p className="px-5 pt-1 pb-2 text-[12px] font-semibold text-text2 first-letter:uppercase">Vuelve {diaCorto(dia, hoy).toLowerCase()} · {fechaLarga(dia)}</p>
+            <ListaCitas citas={citas.filter((c) => c.dia === dia)} hoy={hoy} now={now} {...acciones} />
+          </div>
+        ))}
+    </>
+  );
+}
+
 /* ── La tarjeta del panel ── */
 
-function TarjetaCita({ cita, hoy, now, onVendido, onPerdido, onPosponer, onSacar }: { cita: Cita; hoy: string; now: number } & Acciones) {
+function TarjetaPospuesto({ c, dia, hoy, now, onPosponer, onTraer }: { c: ClientePospuesto; dia: string; hoy: string; now: number } & Acciones) {
+  const abrir = () => navigate(`ticket/${c.ticketId}`);
+  return (
+    <article className={`flex flex-col gap-2 rounded-[8px] border border-[#6b5bd6]/25 bg-[#6b5bd6]/[.04] px-4 py-3 ${c.atiendeAsesor ? "shadow-[inset_3px_0_0_var(--color-text)]" : ""}`}>
+      <div className="flex items-center gap-2.5">
+        <MarcaPospuesto grande />
+        <button type="button" onClick={abrir} className="min-w-0 text-left text-[15px] leading-tight font-semibold break-words hover:underline">{c.nombre ?? "Sin nombre"}</button>
+        {c.atiendeAsesor && <MarcaAsesor />}
+        <span className="tnum ml-auto shrink-0 font-mono text-[13px] text-text2">{money(c.total)}</span>
+      </div>
+      <div className="flex min-w-0 items-center gap-2 border-t border-line pt-2">
+        {c.medida && <MedidaChip medida={c.medida} size="sm" />}
+        <span className="truncate text-[12px] text-text2">{c.llantas}</span>
+      </div>
+      <div className="flex flex-wrap items-baseline gap-x-2 text-[13px]">
+        <span className="font-mono font-bold text-[#4b3fb0]">Vuelve {diaCorto(dia, hoy).toLowerCase()}</span>
+        <span>{c.local}</span>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        <span className="whitespace-nowrap rounded-[5px] bg-[#6b5bd6]/10 px-2 py-0.5 text-[12px] font-semibold text-[#4b3fb0]">Pospuesto</span>
+        {c.pospuestoEn && <Etiqueta>Lo pospusieron {relTime(c.pospuestoEn, now)}</Etiqueta>}
+      </div>
+      <div className="flex flex-wrap gap-1.5 pt-0.5">
+        <button className="btn-quiet h-8 rounded-[6px] px-3 text-[13px]" onClick={abrir}>Abrir chat</button>
+        <button className="btn-quiet h-8 rounded-[6px] px-3 text-[13px]" onClick={() => onPosponer({ ticketId: c.ticketId, nombre: c.nombre, hasta: c.hasta })}>Cambiar día</button>
+        <button className="h-8 rounded-[6px] px-2 text-[13px] text-text2 hover:bg-black/[.04] hover:text-text" onClick={() => onTraer(c)}>Traer ya</button>
+      </div>
+    </article>
+  );
+}
+
+function TarjetaCita({ cita, hoy, now, ...acciones }: { cita: Cita; hoy: string; now: number } & Acciones) {
+  if (cita.tipo === "pospuesto") return <TarjetaPospuesto c={cita.c} dia={cita.dia} hoy={hoy} now={now} {...acciones} />;
+  return <TarjetaActiva cita={cita} hoy={hoy} now={now} {...acciones} />;
+}
+
+function TarjetaActiva({ cita, hoy, now, onVendido, onPerdido, onPosponer, onSacar }: { cita: Exclude<Cita, { tipo: "pospuesto" }>; hoy: string; now: number } & Acciones) {
   const c = cita.c;
   const dia = c.visita ? claveDia(new Date(c.visita)) : null;
   const paso = Boolean(dia && dia < hoy);
@@ -609,7 +702,7 @@ function TarjetaCita({ cita, hoy, now, onVendido, onPerdido, onPosponer, onSacar
             <button className="btn-signal h-8 rounded-[6px] px-3 text-[13px]" onClick={abrir}>Escribir</button>
             <button className="btn-quiet h-8 rounded-[6px] px-3 text-[13px]" onClick={() => onVendido(cita.c)}>Vendido</button>
             <button className="btn-quiet h-8 rounded-[6px] px-3 text-[13px]" onClick={() => onPerdido(cita.c)}>Perdido</button>
-            <button className="h-8 rounded-[6px] px-2 text-[13px] text-text2 hover:bg-black/[.04] hover:text-text" onClick={() => onPosponer(cita.c)}>Posponer</button>
+            <button className="h-8 rounded-[6px] px-2 text-[13px] text-text2 hover:bg-black/[.04] hover:text-text" onClick={() => onPosponer({ ticketId: cita.c.ticketId, nombre: cita.c.nombre })}>Posponer</button>
           </>
         )}
       </div>
@@ -842,20 +935,114 @@ function Hoja({ titulo, detalle, onCerrar, children }: { titulo: string; detalle
   );
 }
 
-/** Fechas de «Posponer», a las 08:00 de ese día. */
-function opcionesPosponer(now: number): Array<{ label: string; hasta: Date }> {
-  const a = (dias: number) => { const d = new Date(now); d.setDate(d.getDate() + dias); d.setHours(8, 0, 0, 0); return d; };
+/** Cuántos clientes hay ya en cada día (citas + pospuestos), para verlo al elegir. */
+function ocupadosPorDia(d: { paraCerrar: ClienteParaCerrar[]; empujando: ClienteEmpujando[]; pospuestosLista?: ClientePospuesto[] } | null): Map<string, number> {
+  const m = new Map<string, number>();
+  const sumar = (iso: string | null) => { if (iso) { const k = claveDia(new Date(iso)); m.set(k, (m.get(k) ?? 0) + 1); } };
+  if (!d) return m;
+  d.paraCerrar.forEach((c) => sumar(c.visita));
+  d.empujando.forEach((c) => sumar(c.visita));
+  (d.pospuestosLista ?? []).forEach((c) => sumar(c.hasta));
+  return m;
+}
+
+/** Atajos de «Posponer»: marcan el día en el calendario, no posponen solos. */
+function atajosPosponer(now: number): Array<{ label: string; dia: string }> {
+  const a = (dias: number) => { const d = new Date(now); d.setDate(d.getDate() + dias); return claveDia(d); };
   const hoy = new Date(now);
   const lunes = (8 - hoy.getDay()) % 7 || 7;
-  const finDeMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0, 8);
-  const quincena = hoy.getDate() < 15 ? new Date(hoy.getFullYear(), hoy.getMonth(), 15, 8) : finDeMes;
-  const opciones = [
-    { label: "Mañana", hasta: a(1) },
-    { label: "En 3 días", hasta: a(3) },
-    { label: "El lunes", hasta: a(lunes) },
-    { label: hoy.getDate() < 15 ? "La quincena (15)" : `Fin de mes (${finDeMes.getDate()})`, hasta: quincena },
+  const finDeMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0);
+  const quincena = hoy.getDate() < 15 ? new Date(hoy.getFullYear(), hoy.getMonth(), 15) : finDeMes;
+  const lista = [
+    { label: "Mañana", dia: a(1) },
+    { label: "En 3 días", dia: a(3) },
+    { label: "El lunes", dia: a(lunes) },
+    { label: hoy.getDate() < 15 ? "Quincena (15)" : `Fin de mes (${finDeMes.getDate()})`, dia: claveDia(quincena) },
   ];
-  return opciones.filter((o) => o.hasta.getTime() > now);
+  const hoyK = claveDia(hoy);
+  // Sin repetidos (el lunes puede caer en fin de mes) y nunca hoy.
+  return lista.filter((o, i) => o.dia > hoyK && lista.findIndex((x) => x.dia === o.dia) === i);
+}
+
+/**
+ * «Posponer» con un calendario (Manuel, 24-nov): se toca el día, se ve
+ * cuántos clientes ya hay ese día, y un solo botón confirma. Vuelve a las 08:00.
+ */
+function ElegirDia({ now, actual, ocupados, onListo }: { now: number; actual?: string; ocupados: Map<string, number>; onListo: (hasta: Date) => void }) {
+  const hoy = claveDia(new Date(now));
+  const [elegido, setElegido] = useState<string | null>(actual ? claveDia(new Date(actual)) : null);
+  const base = desdeClave(elegido ?? hoy);
+  const [mes, setMes] = useState({ y: base.getFullYear(), m: base.getMonth() });
+  const elegir = (k: string) => { setElegido(k); const d = desdeClave(k); setMes({ y: d.getFullYear(), m: d.getMonth() }); };
+
+  const primero = new Date(mes.y, mes.m, 1);
+  const vacios = (primero.getDay() + 6) % 7;
+  const largo = new Date(mes.y, mes.m + 1, 0).getDate();
+  const esteMes = new Date(now);
+  const puedeAtras = mes.y > esteMes.getFullYear() || (mes.y === esteMes.getFullYear() && mes.m > esteMes.getMonth());
+  const irA = (delta: number) => setMes((x) => { const d = new Date(x.y, x.m + delta, 1); return { y: d.getFullYear(), m: d.getMonth() }; });
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap gap-1.5">
+        {atajosPosponer(now).map((o) => (
+          <button
+            key={o.label}
+            type="button"
+            onClick={() => elegir(o.dia)}
+            aria-pressed={elegido === o.dia}
+            className={`h-8 rounded-full border px-3 text-[13px] transition-colors ${elegido === o.dia ? "border-text bg-text text-white" : "border-line hover:border-line-strong"}`}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="rounded-[8px] border border-line">
+        <div className="flex items-center gap-1 border-b border-line px-2 py-1.5">
+          <button type="button" onClick={() => irA(-1)} disabled={!puedeAtras} aria-label="Mes anterior" className="grid h-8 w-8 place-items-center rounded-[6px] text-[15px] hover:bg-black/[.04] disabled:opacity-30">‹</button>
+          <span className="flex-1 text-center text-[14px] font-semibold capitalize">{MESES[mes.m]} {mes.y}</span>
+          <button type="button" onClick={() => irA(1)} aria-label="Mes siguiente" className="grid h-8 w-8 place-items-center rounded-[6px] text-[15px] hover:bg-black/[.04]">›</button>
+        </div>
+        <div className="grid grid-cols-7 px-1.5 pt-1.5 text-center">
+          {["Lu", "Ma", "Mi", "Ju", "Vi", "Sá", "Do"].map((d) => <span key={d} className="py-1 text-[11px] font-medium text-text2">{d}</span>)}
+        </div>
+        <div className="grid grid-cols-7 gap-1 px-1.5 pb-2">
+          {Array.from({ length: vacios }, (_, i) => <span key={`v${i}`} />)}
+          {Array.from({ length: largo }, (_, i) => {
+            const k = claveDia(new Date(mes.y, mes.m, i + 1));
+            const pasado = k <= hoy;
+            const sel = k === elegido;
+            const n = ocupados.get(k) ?? 0;
+            return (
+              <button
+                key={k}
+                type="button"
+                disabled={pasado}
+                onClick={() => setElegido(k)}
+                aria-pressed={sel}
+                aria-label={`${fechaLarga(k)}${n ? `: ya hay ${n}` : ""}`}
+                className={`flex h-11 flex-col items-center justify-center rounded-[8px] text-[14px] transition-colors ${sel ? "bg-signal font-bold text-white" : pasado ? "text-text3/60" : "hover:bg-signal-tint"} ${k === hoy && !sel ? "font-bold text-signal" : ""}`}
+              >
+                <span className="tnum font-mono leading-none">{i + 1}</span>
+                <span className={`mt-1 h-1 w-1 rounded-full ${n === 0 ? "bg-transparent" : sel ? "bg-white" : "bg-text3"}`} />
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <p className="-mt-2 text-[12px] text-text2">El puntito debajo de un día = ya hay clientes ese día.</p>
+
+      <button
+        type="button"
+        disabled={!elegido}
+        onClick={() => { if (elegido) { const d = desdeClave(elegido); d.setHours(8, 0, 0, 0); onListo(d); } }}
+        className="btn-signal h-11 rounded-[8px] px-4 text-[14px] font-semibold first-letter:uppercase disabled:opacity-40"
+      >
+        {elegido ? `Posponer hasta el ${fechaLarga(elegido)}` : "Toca un día"}
+      </button>
+    </div>
+  );
 }
 
 /* ── Por completar: lo que falta para que «ganado» sea venta (Manuel, 21-nov) ──
