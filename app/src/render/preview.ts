@@ -1,5 +1,5 @@
 /**
- * Vista previa de las piezas para el tab de Ajustes.
+ * Vista previa de las piezas para la pantalla Promociones del panel.
  *
  * Renderiza con los valores que se están probando, no con los guardados: el
  * negocio ve el cambio antes de aplicarlo. Usa productos reales del catálogo
@@ -12,7 +12,7 @@ import { normalizeContificoProduct, type CatalogItem } from "../domain/catalog.j
 import { brandProfilesForRender } from "../services/brandProfiles.js";
 import { segundaLlantaDe } from "../domain/promocionDeTemporada.js";
 import { politica } from "../negocio/politica.js";
-import { renderCompareImage, renderOptionsImage, renderQuoteImage, toRenderLine } from "./quoteImage.js";
+import { anchoDeVistaPrevia, renderCompareImage, renderOptionsImage, renderQuoteImage, toRenderLine } from "./quoteImage.js";
 
 export interface PreviewOptions {
   pieza: string;
@@ -29,6 +29,12 @@ export interface PreviewOptions {
   identidad?: string;
   /** El tema que se está eligiendo en Ajustes (cinta de Navidad, personalizada…). */
   tema?: Partial<ConfigDeTema> | null;
+  /**
+   * A cuántos píxeles de ancho se pasa la imagen. El panel pide el ancho de su
+   * recuadro (×2 en pantallas retina): la vista previa llega en una fracción
+   * del tiempo. Sin valor, el tamaño real de la pieza.
+   */
+  ancho?: number;
 }
 
 /** Ejemplo de respaldo: una marca por fila, precios y stock verosímiles. */
@@ -48,7 +54,15 @@ const EJEMPLO: CatalogItem[] = [
     ))
   .filter((item): item is CatalogItem => Boolean(item));
 
-/** Hasta 3 productos de marcas distintas, para que la pieza se vea completa. */
+/**
+ * Hasta 3 productos de marcas distintas, para que la pieza se vea completa.
+ *
+ * Si el negocio tiene promo de temporada, va primero una marca que entra en
+ * ella —esté prendida o no—: la cotización de muestra es la del primer
+ * producto, y quien prende o apaga el Black Friday en el panel tiene que VER el
+ * cambio sobre la MISMA llanta (antes salía la primera marca del catálogo, que
+ * podía no llevar la promo, y la vista previa no se movía).
+ */
 async function muestra(): Promise<CatalogItem[]> {
   try {
     await ensureCatalogReady();
@@ -56,9 +70,11 @@ async function muestra(): Promise<CatalogItem[]> {
     for (const item of searchByText("R16", 40)) {
       const marca = item.brand.trim().toUpperCase();
       if (!porMarca.has(marca)) porMarca.set(marca, item);
-      if (porMarca.size === 3) break;
     }
-    if (porMarca.size >= 2) return [...porMarca.values()];
+    const deTemporada = politica.promocionDeTemporada?.segundaLlanta?.marcas ?? [];
+    const conPromo = (item: CatalogItem) => deTemporada.includes(item.brand.trim().toUpperCase());
+    const ordenados = [...porMarca.values()].sort((a, b) => Number(conPromo(b)) - Number(conPromo(a)));
+    if (ordenados.length >= 2) return ordenados.slice(0, 3);
   } catch {
     // Catálogo caído: el ejemplo alcanza para ver colores y tipografía.
   }
@@ -76,6 +92,12 @@ export async function descuentoDeLaMuestra(): Promise<number | null> {
 }
 
 export async function renderPreviewPiece(options: PreviewOptions): Promise<Buffer> {
+  const ancho = Number(options.ancho);
+  if (!Number.isFinite(ancho) || ancho <= 0) return dibujar(options);
+  return anchoDeVistaPrevia.run(Math.round(Math.min(2400, Math.max(320, ancho))), () => dibujar(options));
+}
+
+async function dibujar(options: PreviewOptions): Promise<Buffer> {
   const productos = await muestra();
   const tema = {
     paleta: options.paleta,

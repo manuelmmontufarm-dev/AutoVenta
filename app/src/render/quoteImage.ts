@@ -6,6 +6,7 @@
  * marcas, bloques compartidos) y `depotPosters.ts` (las piezas). Este módulo
  * solo traduce el catálogo al diseño y rasteriza.
  */
+import { AsyncLocalStorage } from "node:async_hooks";
 import { productoParaCantidad } from "../domain/promociones.js";
 import satori from "satori";
 import { renderAsync } from "@resvg/resvg-js";
@@ -405,9 +406,20 @@ export async function renderPng(
   // webhook —que está en el camino crítico del ack a Meta—, ni /health que
   // vigila Railway, ni el SSE del panel. La variante asíncrona hace el mismo
   // trabajo en el threadpool de libuv y deja el event loop libre.
-  const png = await renderAsync(svg, { fitTo: { mode: "width", value: width * (opciones.escala ?? 2) } });
+  const png = await renderAsync(svg, { fitTo: { mode: "width", value: anchoDeVistaPrevia.getStore() ?? width * (opciones.escala ?? 2) } });
   return Buffer.from(png.asPng());
 }
+
+/**
+ * El ancho en píxeles al que sale la pieza cuando es SOLO la vista previa del
+ * panel (24-nov-2026). La pieza de verdad se rasteriza a 2–3× para que el
+ * cliente pueda ampliarla en WhatsApp; eso son más de 6 Mpx y ~1,3 s por
+ * imagen, que en una vista previa de 420 px de ancho no se ven y hacían que
+ * cada toque del panel se sintiera lento. El dibujo es el mismo (mismo SVG de
+ * satori): solo cambia a cuántos píxeles se pasa. Fuera de `run()` no hay
+ * valor y todo sale a su tamaño de siempre.
+ */
+export const anchoDeVistaPrevia = new AsyncLocalStorage<number>();
 
 // ---------------------------------------------------------------------------
 // Constructor de RenderLine desde el catálogo

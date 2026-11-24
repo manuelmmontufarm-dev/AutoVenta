@@ -1,11 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Segmented } from "../components/ui";
 import { marked } from "marked";
-import { ETAPA_META, ETAPAS, type Etapa } from "../data/types";
 import { AdminKeyForm } from "../components/admin-key";
 import { WhatsAppSetup } from "../components/whatsapp-setup";
 import { useNegocio } from "../data/negocio";
-import { authHeaders } from "../data/realSource";
 import { useHub } from "../store";
 
 type SettingsTab = "whatsapp" | "manual" | "connection";
@@ -83,137 +81,6 @@ export function Settings() {
       </div>
     </div>
   );
-}
-
-interface FollowUpPolicyAdmin {
-  enabled: boolean; timezone: string;
-  business_hours: Record<string, { open: string; close: string } | null>;
-  quiet_hours: Record<string, unknown>; enabled_stages: Etapa[];
-  first_delay_minutes: number; second_before_close_minutes: number; minimum_gap_minutes: number;
-  max_in_window_attempts: number; max_post_window_attempts: number; post_window_gap_minutes: number;
-  advisor_alert_days: number; recommend_close_days: number; require_consent: boolean;
-  respect_opt_out: boolean; never_outside_hours: boolean; max_messages_per_day: number;
-  pause_on_human_control: boolean;
-  template_follow_up_days: number; template_send_time: string;
-  stage_prompts: Partial<Record<Etapa, string>>;
-  alert_settings: { sound?: boolean; recipient?: string; autoAssign?: boolean; priorityByEvent?: Record<string, string>; escalationRules?: unknown[] };
-}
-
-interface FollowUpTemplateAdmin {
-  template_key: string; template_name: string | null; language: string; expected_category: string;
-  variables: string[]; buttons: unknown[]; preview: string;
-  approval_status: "not_configured" | "pending" | "approved" | "rejected";
-  configured: boolean; automatic_send: boolean;
-  meta_status?: string | null; meta_category?: string | null; meta_synced_at?: string | null;
-}
-
-/** Lo que contestó Meta, en palabras del panel. */
-const ESTADO_META: Record<string, { label: string; tono: "ok" | "warn" | "danger" }> = {
-  APPROVED: { label: "Aprobada", tono: "ok" },
-  PENDING: { label: "En revisión", tono: "warn" },
-  IN_APPEAL: { label: "En apelación", tono: "warn" },
-  REJECTED: { label: "Rechazada", tono: "danger" },
-  PAUSED: { label: "Pausada", tono: "danger" },
-  DISABLED: { label: "Desactivada", tono: "danger" },
-};
-
-/** Qué hace cada plantilla cuando se prende «Envío automático». */
-const CUANDO_SALE: Record<string, string> = {
-  recordatorio_visita_v1: "Sale sola la víspera de la visita, entre 17:00 y 20:00, salvo que el cliente haya escrito en las últimas 6 h.",
-  visita_no_llego_v1: "Sale sola el día después de la visita, entre 10:00 y 13:00, si no vino, no compró y no escribió. Necesita las facturas al día.",
-};
-
-function Pastilla({ tono, children }: { tono: "ok" | "warn" | "danger" | "neutro"; children: React.ReactNode }) {
-  const color = { ok: "var(--color-ok)", warn: "var(--color-warn,#e8b33a)", danger: "var(--color-danger,#e2564d)", neutro: "var(--color-text2)" }[tono];
-  return <span className="rounded-full px-2 py-0.5 text-[12px] font-semibold" style={{ color, background: `color-mix(in srgb, ${color} 15%, transparent)` }}>{children}</span>;
-}
-
-export function FollowUpSettingsPanel() {
-  const [policy, setPolicy] = useState<FollowUpPolicyAdmin | null>(null);
-  const [templates, setTemplates] = useState<FollowUpTemplateAdmin[]>([]);
-  const [message, setMessage] = useState("");
-  const [sincronizando, setSincronizando] = useState(false);
-  const [errorMeta, setErrorMeta] = useState("");
-  async function sincronizar() {
-    setSincronizando(true); setErrorMeta("");
-    try {
-      const data = await api<{ templates: FollowUpTemplateAdmin[] }>("/api/follow-up-settings/templates/sync", { method: "POST" });
-      setTemplates(data.templates);
-    } catch (error) { setErrorMeta(error instanceof Error ? error.message : "No se pudo leer Meta"); }
-    finally { setSincronizando(false); }
-  }
-  useEffect(() => {
-    void api<{ policy: FollowUpPolicyAdmin; templates: FollowUpTemplateAdmin[] }>("/api/follow-up-settings")
-      .then((data) => { setPolicy(data.policy); setTemplates(data.templates); void sincronizar(); })
-      .catch((error) => setMessage(error instanceof Error ? error.message : "No se pudo cargar"));
-  }, []);
-  if (!policy) return <div className="border border-line bg-surface rounded-[10px] p-6 text-[14px] text-text2">{message || "Cargando configuración…"}</div>;
-  const setNumber = (key: keyof FollowUpPolicyAdmin, value: string) => setPolicy({ ...policy, [key]: Number(value) });
-  async function savePolicy() {
-    if (!policy) return;
-    await api("/api/follow-up-settings/policy", { method: "PUT", body: JSON.stringify({
-      enabled: policy.enabled, timezone: policy.timezone, businessHours: policy.business_hours,
-      quietHours: policy.quiet_hours, enabledStages: policy.enabled_stages,
-      firstDelayMinutes: policy.first_delay_minutes, secondBeforeCloseMinutes: policy.second_before_close_minutes,
-      minimumGapMinutes: policy.minimum_gap_minutes, maxInWindowAttempts: policy.max_in_window_attempts,
-      maxPostWindowAttempts: policy.max_post_window_attempts, postWindowGapMinutes: policy.post_window_gap_minutes,
-      advisorAlertDays: policy.advisor_alert_days, recommendCloseDays: policy.recommend_close_days,
-      requireConsent: policy.require_consent, respectOptOut: policy.respect_opt_out,
-      neverOutsideHours: policy.never_outside_hours, maxMessagesPerDay: policy.max_messages_per_day,
-      pauseOnHumanControl: policy.pause_on_human_control, alertSettings: policy.alert_settings,
-      stagePrompts: policy.stage_prompts,
-      templateFollowUpDays: policy.template_follow_up_days, templateSendTime: policy.template_send_time,
-    }) }); setMessage("Política de seguimientos guardada.");
-  }
-  async function saveTemplate(template: FollowUpTemplateAdmin) {
-    await api(`/api/follow-up-settings/templates/${template.template_key}`, { method: "PUT", body: JSON.stringify({
-      templateName: template.template_name, language: template.language, expectedCategory: template.expected_category,
-      variables: template.variables, buttons: template.buttons, preview: template.preview,
-      approvalStatus: template.approval_status, configured: template.configured, automaticSend: template.automatic_send,
-    }) }); setMessage(`Plantilla ${template.template_key} guardada.`);
-  }
-  return <div className="grid gap-4 xl:grid-cols-2">
-    <section className="border border-line bg-surface rounded-[10px] p-5"><p className="text-[13px] font-semibold">Horarios de seguimiento</p><p className="mb-3 text-[12px] text-text2">Cuándo puede escribir el bot por su cuenta</p><div className="grid gap-3 sm:grid-cols-3"><Field label="Timezone"><input className="settings-input" value={policy.timezone} onChange={(e) => setPolicy({ ...policy, timezone: e.target.value })} /></Field><Field label="Inicio"><input type="time" className="settings-input" value={policy.business_hours["1"]?.open ?? "08:30"} onChange={(e) => setPolicy({ ...policy, quiet_hours: { ...policy.quiet_hours, end: e.target.value }, business_hours: Object.fromEntries(Object.entries(policy.business_hours).map(([day, hours]) => [day, hours ? { ...hours, open: e.target.value } : null])) })} /></Field><Field label="Fin"><input type="time" className="settings-input" value={policy.business_hours["1"]?.close ?? "17:30"} onChange={(e) => setPolicy({ ...policy, quiet_hours: { ...policy.quiet_hours, start: e.target.value }, business_hours: Object.fromEntries(Object.entries(policy.business_hours).map(([day, hours]) => [day, hours ? { ...hours, close: e.target.value } : null])) })} /></Field></div><div className="mt-3 flex flex-wrap gap-2">{["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"].map((label, day) => <label key={label} className="flex items-center gap-1 rounded-full border px-2 py-1 text-[12px] font-semibold"><input type="checkbox" checked={Boolean(policy.business_hours[String(day)])} onChange={(e) => setPolicy({ ...policy, business_hours: { ...policy.business_hours, [day]: e.target.checked ? { open: String(policy.quiet_hours.end ?? "08:30"), close: String(policy.quiet_hours.start ?? "17:30") } : null } })} />{label}</label>)}</div><p className="mt-3 text-[12px] text-text2">Fuera de este horario no se enviarán mensajes. Al guardar, los seguimientos pendientes se recalculan inmediatamente.</p></section>
-    <section className="border border-line bg-surface rounded-[10px] p-5"><p className="text-[13px] font-semibold">Tiempos de seguimiento</p><p className="mb-3 text-[12px] text-text2">Cuánto espera el bot antes de volver a escribir</p><div className="grid grid-cols-2 gap-3"><Field label="Primer retraso (min)"><input type="number" className="settings-input" value={policy.first_delay_minutes} onChange={(e) => setNumber("first_delay_minutes", e.target.value)} /></Field><Field label="Antes del cierre (min)"><input type="number" className="settings-input" value={policy.second_before_close_minutes} onChange={(e) => setNumber("second_before_close_minutes", e.target.value)} /></Field><Field label="Separación mínima (min)"><input type="number" className="settings-input" value={policy.minimum_gap_minutes} onChange={(e) => setNumber("minimum_gap_minutes", e.target.value)} /></Field><Field label="Días con plantilla"><input type="number" min="1" max="8" className="settings-input" value={policy.template_follow_up_days} onChange={(e) => setNumber("template_follow_up_days", e.target.value)} /></Field><Field label="Hora diaria"><input type="time" className="settings-input" value={policy.template_send_time} onChange={(e) => setPolicy({ ...policy, template_send_time: e.target.value })} /></Field><Field label="Recomendar cierre (días)"><input type="number" className="settings-input" value={policy.recommend_close_days} onChange={(e) => setNumber("recommend_close_days", e.target.value)} /></Field></div><p className="mt-2 text-[12px] text-text2">Las plantillas post-24 h solo se programan cuando un asesor confirma el plan desde el ticket.</p><p className="microlabel mt-4 mb-2">Habilitado por etapa</p><div className="flex flex-wrap gap-2">{ETAPAS.map((stage) => <label key={stage} className="flex items-center gap-1 text-[12px] font-semibold"><input type="checkbox" checked={policy.enabled_stages.includes(stage)} onChange={(e) => setPolicy({ ...policy, enabled_stages: e.target.checked ? [...policy.enabled_stages, stage] : policy.enabled_stages.filter((item) => item !== stage) })} />{ETAPA_META[stage].nombre}</label>)}</div></section>
-    <section className="border border-line bg-surface rounded-[10px] p-5 xl:col-span-2">
-      <p className="microlabel">Cómo debe escribir el seguimiento</p>
-      <p className="mt-1 text-[13px] text-text2">Un solo prompt editable por etapa. Ya está prellenado para mensajes breves, humanos, persuasivos y basados únicamente en el contexto real.</p>
-      <div className="mt-3 grid gap-3 md:grid-cols-2">{ETAPAS.map((stage) => <label key={stage} className="rounded-[8px] border border-line p-3"><span className="text-[12px] font-semibold" style={{ color: ETAPA_META[stage].color }}>{ETAPA_META[stage].nombre}</span><textarea rows={4} className="settings-input mt-2" value={policy.stage_prompts?.[stage] ?? ""} onChange={(e) => setPolicy({ ...policy, stage_prompts: { ...policy.stage_prompts, [stage]: e.target.value } })} /></label>)}</div>
-    </section>
-    <section className="border border-line bg-surface rounded-[10px] p-5 xl:col-span-2">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <p className="text-[13px] font-semibold">Plantillas de WhatsApp</p>
-          <p className="text-[12px] text-text2">Los mensajes que el bot puede mandar con la ventana de 24 h cerrada. Estado y categoría salen directo de Meta.</p>
-        </div>
-        <button onClick={() => void sincronizar()} disabled={sincronizando} className="rounded-full bg-bg px-3 py-1.5 text-[12px] font-semibold disabled:opacity-50">{sincronizando ? "Consultando Meta…" : "Actualizar desde Meta"}</button>
-      </div>
-      {errorMeta && <p className="mt-2 text-[12px] text-[var(--color-danger,#e2564d)]">{errorMeta}</p>}
-      <div className="mt-3 grid gap-2">{templates.map((template, index) => {
-        const estado = template.meta_status ? ESTADO_META[template.meta_status] : null;
-        const categoriaCambio = template.meta_category && template.meta_category !== template.expected_category;
-        return <div key={template.template_key} className="rounded-[6px] bg-bg p-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[13px] font-semibold">{template.template_name ?? template.template_key}</span>
-            {estado ? <Pastilla tono={estado.tono}>{estado.label}</Pastilla> : <Pastilla tono="neutro">No está en Meta</Pastilla>}
-            {template.meta_category && <Pastilla tono={categoriaCambio ? "warn" : "neutro"}>{template.meta_category === "MARKETING" ? "Marketing · ~7 ¢" : template.meta_category === "UTILITY" ? "Utilidad · ~1 ¢" : template.meta_category}</Pastilla>}
-          </div>
-          {categoriaCambio && <p className="mt-1 text-[12px] text-[var(--color-warn,#e8b33a)]">Meta la pasó de {template.expected_category === "UTILITY" ? "Utilidad" : template.expected_category} a {template.meta_category === "MARKETING" ? "Marketing" : template.meta_category}: cada envío cuesta más. Se puede apelar en Business Support.</p>}
-          {template.preview && <p className="mt-1.5 text-[12px] text-text2">{template.preview}</p>}
-          {CUANDO_SALE[template.template_key] && <p className="mt-1 text-[12px] font-semibold">{CUANDO_SALE[template.template_key]}</p>}
-          <div className="mt-2 flex flex-wrap items-end gap-2">
-            <Field label="Nombre en Meta"><input className="settings-input" placeholder="Nombre aprobado en Meta" value={template.template_name ?? ""} onChange={(e) => setTemplates(templates.map((item, i) => i === index ? { ...item, template_name: e.target.value || null } : item))} /></Field>
-            <label className="mb-2 flex items-center gap-2 text-[12px] font-semibold"><input type="checkbox" checked={template.automatic_send} disabled={template.meta_status !== "APPROVED"} onChange={(e) => setTemplates(templates.map((item, i) => i === index ? { ...item, automatic_send: e.target.checked, configured: e.target.checked || item.configured } : item))} />Envío automático</label>
-            <button onClick={() => void saveTemplate(template)} className="mb-1 rounded-[6px] bg-text px-3 py-2 text-[12px] font-semibold text-white">Guardar</button>
-          </div>
-        </div>;
-      })}</div>
-      <p className="mt-2 text-[12px] text-text2">Crear o cambiar el texto de una plantilla se hace en Meta (guía en docs/PLANTILLAS_META.md). «Envío automático» solo se puede prender cuando Meta la aprobó.</p>
-    </section>
-    <section className="border border-line bg-surface rounded-[10px] p-5"><p className="microlabel">Alertas</p><label className="mt-4 flex items-center gap-2 text-[13px] font-semibold"><input type="checkbox" checked={policy.alert_settings.sound ?? true} onChange={(e) => setPolicy({ ...policy, alert_settings: { ...policy.alert_settings, sound: e.target.checked } })} />Sonido</label><Field label="Destinatario"><input className="settings-input" value={policy.alert_settings.recipient ?? "owner"} onChange={(e) => setPolicy({ ...policy, alert_settings: { ...policy.alert_settings, recipient: e.target.value } })} /></Field><label className="mt-3 flex items-center gap-2 text-[13px] font-semibold"><input type="checkbox" checked={policy.alert_settings.autoAssign ?? false} onChange={(e) => setPolicy({ ...policy, alert_settings: { ...policy.alert_settings, autoAssign: e.target.checked } })} />Autoasignación</label><p className="mt-3 text-[12px] text-text2">Escalamiento inicial: asesor al día {policy.advisor_alert_days}; recomendar Perdido al día {policy.recommend_close_days}, sin cierre automático.</p></section>
-    <section className="border border-line bg-surface rounded-[10px] p-5"><p className="microlabel">Seguridad</p>{([["require_consent","Requerir consentimiento"],["respect_opt_out","Respetar opt-out"],["never_outside_hours","Nunca fuera de horario"],["pause_on_human_control","Pausar al tomar control humano"]] as const).map(([key, label]) => <label key={key} className="mt-3 flex items-center gap-2 text-[13px] font-semibold"><input type="checkbox" checked={policy[key]} onChange={(e) => setPolicy({ ...policy, [key]: e.target.checked })} />{label}</label>)}<Field label="Máximo diario"><input type="number" className="settings-input" value={policy.max_messages_per_day} onChange={(e) => setNumber("max_messages_per_day", e.target.value)} /></Field></section>
-    <div className="xl:col-span-2"><button onClick={() => void savePolicy()} className="btn-signal h-10 rounded-[6px] px-5 text-[13px]">Guardar seguimientos</button>{message && <span className="ml-3 text-[13px] font-semibold">{message}</span>}</div>
-  </div>;
 }
 
 function downloadPlaybook(botPlaybook: string) {
@@ -451,39 +318,4 @@ function formatoFechaHora(iso: string): string {
     minute: "2-digit",
     timeZone: "America/Guayaquil",
   });
-}
-
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <label className="mt-4 block">
-      <span className="microlabel mb-1.5 block">{label}</span>
-      {children}
-    </label>
-  );
-}
-
-
-async function api<T extends object = { ok: true }>(
-  url: string,
-  init: RequestInit = {},
-): Promise<T> {
-  const response = await fetch(url, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...authHeaders(),
-      ...(init.headers ?? {}),
-    },
-  });
-  const payload = (await response.json().catch(() => ({}))) as T & {
-    error?: string;
-  };
-  if (!response.ok) throw new Error(payload.error ?? `Error ${response.status}`);
-  return payload;
 }

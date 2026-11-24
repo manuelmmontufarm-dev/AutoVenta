@@ -1,3 +1,48 @@
+## 24-nov-2026 · Panel · Promociones y Piezas en una sola pantalla con vista previa al instante; Seguimientos rehecho; Ajustes más corto (rama `feat/promociones-con-piezas`)
+
+- **Qué:**
+  - **Promociones** (menú Herramientas) es ahora también lo que era Ajustes → Piezas. Tres pasos
+    —«Promociones», «Lo que incluye», «Diseño»— y a la derecha la cotización tal como le llega al
+    cliente. Código: `hub/src/components/piezas.tsx`.
+  - **Vista previa al instante:** un toque (tema, plantilla, color, interruptor de una promoción o
+    de un beneficio) la cambia sin el retardo de 350 ms ni el velo gris; lo ya visto sale de memoria
+    (1 ms); posar el cursor sobre una opción la va dibujando antes del clic; solo escribir texto
+    espera 300 ms. El servidor la dibuja al ancho del recuadro (`?ancho=860`,
+    `anchoDeVistaPrevia` en `render/quoteImage.ts`): de ~1,3 s a ~0,33 s por imagen. La pieza que
+    recibe el cliente NO cambia (mismo dibujo, mismo tamaño de siempre).
+  - Prender o apagar una promoción ahora mueve la vista previa, y sobre la misma llanta: la muestra
+    pone primero una marca que entra en la promo de temporada (`render/preview.ts`).
+  - Un solo «Aplicar» para la apariencia, pegado a la vista previa (antes había tres botones
+    iguales en tres tarjetas). Beneficios y promociones se siguen guardando al tocar.
+  - «Lo que incluye»: una fila por beneficio con interruptor; las condiciones (marca, mínimo de
+    llantas, fecha) se abren solo si hacen falta. Quitar uno pide confirmar.
+  - «Quién ve Black Friday» (apagada / números de prueba / todos) quedó plegado bajo las
+    promociones; se abre solo y avisa cuando no está en «todos».
+  - **Ajustes → Seguimientos** rehecho (`hub/src/components/seguimientos.tsx`): una columna que se
+    lee como frases, tiempos en horas y no en minutos, días como pastillas, plantillas con
+    interruptor que se guarda al tocar, «Seguridad y alertas» plegado y un «Guardar» que aparece
+    solo cuando hay cambios. Salió de la pantalla «Cómo debe escribir el seguimiento» (el prompt por
+    etapa): los textos guardados se conservan y el bot los sigue usando.
+  - **Ajustes:** salió la pestaña Piezas y el cupón de confirmación (apagado en Depot desde
+    siempre; el código y la tabla quedan). La pestaña **Bot** (guardián, origen de precios,
+    archivos, qué decir de cada marca) la ve solo soporte: el usuario `manuel` o la clave cruda.
+    El interruptor de encender/apagar el bot pasó a ser lo primero de «Negocio».
+- **Por qué:** Manuel, 24-nov: «combina el tab de Piezas a que salga junto con el de Promociones…
+  más simples de usar… que el PDF se actualice instantáneamente cuando aplastas un cambio»; «el tab
+  de Seguimientos también… lo de cómo debe ser cada seguimiento ni se usa»; «lo del cupón de
+  confirmación también quitemos y el tab de Bot solo debería poder verlo yo».
+- **Decidido sin preguntar:** el interruptor del bot NO se escondió con la pestaña Bot (es el botón
+  de emergencia del negocio y el punto «Bot contestando» del menú lleva a Ajustes). «Qué decir de
+  cada marca» no se borró: quedó en la pestaña Bot. La apariencia sigue pidiendo «Aplicar» para
+  que probar un tema no le cambie la cotización a los clientes.
+- **Ojo:** Promociones es solo de escritorio, así que desde el teléfono ya no se editan beneficios
+  ni el tema. Subir facturas por archivo (Competimotor) quedó en la pestaña Bot, solo soporte.
+- **Probado:** simulador con el catálogo de hoy, en el navegador: apagar/prender Black Friday
+  (KR20: $317,54 ↔ $340,24 en la vista previa), apagar un beneficio, tema Navidad y «Aplicar»
+  (guardado), personalizado escribiendo el título (16 teclas = 1 imagen), Seguimientos (3 → 4,5
+  horas guardó 270 min y conservó los textos por etapa).
+- **Horas:** 3.
+
 ## 24-nov-2026 · App del teléfono · Tour apagado y los links de WhatsApp abren la app (rama `feat/tour-apagado-y-links-app`)
 
 - **Qué:** el tour de bienvenida ya no aparece (se quitó `<Tour />` de `hub/src/App.tsx`; el archivo

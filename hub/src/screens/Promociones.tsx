@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { IconAlert, IconCheck, IconDoc, IconEtiqueta, IconPlus } from "../components/icons";
-import { Panel } from "../components/ui";
+import { Panel, Segmented } from "../components/ui";
+import { Interruptor, SeccionBeneficios, SeccionDiseno, SeccionTemporada, VistaPrevia, usePiezas } from "../components/piezas";
 import {
   bajarExcel, cambiar, crear, detalle, leerExcel, listar, quitar,
   type Estado, type FueraDeLaVista, type LlantaDeLaVista, type Parametros, type PromocionGuardada,
@@ -15,6 +16,12 @@ import {
  *
  * Las cuentas no viven acá: el servidor calcula el precio, el porcentaje y dice
  * en palabras qué fila no entra y por qué.
+ *
+ * Desde el mismo 24-nov esta pantalla es también lo que era Ajustes → Piezas
+ * (Manuel: «combina el tab de Piezas a que salga junto con el de Promociones»):
+ * tres pasos —el precio, lo que incluye, cómo se ve— y a la derecha la
+ * cotización tal como le llega al cliente, que cambia con cada toque
+ * (`components/piezas.tsx`).
  */
 
 const plata = (n: number) => `$${n.toFixed(2)}`;
@@ -39,12 +46,22 @@ const ESTADO: Record<Estado, { texto: string; clase: string }> = {
 
 const CAMPO = "h-10 w-full rounded-[6px] border border-line-strong bg-bg px-3 text-[14px] outline-none focus:border-signal";
 
+type Paso = "promociones" | "incluye" | "diseno";
+const PASOS: { valor: Paso; label: string }[] = [
+  { valor: "promociones", label: "Promociones" },
+  { valor: "incluye", label: "Lo que incluye" },
+  { valor: "diseno", label: "Diseño" },
+];
+
 export function Promociones() {
   const [tipos, setTipos] = useState<TipoParaElPanel[]>([]);
   const [promos, setPromos] = useState<PromocionGuardada[] | null>(null);
   const [llantas, setLlantas] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [creando, setCreando] = useState(false);
+  const [paso, setPaso] = useState<Paso>("promociones");
+  const piezas = usePiezas();
+  const { refrescar } = piezas;
 
   const cargar = useCallback(async () => {
     try {
@@ -60,51 +77,79 @@ export function Promociones() {
 
   useEffect(() => { void cargar(); }, [cargar]);
 
-  const reemplazar = (p: PromocionGuardada) => setPromos((lista) => (lista ?? []).map((x) => (x.id === p.id ? p : x)));
+  // Una promoción que cambia mueve el precio: la vista previa se vuelve a pedir.
+  const reemplazar = (p: PromocionGuardada) => {
+    setPromos((lista) => (lista ?? []).map((x) => (x.id === p.id ? p : x)));
+    refrescar();
+  };
+
+  // El asistente de una promoción nueva trae tablas anchas: ocupa todo y la
+  // vista previa vuelve cuando se guarda.
+  const conVista = !creando;
 
   return (
     <div className="h-full overflow-y-auto">
-      <div className="mx-auto flex max-w-[920px] flex-col gap-4 px-5 pt-3 pb-12 md:px-8 md:pt-0">
-        {error && <Aviso tono="mal">{error}</Aviso>}
-
-        {!creando && (
-          <Panel className="flex flex-wrap items-center justify-between gap-3 p-5 md:px-6">
-            <div className="min-w-0">
-              <h2 className="text-[17px] font-semibold tracking-[-0.01em]">Sus promociones</h2>
-              <p className="mt-0.5 text-[13px] text-text2">
-                El bot las cotiza solo, con el precio tachado y el porcentaje. Usted las prende y las apaga.
-              </p>
+      <div className={`mx-auto grid items-start gap-4 px-5 pt-3 pb-12 md:px-8 md:pt-0 ${conVista ? "max-w-[1360px] xl:grid-cols-[minmax(0,1fr)_420px]" : "max-w-[920px]"}`}>
+        <div className="flex min-w-0 flex-col gap-4">
+          {!creando && (
+            <div className="overflow-x-auto">
+              <Segmented id="promociones" valor={paso} onChange={setPaso} opciones={PASOS} />
             </div>
-            <button type="button" className="btn-signal inline-flex h-11 items-center gap-2 rounded-[6px] px-5 text-[14px] font-semibold" onClick={() => setCreando(true)} data-testid="nueva-promocion">
-              <IconPlus size={16} /> Nueva promoción
-            </button>
-          </Panel>
-        )}
+          )}
 
-        {creando && (
-          <Asistente
-            tipos={tipos}
-            llantasEnInventario={llantas}
-            onCancelar={() => setCreando(false)}
-            onGuardada={() => { setCreando(false); void cargar(); }}
-          />
-        )}
+          {error && <Aviso tono="mal">{error}</Aviso>}
+          {piezas.error && <Aviso tono="mal">{piezas.error}</Aviso>}
 
-        {promos === null && !error && <Panel className="p-6 text-[13px] text-text2">Leyendo las promociones…</Panel>}
+          {paso === "promociones" && (
+            <>
+              {!creando && (
+                <Panel className="flex flex-wrap items-center justify-between gap-3 p-5 md:px-6">
+                  <div className="min-w-0">
+                    <h2 className="text-[17px] font-semibold tracking-[-0.01em]">Sus promociones</h2>
+                    <p className="mt-0.5 text-[13px] text-text2">
+                      El bot las cotiza solo, con el precio tachado y el porcentaje. Usted las prende y las apaga.
+                    </p>
+                  </div>
+                  <button type="button" className="btn-signal inline-flex h-11 items-center gap-2 rounded-[6px] px-5 text-[14px] font-semibold" onClick={() => setCreando(true)} data-testid="nueva-promocion">
+                    <IconPlus size={16} /> Nueva promoción
+                  </button>
+                </Panel>
+              )}
 
-        {promos?.length === 0 && !creando && (
-          <Panel className="flex flex-col items-center gap-2 px-6 py-10 text-center">
-            <IconEtiqueta size={28} className="text-text2" />
-            <p className="text-[15px] font-semibold">Todavía no hay promociones</p>
-            <p className="max-w-[46ch] text-[13px] text-text2">
-              Toque «Nueva promoción», elija el tipo y siga los pasos. En unos minutos el bot la está cotizando.
-            </p>
-          </Panel>
-        )}
+              {creando && (
+                <Asistente
+                  tipos={tipos}
+                  llantasEnInventario={llantas}
+                  onCancelar={() => setCreando(false)}
+                  onGuardada={() => { setCreando(false); void cargar(); refrescar(); }}
+                />
+              )}
 
-        {promos?.map((p) => (
-          <Tarjeta key={p.id} promo={p} onCambio={reemplazar} onQuitada={() => void cargar()} />
-        ))}
+              {promos === null && !error && <Panel className="p-6 text-[13px] text-text2">Leyendo las promociones…</Panel>}
+
+              {promos?.length === 0 && !creando && (
+                <Panel className="flex flex-col items-center gap-2 px-6 py-10 text-center">
+                  <IconEtiqueta size={28} className="text-text2" />
+                  <p className="text-[15px] font-semibold">Todavía no hay promociones</p>
+                  <p className="max-w-[46ch] text-[13px] text-text2">
+                    Toque «Nueva promoción», elija el tipo y siga los pasos. En unos minutos el bot la está cotizando.
+                  </p>
+                </Panel>
+              )}
+
+              {promos?.map((p) => (
+                <Tarjeta key={p.id} promo={p} onCambio={reemplazar} onQuitada={() => { void cargar(); refrescar(); }} />
+              ))}
+
+              {!creando && <SeccionTemporada onError={(e) => setError(e || null)} onCambio={refrescar} />}
+            </>
+          )}
+
+          {paso === "incluye" && !piezas.cargando && <SeccionBeneficios p={piezas} />}
+          {paso === "diseno" && !piezas.cargando && <SeccionDiseno p={piezas} />}
+        </div>
+
+        {conVista && <VistaPrevia p={piezas} />}
       </div>
     </div>
   );
@@ -133,23 +178,6 @@ function Etiqueta({ texto, ayuda, children }: { texto: string; ayuda?: string; c
   );
 }
 
-function Interruptor({ prendido, onCambio, ocupado, etiqueta }: { prendido: boolean; onCambio: (v: boolean) => void; ocupado?: boolean; etiqueta: string }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={prendido}
-      aria-label={etiqueta}
-      disabled={ocupado}
-      onClick={() => onCambio(!prendido)}
-      className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${prendido ? "bg-ok" : "bg-line-strong"} ${ocupado ? "opacity-60" : ""}`}
-    >
-      <span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-[left] ${prendido ? "left-[22px]" : "left-0.5"}`} />
-    </button>
-  );
-}
-
-/** Los parámetros que algunos tipos piden antes del Excel. */
 function CamposDelTipo({ tipo, valor, onCambio }: { tipo: TipoParaElPanel; valor: Parametros; onCambio: (p: Parametros) => void }) {
   const numero = (v: string) => (v === "" ? undefined : Number(v));
   if (tipo.pide.includes("lleva_paga")) {
