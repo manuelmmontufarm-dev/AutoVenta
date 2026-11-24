@@ -21,6 +21,7 @@ import {
   toRenderLine,
 } from "../render/quoteImage.js";
 import { createAdminRouter, exigirCredencial } from "./admin.js";
+import { montarIconoDeLaApp } from "./iconoDeLaApp.js";
 import { paginaPrivacidad } from "./privacidad.js";
 import { createRegistroVentaRouter } from "./registroVenta.js";
 import { negocio } from "../negocio/index.js";
@@ -299,6 +300,10 @@ export function createServer(): express.Express {
   app.get(["/privacy", "/privacy.html"], (_req, res) => {
     res.type("html").send(paginaPrivacidad(path.join(siteDir, "privacy.html"), negocio));
   });
+
+  // La app del teléfono lleva el nombre de ESTE cliente bajo el «AV» y bajo el
+  // ícono de la pantalla de inicio. Antes del estático, por lo mismo que arriba.
+  montarIconoDeLaApp(app, siteDir, negocio.nombre);
 
   // Hub estático: paletas de estilos, docs y demo. `extensions` replica las
   // cleanUrls de Vercel (/estilos/01-medianoche-depot funciona sin .html).
