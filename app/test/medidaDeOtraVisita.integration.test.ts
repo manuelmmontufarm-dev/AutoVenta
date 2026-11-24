@@ -55,7 +55,7 @@ vi.mock("../src/services/catalog.js", async () => {
   };
 });
 vi.mock("../src/services/interbotPrices.js", () => ({
-  refreshPriceForSize: async () => undefined,
+  refreshPriceForSize: async () => undefined, interbotDisponible: () => false,
   getInterbotPrice: () => undefined,
 }));
 vi.mock("../src/wa/client.js", () => ({

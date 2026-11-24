@@ -141,7 +141,7 @@ export function perfilDeSimulacion(id) {
 export const DEFINIDAS_POR_EL_SIM = [
   "DATABASE_URL", "PGSSL", "PGUSER", "PORT",
   "OPENAI_API_KEY", "OPENAI_API_KEY_SIM", "OPENAI_BASE_URL", "OPENAI_ADMIN_KEY",
-  "GRAPH_BASE_URL", "CONTIFICO_BASE_URL", "CONTIFICO_API_KEY", "CONTIFICO_TOKEN",
+  "GRAPH_BASE_URL", "CONTIFICO_BASE_URL", "CONTIFICO_API_KEY", "CONTIFICO_TOKEN", "CONTIFICO_FACTURAS_API_KEY",
   // El catálogo lo sirve el simulador desde su foto, y lo resincroniza rápido
   // para que el stock que se fuerza en pantalla entre en segundos. El respaldo
   // por Google Sheets queda apagado a propósito: la foto es la única fuente.

@@ -53,6 +53,10 @@ export const POLITICA_DEPOT: PoliticaComercial = {
   // el 60 % sobre el precio de LISTA (6-nov: «es solo el 60 %», no encima del
   // −25 %); la tabla de servicios YA viene al 50 %
   // («Precio al 50% incluido iva»); la de aceites es PVP y se resta el 40 %.
+  // Manuel, 24-nov-2026: el −25 % que Depot da siempre (antes venía escondido
+  // en el «precio mínimo» del Interbot) pasa a ser una promoción con
+  // interruptor; el precio de lista sale de Contífico, de la empresa que factura.
+  descuentoDeSiempre: { nombre: "Descuento de siempre", porcentaje: 25 },
   promocionDeTemporada: {
     nombre: "Black Friday",
     lema: "El Black Friday se vive TODO NOVIEMBRE",

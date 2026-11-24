@@ -122,6 +122,14 @@ export interface PoliticaComercial {
    */
   promocionDeTemporada?: PromocionDeTemporada;
   /**
+   * OPCIONAL: el descuento que el negocio da SIEMPRE sobre el precio de lista
+   * (Depot: −25 %, el «precio hoy» de cada llanta). Se siembra una vez como
+   * promoción «para todas las llantas» en la pestaña Promociones, y desde ahí
+   * el negocio lo prende, lo apaga o le pone fechas (24-nov-2026). Este valor
+   * solo manda mientras no esté sembrado o si la base no contesta.
+   */
+  descuentoDeSiempre?: { nombre: string; porcentaje: number };
+  /**
    * OPCIONAL: con qué lista se COTIZA cuando el catálogo trae precio por forma
    * de pago (Fénix: Precio B con tarjeta, C en efectivo o transferencia).
    * `"tarjeta"` (Competimotor, Carlos Romero, 20-nov-2026: «dar precio 2 y

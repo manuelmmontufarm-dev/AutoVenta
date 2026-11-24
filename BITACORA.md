@@ -1,3 +1,40 @@
+## 24-nov-2026 · Bot + panel (Depot) · Precios desde Contífico y el −25 % como promoción con interruptor (rama `fix/competimotor-precio-proforma`)
+
+- **Qué:**
+  - La **lista** de cada llanta de Depot sale de Contífico, de la empresa donde factura
+    (`CONTIFICO_FACTURAS_API_KEY`, leída entera cada hora). El Interbot queda de respaldo para lo que
+    falte o no tenga sentido contra el costo (fuera de 1,2–3,5 veces); la fórmula ÷0,5625, de último
+    recurso y nombrada en el log. Una sola fuente para todas las puertas: catálogo, pieza de opciones,
+    `generar_cotizacion` y el seguimiento que no repite precios viejos (`services/precioDeVenta.ts`).
+  - El **−25 % de siempre** es una promoción de la pestaña Promociones, «Descuento de siempre»:
+    porcentaje para todas las llantas, sin Excel, con interruptor. Baja el precio de hoy (sin rótulo);
+    las promos del panel se suman encima y el Black Friday lo reemplaza cuando sale más barato.
+    Apagada, se cotiza a la lista. Se siembra una vez al arrancar (`sembrarDescuentoDeSiempre`).
+  - La pieza de opciones ya no borra las promociones del panel al confirmar el precio en el momento.
+  - El simulador sirve también la empresa que factura (`datos/facturacion.json`, clave de mentira).
+- **Por qué:** Joaquín, 24-nov: dos clientes llegaron con la proforma más barata que la factura. KENDA
+  KR628 265/70R17: el bot daba $246,42 de lista (4 con Black Friday = $689,98) y el POS $219,70 + IVA =
+  $252,66 (4 = $707,44): el Interbot no tenía el código y caía a la fórmula sobre el costo. Revisando:
+  el Interbot es una copia semanal de los precios de Contífico (397 de 402 iguales; las 5 distintas son
+  atraso, p. ej. KR601 $295,32 vs $247,97) y el −25 % no estaba en Contífico sino escondido en el
+  «mínimo» del Interbot. Manuel: «leer de Contífico directo», «el 25 % como promoción», «que se puedan
+  sumar otras como Joaquín, que siempre tiene esta».
+- **Cambio de precios medido** (catálogo real del 24-nov): 232 llantas iguales, 162 a 1 centavo
+  (redondeo del POS: lista × 0,75), 18 cambian de verdad — las 6 que iban por fórmula y las que el
+  Interbot tenía atrasadas.
+- **Ojo (no arreglado acá):** la foto del simulador de agosto (`datos/catalogo.json`) es de la empresa
+  que factura, no de la del catálogo de producción (la `CONTIFICO_API_KEY` del `.env` local no es la de
+  Railway): para Depot hay que correr el simulador con `--catalogo-snapshot` de la empresa correcta.
+  Y si el precio cambia en medio de una conversación, el vendedor puede repetir el de la cotización
+  anterior al preguntarle de nuevo.
+- **Probado:** simulador con la foto del catálogo de producción de hoy + la empresa que factura
+  (408 de Contífico, 4 del Interbot, 0 por fórmula): 1 llanta $189,50; 4 con Black Friday $707,44;
+  + promo del panel 10 %: 1 llanta $170,55 y 4 llantas $682,20 (gana la del panel); apagando el
+  Descuento de siempre desde la API del panel: $227,39; todo apagado salvo el Black Friday: $707,44.
+  `vitest` del caso (17) + Interbot + Promociones (58 entre las tres), suite completa (las 3 rojas de `main`),
+  fidelidad y perfiles ajenos (45), `sim:humo` de Depot y de `ejemplo`.
+- **Horas:** 3,5
+
 ## 24-nov-2026 · Panel · Menú: «Herramientas» agrupa Inventario, Promociones, Validar y Cotizador (rama `feat/menu-herramientas`)
 
 - **Qué:** en la computadora el menú queda Inbox, Pipeline, Para cerrar, Métricas y, al final, un grupo
@@ -6332,6 +6369,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-11-24 | _(este mismo)_ | Depot: precios desde Contífico (Interbot de respaldo) y el −25 % como promoción con interruptor | 3,5 |
 | 2026-11-20 | _(este mismo)_ | Competimotor: seguro solo Kenda y Falken; «pantanera» = M/T, tipos por nombre, «23575r15», 30X9.5R15 = 235/75R15 | 1,5 |
 | 2026-11-20 | _(este mismo)_ | Competimotor cotiza con P2 y ofrece P3; Black Friday por código con P2 tachado y fin exacto el 30-nov | 3 |
 | 2026-10-21 | _(este mismo)_ | La guía de medida no sale a quien ya escribió la suya aunque el modelo diga que la pidió | 0,5 |

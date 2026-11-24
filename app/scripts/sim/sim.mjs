@@ -34,7 +34,7 @@ import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import postgres from "postgres";
 import { levantarGraphSim } from "./lib/graph-sim.mjs";
-import { levantarContificoSim } from "./lib/contifico-sim.mjs";
+import { levantarContificoSim, CLAVE_FACTURACION_SIM } from "./lib/contifico-sim.mjs";
 import { perfilDeSimulacion, variablesDeProduccion } from "./lib/entorno-prod.mjs";
 import { TABLAS_CONFIG } from "./lib/tablas.mjs";
 import { traspasoAlCorte, jobsAlCorte } from "./lib/traspaso-al-corte.mjs";
@@ -271,6 +271,15 @@ async function main() {
     console.log(`🚬 Modo humo: OpenAI y Contífico de mentira en :${PUERTO_STUB} (cero tokens)`);
   }
 
+  // Foto de la empresa donde Depot factura: precio del POS para lo que el
+  // Interbot no tiene. Sin el archivo, el bot del simulador no tiene esa llave
+  // (como un despliegue sin CONTIFICO_FACTURAS_API_KEY) y queda la fórmula.
+  const rutaFacturacion = valor("facturacion-snapshot", resolve(raízApp, "scripts/sim/datos/facturacion.json"));
+  const fotoFacturacion = !CATALOGO_POR_ARCHIVO && !CON_DOBLES && existsSync(rutaFacturacion)
+    ? JSON.parse(readFileSync(rutaFacturacion, "utf8"))
+    : null;
+  if (fotoFacturacion) console.log(`🧾 Empresa que factura desde la foto: ${fotoFacturacion.length} productos (${rutaFacturacion})`);
+
   if (CATALOGO_POR_ARCHIVO) {
     // El catálogo de este cliente entra por archivo (el camino de Fénix): no se
     // levanta el Contífico de mentira ni se exporta ninguna CONTIFICO_* —
@@ -285,6 +294,7 @@ async function main() {
       apiKey: env.CONTIFICO_API_KEY ?? null,
       urlReal: env.CONTIFICO_BASE_URL ?? "https://api.contifico.com/sistema/api/v2",
       refrescar: bandera("catalogo-fresco"),
+      facturacion: fotoFacturacion,
     });
   }
 
@@ -328,6 +338,8 @@ async function main() {
         // config.ts solo habilita el catálogo si hay una clave. En humo la API
         // es el doble local, así que una clave ficticia habilita esa ruta sin red.
         ...(CON_DOBLES ? { CONTIFICO_API_KEY: "humo" } : {}),
+        // Nunca la llave real de facturas: el doble la reconoce por esta.
+        CONTIFICO_FACTURAS_API_KEY: fotoFacturacion ? CLAVE_FACTURACION_SIM : "",
       }),
       // EL PERFIL MANDA: `NEGOCIO` se pone DESPUÉS de las variables copiadas,
       // para que ninguna copia pueda arrancar este bot como otro negocio.

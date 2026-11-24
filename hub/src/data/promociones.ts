@@ -15,6 +15,8 @@ export interface Parametros {
   porcentaje?: number;
   escalones?: Array<{ desde: number; porcentaje: number }>;
   regalo?: string;
+  /** Porcentaje para TODAS las llantas, sin Excel (el «Descuento de siempre»). */
+  todas?: boolean;
 }
 
 export interface TipoParaElPanel {

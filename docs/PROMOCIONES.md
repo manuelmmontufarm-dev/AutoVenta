@@ -47,6 +47,28 @@ el Excel; el precio de la promo tiene que ser **menor** que el de hoy; fuera de 
 existe. Dos promos sobre la misma llanta no se suman: gana la más barata. Un descuento de más de
 50 % se avisa («revise que no sea un tipeo») pero no se bloquea.
 
+## El «Descuento de siempre» de Depot (24-nov-2026)
+
+Depot da −25 % en todas sus llantas, siempre. Antes venía escondido en el «precio mínimo» del
+Interbot; ahora es una promoción más en la pestaña, sembrada una vez desde la política
+(`politica.descuentoDeSiempre`, origen `politica:descuento-de-siempre`):
+
+- Es un **porcentaje para todas las llantas** (`parametros: { todas: true, porcentaje: 25 }`), sin Excel.
+  En el panel tiene interruptor, «Nombre y fechas» y «Quitar»; no tiene «Ver llantas» ni Excel.
+- **No es un rótulo de promoción**: baja el *precio de hoy* de cada llanta (lista − 25 %) y la
+  cotización se ve como siempre (lista tachada, «−25 %»). Lo aplica `services/precioDeVenta.ts`
+  al poner precios, no `aplicarPromociones`.
+- **Las demás se suman encima**: las promociones del panel se cuentan sobre ese precio de hoy
+  (10 % del panel → 189,50 × 0,9 = 170,55). El Black Friday de temporada (2.ª llanta) se cuenta
+  sobre la lista y reemplaza al −25 % solo si deja las llantas más baratas; si una promo del panel
+  sale todavía más barata, gana la del panel. Probado en el simulador con las tres prendidas.
+- **Apagada** (o vencida o quitada): se cotiza a la lista de Contífico, sin tachado. Sin sembrar,
+  o si la base no contesta, manda el 25 % de la política.
+
+La lista de Depot sale de Contífico, de la empresa que factura (`CONTIFICO_FACTURAS_API_KEY`,
+leída entera cada hora); el Interbot queda de respaldo para lo que falte o no tenga sentido contra
+el costo (fuera de 1,2–3,5 veces). Ver el encabezado de `services/precioDeVenta.ts`.
+
 ## Dónde vive
 
 - `app/src/domain/promociones.ts` — tipos, cuentas y candados (puro).
@@ -63,5 +85,4 @@ negocio. Si la base no contesta y nunca se cargó, el catálogo cae a la lista d
 ## Lo que no hace (todavía)
 
 - La lámina de comparación no conoce la cantidad: muestra el precio normal en promos por cantidad.
-- En Depot conviven con el Black Friday de temporada (2.ª llanta): no se han probado juntas en producción.
 - La pestaña no está en el teléfono.

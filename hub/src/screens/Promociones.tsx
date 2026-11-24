@@ -548,6 +548,7 @@ function Tarjeta({ promo, onCambio, onQuitada }: { promo: PromocionGuardada; onC
 
   const estado = ESTADO[promo.estado];
   const vencida = promo.estado === "vencida";
+  const paraTodas = promo.parametros.todas === true;
 
   return (
     <Panel className="flex flex-col gap-3 p-5 md:px-6" >
@@ -561,10 +562,17 @@ function Tarjeta({ promo, onCambio, onQuitada }: { promo: PromocionGuardada; onC
             {promo.tipoNombre}{promo.resumen ? ` · ${promo.resumen}` : ""} · {fechas(promo)}
           </p>
           {promo.textoExtra && <p className="mt-0.5 text-[13px] text-text2">«{promo.textoExtra}»</p>}
-          <p className="mt-1 text-[13px]">
-            <b>{promo.entranHoy}</b> {promo.entranHoy === 1 ? "llanta la tiene" : "llantas la tienen"} hoy
-            {promo.noEntranHoy > 0 && <span className="text-warn"> · {promo.noEntranHoy} no {promo.noEntranHoy === 1 ? "entra" : "entran"} con el inventario de hoy</span>}
-          </p>
+          {paraTodas ? (
+            <p className="mt-1 text-[13px]">
+              Va en <b>todas</b> las llantas ({promo.entranHoy} hoy): es el precio de hoy de la cotización.
+              Las demás promociones se cuentan sobre ese precio. Apagada, se cotiza al precio de lista.
+            </p>
+          ) : (
+            <p className="mt-1 text-[13px]">
+              <b>{promo.entranHoy}</b> {promo.entranHoy === 1 ? "llanta la tiene" : "llantas la tienen"} hoy
+              {promo.noEntranHoy > 0 && <span className="text-warn"> · {promo.noEntranHoy} no {promo.noEntranHoy === 1 ? "entra" : "entran"} con el inventario de hoy</span>}
+            </p>
+          )}
           {vencida && <p className="mt-1 text-[12px] text-text2">Ya pasó su fecha de fin. Para volver a usarla, cámbiele la fecha.</p>}
           {promo.estado === "programada" && <p className="mt-1 text-[12px] text-text2">Empieza sola el {dia(promo.desde!)}.</p>}
         </div>
@@ -580,9 +588,9 @@ function Tarjeta({ promo, onCambio, onQuitada }: { promo: PromocionGuardada; onC
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <button type="button" className="btn-quiet h-9 rounded-[6px] px-3 text-[13px]" onClick={() => abrir("llantas")}>{abierto === "llantas" ? "Ocultar llantas" : "Ver llantas"}</button>
+        {!paraTodas && <button type="button" className="btn-quiet h-9 rounded-[6px] px-3 text-[13px]" onClick={() => abrir("llantas")}>{abierto === "llantas" ? "Ocultar llantas" : "Ver llantas"}</button>}
         <button type="button" className="btn-quiet h-9 rounded-[6px] px-3 text-[13px]" onClick={() => abrir("editar")}>Nombre y fechas</button>
-        <button type="button" className="btn-quiet h-9 rounded-[6px] px-3 text-[13px]" onClick={() => abrir("excel")}>Cambiar llantas o precios</button>
+        {!paraTodas && <button type="button" className="btn-quiet h-9 rounded-[6px] px-3 text-[13px]" onClick={() => abrir("excel")}>Cambiar llantas o precios</button>}
         <button type="button" className="btn-quiet h-9 rounded-[6px] px-3 text-[13px]" onClick={() => abrir("quitar")}>Quitar</button>
       </div>
 

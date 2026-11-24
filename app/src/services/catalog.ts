@@ -27,10 +27,10 @@ import { politica } from "../negocio/politica.js";
 import { fuenteDeCatalogo, type IdFuente } from "./fuentes/index.js";
 import {
   ensureInterbotPricesFresh,
-  getInterbotPrice,
   interbotDisponible,
   interbotPricesState,
 } from "./interbotPrices.js";
+import { asegurarPreciosDeFacturacion, descuentoDeSiempre, fijarDescuentoDeSiempre, precioDeHoy, precioDeVenta } from "./precioDeVenta.js";
 
 export type { CatalogItem } from "../domain/catalog.js";
 
@@ -48,36 +48,57 @@ let lastError: string | null = null;
 let syncInFlight: Promise<SyncReport> | null = null;
 
 /**
- * Sobrescribe los precios calculados con los REALES del Interbot (7-ago: los
- * precios de venta se ponen ahí producto por producto y no siguen fórmula; los
- * divisores de normalizeContificoProduct solo aciertan el 27% del catálogo).
- * Los códigos que el Interbot no conoce conservan la fórmula como último recurso.
+ * EL PRECIO DE CADA LLANTA DE DEPOT (nombre histórico: antes era solo el
+ * Interbot). Desde el 24-nov-2026 la lista sale de Contífico —la empresa que
+ * factura—, con el Interbot de respaldo para lo que falte o no tenga sentido,
+ * y el precio de hoy es la lista menos el «Descuento de siempre» del panel.
+ * Ver `services/precioDeVenta.ts`.
  *
- * Interbot es de quien tiene su snapshot en `assets/<negocio>/` (hoy: Depot).
- * Sin él no hace nada y no ensucia el log: otro cliente no hereda los precios
- * de Depot aunque un código de Fénix coincida con uno suyo (R-23).
+ * Lo que ninguna fuente tiene se queda con la fórmula de divisores (acierta el
+ * 27 %), con el precio de hoy también según el interruptor, y el log lo nombra.
+ *
+ * Solo Depot (quien tiene el snapshot del Interbot en `assets/<negocio>/`):
+ * otro cliente no hereda sus precios aunque un código coincida (R-23).
  */
-export function applyInterbotPrices(list: CatalogItem[]): number {
+export function applyInterbotPrices(list: CatalogItem[], opciones: { conPromociones?: boolean } = {}): number {
   if (!interbotDisponible()) return 0;
   const round2 = (n: number) => Math.round(n * 100) / 100;
   let applied = 0;
+  let deContifico = 0;
+  const sinPrecio: string[] = [];
   for (const item of list) {
-    const ib = getInterbotPrice(item.code);
-    if (!ib) continue;
-    // Precio hoy = el de venta del vendedor; si hay promo vigente, la promo.
-    const hoy = ib.tienePromo && ib.precioPromoConIva ? ib.precioPromoConIva : ib.pvpMinConIva;
+    const pv = precioDeVenta(item.code, item.sourcePrice);
+    if (!pv) {
+      // Último recurso: la fórmula del catálogo, con el descuento del interruptor.
+      item.minimumPriceWithTax = precioDeHoy(item.customerPriceWithTax);
+      sinPrecio.push(item.code);
+      continue;
+    }
+    // Precio hoy = lista − Descuento de siempre; si el Interbot trae una promo suya, la promo.
+    const hoy = pv.tienePromo && pv.precioPromoConIva ? pv.precioPromoConIva : pv.pvpMinConIva;
     item.minimumPriceWithTax = hoy;
     // El tachado solo vale si de verdad es mayor; si no, sin tachado engañoso.
-    item.customerPriceWithTax = ib.pvpFullConIva > hoy ? ib.pvpFullConIva : hoy;
+    item.customerPriceWithTax = pv.pvpFullConIva > hoy ? pv.pvpFullConIva : hoy;
     item.price = round2(item.customerPriceWithTax / (1 + item.taxRate));
     applied += 1;
+    if (pv.fuente === "contifico") deContifico += 1;
   }
   const st = interbotPricesState();
   console.log(
-    `💲 Precios Interbot aplicados: ${applied}/${list.length} (fuente ${st.source}${st.at ? `, ${st.at.toISOString()}` : ""})`,
+    `💲 Precios: ${deContifico} de Contífico, ${applied - deContifico} del Interbot (${st.source}${st.at ? `, ${st.at.toISOString()}` : ""})`
+      + ` de ${list.length} · Descuento de siempre ${descuentoDeSiempre()} %`
+      + (sinPrecio.length ? ` · ⚠️ SIN PRECIO CONFIRMADO (queda la fórmula): ${sinPrecio.slice(0, 10).join(", ")}` : ""),
   );
+  // Cuando se vuelve a poner precio a unas llantas fuera de la sincronización
+  // (la pieza de opciones lo confirma en el momento), las promociones del
+  // panel se montan otra vez encima: antes la pieza las perdía.
+  if (opciones.conPromociones && promosDelCatalogo.length) {
+    aplicarPromociones(list, promosDelCatalogo, new Date(), preciosBaseDe(list));
+  }
   return applied;
 }
+
+let promosDelCatalogo: Promocion[] = [];
 
 export async function syncCatalog(): Promise<SyncReport> {
   if (syncInFlight) return syncInFlight;
@@ -91,11 +112,17 @@ export async function syncCatalog(): Promise<SyncReport> {
         await ensureInterbotPricesFresh();
       }
       const resultado = await fuente.sincronizar();
-      if (fuente.id === "contifico") applyInterbotPrices(resultado.items);
+      // Las promociones se leen ANTES de poner precios: el «Descuento de
+      // siempre» (−25 % de Depot) es parte del precio de hoy de cada llanta.
+      const { promos, politicaSembrada, descuentoDeSiempre: descuento } = await promocionesParaElCatalogo();
+      fijarDescuentoDeSiempre(descuento);
+      if (fuente.id === "contifico") {
+        await asegurarPreciosDeFacturacion();
+        applyInterbotPrices(resultado.items);
+      }
       // La foto de precios ANTES de toda promoción: de aquí sale el Excel que
       // el negocio baja en la pestaña Promociones y la base de sus cuentas.
       const bases = preciosBaseDe(resultado.items);
-      const { promos, politicaSembrada } = await promocionesParaElCatalogo();
       // Precios de promoción por código escritos en el código (Black Friday de
       // Competimotor, 20-nov-2026). Desde el 24-nov esa lista se siembra en la
       // tabla `promociones` y la maneja el negocio; acá solo se aplica directo
@@ -117,6 +144,7 @@ export async function syncCatalog(): Promise<SyncReport> {
           + (informe.omitidas.length ? `, ${informe.omitidas.length} sin aplicar (${informe.omitidas.slice(0, 5).map((o) => `${o.codigo}: ${o.motivo}`).join("; ")})` : ""));
       }
       programarCambioDePrecios(promos, politicaSembrada);
+      promosDelCatalogo = promos;
       preciosBase = bases;
       items = resultado.items;
       cargarArosDelCatalogo(resultado.aros);
