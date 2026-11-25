@@ -1,3 +1,21 @@
+## 25-nov-2026 · Bot · Entiende y explica cada promoción del panel (y si se suma con el 25 %)
+
+- **Qué:** `domain/promocionesComoHecho.ts`: la lista de promociones del panel vigentes (regla en palabras, marcas,
+  vigencia y cómo se cuentan: sobre el precio de hoy, que ya trae el descuento de siempre) entra a los hechos del
+  vendedor y del Guardián y al resumen de «¿tienen promociones?». El catálogo la fija en cada sincronización. La lista
+  escrita de opciones vuelve a aplicar la promo por cantidad después de reconfirmar el precio (`tools.ts`). Excepción
+  escrita para el vendedor y el Guardián: si una promo del panel deja una Falken/Kenda más barata que el Black Friday,
+  rige esa y su «c/u» es el precio. El Guardián ve también el precio de lista detrás del −25 %.
+- **Por qué:** Manuel pidió verificar que el bot entienda y explique cada descuento. En el simulador (modelos de
+  producción): con un 4x3 en Winrun por Excel, «¿tienen promo?» no lo nombraba, decía «Winrun no tiene la promo 4x3»
+  y la lista escrita ponía $60,68 × 4 = $242,72 con la cotización en $182,05; con un 20 % en Kenda el Guardián borraba
+  el «$73,02 c/u» y dejaba «el total se confirma al cotizar»; el −25 % no se podía explicar («no tengo el precio de lista»).
+- **Probado:** `test/promocionesComoHecho.test.ts` (4). Simulador con Sonnet 5.5 + Haiku 5.5: Black Friday Kenda con 2, 3
+  y 4 llantas y el ahorro ($146,02), −25 % de Winrun contra lista $80,90, 4x3 Winrun (lista $182,04, «sí se suma», con 2
+  no aplica, ahorro $141,56 contra lista), 20 % Kenda («no se suman, gana el más barato», 2 × $73,02 = $146,04). Suite:
+  los mismos fallos que main; las cuatro del simulador en verde.
+- **Horas:** 1,25.
+
 ## 25-nov-2026 · Panel · La hoja «Enviar cotización» del chat muestra el total real
 
 - **Qué:** `TotalDeCotizacion` pasó a `hub/src/components/adjuntar.tsx` y lo usan el Cotizador y la hoja «Enviar

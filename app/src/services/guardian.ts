@@ -544,7 +544,12 @@ async function catalogoParaElGuardian(pedidas: readonly string[], cantidadDelCli
           ? `hoy $${p.minimumPriceWithTax.toFixed(2)} c/u con IVA (es el precio por llanta con 1, 3 o 5 llantas); con ${n} llantas rige Black Friday y NO existe un precio por llanta — el juego de ${n} es ${cuentaConRotulo(n, enPromo)}`
           : marcaConSegundaLlanta(politica.promocionDeTemporada, p.brand)
             ? `hoy $${p.minimumPriceWithTax.toFixed(2)} c/u con IVA — para ${n} llantas Black Friday NO aplica: este ES el precio`
-            : `hoy $${p.minimumPriceWithTax.toFixed(2)} c/u con IVA`;
+            : `hoy $${p.minimumPriceWithTax.toFixed(2)} c/u con IVA${
+              // El de lista también es un hecho (25-nov): «¿contra qué precio es el 25 %?» se
+              // contestaba «no lo tengo» y el revisor tachaba el $80,90 por inventado.
+              !p.promocionDePrecio && p.customerPriceWithTax > p.minimumPriceWithTax + 0.005
+                ? ` (precio de lista $${p.customerPriceWithTax.toFixed(2)}; la diferencia es el descuento de siempre: decirlo NO es error)`
+                : ""}`;
         // Precio especial por código (Black Friday de Competimotor, 20-nov): el
         // de hoy ya es el de la promo; el tachado es el de siempre. Y si el
         // negocio cotiza con tarjeta, el precio en efectivo o transferencia
