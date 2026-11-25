@@ -101,11 +101,15 @@ describe("recolorear", () => {
 });
 
 describe("el tema Normal y el automático de antes", () => {
-  it("Normal no muestra la franja de temporada; los demás sí", () => {
+  it("Normal no muestra la franja de temporada; Black Friday y el automático sí", () => {
     expect(T.muestraFranjaDeTemporada({ id: "ninguno" })).toBe(false);
     expect(T.muestraFranjaDeTemporada({ id: "automatico" })).toBe(true);
     expect(T.muestraFranjaDeTemporada({ id: "blackFriday" })).toBe(true);
     expect(T.muestraFranjaDeTemporada(null)).toBe(true);
+    // Un solo encabezado: el tema con cinta propia reemplaza a la franja.
+    expect(T.muestraFranjaDeTemporada({ id: "navidad" })).toBe(false);
+    expect(T.muestraFranjaDeTemporada({ id: "personalizado", personalizado: { ...T.PERSONALIZADO_INICIAL, titulo: "BLACK FRIDAY" } })).toBe(false);
+    expect(T.muestraFranjaDeTemporada({ id: "personalizado", personalizado: { ...T.PERSONALIZADO_INICIAL, titulo: "", bajada: "" } })).toBe(true);
     expect(T.nombreDelTema("ninguno")).toBe("Normal");
   });
 

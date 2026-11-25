@@ -1,3 +1,20 @@
+## 25-nov-2026 · Panel · Un solo encabezado por pieza y promociones por Excel coherentes en opciones y comparativa
+
+- **Qué:** (1) un tema con cinta propia (Navidad, personalizado…) reemplaza a la franja de temporada en vez de sumarse:
+  la pieza lleva un solo encabezado (`muestraFranjaDeTemporada`). (2) El sello «−60 % en cada 2.ª llanta · Black Friday»
+  de opciones y comparativa solo va si el Black Friday es lo que el cliente va a pagar: con una promoción del panel más
+  barata gana la del panel y el sello no sale (`toPosterLine`). (3) Las opciones que se arman en el panel (Cotizador y
+  «+» del chat) con la plantilla día y noche aplican la promoción por cantidad al juego de 4 (`lineasDeOpciones`).
+- **Por qué:** Manuel, 25-nov: «pongo algo y se duplican los headers», y pidió comprobar un descuento a las Kenda cargado
+  por Excel. Con 20 % a las Kenda la tarjeta decía $50.30 (−40 %) y además el sello del Black Friday, mientras la
+  cotización salía —bien— sin la 2.ª llanta; con 4x3 la tarjeta del panel seguía en $234.70 y la cotización en $188.60.
+- **Probado:** en el simulador (`--stub --sin-prod`), Excel de ida y vuelta por la API con 20 %, 5 % y 4x3 a las 8 Kenda:
+  textos, opciones, comparativa, cotización ×1–×4 y PDF cuadran (201,20 = 4 × 50,30; 188,60 = 4 × 47,15; cuotas y
+  ahorros). `test/selloConPromoDelPanel.test.ts` (5). Suite: 4.813 verdes; las 3 rojas de siempre.
+- **Pendiente (no se tocó):** la cotización que se arma en el panel no aplica el Black Friday de la 2.ª llanta (4 Kenda =
+  $251.48 en el panel contra $234.70 en el bot). Es anterior a este cambio.
+- **Horas:** 1.
+
 ## 25-nov-2026 · Panel · «Oferta y diseño», tema Normal, paletas de color, avisos en pantalla y fila impar
 
 - **Qué:** la pestaña «Promociones» se llama «Oferta y diseño». En Diseño → Tema ya no existe «Automático»: «Normal» es la
