@@ -265,7 +265,10 @@ export const config = {
    * none` con que corre gpt-5.5 y lo que cabe en el tiempo de un chat.
    */
   anthropic: {
-    apiKey: process.env.ANTHROPIC_API_KEY || null,
+    // Recortada: pegada por terminal (`railway variable set --stdin`) la clave
+    // llega con un salto de línea al final y la cabecera HTTP la rechaza; el bot
+    // caería al respaldo de OpenAI en cada corrida sin que nadie lo note.
+    apiKey: (process.env.ANTHROPIC_API_KEY ?? "").trim() || null,
     effortVendedor: esfuerzoClaude("AI_CLAUDE_EFFORT_VENDEDOR"),
     effortGuardian: esfuerzoClaude("AI_CLAUDE_EFFORT_GUARDIAN"),
     /**
