@@ -1,3 +1,17 @@
+## 25-nov-2026 · Panel · La cotización armada en el panel aplica el Black Friday de la 2.ª llanta
+
+- **Qué:** `cuentaDelPanel` en `server/admin.ts`: la cotización del Cotizador y del «+» del chat (imagen, texto, PDF y la
+  que se manda y queda en `quotes`) usa la misma cuenta que `generar_cotizacion`: si la promo de temporada deja la línea
+  más barata, se firma con ella (impares a lista, pares con el %). Nueva ruta `POST /api/catalog/quote-total` y el
+  Cotizador muestra ese total (con la cuenta al lado) en vez de precio × cantidad.
+- **Por qué:** al probar el descuento a las Kenda salió que 4 Kenda costaban $251.48 desde el panel y $234.70 desde el
+  bot. Manuel pidió arreglarlo (25-nov).
+- **Probado:** simulador (`--stub --sin-prod`): Kenda ×2 = $117.35 y ×4 = $234.70 (igual que el bot), ×1 y ×3 sin cambio;
+  con 5 % del panel gana Black Friday en pares y el panel en impares; con 20 % gana el panel; Michelin sin cambio. Imagen
+  y PDF revisados. Suite: las 3 rojas de siempre (`interbotSync` falló una vez con el simulador cerrándose; sola pasa).
+  Sin probar: mandar la cotización a un chat real desde el panel.
+- **Horas:** 0,5.
+
 ## 25-nov-2026 · Panel · Un solo encabezado por pieza y promociones por Excel coherentes en opciones y comparativa
 
 - **Qué:** (1) un tema con cinta propia (Navidad, personalizado…) reemplaza a la franja de temporada en vez de sumarse:

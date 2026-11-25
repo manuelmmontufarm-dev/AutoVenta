@@ -92,6 +92,15 @@ export async function getComparisonMessage(
   return data.message;
 }
 
+/** El total de la cotización como lo va a firmar la pieza (promociones incluidas) y, si hay promo, su nota. */
+export async function getQuoteTotal(product: CatalogProduct, quantity: number): Promise<{ total: number; nota: string | null }> {
+  const data = await requestJson<{ ok: true; total: number; nota: string | null }>(
+    "/api/catalog/quote-total",
+    { method: "POST", body: JSON.stringify({ item: { id: product.id, quantity } }) },
+  );
+  return { total: data.total, nota: data.nota };
+}
+
 export async function getQuoteMessage(
   product: CatalogProduct,
   quantity: number,
