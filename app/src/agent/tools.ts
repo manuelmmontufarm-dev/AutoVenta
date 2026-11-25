@@ -2519,6 +2519,10 @@ export function buildTools(ctx: AgentContext) {
       // Volver a poner el precio borraba de la pieza las promociones del panel
       // (24-nov): con `conPromociones` se montan otra vez encima, como en el catálogo.
       applyInterbotPrices(products, { conPromociones: true });
+      // …y eso devolvía cada llanta a su precio de 1: el 4x3 del panel se perdía
+      // en la lista escrita («$60,68 c/u · 4 = $242,72» con la cotización en
+      // $182,05; simulador, 25-nov). La cantidad se vuelve a aplicar encima.
+      products.splice(0, products.length, ...products.map((p) => productoParaCantidad(p, cantidadResuelta.cantidad)));
 
       // La recomendación tiene que ser una de las opciones mostradas. Si el
       // modelo apunta a otra cosa, se cae a la primera en vez de recomendar algo

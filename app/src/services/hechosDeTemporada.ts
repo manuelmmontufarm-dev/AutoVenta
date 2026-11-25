@@ -27,6 +27,12 @@ import {
   type PromocionDeTemporada,
 } from "../domain/promocionDeTemporada.js";
 import { politica } from "../negocio/politica.js";
+import {
+  hechoDePromocionesDelPanel,
+  promocionesDelPanelFijadas,
+  resumenDePromocionesDelPanel,
+  type EntradaDelHecho,
+} from "../domain/promocionesComoHecho.js";
 
 export interface OpcionesDeTemporada {
   /** La promo de la política; por defecto la del cliente cargado. */
@@ -39,6 +45,19 @@ export interface OpcionesDeTemporada {
    * solo cuando en el chat se habla de aceite. Sin ella queda el porcentaje.
    */
   conAceites?: boolean;
+  /**
+   * Las promociones del panel (4x3, la 2.ª llanta, regalos…) y el % de siempre.
+   * Por defecto, las que fijó el catálogo en su última lectura; `null` = ninguna (pruebas).
+   */
+  panel?: Omit<EntradaDelHecho, "ahora"> | null;
+}
+
+/** Las promos del panel para el hecho: las inyectadas o las cargadas. */
+function delPanel(opciones: OpcionesDeTemporada): EntradaDelHecho | null {
+  if (opciones.panel === null) return null;
+  if (opciones.panel) return { ...opciones.panel, ahora: opciones.ahora };
+  const fijadas = promocionesDelPanelFijadas();
+  return fijadas ? { ...fijadas, ahora: opciones.ahora } : null;
 }
 
 const dinero = (n: number) => `$${n.toFixed(2)}`;
@@ -146,13 +165,16 @@ function encabezado(promo: PromocionDeTemporada): string {
 /** El hecho del vendedor: la promo entera y cómo se habla de ella. Null si no corre. */
 export function hechoDeTemporadaParaElVendedor(opciones: OpcionesDeTemporada = {}): string | null {
   const promo = vigente(opciones);
-  if (!promo) return null;
+  const entrada = delPanel(opciones);
+  const panel = entrada ? hechoDePromocionesDelPanel(entrada, "vendedor") : null;
+  if (!promo) return panel;
   const ahora = opciones.ahora ?? new Date();
   return [
     encabezado(promo),
     ...lineasDeLaPromo(promo, ahora, opciones.beneficios ?? [], Boolean(opciones.conAceites)),
     REGLAS_DE_PROMOCION_DE_TEMPORADA,
-  ].join("\n");
+    panel,
+  ].filter(Boolean).join("\n");
 }
 
 /**
@@ -162,7 +184,9 @@ export function hechoDeTemporadaParaElVendedor(opciones: OpcionesDeTemporada = {
  */
 export function hechoDeTemporadaParaElGuardian(opciones: OpcionesDeTemporada = {}): string | null {
   const promo = vigente(opciones);
-  if (!promo) return null;
+  const entrada = delPanel(opciones);
+  const panel = entrada ? hechoDePromocionesDelPanel(entrada, "revisor") : null;
+  if (!promo) return panel;
   const ahora = opciones.ahora ?? new Date();
   const pct = promo.segundaLlanta?.porcentaje;
   const marcas = promo.segundaLlanta ? unidos(promo.segundaLlanta.marcas.map(marcaEnPalabras), "y") : null;
@@ -193,8 +217,9 @@ export function hechoDeTemporadaParaElGuardian(opciones: OpcionesDeTemporada = {
     // UNA regla de precio, en UNA categoría (revisión 9-nov): vive aquí y no en la
     // rúbrica para que exista solo mientras la promo corre y solo en el cliente que la tiene.
     pct != null
-      ? `PRECIO POR LLANTA (depende de la cantidad que traen los HECHOS: «Cantidad elegida» y «Cotización vigente»): con 1, 3 o 5 llantas, o en otra marca, la promo NO aplica y el «$X c/u» SÍ es el precio (el total es $X × la cantidad): se conserva y NO es error. SOLO con una cantidad PAR de ${marcas} (2, 4, 6…) no existe un precio por llanta, porque las impares valen la lista y las pares la lista × 0,4: ahí un «$X c/u» («cada una», «por llanta») es **precio_incorrecto** (alta) aunque coincida con el catálogo o con la lista, y la corrección usa la CUENTA de los HECHOS («2 × $L + 2 × $P = $T») o el total de la cotización — NUNCA el precio de lista ni el del catálogo de hoy como «c/u». La cuenta y el total que el bot dice con esas cifras SON hechos: se conservan.`
+      ? `PRECIO POR LLANTA (depende de la cantidad que traen los HECHOS: «Cantidad elegida» y «Cotización vigente»): con 1, 3 o 5 llantas, o en otra marca, la promo NO aplica y el «$X c/u» SÍ es el precio (el total es $X × la cantidad): se conserva y NO es error. SOLO con una cantidad PAR de ${marcas} (2, 4, 6…) no existe un precio por llanta, porque las impares valen la lista y las pares la lista × 0,4: ahí un «$X c/u» («cada una», «por llanta») es **precio_incorrecto** (alta) aunque coincida con el catálogo o con la lista, y la corrección usa la CUENTA de los HECHOS («2 × $L + 2 × $P = $T») o el total de la cotización — NUNCA el precio de lista ni el del catálogo de hoy como «c/u». La cuenta y el total que el bot dice con esas cifras SON hechos: se conservan. EXCEPCIÓN: si la fila de esa llanta en el catálogo del día dice «Black Friday NO aplica: este ES el precio» (una promoción del panel la deja más barata), su «$X c/u» con cualquier cantidad SÍ es el precio y NO es error.`
       : null,
+    panel,
   ].filter(Boolean).join("\n");
 }
 
@@ -308,7 +333,11 @@ export function resumenDeLaPromocion(opciones: OpcionesDeTemporada = {}): string
   const productos = productosEnPromocion(promo, ahora);
   if (productos.length && promo.productos) partes.push(`${productos[0].porcentaje} % en el ${promo.productos.categoria}`);
   for (const regalo of promo.gratis) partes.push(regalo.charAt(0).toLowerCase() + regalo.slice(1).replace(/\bGRATIS\b/, "gratis"));
-  return `Sí, hasta el ${hastaEnPalabras(promo)} tenemos ${promo.nombre}: ${unidos(partes, "y")}.`;
+  // Las del panel (25-nov): sin esto, «¿tienen promo?» nunca nombraba el 4x3 cargado por Excel.
+  const entrada = delPanel(opciones);
+  const delNegocio = entrada ? resumenDePromocionesDelPanel(entrada) : null;
+  return `Sí, hasta el ${hastaEnPalabras(promo)} tenemos ${promo.nombre}: ${unidos(partes, "y")}.`
+    + (delNegocio ? ` Además: ${delNegocio}.` : "");
 }
 
 /**

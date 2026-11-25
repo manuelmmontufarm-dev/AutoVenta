@@ -24,6 +24,7 @@ import { aplicarPreciosEspeciales, msHastaElProximoCambio } from "../domain/prec
 import { aplicarPromociones, msHastaElProximoCambioDePromociones, preciosBaseDe, type PrecioBase, type Promocion } from "../domain/promociones.js";
 import { promocionesParaElCatalogo } from "./promociones.js";
 import { fijarTemporadaDelPanel } from "../domain/promocionDeTemporada.js";
+import { fijarPromocionesDelPanel } from "../domain/promocionesComoHecho.js";
 import { politica } from "../negocio/politica.js";
 import { fuenteDeCatalogo, type IdFuente } from "./fuentes/index.js";
 import {
@@ -119,6 +120,10 @@ export async function syncCatalog(): Promise<SyncReport> {
       fijarDescuentoDeSiempre(descuento);
       // El Black Friday (promo de temporada) lo prende y le pone fechas el panel.
       fijarTemporadaDelPanel(politica.promocionDeTemporada, temporada);
+      // Lo que el vendedor y el Guardián saben de las promos del panel (25-nov):
+      // la lista entera, no solo la pegada a la llanta que se buscó en el turno.
+      const marcas = new Map(resultado.items.map((i) => [i.code, i.brand] as const));
+      fijarPromocionesDelPanel({ promos, descuentoDeSiempre: descuento, marcaDe: (codigo) => marcas.get(codigo) ?? null });
       if (fuente.id === "contifico") {
         await asegurarPreciosDeFacturacion();
         applyInterbotPrices(resultado.items);

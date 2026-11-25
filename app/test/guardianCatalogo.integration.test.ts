@@ -88,10 +88,10 @@ describe("armarContexto · el catálogo de hoy viaja como hecho duro", () => {
     // El número exacto que imprime la pieza, verificable letra por letra. El
     // tipo viaja entre corchetes desde el 1-sep (conv 13645): sin él, el
     // revisor no podía juzgar un «no hay A/T» teniendo la llanta a la vista.
-    expect(contexto).toContain("KENDA KR628 245/70R16 [A/T] — hoy $144.44 c/u con IVA · stock hoy: 10");
+    expect(contexto).toContain("KENDA KR628 245/70R16 [A/T] — hoy $144.44 c/u con IVA (precio de lista $192.59; la diferencia es el descuento de siempre: decirlo NO es error) · stock hoy: 10");
     // Y la agotada viene marcada con la regla comercial completa: no pasa el
     // mismo filtro que arma la vitrina para un juego de cuatro.
-    expect(contexto).toContain("KENDA KR608 245/70R16 [A/T] — hoy $213.50 c/u con IVA · stock hoy: 0 (NO VENDIBLE para el juego de 4: no se ofrece)");
+    expect(contexto).toContain("KENDA KR608 245/70R16 [A/T] — hoy $213.50 c/u con IVA (precio de lista $284.67; la diferencia es el descuento de siempre: decirlo NO es error) · stock hoy: 0 (NO VENDIBLE para el juego de 4: no se ofrece)");
   });
 
   it("BLACK FRIDAY (9-nov): la fila de Kenda dice que el «c/u» es SIN la promo y trae la cuenta del juego", async () => {
