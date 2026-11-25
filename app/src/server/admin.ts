@@ -8,7 +8,7 @@
  */
 import { TEMAS, TEMAS_LISTOS, nombreDelTema } from "../domain/temaDePieza.js";
 import { COLORES_LISTOS } from "../domain/coloresDePieza.js";
-import { promocionVigente } from "../domain/promocionDeTemporada.js";
+import { cuentaDeSegundaLlanta, promocionVigente, segundaLlantaDe } from "../domain/promocionDeTemporada.js";
 import { randomBytes } from "node:crypto";
 import express from "express";
 import { tel9 } from "../services/fuentes/contifico.js";
@@ -1779,12 +1779,66 @@ export function createAdminRouter(): express.Router {
     }
   });
 
+  /**
+   * LA CUENTA DE UNA COTIZACIÓN ARMADA EN EL PANEL — la misma que firma el bot
+   * (`generar_cotizacion`). Hasta el 25-nov el panel cotizaba cantidad × precio
+   * de hoy y se saltaba el Black Friday de la 2.ª llanta: 4 Kenda salían en
+   * $251.48 desde el Cotizador y en $234.70 desde el bot. Ahora, si la promo de
+   * temporada deja la línea más barata, se firma con ella (impares a lista,
+   * pares con el %); si no —otra marca, una sola llanta, o una promoción del
+   * panel más barata— `segundaLlantaDe` devuelve null y todo queda como antes.
+   */
+  function cuentaDelPanel(product: Parameters<typeof toRenderLine>[0], quantity: number) {
+    const hoyConIva = product.minimumPriceWithTax;
+    const listaConIva = Math.max(product.customerPriceWithTax, hoyConIva);
+    const segundaLlanta = segundaLlantaDe(politica.promocionDeTemporada, product.brand, quantity, { hoyConIva, listaConIva });
+    const firmaConIva = segundaLlanta ? segundaLlanta.precioNormalConIva : hoyConIva;
+    return {
+      segundaLlanta,
+      /** Lo que va en la línea de `buildQuote`, encima de lo que ya llevaba. */
+      linea: {
+        unitPrice: firmaConIva / (1 + product.taxRate),
+        ...(segundaLlanta
+          ? { segundaLlanta, salePriceWithTax: firmaConIva, listPriceWithTax: listaConIva, precioSinPromoConIva: hoyConIva }
+          : {}),
+      },
+      firmaConIva,
+      listaConIva,
+    };
+  }
+
+  // El total que el Cotizador muestra ANTES de mandar: la misma cuenta de la
+  // pieza (Black Friday y promociones por cantidad incluidos). El panel lo
+  // calculaba solo, precio × cantidad, y con una promo decía otra cifra.
+  router.post("/catalog/quote-total", async (req, res) => {
+    try {
+      await ensureCatalogReady();
+      const input = QuoteSchema.parse(req.body);
+      const [{ product, quantity }] = resolveCatalogSelections([input.item]);
+      const cuenta = cuentaDelPanel(product, quantity);
+      const quote = buildQuote(
+        [{ code: product.code, description: product.name, quantity, ...cuenta.linea }],
+        "",
+        "",
+      );
+      const nota = cuenta.segundaLlanta
+        ? `${cuenta.segundaLlanta.nombre}: ${cuentaDeSegundaLlanta(quantity, cuenta.segundaLlanta)}`
+        : product.promocionDePrecio
+          ? [product.promocionDePrecio.nombre, product.promocionDePrecio.detalle].filter(Boolean).join(" · ")
+          : null;
+      res.json({ ok: true, total: quote.total, nota });
+    } catch (error) {
+      res.status(400).json({ ok: false, error: mensaje(error, "No se pudo calcular el total") });
+    }
+  });
+
   router.post("/catalog/quote-image", async (req, res) => {
     try {
       await ensureCatalogReady();
       const input = QuoteSchema.parse(req.body);
       const [selection] = resolveCatalogSelections([input.item]);
       const { product, quantity } = selection;
+      const cuenta = cuentaDelPanel(product, quantity);
       // Mismos números que el PDF: se arma la cotización con el mismo builder
       // para que la imagen y el PDF de la misma selección nunca discrepen.
       const quote = buildQuote(
@@ -1793,7 +1847,7 @@ export function createAdminRouter(): express.Router {
             code: product.code,
             description: `${product.brand} ${product.design} ${product.sizeLabel ?? product.name}`,
             quantity,
-            unitPrice: product.minimumPriceWithTax / (1 + product.taxRate),
+            ...cuenta.linea,
           },
         ],
         input.customerName,
@@ -1802,7 +1856,7 @@ export function createAdminRouter(): express.Router {
       const png = await renderQuoteImage({
         number: quote.number,
         dateLabel: fechaDePieza(),
-        lines: [await toRenderLine(product, quantity)],
+        lines: [{ ...await toRenderLine(product, quantity), segundaLlanta: cuenta.segundaLlanta }],
         subtotal: quote.subtotal,
         iva: quote.tax,
         total: quote.total,
@@ -1841,9 +1895,18 @@ export function createAdminRouter(): express.Router {
       await ensureCatalogReady();
       const input = QuoteSchema.parse(req.body);
       const [selection] = resolveCatalogSelections([input.item]);
+      // Con Black Friday el texto lleva la misma cuenta que la imagen y el PDF.
+      const cuenta = cuentaDelPanel(selection.product, selection.quantity);
       res.json({
         ok: true,
-        message: buildSingleQuoteMessageDetallado(selection, input.customerName),
+        message: cuenta.segundaLlanta
+          ? buildSingleQuoteMessageDetallado(selection, input.customerName, undefined, {
+              unitarioConIva: cuenta.firmaConIva,
+              listaConIva: cuenta.listaConIva,
+              total: cuenta.segundaLlanta.totalConIva,
+              segundaLlanta: cuenta.segundaLlanta,
+            })
+          : buildSingleQuoteMessageDetallado(selection, input.customerName),
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Cotización inválida";
@@ -1858,18 +1921,20 @@ export function createAdminRouter(): express.Router {
       const [selection] = resolveCatalogSelections([input.item]);
       const { product, quantity } = selection;
       const warranty = warrantyForBrand(product.brand);
+      const cuenta = cuentaDelPanel(product, quantity);
       const quote = buildQuote(
         [
           {
           code: product.code,
           description: `${product.brand} ${product.design} ${product.sizeLabel ?? product.name}`,
           quantity,
-            unitPrice: product.minimumPriceWithTax / (1 + product.taxRate),
             brand: product.brand,
             design: product.design,
             sizeLabel: product.sizeLabel,
             listPriceWithTax: product.customerPriceWithTax,
             salePriceWithTax: product.minimumPriceWithTax,
+            // Después de los dos de arriba: con Black Friday la línea se firma a lista.
+            ...cuenta.linea,
             availability: product.availability,
             imageUrl: product.imageUrl,
             loadSpeed: product.loadSpeed,
@@ -1889,7 +1954,7 @@ export function createAdminRouter(): express.Router {
         png = await renderQuoteImage({
           number: quote.number,
           dateLabel: fechaDePieza(),
-          lines: [await toRenderLine(product, quantity)],
+          lines: [{ ...await toRenderLine(product, quantity), segundaLlanta: cuenta.segundaLlanta }],
           subtotal: quote.subtotal,
           iva: quote.tax,
           total: quote.total,
