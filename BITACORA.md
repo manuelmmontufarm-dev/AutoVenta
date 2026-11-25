@@ -1,3 +1,12 @@
+## 25-nov-2026 · Panel · La hoja «Enviar cotización» del chat muestra el total real
+
+- **Qué:** `TotalDeCotizacion` pasó a `hub/src/components/adjuntar.tsx` y lo usan el Cotizador y la hoja «Enviar
+  cotización» del «+» del chat: el total se pide a `POST /api/catalog/quote-total` en vez de precio × cantidad.
+- **Por qué:** al ir a mandar una cotización de prueba a Manuel desde el chat, la hoja decía $365,08 por 4 Kenda KR20
+  (91,27 × 4) cuando la pieza que sale lleva el Black Friday de la 2.ª llanta. Quedó fuera del arreglo anterior.
+- **Probado:** compila; revisado en el panel de producción después del deploy.
+- **Horas:** 0,25.
+
 ## 25-nov-2026 · App del teléfono · Notificaciones que no llegaban con varios asesores del mismo nombre
 
 - **Qué:** el asesor de un usuario del panel se reconoce por nombre completo, luego por todas sus palabras y al final por
