@@ -44,6 +44,7 @@ import { mencionaVehiculo } from "../domain/vehiculoEnTexto.js";
 import { z } from "zod";
 import { business, config } from "../config.js";
 import { modeloCanary, rutaCanary } from "../agent/canary.js";
+import { completarChat, modeloQueAtendio, tokensEscritosEnCache } from "../agent/chat.js";
 import { sql } from "../db/client.js";
 import type { Stage } from "../domain/pipeline.js";
 import { ahorroDeLaCotizacion } from "../domain/ahorro.js";
@@ -1147,7 +1148,7 @@ export async function revisarConGuardian(
       conversation.id, conversation.current_cycle, borrador, huella, opciones,
     );
     const reasoningEffort = chatReasoningEffort(modeloGuardian, false);
-    const completar = dependencias.completar ?? (() => openai.chat.completions.create({
+    const completar = dependencias.completar ?? (() => completarChat(openai, {
         model: modeloGuardian,
         messages: [
           { role: "system", content: INSTRUCCIONES },
@@ -1159,20 +1160,23 @@ export async function revisarConGuardian(
         max_completion_tokens: 2000,
         ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
         stream: false,
-      }));
+      }, { esfuerzo: config.anthropic.effortGuardian }));
     const respuesta = await conTiempoMaximo(completar(), timeoutMs);
     const ms = Date.now() - inicio;
     const texto = respuesta.choices[0]?.message?.content ?? "";
     const revision = aplicarVeredicto(borrador, texto ? JSON.parse(texto) : null);
+    // Si Claude falló y revisó el respaldo, se registra y se cobra a quien revisó.
+    const modeloQueReviso = modeloQueAtendio(respuesta, modeloGuardian);
 
     await logAiRun({
       conversationId: conversation.id,
       stage: conversation.stage,
-      model: modeloGuardian,
+      model: modeloQueReviso,
       latencyMs: ms,
       inputTokens: respuesta.usage?.prompt_tokens ?? 0,
       outputTokens: respuesta.usage?.completion_tokens ?? 0,
       cachedInputTokens: respuesta.usage?.prompt_tokens_details?.cached_tokens ?? 0,
+      cacheWriteTokens: tokensEscritosEnCache(respuesta),
       route: rutaCanary(opciones.tipo === "seguimiento" ? "guardian_seguimiento" : "guardian", conversation.phone),
       callType: "guardian",
       tools: [],
@@ -1182,7 +1186,7 @@ export async function revisarConGuardian(
       insert into guardian_reviews (
         conversation_id, cycle, model, verdict, findings, original_text, corrected_text, latency_ms
       ) values (
-        ${conversation.id}, ${conversation.current_cycle}, ${modeloGuardian},
+        ${conversation.id}, ${conversation.current_cycle}, ${modeloQueReviso},
         ${revision.veredicto}, ${sql.json(revision.hallazgos as never)}, ${borrador},
         ${revision.veredicto === "corregir" ? revision.texto : null}, ${ms}
       )

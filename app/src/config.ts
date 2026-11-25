@@ -34,6 +34,20 @@ function catalogConfigured(): boolean {
   );
 }
 
+export type EsfuerzoClaude = "low" | "medium" | "high";
+
+/** Un valor mal escrito no tumba al bot con 400 en cada mensaje: cae a `low`. */
+function esfuerzoClaude(name: string): EsfuerzoClaude {
+  const valor = (process.env[name] ?? "low").trim().toLowerCase();
+  return valor === "medium" || valor === "high" ? valor : "low";
+}
+
+function modeloDeRespaldoDeClaude(): string | null {
+  const valor = (process.env.AI_CLAUDE_RESPALDO_MODEL ?? "gpt-5.5").trim();
+  if (!valor || valor.toLowerCase() === "off" || valor.startsWith("claude-")) return null;
+  return valor;
+}
+
 function contificoConfigured(): boolean {
   return Boolean(process.env.CONTIFICO_API_KEY);
 }
@@ -232,6 +246,35 @@ export const config = {
     historyLimit: Math.max(4, Number(envOr("AI_HISTORY_LIMIT", "30"))),
     compactPromptEnabled: envBoolean("AI_COMPACT_PROMPT_ENABLED", false),
     directSalesRoutesEnabled: envBoolean("DIRECT_SALES_ROUTES_ENABLED", false),
+  },
+
+  /**
+   * Claude (Anthropic) como proveedor alterno (22-nov-2026, agent/chatClaude.ts).
+   *
+   * No hay variable de «proveedor»: lo decide el NOMBRE del modelo. Cualquier
+   * variable de modelo de arriba (OPENAI_MODEL, OPENAI_GUARDIAN_MODEL,
+   * OPENAI_CANARY_MODEL_VENDEDOR…) que empiece con `claude-` se atiende por
+   * acá; el resto sigue en OpenAI. Así la prueba A/B es el canary de siempre
+   * con otro nombre de modelo, y volver atrás es cambiar una variable.
+   *
+   * Sin ANTHROPIC_API_KEY no cambia absolutamente nada: el canary se apaga
+   * solo al arrancar si le toca un modelo `claude-` y no hay clave.
+   *
+   * El esfuerzo es cuánto razona el modelo antes de contestar (Claude razona
+   * siempre; no se puede apagar). `low` es lo comparable al `reasoning_effort:
+   * none` con que corre gpt-5.5 y lo que cabe en el tiempo de un chat.
+   */
+  anthropic: {
+    apiKey: process.env.ANTHROPIC_API_KEY || null,
+    effortVendedor: esfuerzoClaude("AI_CLAUDE_EFFORT_VENDEDOR"),
+    effortGuardian: esfuerzoClaude("AI_CLAUDE_EFFORT_GUARDIAN"),
+    /**
+     * Si una llamada a Claude falla (Anthropic caído, límite de la cuenta,
+     * créditos agotados, clave vencida, rechazo), la MISMA petición se repite
+     * en este modelo de OpenAI para que el cliente no se quede sin respuesta.
+     * `AI_CLAUDE_RESPALDO_MODEL=off` lo apaga. Ver `agent/chat.ts`.
+     */
+    respaldoOpenAI: modeloDeRespaldoDeClaude(),
   },
 
   vehicleFitment: {

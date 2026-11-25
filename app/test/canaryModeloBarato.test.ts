@@ -84,6 +84,36 @@ describe("canary de modelo barato por cliente", () => {
     expect(c.enGrupoCanary("593990000001")).toBe(true);
   });
 
+  it("un modelo claude- se valida contra Anthropic, no contra OpenAI (que daría 404 y apagaría un canary sano)", async () => {
+    const c = await cargar({ OPENAI_CANARY_MODEL: "gpt-5.4-mini", OPENAI_CANARY_MODEL_VENDEDOR: "claude-fable-5-2", OPENAI_CANARY_MODEL_GUARDIAN: "claude-haiku-5-5", AI_CANARY_DIGITS: "0,2,4,6,8", AI_CANARY_SCOPE: undefined, ANTHROPIC_API_KEY: "test" });
+    restaurar = c.restaurar;
+    const aOpenAI: string[] = [];
+    const aClaude: string[] = [];
+    const ok = await c.validarCanaryAlArrancar(
+      { models: { retrieve: async (id: string) => { aOpenAI.push(id); if (id.startsWith("claude-")) throw new Error("404"); return { id }; } } } as never,
+      { models: { retrieve: async (id: string) => { aClaude.push(id); return { id }; } } },
+    );
+    expect(ok).toBe(true);
+    expect(aOpenAI).toEqual(["gpt-5.4-mini"]);
+    expect(aClaude).toEqual(["claude-fable-5-2", "claude-haiku-5-5"]);
+    // Pares con Claude, impares con lo de siempre: la prueba A/B.
+    expect(c.modeloCanary("vendedor", "593990000002", "gpt-5.5")).toBe("claude-fable-5-2");
+    expect(c.modeloCanary("guardian", "593990000002", "gpt-5.5")).toBe("claude-haiku-5-5");
+    expect(c.modeloCanary("vendedor", "593990000003", "gpt-5.5")).toBe("gpt-5.5");
+    delete process.env.OPENAI_CANARY_MODEL_VENDEDOR;
+    delete process.env.OPENAI_CANARY_MODEL_GUARDIAN;
+  });
+
+  it("canary con Claude y SIN clave de Anthropic: se apaga solo y todos siguen con gpt", async () => {
+    const c = await cargar({ OPENAI_CANARY_MODEL: "claude-fable-5-2", AI_CANARY_DIGITS: "0,2,4,6,8", AI_CANARY_SCOPE: undefined, ANTHROPIC_API_KEY: undefined });
+    restaurar = c.restaurar;
+    const ok = await c.validarCanaryAlArrancar({ models: { retrieve: async () => ({}) } } as never);
+    expect(ok).toBe(false);
+    expect(c.enGrupoCanary("593990000002")).toBe(false);
+    expect(c.modeloCanary("vendedor", "593990000002", "gpt-5.5")).toBe("gpt-5.5");
+    expect(c.rutaCanary("commercial", "593990000002")).toBe("commercial");
+  });
+
   it("modelo distinto por pieza: vendedor gpt-5.4 y guardián gpt-5.4-mini", async () => {
     const c = await cargar({ OPENAI_CANARY_MODEL: "gpt-5.4-mini", OPENAI_CANARY_MODEL_VENDEDOR: "gpt-5.4", AI_CANARY_DIGITS: "1,2,3", AI_CANARY_SCOPE: undefined });
     restaurar = c.restaurar;

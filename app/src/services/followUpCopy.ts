@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { completarChat } from "../agent/chat.js";
 import { config } from "../config.js";
 import type { FollowUpMessageContext, FollowUpMessageKind } from "../domain/followUpMessages.js";
 import { buildContextualFollowUpMessage } from "../domain/followUpMessages.js";
@@ -80,7 +81,7 @@ export async function generateFollowUpCopy(
     return { text: fallback, source: "fallback" };
   }
   try {
-    const response = await openai.chat.completions.create({
+    const response = await completarChat(openai, {
       model: config.openai.model,
       temperature: 0.65,
       max_completion_tokens: 160,

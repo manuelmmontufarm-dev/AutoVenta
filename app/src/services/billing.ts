@@ -16,9 +16,25 @@ export const MANTENIMIENTO_USD = Number(process.env.BILLING_MANTENIMIENTO ?? "80
 /** Primer día facturable del servicio (YYYY-MM-DD, hora Guayaquil). */
 export const BILLING_START = process.env.BILLING_START ?? "2026-08-12";
 
-/** Tarifas USD por millón de tokens (verificadas ago-2026 contra openai.com). */
-type Tarifa = { input: number; cachedInput: number; output: number };
+/**
+ * Tarifas USD por millón de tokens. OpenAI: verificadas ago-2026 contra
+ * openai.com. Claude: verificadas el 22-nov-2026 contra
+ * platform.claude.com/docs/en/about-claude/pricing.
+ *
+ * `cacheWrite` es lo que cuesta ESCRIBIR al caché (5 minutos): solo Claude lo
+ * cobra, 1,25× la entrada. Sin ese renglón la cuenta de un modelo Claude sale
+ * más barata de lo que llega en la factura de Anthropic.
+ */
+type Tarifa = { input: number; cachedInput: number; output: number; cacheWrite?: number };
 const TARIFAS: Record<string, Tarifa> = {
+  // Los ids más largos primero: `tarifaDe` busca por prefijo y
+  // «claude-opus-5-5» también empieza con «claude-opus-5».
+  "claude-fable-5-2": { input: 8, cachedInput: 0.2, output: 40, cacheWrite: 10 },
+  "claude-opus-5-5": { input: 4, cachedInput: 0.2, output: 20, cacheWrite: 5 },
+  "claude-sonnet-5-5": { input: 2, cachedInput: 0.1, output: 10, cacheWrite: 2.5 },
+  "claude-haiku-5-5": { input: 0.1, cachedInput: 0.01, output: 0.5, cacheWrite: 0.125 },
+  "claude-opus-5": { input: 5, cachedInput: 0.5, output: 25, cacheWrite: 6.25 },
+  "claude-opus-4-8": { input: 5, cachedInput: 0.5, output: 25, cacheWrite: 6.25 },
   "gpt-5.5": { input: 5, cachedInput: 0.5, output: 30 },
   "gpt-5.5-mini": { input: 1, cachedInput: 0.1, output: 6 },
   "gpt-5.4": { input: 2.5, cachedInput: 0.25, output: 15 },
@@ -30,10 +46,30 @@ const TARIFAS: Record<string, Tarifa> = {
 /** Modelo sin tarifa conocida: se cobra como el más caro para no regalar tokens. */
 const TARIFA_DEFECTO: Tarifa = TARIFAS["gpt-5.5"];
 
-function tarifaDe(model: string): Tarifa {
+export function tarifaDe(model: string): Tarifa {
   if (TARIFAS[model]) return TARIFAS[model];
   const base = Object.keys(TARIFAS).find((k) => model.startsWith(k));
-  return base ? TARIFAS[base] : TARIFA_DEFECTO;
+  if (base) return TARIFAS[base];
+  return model.startsWith("claude-") ? TARIFAS["claude-fable-5-2"] : TARIFA_DEFECTO;
+}
+
+/**
+ * Lo que costó una corrida (o una suma de corridas del MISMO modelo), en USD.
+ * `input` es el total de entrada: incluye lo leído del caché y lo escrito.
+ */
+export function costoEnUsd(
+  model: string,
+  tokens: { input: number; cached: number; cacheWrite?: number; output: number },
+): number {
+  const t = tarifaDe(model);
+  const cached = Math.min(tokens.cached, tokens.input);
+  const escritos = Math.min(tokens.cacheWrite ?? 0, tokens.input - cached);
+  return (
+    (tokens.input - cached - escritos) * t.input
+    + cached * t.cachedInput
+    + escritos * (t.cacheWrite ?? t.input)
+    + tokens.output * t.output
+  ) / 1_000_000;
 }
 
 export interface UsoPeriodo {
@@ -50,6 +86,7 @@ interface FilaUso {
   runs: string;
   inp: string | null;
   cached: string | null;
+  escritos: string | null;
   outp: string | null;
 }
 
@@ -60,6 +97,7 @@ async function usoEntre(desde: string, hastaExcl: string): Promise<UsoPeriodo> {
            count(*)                        as runs,
            sum(input_tokens)               as inp,
            sum(cached_input_tokens)        as cached,
+           sum(cache_write_tokens)         as escritos,
            sum(output_tokens)              as outp
     from ai_runs
     where (created_at at time zone ${TZ})::date >= ${desde}::date
@@ -71,9 +109,10 @@ async function usoEntre(desde: string, hastaExcl: string): Promise<UsoPeriodo> {
     const inp = Number(row.inp ?? 0);
     const cached = Math.min(Number(row.cached ?? 0), inp);
     const outp = Number(row.outp ?? 0);
-    // OpenAI reporta prompt_tokens INCLUYENDO los cacheados: se descuentan
-    // del precio pleno y se cobran a tarifa de caché.
-    uso.usd += costoDeTokens(row.model, inp, cached, outp);
+    // La entrada se guarda INCLUYENDO lo cacheado (así la reporta OpenAI, y a
+    // eso se normaliza Claude): se descuenta del precio pleno y se cobra a
+    // tarifa de caché; lo escrito al caché, a la suya.
+    uso.usd += costoEnUsd(row.model, { input: inp, cached, cacheWrite: Number(row.escritos ?? 0), output: outp });
     uso.inputTokens += inp;
     uso.cachedInputTokens += cached;
     uso.outputTokens += outp;
@@ -90,9 +129,7 @@ async function usoEntre(desde: string, hastaExcl: string): Promise<UsoPeriodo> {
  * no se calcule con otra tarifa.
  */
 export function costoDeTokens(model: string, inputTokens: number, cachedInputTokens: number, outputTokens: number): number {
-  const t = tarifaDe(model);
-  const cached = Math.min(cachedInputTokens, inputTokens);
-  return ((inputTokens - cached) * t.input + cached * t.cachedInput + outputTokens * t.output) / 1_000_000;
+  return costoEnUsd(model, { input: inputTokens, cached: Math.min(cachedInputTokens, inputTokens), output: outputTokens });
 }
 
 function redondear(n: number): number {

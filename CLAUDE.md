@@ -77,6 +77,17 @@ grupo llevan `+canary` en `ai_runs.route`. Todo lo que llame al Guardián tiene 
 `phone` de la conversación, o ese camino se queda fuera del canary sin avisar (pasó con los
 seguimientos).
 
+## Claude como proveedor alterno (rama `feat/proveedor-fable`, 22-nov-2026)
+
+Todo modelo de chat pasa por `app/src/agent/chat.ts` (`completarChat`). Si el nombre empieza
+con `claude-` lo atiende Anthropic (`chatClaude.ts` traduce de ida y vuelta); si no, OpenAI
+como siempre. No hay variable de proveedor: se pone el modelo en la variable de siempre
+(`OPENAI_CANARY_MODEL_VENDEDOR=claude-fable-5-2`) y hace falta `ANTHROPIC_API_KEY`. Audios y
+fitment siguen en OpenAI. **No llames a `openai.chat.completions.create` directo**: ese camino
+se queda fuera de la prueba sin avisar. Antes de un lote: `cd app && npm run claude:humo`
+(centavos; clave de pruebas en `app/.env.sim`). Plan, costos reales y orden de las pruebas:
+[`docs/planning/PLAN-CAMBIO-A-CLAUDE.md`](docs/planning/PLAN-CAMBIO-A-CLAUDE.md).
+
 ## Cómo se reportan los resultados: gráficos de control
 
 Todo resultado medido (lotes del simulador, A/B, canary, auditorías, costos) se muestra como

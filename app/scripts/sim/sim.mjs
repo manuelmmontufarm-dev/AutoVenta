@@ -99,6 +99,10 @@ const claveOpenAI = claveDePruebas();
 // también carga config.ts, así que debe recibirla aunque no exista app/.env.
 // Sin esto, un worktree limpio fallaba antes de arrancar el stub.
 env.OPENAI_API_KEY = claveOpenAI;
+// La de Claude sale SOLO de app/.env.sim, igual que la de OpenAI y por lo mismo:
+// las pruebas no se le cobran al cliente. Lo que hubiera en app/.env se pisa.
+const claveClaude = claveClaudeDePruebas();
+env.ANTHROPIC_API_KEY = claveClaude ?? "";
 
 /**
  * La clave de OpenAI del simulador NO es la de Depot.
@@ -152,6 +156,13 @@ function claveDePruebas() {
       Para saltarse esto a propósito: --con-clave-de-produccion
 `);
   process.exit(2);
+}
+
+/** La clave de Anthropic de PRUEBAS (`ANTHROPIC_API_KEY=` en app/.env.sim). Sin ella no hay Claude en el simulador. */
+function claveClaudeDePruebas() {
+  if (bandera("humo") || bandera("stub")) return null;
+  const archivo = leerEnv(resolve(raízApp, ".env.sim"));
+  return process.env.ANTHROPIC_API_KEY_SIM ?? archivo.ANTHROPIC_API_KEY ?? archivo.ANTHROPIC_API_KEY_SIM ?? null;
 }
 
 const URL_SIM = `postgresql://${process.env.PGUSER ?? process.env.USER}@localhost/${DB}`;
@@ -300,6 +311,8 @@ async function main() {
 
   modelosAlineados = bandera("sin-alinear") ? {} : await copiarConfiguracionDelServicio(env.DATABASE_URL);
 
+  await comprobarLosModelosDeClaude({ ...env, ...modelosAlineados, ...(process.env.SIM_MODELOS_FORZADOS ? JSON.parse(process.env.SIM_MODELOS_FORZADOS) : {}) });
+
   // `NEGOCIO` del perfil manda sobre cualquier copiado: si lo copiado dice otro
   // negocio, acá hay dos verdades y se aborta antes de arrancar un bot que
   // atienda como otro cliente.
@@ -327,6 +340,7 @@ async function main() {
       PGSSL: "",
       PORT: String(PUERTO_APP),
       OPENAI_API_KEY: claveOpenAI,
+      ANTHROPIC_API_KEY: claveClaude ?? "",
       GRAPH_BASE_URL: `http://127.0.0.1:${PUERTO_GRAPH}`,
       // Con catálogo por archivo NO se exporta ninguna CONTIFICO_* (tampoco en
       // humo): la fuente del inventario tiene que ser la misma que tendrá el
@@ -501,6 +515,36 @@ async function comprobarLaClave() {
     }
     throw new Error(`La clave de OpenAI no sirve: ${error?.message ?? error}`);
   }
+}
+
+/**
+ * Si algún modelo de esta corrida es `claude-…`, que la clave de Anthropic y
+ * el modelo sirvan ANTES de montar todo. Sin esto el vendedor caería al rescate
+ * en cada turno y el Guardián dejaría pasar todo sin revisar: el lote entero
+ * mediría un bot roto y nadie se enteraría hasta leer los resultados.
+ */
+async function comprobarLosModelosDeClaude(entorno) {
+  if (CON_DOBLES) return;
+  const modelos = [...new Set(Object.entries(entorno)
+    .filter(([clave, valor]) => /^OPENAI_[A-Z_]*MODEL[A-Z_]*$/.test(clave) && String(valor).startsWith("claude-"))
+    .map(([, valor]) => String(valor)))];
+  if (!modelos.length) return;
+  if (!claveClaude) {
+    throw new Error(
+      `Esta corrida usa ${modelos.join(", ")} y no hay clave de Anthropic de pruebas. ` +
+      "Agregá una línea ANTHROPIC_API_KEY=sk-ant-… en app/.env.sim (ese archivo no se versiona).",
+    );
+  }
+  for (const modelo of modelos) {
+    const r = await fetch(`https://api.anthropic.com/v1/models/${encodeURIComponent(modelo)}`, {
+      headers: { "x-api-key": claveClaude, "anthropic-version": "2023-06-01" },
+      signal: AbortSignal.timeout(15_000),
+    }).catch((error) => ({ ok: false, status: 0, error }));
+    if (r.status === 401) throw new Error("Anthropic rechazó la clave (401). Revisá ANTHROPIC_API_KEY en app/.env.sim");
+    if (r.status === 404) throw new Error(`El modelo ${modelo} no existe en Anthropic o esta clave no tiene acceso (404).`);
+    if (!r.ok) console.warn(`⚠️  No se pudo verificar ${modelo} en Anthropic (HTTP ${r.status || "sin respuesta"}). Se sigue igual.`);
+  }
+  console.log(`🔑 Clave de Anthropic verificada (${modelos.join(", ")}).`);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

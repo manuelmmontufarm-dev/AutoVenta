@@ -118,11 +118,15 @@ const hayLecturaDeOpenAI = (): boolean => Boolean(lectorDeCostos || config.opena
 const leerCostos = (desdeUnix: number): Promise<number> =>
   (lectorDeCostos ?? costoDeOpenAIDesde)(desdeUnix);
 
-/** Lo que registró este bot desde `desde`, a la tarifa de la factura mensual. */
+/**
+ * Lo que registró este bot desde `desde`, a la tarifa de la factura mensual.
+ * Solo modelos de OpenAI: este saldo es el de la cuenta de OpenAI, y lo que
+ * atiende Claude se paga en otra cuenta (Anthropic).
+ */
 async function costoRegistradoPorElBot(desde: Date): Promise<number> {
   const filas = await sql<{ model: string; inp: string | null; cached: string | null; outp: string | null }[]>`
     select model, sum(input_tokens) as inp, sum(cached_input_tokens) as cached, sum(output_tokens) as outp
-    from ai_runs where created_at >= ${desde} group by model
+    from ai_runs where created_at >= ${desde} and model not like 'claude-%' group by model
   `;
   return filas.reduce(
     (total, f) => total + costoDeTokens(f.model, Number(f.inp ?? 0), Number(f.cached ?? 0), Number(f.outp ?? 0)),

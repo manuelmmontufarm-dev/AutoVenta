@@ -26,6 +26,7 @@ import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 import { correrEscenario, invariantesGlobales, sql, textoDe } from "./lib/corredor-t115.mjs";
 
 const arg = (n, d = null) => { const i = process.argv.indexOf(`--${n}`); return i >= 0 ? process.argv[i + 1] : d; };
@@ -40,19 +41,35 @@ const JUEZ_MODEL = process.env.OPENAI_EVAL_MODEL ?? "gpt-5.5";
 
 /** Tarifas USD por millón, mismas que src/services/billing.ts. */
 const TARIFAS = {
+  // Claude (22-nov-2026): `cacheWrite` es lo que cuesta ESCRIBIR al caché, que
+  // OpenAI no cobra. Los ids largos primero: se busca por prefijo.
+  "claude-fable-5-2": { input: 8, cachedInput: 0.2, output: 40, cacheWrite: 10 },
+  "claude-opus-5-5": { input: 4, cachedInput: 0.2, output: 20, cacheWrite: 5 },
+  "claude-sonnet-5-5": { input: 2, cachedInput: 0.1, output: 10, cacheWrite: 2.5 },
+  "claude-haiku-5-5": { input: 0.1, cachedInput: 0.01, output: 0.5, cacheWrite: 0.125 },
   "gpt-5.5": { input: 5, cachedInput: 0.5, output: 30 },
   "gpt-5.5-mini": { input: 1, cachedInput: 0.1, output: 6 },
   "gpt-5.4": { input: 2.5, cachedInput: 0.25, output: 15 },
   "gpt-5.4-mini": { input: 0.75, cachedInput: 0.075, output: 4.5 },
 };
-const tarifa = (m) => TARIFAS[m] ?? TARIFAS[Object.keys(TARIFAS).find((k) => m.startsWith(k))] ?? TARIFAS["gpt-5.5"];
+const tarifa = (m) => TARIFAS[m] ?? TARIFAS[Object.keys(TARIFAS).find((k) => m.startsWith(k))] ?? TARIFAS[m.startsWith("claude-") ? "claude-fable-5-2" : "gpt-5.5"];
 
 // La clave del juez es la del simulador (app/.env.sim), nunca la de Depot.
-function claveDePruebas() {
-  const linea = readFileSync(resolve(import.meta.dirname, "../../.env.sim"), "utf8").split("\n").find((l) => l.startsWith("OPENAI_API_KEY="));
-  return linea?.slice("OPENAI_API_KEY=".length).trim();
+function claveDePruebas(nombre = "OPENAI_API_KEY") {
+  const linea = readFileSync(resolve(import.meta.dirname, "../../.env.sim"), "utf8").split("\n").find((l) => l.startsWith(`${nombre}=`));
+  return linea?.slice(nombre.length + 1).trim() || null;
 }
 const openai = SIN_JUEZ ? null : new OpenAI({ apiKey: claveDePruebas(), timeout: 120_000, maxRetries: 1 });
+// SEGUNDO JUEZ, DE LA OTRA CASA. Cuando se compara un modelo de Anthropic
+// contra uno de OpenAI, un solo juez de OpenAI puede preferir «su» estilo sin
+// que nadie lo note. Si hay clave de Anthropic de pruebas, cada conversación
+// recibe además la nota de un juez Claude (`juez_claude`), con el mismo prompt.
+// `juez` sigue siendo el de gpt para poder comparar contra los lotes de octubre.
+const JUEZ_CLAUDE_MODEL = arg("juez-claude", "claude-opus-5-5");
+const claveClaude = SIN_JUEZ || tiene("sin-juez-claude") ? null : claveDePruebas("ANTHROPIC_API_KEY");
+// `baseURL` explícita: el SDK lee ANTHROPIC_BASE_URL del entorno y una terminal
+// con un proxy (Claude Code pone el suyo) mandaría al juez a otro lado.
+const anthropic = claveClaude ? new Anthropic({ apiKey: claveClaude, baseURL: "https://api.anthropic.com", timeout: 120_000, maxRetries: 1 }) : null;
 
 const FALLAS = ["repite_pregunta_ya_respondida", "pide_dato_que_ya_tiene", "no_da_precio_pedido", "no_ofrece_nada_concreto",
   "no_avanza_al_cierre", "pide_foto_innecesaria", "respuesta_generica", "tono_robotico", "demasiado_largo", "inventa_dato",
@@ -88,16 +105,40 @@ async function juzgar(caso, r) {
         // gpt-5.5 razona antes de escribir: con 600 el JSON salía vacío (9 de 25 casos, 23-oct).
         max_completion_tokens: 4000,
       });
-      const j = JSON.parse(resp.choices[0]?.message?.content ?? "{}");
-      const nota = Math.round(Number(j.nota));
-      if (!(nota >= 1 && nota <= 10)) throw new Error("nota fuera de rango");
-      return {
-        nota,
-        fallas: (Array.isArray(j.fallas) ? j.fallas : []).map(String).filter((f) => FALLAS.includes(f)),
-        peor_turno: Number.isFinite(Number(j.peor_turno)) ? Number(j.peor_turno) : null,
-        comentario: String(j.comentario ?? "").slice(0, 200),
-        modelo: JUEZ_MODEL,
-      };
+      return veredicto(resp.choices[0]?.message?.content ?? "{}", JUEZ_MODEL);
+    } catch (e) { if (intento) return { error: String(e) }; }
+  }
+  return null;
+}
+
+function veredicto(texto, modelo) {
+  const j = JSON.parse(texto.slice(texto.indexOf("{"), texto.lastIndexOf("}") + 1) || "{}");
+  const nota = Math.round(Number(j.nota));
+  if (!(nota >= 1 && nota <= 10)) throw new Error("nota fuera de rango");
+  return {
+    nota,
+    fallas: (Array.isArray(j.fallas) ? j.fallas : []).map(String).filter((f) => FALLAS.includes(f)),
+    peor_turno: Number.isFinite(Number(j.peor_turno)) ? Number(j.peor_turno) : null,
+    comentario: String(j.comentario ?? "").slice(0, 200),
+    modelo,
+  };
+}
+
+/** El mismo prompt y la misma conversación, calificados por un modelo de Anthropic. */
+async function juzgarConClaude(caso, r) {
+  if (!anthropic) return null;
+  const hilo = r.turnos.map((t, i) => `TURNO ${i + 1}\nCLIENTE: ${t.cliente}\nASISTENTE: ${textoDe(t) || "(no respondió)"}`).join("\n\n");
+  const contexto = `Lo que hizo difícil este caso en la vida real (no lo sabe el asistente): ${caso.titulo}\n\n${hilo}`;
+  for (let intento = 0; intento < 2; intento += 1) {
+    try {
+      const resp = await anthropic.messages.create({
+        model: JUEZ_CLAUDE_MODEL,
+        max_tokens: 8000,
+        system: PROMPT_JUEZ,
+        messages: [{ role: "user", content: contexto }],
+        output_config: { effort: "medium" },
+      });
+      return veredicto(resp.content.flatMap((b) => (b.type === "text" ? [b.text] : [])).join(""), JUEZ_CLAUDE_MODEL);
     } catch (e) { if (intento) return { error: String(e) }; }
   }
   return null;
@@ -108,16 +149,24 @@ async function costoDeLaConversacion() {
   const [conv] = await sql`select id from conversations order by id desc limit 1`;
   if (!conv) return { usd: 0, porModelo: {} };
   const filas = await sql`select model, call_type, route, count(*)::int as runs, sum(input_tokens)::int as inp,
-      sum(cached_input_tokens)::int as cached, sum(output_tokens)::int as outp
+      sum(cached_input_tokens)::int as cached, sum(cache_write_tokens)::int as escritos, sum(output_tokens)::int as outp,
+      sum(reasoning_tokens)::int as razonamiento, round(avg(latency_ms))::int as latencia_ms
     from ai_runs where conversation_id=${conv.id} group by model, call_type, route`;
   let usd = 0; const porModelo = {};
   for (const f of filas) {
     const t = tarifa(f.model);
     const cached = Math.min(f.cached ?? 0, f.inp ?? 0);
-    const u = ((f.inp - cached) * t.input + cached * t.cachedInput + f.outp * t.output) / 1e6;
+    const escritos = Math.min(f.escritos ?? 0, (f.inp ?? 0) - cached);
+    const u = ((f.inp - cached - escritos) * t.input + cached * t.cachedInput + escritos * (t.cacheWrite ?? t.input) + f.outp * t.output) / 1e6;
     usd += u;
     const k = `${f.model}·${f.call_type}`;
-    porModelo[k] = { runs: (porModelo[k]?.runs ?? 0) + f.runs, usd: +((porModelo[k]?.usd ?? 0) + u).toFixed(4), ruta: f.route };
+    const p = porModelo[k] ?? { runs: 0, usd: 0, entrada: 0, en_cache: 0, escritos: 0, salida: 0, razonamiento: 0, ms: 0 };
+    // Tokens y latencia por pieza: con esto se ve DE DÓNDE sale la diferencia
+    // de costo entre modelos (caché que no pegó, razonamiento, salida).
+    porModelo[k] = { runs: p.runs + f.runs, usd: +(p.usd + u).toFixed(4), ruta: f.route,
+      entrada: p.entrada + (f.inp ?? 0), en_cache: p.en_cache + cached, escritos: p.escritos + escritos,
+      salida: p.salida + (f.outp ?? 0), razonamiento: p.razonamiento + (f.razonamiento ?? 0),
+      ms: Math.round((p.ms * p.runs + (f.latencia_ms ?? 0) * f.runs) / (p.runs + f.runs)) };
   }
   return { usd: +usd.toFixed(4), porModelo, convId: conv.id };
 }
@@ -146,6 +195,7 @@ if (tiene("rejuzgar")) {
   for (const c of archivo.casos) {
     if (c.juez?.nota || !c.turnos) continue;
     c.juez = await juzgar(casos[c.n - 1], { turnos: c.turnos });
+    if (anthropic && !c.juez_claude?.nota) c.juez_claude = await juzgarConClaude(casos[c.n - 1], { turnos: c.turnos });
     n += 1;
     process.stdout.write(`   ${c.n}. ${c.juez?.nota ? `nota ${c.juez.nota} · ${c.juez.comentario}` : `sin nota: ${JSON.stringify(c.juez)}`}\n`);
   }
@@ -161,7 +211,7 @@ const resultados = [...previos];
 
 const guardar = () => writeFile(SALIDA, JSON.stringify({ etiqueta: ETIQUETA, generado: new Date().toISOString(), casos: resultados }, null, 1));
 
-process.stdout.write(`Lote «${ETIQUETA}» · casos ${DESDE}–${HASTA} de ${casos.length} · juez ${SIN_JUEZ ? "apagado" : JUEZ_MODEL}\n`);
+process.stdout.write(`Lote «${ETIQUETA}» · casos ${DESDE}–${HASTA} de ${casos.length} · juez ${SIN_JUEZ ? "apagado" : JUEZ_MODEL}${anthropic ? ` + ${JUEZ_CLAUDE_MODEL}` : ""}\n`);
 for (let n = DESDE; n <= Math.min(HASTA, casos.length); n += 1) {
   if (hechos.has(n)) continue;
   const caso = casos[n - 1];
@@ -179,14 +229,14 @@ for (let n = DESDE; n <= Math.min(HASTA, casos.length); n += 1) {
   const costo = await costoDeLaConversacion();
   const inv = invariantesGlobales(r).map(([regla, detalle]) => `${regla}: ${detalle}`);
   const det = banderas(r);
-  const juez = await juzgar(caso, r);
+  const [juez, juez_claude] = await Promise.all([juzgar(caso, r), juzgarConClaude(caso, r)]);
   const modelos = [...new Set(r.turnos.flatMap((t) => t.modelos ?? []))];
   for (const t of r.turnos) process.stdout.write(`   «${t.cliente.slice(0, 70)}»\n      → ${(textoDe(t) || "(sin respuesta)").slice(0, 200)}\n`);
-  process.stdout.write(`   ${juez?.nota ? `nota ${juez.nota}` : "sin juez"} · $${costo.usd.toFixed(3)} · ${modelos.join(",")} · guardián reescribió ${det.reescrituras_guardian}` +
+  process.stdout.write(`   ${juez?.nota ? `nota ${juez.nota}` : "sin juez"}${juez_claude?.nota ? ` (juez Claude: ${juez_claude.nota})` : ""} · $${costo.usd.toFixed(3)} · ${modelos.join(",")} · guardián reescribió ${det.reescrituras_guardian}` +
     `${inv.length ? ` · ❌ ${inv.join(" · ")}` : ""}${det.banderas.length ? ` · 🚩 ${det.banderas.join(",")}` : ""}` +
     `${juez?.fallas?.length ? ` · juez: ${juez.fallas.join(",")}` : ""}\n   ${juez?.comentario ?? ""}\n`);
   resultados.push({ n, conv: caso.conv, familia: caso.familia, titulo: caso.titulo, segundos: Math.round((Date.now() - inicio) / 1000),
-    modelos, costo, invariantes: inv, ...det, juez, turnos: r.turnos, estadoFinal: r.estadoFinal });
+    modelos, costo, invariantes: inv, ...det, juez, ...(juez_claude ? { juez_claude } : {}), turnos: r.turnos, estadoFinal: r.estadoFinal });
   await guardar();
 }
 

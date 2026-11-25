@@ -1,3 +1,48 @@
+## 24-nov-2026 · Bot · Claude contra gpt-5.5: dos corridas de 50 y decisión Sonnet + Haiku (rama `feat/proveedor-fable`)
+
+- **Qué:** se completaron dos corridas de los 50 casos difíciles para control (gpt-5.5), Sonnet 5.5 + Guardián Haiku 5.5 y
+  Sonnet 5.5 + Guardián gpt-5.4-mini. `grafico-canary.mjs` acepta `--control`; nuevo `scripts/sim/progreso-lotes.mjs`
+  (tablero local del avance de los lotes, con aviso si una clave se queda sin saldo). Merge de main (042): la 041 corre
+  después de la 042 y sigue siendo `ULTIMA_MIGRACION_REGISTRADA`; `costoDeTokens` delega en `costoEnUsd`; el saldo
+  estimado de OpenAI (`saldoDeIA`) ya no cuenta corridas de modelos `claude-`.
+- **Por qué:** Manuel quiere bajar el costo de IA de Depot sin perder calidad y decidió pasar todo Depot a Sonnet + Haiku.
+- **Probado:** diferencia pareada por caso (media de 2 corridas, n=50) ± 2 EE: Sonnet+Haiku −0,20 ± 0,29 (juez gpt) y
+  −0,04 ± 0,23 (juez Opus): sin señal. Sonnet+mini −0,29 ± 0,27 y −0,27 ± 0,26: pérdida leve. Costo por conversación
+  $0,067 y $0,076 contra $0,233 del control (Guardián: $14,16 gpt-5.5, $2,53 mini, $0,50 Haiku por 100 conv.). Un caso
+  se repite bajo el límite con Sonnet: el 28 (medida a pedazos). La primera tanda se dañó porque la clave de pruebas de
+  OpenAI se quedó sin saldo; se descartó y se repitió. 20 simuladores a la vez NO aguanta: Postgres local corta en 100
+  conexiones («too many clients»); 12 sí. Suite: 4.782 verdes; las 3 rojas (`bitacoraDelPanel`, `hashesPiezasDepot`,
+  `unidadEnLaCantidad`) son de archivos idénticos a main. Reporte: `docs/reportes-historicos/2026-11-24-claude-control-chart.html`.
+- **Horas:** 3.
+
+## 24-nov-2026 · Bot · Claude contra gpt-5.5: humo real y criba de 20 conversaciones (rama `feat/proveedor-fable`)
+
+- **Qué:** con la clave de pruebas de Anthropic, `npm run claude:humo` contra la API real (Fable, Opus, Sonnet, Haiku:
+  todas las formas de petición aceptadas, caché pegando, 1–3 s el vendedor). El caso «borrador correcto» del humo
+  estaba mal: gpt-5.5 lo corrige igual que los 4 Claude; se cambió por el que gpt-5.5 aprueba. `grafico-canary.mjs`
+  acepta `--configs/--titulo/--sub/--que-ves` y dibuja por orden de caso. Criba de 20 casos (1–10 y 26–35 de
+  `dificiles-50`) por combinación: control gpt-5.5, Sonnet+Haiku, Sonnet+gpt-5.4-mini, Opus+Haiku.
+- **Por qué:** Manuel quiere pasar Depot a Claude si mantiene la calidad y baja el costo; descartó Fable por caro.
+- **Probado:** diferencia de nota contra el control (juez gpt-5.5) −0,40 ± 0,69 / −0,20 ± 0,63 / −0,25 ± 0,81: sin señal.
+  Costo por conversación $0,085 / $0,082 / $0,163 contra $0,261 del control. 0 fallas técnicas en las tres (control 2).
+  Claude contó ~2× los tokens de gpt por el mismo texto. Es UNA corrida de 20 casos: falta completar los 50 y repetir
+  (regla de las 3 corridas). Reporte: `docs/reportes-historicos/2026-11-24-claude-control-chart.html`. Nada desplegado.
+- **Horas:** 1.5.
+
+## 24-nov-2026 · Bot · Claude: respaldo en OpenAI si Anthropic falla, y rama al día con main (rama `feat/proveedor-fable`)
+
+- **Qué:** si una llamada a un modelo `claude-` falla (caída, límite de cuenta nueva, créditos agotados, clave vencida,
+  rechazo, respuesta vacía), la misma petición sale por `AI_CLAUDE_RESPALDO_MODEL` (por defecto `gpt-5.5`; `off` lo apaga)
+  y `ai_runs`/`guardian_reviews` guardan el modelo que contestó de verdad (`modeloQueAtendio`). A Haiku 5.5 ya no se le
+  manda `fallbacks` (no tiene respaldo del lado del servidor y su guía pide no mandarlo). Merge de `main` (35 commits);
+  la migración de tokens escritos al caché pasó de 038 a 041.
+- **Por qué:** Manuel pidió dejar Claude listo para Depot «con la misma o mejor calidad». Sin respaldo, una cuenta nueva
+  de Anthropic sin saldo dejaba al cliente sin respuesta y al borrador sin revisar.
+- **Probado:** SIN clave todavía. `respaldoDeClaude` 3 nuevas, `chatClaude`/`chatClaudeHttp`/`costoClaude`/`canary` verdes;
+  suite 4.721 pasan, 3 en rojo en archivos idénticos a `main` (`bitacoraDelPanel`, `hashesPiezasDepot`,
+  `unidadEnLaCantidad`); `tsc` ✅; `sim:humo` ✅. La CALIDAD contra gpt-5.5 no está medida: necesita la clave y los
+  lotes del plan (sección 6). Nada desplegado ni mergeado.
+- **Horas:** 1.
 ## 24-nov-2026 · Bot + app + panel · A soporte le suena el teléfono cuando el bot no responde y cuando el saldo de OpenAI baja (rama `feat/avisos-bot-caido-y-saldo`)
 
 - **Por qué:** Manuel, 24-nov: «necesito que a mí me llegue una notificación ese rato si por a o b
@@ -461,6 +506,22 @@
   miniatura de una foto ya no viaja en la lista de mensajes (iban 60 kB en cada refresco de 4 s). La cotización
   enviada desde el chat queda en `quotes`, así que se ve con su diseño. `test/piezasDelChat.test.ts` (5).
 - **Horas:** 3,5.
+## 22-nov-2026 · Bot · Claude como proveedor alterno, listo para probar (rama `feat/proveedor-fable`)
+
+- **Qué:** una sola puerta a un modelo de chat (`agent/chat.ts`): si el nombre empieza con `claude-` lo atiende
+  Anthropic con traducción de ida y vuelta (`agent/chatClaude.ts`), si no OpenAI igual que antes. Pasan por ahí el
+  vendedor, el rescate, el Guardián, el clasificador, la visión y la redacción de seguimientos. El canary valida cada
+  modelo en su proveedor y se apaga solo sin `ANTHROPIC_API_KEY`. Migración 041 (`ai_runs.cache_write_tokens`) y
+  tarifas de Claude en `billing.ts`. Simulador con clave de Anthropic de pruebas aparte; lotes con costo de Claude,
+  tokens por pieza y segundo juez; `npm run claude:humo`. Plan con números reales: `docs/planning/PLAN-CAMBIO-A-CLAUDE.md`.
+- **Por qué:** Manuel quiere saber si pasar Depot de OpenAI a Claude Fable abarata o vende más, con prueba
+  pares/impares. Con los tokens reales de 30 días: Fable en todo sería 3 a 8 veces lo de hoy ($248); lo que sí
+  abarata es Haiku 5.5 en el Guardián. Si vende más solo lo dice la prueba.
+- **Probado:** SIN clave todavía. `chatClaude` 20, `chatClaudeHttp` 8 (SDK real contra un Anthropic de mentira que
+  aplica las reglas de la API), `canaryModeloBarato` 8, `costoClaude` 5; suite completa 4.598 pasan (los 4 archivos
+  en rojo ya fallan en `main`); `tsc` ✅; `sim:humo` ✅ y el bot real del simulador contra el doble: 0 rechazos.
+  Falta: humo y lotes contra la API real cuando llegue la clave. No hay nada desplegado ni mergeado.
+- **Horas:** 1.5.
 
 ## 21-nov-2026 · Panel · Todo cambio del panel queda con nombre (rama `fix/auditar-todo`)
 

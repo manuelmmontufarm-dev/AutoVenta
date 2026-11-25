@@ -14,6 +14,8 @@ import { politica } from "../negocio/politica.js";
 import { anuncioDeLaConversacion } from "../services/anuncio.js";
 import OpenAI from "openai";
 import { nuevoClienteOpenAI } from "./openaiCliente.js";
+import { completarChat, modeloQueAtendio, tokensEscritosEnCache } from "./chat.js";
+import { esModeloClaude } from "./claudeCliente.js";
 import { aroDadoPorElCliente, aroRespondido, medidaConfirmadaPorCliente } from "../domain/medidaConfirmada.js";
 import { avisoRegistradoEnElCiclo } from "../services/avisoAlAsesor.js";
 import { medidasDelMensaje, medidaSinConfirmar } from "../domain/medidaDelCliente.js";
@@ -22,7 +24,7 @@ import { createBotAlert } from "../services/followUps.js";
 import { reportarBotResponde, reportarFalloDelBot } from "../services/avisosASoporte.js";
 import { eleccionDeLaVitrina, type OpcionDeVitrina } from "../domain/eleccionDeVitrina.js";
 import { pideTelefono } from "../domain/ubicacionPedida.js";
-import type { ChatCompletionMessageParam, ChatCompletionTool } from "openai/resources/chat/completions";
+import type { ChatCompletion, ChatCompletionMessageParam, ChatCompletionTool } from "openai/resources/chat/completions";
 import { config } from "../config.js";
 import {
   ofertaDeCotizacionAceptada,
@@ -195,6 +197,8 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   let inputTokens = 0;
   let outputTokens = 0;
   let cachedInputTokens = 0;
+  /** Solo Claude: lo que se escribió al caché se cobra aparte (ver services/billing.ts). */
+  let cacheWriteTokens = 0;
   let reasoningTokens = 0;
   const usedTools: string[] = [];
   const executedCalls = new Set<string>();
@@ -842,9 +846,9 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     // bucle y manda el rescate de abajo, que reintenta una sola vez con el
     // modelo de escalación y sin herramientas. Antes esta excepción subía
     // hasta el pipeline y el cliente no recibía nada.
-    let response: Awaited<ReturnType<typeof openai.chat.completions.create>>;
+    let response: ChatCompletion;
     try {
-      response = await openai.chat.completions.create({
+      response = await completarChat(openai, {
         model: modeloUsado,
         messages,
         ...(tools.length > 0 ? { tools, tool_choice: "auto" as const } : {}),
@@ -856,7 +860,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
           verbosity: "low" as const,
           prompt_cache_retention: "24h" as const,
         } : {}),
-      });
+      }, { esfuerzo: config.anthropic.effortVendedor });
     } catch (error) {
       falloEnLoop = true;
       ultimoError = error;
@@ -869,9 +873,12 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
       );
       break;
     }
+    // Si Claude falló y contestó el respaldo, el turno se cobra a quien contestó.
+    modeloUsado = modeloQueAtendio(response, modeloUsado);
     inputTokens += response.usage?.prompt_tokens ?? 0;
     outputTokens += response.usage?.completion_tokens ?? 0;
     cachedInputTokens += response.usage?.prompt_tokens_details?.cached_tokens ?? 0;
+    cacheWriteTokens += tokensEscritosEnCache(response);
     reasoningTokens += response.usage?.completion_tokens_details?.reasoning_tokens ?? 0;
     const message = response.choices[0]?.message;
     if (!message) {
@@ -941,6 +948,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
         inputTokens,
         outputTokens,
         cachedInputTokens,
+        cacheWriteTokens,
         reasoningTokens,
         iterations: iteration + 1,
         route: rutaCanary(ctx.conversation.stage === "cotizacion_enviada" || ctx.conversation.stage === "seguimiento_venta" ? "routine_stage" : "commercial", ctx.customerPhone),
@@ -1013,6 +1021,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
           inputTokens,
           outputTokens,
           cachedInputTokens,
+          cacheWriteTokens,
           reasoningTokens,
           iterations: iteration + 1,
           route: rutaCanary("exact_tool_reply", ctx.customerPhone),
@@ -1059,19 +1068,25 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
           + "Y PROHIBIDO anunciar, prometer o describir una cotización («le preparo la cotización», «cotización por 4 llantas», un total) si en este turno NO se ejecutó generar_cotizacion: la cotización la genera la herramienta, no tu texto. En ese caso di lo que sí es cierto (la llanta recomendada y su precio unitario) y cierra, en un mensaje aparte con '---', con UNA pregunta directa de cotizar: «¿Le cotizo la <llanta> en <medida>?».",
       },
     ];
-    const rescate = await openai.chat.completions.create({
+    const rescate = await completarChat(openai, {
       model: modeloUsado,
       messages: mensajesDeRescate,
       max_completion_tokens: MAX_RESCATE,
+      // Claude exige la lista de herramientas si el turno ya las usó, y sus
+      // bloques de razonamiento solo valen con la MISMA lista: se manda igual
+      // y se le prohíbe llamarlas. A OpenAI se le sigue mandando sin ellas.
+      ...(esModeloClaude(modeloUsado) && tools.length > 0 ? { tools, tool_choice: "none" as const } : {}),
       ...(gpt5 ? {
         reasoning_effort: reasoningEffort!,
         verbosity: "low" as const,
         prompt_cache_retention: "24h" as const,
       } : {}),
-    });
+    }, { esfuerzo: config.anthropic.effortVendedor });
+    modeloUsado = modeloQueAtendio(rescate, modeloUsado);
     inputTokens += rescate.usage?.prompt_tokens ?? 0;
     outputTokens += rescate.usage?.completion_tokens ?? 0;
     cachedInputTokens += rescate.usage?.prompt_tokens_details?.cached_tokens ?? 0;
+    cacheWriteTokens += tokensEscritosEnCache(rescate);
     reasoningTokens += rescate.usage?.completion_tokens_details?.reasoning_tokens ?? 0;
     let texto = rescate.choices[0]?.message?.content?.trim();
     // Segundo intento SIN razonamiento. `finish_reason: "length"` significa que
@@ -1080,7 +1095,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     if (!texto && gpt5) {
       const cortado = rescate.choices[0]?.finish_reason;
       console.warn(`⚠️ El rescate volvió sin texto (finish_reason: ${cortado ?? "?"}); reintento sin razonamiento.`);
-      const segundo = await openai.chat.completions.create({
+      const segundo = await completarChat(openai, {
         model: modeloUsado,
         messages: mensajesDeRescate,
         max_completion_tokens: MAX_RESCATE,
@@ -1111,6 +1126,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
         inputTokens,
         outputTokens,
         cachedInputTokens,
+        cacheWriteTokens,
         reasoningTokens,
         iterations: config.openai.maxToolIterations + 1,
         route: rutaCanary(cadenaSanaFinalizada ? "tool_chain_finalized" : "rescue", ctx.customerPhone),
@@ -1136,6 +1152,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     inputTokens,
     outputTokens,
     cachedInputTokens,
+    cacheWriteTokens,
     reasoningTokens,
     iterations: config.openai.maxToolIterations + 1,
     route: "failed",

@@ -24,6 +24,7 @@
  * resolución por una métrica secundaria; se deja fuera a propósito.
  */
 import OpenAI from "openai";
+import { completarChat } from "../agent/chat.js";
 import { config } from "../config.js";
 import { logAiRun } from "./conversations.js";
 import type { Stage } from "../domain/pipeline.js";
@@ -60,7 +61,7 @@ export async function describirFotoDeLlanta(
         ? [{ type: "text" as const, text: `El cliente escribió junto a la foto: ${pie}` }]
         : []),
     ];
-    const response = await openai.chat.completions.create({
+    const response = await completarChat(openai, {
       model: config.openai.visionModel,
       messages: [
         { role: "system", content: SYSTEM },

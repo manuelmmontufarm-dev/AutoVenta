@@ -23,6 +23,7 @@
  */
 import OpenAI from "openai";
 import { config } from "../config.js";
+import { clienteClaude, esModeloClaude } from "./claudeCliente.js";
 
 export type PiezaCanary = "vendedor" | "guardian";
 
@@ -36,12 +37,20 @@ let apagado = false;
  * abierto»: el 29 % de los clientes se quedaba sin revisor y nadie lo notaba.
  * Si el modelo no existe, el canary se apaga y todos siguen con el de siempre.
  */
-export async function validarCanaryAlArrancar(cliente?: Pick<OpenAI, "models">): Promise<boolean> {
+/** Lo mínimo que hace falta de un cliente para preguntar si un modelo existe. */
+type ConModelos = { models: { retrieve(id: string): Promise<unknown> } };
+
+export async function validarCanaryAlArrancar(cliente?: Pick<OpenAI, "models">, claude?: ConModelos): Promise<boolean> {
+  await avisarSiUnModeloFijoEsClaudeYNoResponde(claude);
   if (!config.openai.canaryModel) return false;
   try {
-    const openai = cliente ?? new OpenAI({ apiKey: config.openai.apiKey });
-    for (const m of new Set([config.openai.canaryModel, config.openai.canaryModelVendedor, config.openai.canaryModelGuardian].filter(Boolean) as string[])) {
-      await openai.models.retrieve(m);
+    const modelos = new Set([config.openai.canaryModel, config.openai.canaryModelVendedor, config.openai.canaryModelGuardian].filter(Boolean) as string[]);
+    // Cada modelo se le pregunta a SU proveedor: un `claude-` consultado en
+    // OpenAI da 404 y apagaría un canary que está bien configurado.
+    let openai: ConModelos | null = cliente ?? null;
+    for (const m of modelos) {
+      if (esModeloClaude(m)) await (claude ?? clienteClaude()).models.retrieve(m);
+      else await (openai ??= new OpenAI({ apiKey: config.openai.apiKey })).models.retrieve(m);
     }
     apagado = false;
     console.log(`🧪 Canary de modelo barato: ${config.openai.canaryModel} para dígitos ${[...config.openai.canaryDigits].join(",")} (${[...config.openai.canaryScope].join("+")})`);
@@ -50,6 +59,25 @@ export async function validarCanaryAlArrancar(cliente?: Pick<OpenAI, "models">):
     apagado = true;
     console.error(`🧪 Canary APAGADO: OPENAI_CANARY_MODEL=${config.openai.canaryModel} no existe o no hay acceso (${error instanceof Error ? error.message : String(error)}). Todos siguen con el modelo de siempre.`);
     return false;
+  }
+}
+
+/**
+ * Un modelo `claude-` puesto FIJO (OPENAI_MODEL, OPENAI_GUARDIAN_MODEL…) no
+ * tiene a quién volver si falla: se avisa bien fuerte al arrancar. El bot no
+ * se cae — el vendedor cae al rescate y el Guardián deja pasar el borrador —,
+ * pero eso es justo lo que no se nota hasta que alguien lee los chats.
+ */
+async function avisarSiUnModeloFijoEsClaudeYNoResponde(claude?: ConModelos): Promise<void> {
+  const o = config.openai;
+  const fijos = new Set([o.model, o.routineModel, o.guardianModel, o.classifierModel, o.visionModel, o.escalationModel, o.exactToolModel]
+    .filter((m): m is string => esModeloClaude(m)));
+  for (const m of fijos) {
+    try {
+      await (claude ?? clienteClaude()).models.retrieve(m);
+    } catch (error) {
+      console.error(`🚨 El modelo ${m} está configurado y Anthropic no lo sirve (${error instanceof Error ? error.message : String(error)}). Las llamadas a ese modelo van a fallar.`);
+    }
   }
 }
 
