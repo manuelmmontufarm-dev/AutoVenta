@@ -142,7 +142,7 @@ function temporadaDe(segunda: SegundaLlanta): TemporadaDeLaPieza {
  * llanta si la marca entra hoy en la promo. La cotización no lo usa: allí
  * manda `segundaLlanta`, que trae la cuenta hecha.
  */
-function toPosterLine(
+export function toPosterLine(
   line: RenderLine,
   profiles: Record<string, { tag: string; posicionamiento: string }> = DEFAULT_BRAND_PROFILES,
   promocion?: PieceTheme["promocion"],
@@ -151,8 +151,17 @@ function toPosterLine(
   const profile = profiles[line.brand.trim().toUpperCase()];
   const modo = modoDePromocion(promocion);
   const promo = politica.promocionDeTemporada;
+  // El sello «−60 % en cada 2.ª llanta» solo va si esa promo es la que el
+  // cliente va a pagar. Con una promoción del panel más barata (25-nov: 20 %
+  // a las Kenda por Excel → $50.30 c/u, menos que el par con Black Friday)
+  // gana la del panel y la cotización sale sin la 2.ª llanta: la tarjeta no
+  // puede prometer las dos cosas. Se mide con la cantidad de la lámina si es
+  // par (el juego) y, si no, con un par, que es donde la 2.ª llanta rinde.
+  const ahoraDeVitrina = vitrina?.ahora ?? new Date();
+  const cantidadDeVitrina = vitrina?.cantidad && vitrina.cantidad >= 2 && vitrina.cantidad % 2 === 0 ? vitrina.cantidad : 2;
   const conVitrina = Boolean(vitrina) && promo?.segundaLlanta
-    && marcaConSegundaLlanta(promo, line.brand, vitrina?.ahora ?? new Date());
+    && marcaConSegundaLlanta(promo, line.brand, ahoraDeVitrina)
+    && segundaLlantaDe(promo, line.brand, cantidadDeVitrina, { hoyConIva: line.unitConIva, listaConIva: line.pvpConIva }, ahoraDeVitrina) !== null;
   // El juego con las pares rebajadas: la misma cuenta que firmará la cotización.
   const cuenta = conVitrina && vitrina?.cantidad
     ? segundaLlantaDe(promo, line.brand, vitrina.cantidad,

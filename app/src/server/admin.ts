@@ -1709,6 +1709,19 @@ export function createAdminRouter(): express.Router {
     return { ...(await getPiecesConfig()), brandProfiles: await brandProfilesForRender() };
   }
 
+  /**
+   * Las llantas de una lámina de OPCIONES armada en el panel. La plantilla día
+   * y noche muestra el JUEGO de 4: con una promoción por cantidad (4x3, precio
+   * del juego…) la tarjeta tiene que salir con el precio de esas 4, que es lo
+   * que después firma la cotización (25-nov: 4x3 a las Kenda y la tarjeta
+   * seguía en $234.70 con la cotización en $188.60). La clásica muestra el
+   * precio por unidad: ahí la llanta va sin cantidad, como siempre.
+   */
+  async function lineasDeOpciones(products: Parameters<typeof toRenderLine>[0][]) {
+    const delJuego = (await getPiecesConfig()).plantilla === "diaNoche";
+    return Promise.all(products.map((p) => toRenderLine(delJuego ? productoParaCantidad(p, politica.juegoCompleto) : p)));
+  }
+
   function fechaDePieza(): string {
     return new Date().toLocaleDateString("es-EC", {
       day: "2-digit",
@@ -1740,7 +1753,7 @@ export function createAdminRouter(): express.Router {
         // La medida buscada en el Cotizador es la que pidió el cliente: con
         // ella cada tarjeta sale sellada como exacta o como equivalente.
         medidaPedida: input.medidaPedida?.trim() || null,
-        products: await Promise.all(products.map((p) => toRenderLine(p))),
+        products: await lineasDeOpciones(products),
         ...(await temaDePiezas()),
       });
       enviarPng(res, png, `Opciones-${business.name.replace(/\s/g, "")}.png`);
@@ -2348,7 +2361,7 @@ export function createAdminRouter(): express.Router {
           : await renderOptionsImage({
             dateLabel: fechaDePieza(), sizeLabel,
             medidaPedida: input.medidaPedida?.trim() || null,
-            products: lineas, ...(await temaDePiezas()),
+            products: await lineasDeOpciones(products), ...(await temaDePiezas()),
           });
       } catch (error) {
         // Un pedido mal formado (una sola llanta para comparar, más de 4 opciones)

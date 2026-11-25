@@ -151,11 +151,16 @@ export function cintaDelTema(
 
 /**
  * ¿La pieza muestra la franja de la promoción de temporada («BLACK FRIDAY ·
- * TODO NOVIEMBRE»)? Con el tema «Normal» no: la pieza sale como la de todos
- * los días. Es apariencia; el precio de la promo sigue en el panel de precio.
+ * TODO NOVIEMBRE»)? UN SOLO ENCABEZADO POR PIEZA (Manuel, 25-nov: «pongo algo
+ * y se duplican los headers»): si el tema elegido trae su propia cinta
+ * (Navidad, personalizado…), va esa y la franja no. Con «Normal» tampoco va.
+ * Solo sale con Black Friday / el automático de antes, o cuando el tema no
+ * tiene nada que dibujar (un personalizado vacío). Es apariencia; el precio de
+ * la promo sigue en el panel de precio.
  */
 export function muestraFranjaDeTemporada(tema: Partial<ConfigDeTema> | null | undefined): boolean {
-  return tema?.id !== "ninguno";
+  if (tema?.id === "ninguno") return false;
+  return cintaDelTema(tema, { hayFranjaDeTemporada: true }) === null;
 }
 
 /**
