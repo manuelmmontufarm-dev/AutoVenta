@@ -215,6 +215,13 @@ export const config = {
      */
     guardianModel: envOr("OPENAI_GUARDIAN_MODEL", envOr("OPENAI_MODEL", "gpt-4o-mini")),
     apiKey: env("OPENAI_API_KEY"),
+    /**
+     * Clave de ADMINISTRADOR de la organización (sk-admin-…), opcional. Solo se
+     * usa para LEER cuánto se gastó (`/v1/organization/costs`) y avisar a
+     * soporte cuando el saldo baja: la clave del bot no puede leerlo (403). Sin
+     * ella el saldo se estima con lo que registró este bot. Ver services/saldoDeIA.ts.
+     */
+    adminKey: process.env.OPENAI_ADMIN_KEY?.trim() || null,
     // Se envía como `max_completion_tokens` (NO `max_tokens`): la familia GPT-5
     // rechaza el parámetro viejo con 400 «Unsupported parameter», y el nuevo lo
     // aceptan tanto GPT-5 como GPT-4o. Lo cazó el replay del 7-ago: 461/461

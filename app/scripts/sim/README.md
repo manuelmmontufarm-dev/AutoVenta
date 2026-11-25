@@ -168,6 +168,23 @@ Para probar el respaldo a texto: `POST /api/graph {"rechazarBotones": N}`
 botones con el error 131009 de Meta y se apague sola; el bot tiene que mandar
 el mismo texto plano. En un escenario: la parte `{ graph: { rechazarBotones: true } }`.
 
+## OpenAI caído o sin crédito (avisos a soporte)
+
+Con `--stub` (los dobles del humo, cero tokens, y el simulador se queda
+sirviendo) el OpenAI de mentira se puede apagar como se apagó el de verdad:
+
+```bash
+npm run sim -- --stub --debounce 1500
+curl -X POST localhost:3210/api/openai -d '{"fallar":"sin_credito"}'   # 429 «You have no credits remaining»
+curl -X POST localhost:3210/api/openai -d '{"fallar":null}'            # vuelve a contestar
+```
+
+También `"limite"` (429 de velocidad), `"clave"` (401) y `"caido"` (503). Con
+la falla prendida, el turno termina en «tengo un problema técnico» y a soporte
+le sale UN aviso (`avisos_a_soporte` en la base, la línea `📣 Aviso a soporte`
+en el log y el WhatsApp en la Graph de mentira). La app del teléfono no suena
+acá: en la base del simulador no hay teléfonos suscritos.
+
 ## Qué NO prueba
 
 - **La entrega real de WhatsApp** (plantillas aprobadas, ventana de 24 h del

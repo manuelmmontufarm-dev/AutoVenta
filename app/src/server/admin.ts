@@ -162,6 +162,10 @@ import {
   type AdvisorEventType,
 } from "../services/advisorNotifications.js";
 import {
+  USUARIOS_DE_SOPORTE, avisarASoporte, esUsuarioDeSoporte, estadoDeSoporte,
+} from "../services/avisosASoporte.js";
+import { UMBRAL_POR_DEFECTO_USD, anotarSaldo, estadoDelSaldo, revisarSaldo } from "../services/saldoDeIA.js";
+import {
   EVENTOS_POR_LA_APP, borrarSuscripcion, clavesPush, enviarPushAAsesores, guardarSuscripcion,
   historialDeAvisos, leerSuscripcion, telefonoDelUsuario,
 } from "../services/avisosEnLaApp.js";
@@ -2709,6 +2713,79 @@ export function createAdminRouter(): express.Router {
     if (!endpoint) return res.status(400).json({ ok: false, error: "Falta la suscripción" });
     await borrarSuscripcion(endpoint);
     res.json({ ok: true });
+  });
+
+  // ── Avisos a soporte (24-nov-2026) ────────────────────────────────────────
+  // «El bot no respondió» y «saldo de OpenAI bajo» le llegan a soporte de
+  // AutoVenta, no al negocio. Esta parte del panel (Ajustes → Bot) es solo de
+  // soporte: el saldo anotado, el umbral, los incidentes y un botón de prueba.
+  // La clave cruda (sin usuario) también pasa, como en el resto del panel.
+  const exigirSoporte = (req: express.Request, res: express.Response, next: express.NextFunction): void => {
+    if (!req.usuario || esUsuarioDeSoporte(req.usuario.id)) {
+      next();
+      return;
+    }
+    res.status(403).json({ ok: false, error: "Esto es solo para soporte de AutoVenta." });
+  };
+
+  router.get("/hub/soporte", exigirSoporte, async (_req, res) => {
+    try {
+      const [incidentes, aparatos] = await Promise.all([
+        estadoDeSoporte(),
+        sql<{ n: number }[]>`
+          select count(*)::int as n from push_subscriptions
+          where user_id = any(${[...USUARIOS_DE_SOPORTE]}) and failed_count < 5
+        `,
+      ]);
+      // El saldo va aparte: si OpenAI no contesta, el resto de la tarjeta se ve igual.
+      let saldo: Awaited<ReturnType<typeof estadoDelSaldo>> = null;
+      let errorDelSaldo: string | null = null;
+      try {
+        saldo = await estadoDelSaldo();
+      } catch (error) {
+        errorDelSaldo = mensaje(error, "No se pudo leer el gasto de OpenAI");
+      }
+      res.json({
+        ok: true,
+        ...incidentes,
+        aparatosConLaApp: aparatos[0]?.n ?? 0,
+        // Con clave de administrador el gasto es el de toda la organización;
+        // sin ella se estima con lo que registró este bot.
+        leeElGastoDeOpenAI: Boolean(config.openai.adminKey),
+        umbralPorDefecto: UMBRAL_POR_DEFECTO_USD,
+        saldo: saldo && {
+          saldoUsd: saldo.anotado.saldoUsd, umbralUsd: saldo.anotado.umbralUsd,
+          anotadoAt: saldo.anotado.anotadoAt.toISOString(), anotadoPor: saldo.anotado.anotadoPor,
+          gastadoUsd: saldo.gastadoUsd, restanteUsd: saldo.restanteUsd,
+          fuente: saldo.fuente, aproximado: saldo.aproximado, bajo: saldo.bajo,
+        },
+        errorDelSaldo,
+      });
+    } catch (error) {
+      res.status(500).json({ ok: false, error: mensaje(error, "No se pudo cargar el estado de soporte") });
+    }
+  });
+
+  router.put("/hub/soporte/saldo", exigirSoporte, async (req, res) => {
+    try {
+      const estado = await anotarSaldo(req.body, req.usuario?.id ?? null);
+      // Si ya se anotó por debajo del umbral, el aviso sale ahora y no en cinco minutos.
+      void revisarSaldo();
+      res.json({ ok: true, restanteUsd: estado.restanteUsd, bajo: estado.bajo, fuente: estado.fuente });
+    } catch (error) {
+      res.status(400).json({ ok: false, error: mensaje(error, "No se pudo guardar el saldo") });
+    }
+  });
+
+  router.post("/hub/soporte/probar", exigirSoporte, async (_req, res) => {
+    const resultado = await avisarASoporte({
+      clase: "prueba",
+      texto: {
+        titulo: `✅ ${business.name}: prueba de aviso`,
+        cuerpo: "Si lees esto, los avisos de «el bot no responde» y de saldo bajo te llegan a este teléfono.",
+      },
+    });
+    res.json({ ok: true, ...resultado });
   });
 
   // ── «Validar» dentro del panel (22-nov-2026) ──────────────────────────────

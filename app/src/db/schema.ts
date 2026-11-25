@@ -45,7 +45,8 @@ import { VENTA_EN_TICKET_MIGRATION_ID, runVentaEnTicketMigration } from "./migra
 import { HISTORIAL_DEL_PANEL_MIGRATION_ID, runHistorialDelPanelMigration } from "./migrations/037_historial_del_panel.js";
 import { AVISOS_EN_LA_APP_MIGRATION_ID, runAvisosEnLaAppMigration } from "./migrations/038_avisos_en_la_app.js";
 import { runMediosDelChatMigration } from "./migrations/039_medios_del_chat.js";
-import { PROMOCIONES_MIGRATION_ID, runPromocionesMigration } from "./migrations/040_promociones.js";
+import { runPromocionesMigration } from "./migrations/040_promociones.js";
+import { AVISOS_A_SOPORTE_MIGRATION_ID, runAvisosASoporteMigration } from "./migrations/042_avisos_a_soporte.js";
 
 export const SCHEMA = /* sql */ `
 create table if not exists conversations (
@@ -460,6 +461,8 @@ async function aplicarEsquema(db: Sql): Promise<void> {
   await runAvisosEnLaAppMigration(db);
   await runMediosDelChatMigration(db);
   await runPromocionesMigration(db);
+  // 041 la tiene reservada otra rama (tokens escritos en caché): esta es la 042.
+  await runAvisosASoporteMigration(db);
   // 030 NO va acá: crea índices con CONCURRENTLY y corre después de abrir el
   // puerto (`crearIndicesEnSegundoPlano`), para que un deploy con la base
   // cargada no se quede sin contestar /health (26-oct, deploy FAILED).
@@ -470,7 +473,7 @@ async function aplicarEsquema(db: Sql): Promise<void> {
  * `schema_migrations`, todo lo de arriba ya se aplicó alguna vez. Al agregar una
  * migración nueva a la lista, actualizar esta constante.
  */
-const ULTIMA_MIGRACION_REGISTRADA = PROMOCIONES_MIGRATION_ID;
+const ULTIMA_MIGRACION_REGISTRADA = AVISOS_A_SOPORTE_MIGRATION_ID;
 
 /**
  * Aplica el esquema (idempotente). Se llama al arrancar el bot.

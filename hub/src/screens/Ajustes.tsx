@@ -200,6 +200,7 @@ export function Ajustes() {
       {tab === "bot" && esSoporte && (
         <div className="flex flex-col gap-4">
           <p className="text-[12px] text-text2">Solo soporte ve esta pestaña: el negocio no la tiene en su panel.</p>
+          <SeccionAvisosASoporte onError={setError} />
           <SeccionGuardian onError={setError} />
           {precios && <SeccionPrecios precios={precios} setPrecios={setPrecios} onError={setError} />}
           {/* Catálogo y facturas por archivo (R-28): el cliente sin API —
@@ -344,6 +345,148 @@ function SeccionGuardian({ onError }: { onError: (v: string) => void }) {
         </div>)}
       </div>}
     </>}
+  </Tarjeta>;
+}
+
+interface EstadoSoporte {
+  incidentesAbiertos: { id: number; causa: string; fallos: number; chats: number; desde: string }[];
+  avisos: { id: number; clase: string; titulo: string; cuerpo: string; push: number; whatsapp: string; cuando: string }[];
+  aparatosConLaApp: number;
+  leeElGastoDeOpenAI: boolean;
+  umbralPorDefecto: number;
+  saldo: {
+    saldoUsd: number; umbralUsd: number; anotadoAt: string; anotadoPor: string | null;
+    gastadoUsd: number; restanteUsd: number; fuente: "openai" | "bot"; aproximado: boolean; bajo: boolean;
+  } | null;
+  errorDelSaldo: string | null;
+}
+
+const CAUSA_DEL_INCIDENTE: Record<string, string> = {
+  sin_credito: "Se acabó el crédito de OpenAI",
+  clave_invalida: "OpenAI rechazó la clave del bot",
+  limite_de_uso: "OpenAI está frenando al bot por exceso de uso",
+  proveedor_sin_respuesta: "OpenAI no contestó a tiempo",
+  proveedor_caido: "OpenAI está caído",
+  envio_rechazado: "WhatsApp rechazó el mensaje del bot",
+  turno_colgado: "El bot se quedó colgado",
+  error_interno: "El bot tuvo un error interno",
+  saldo_bajo: "Saldo de OpenAI bajo",
+};
+
+const fechaCorta = (iso: string) => new Date(iso).toLocaleString("es-EC", {
+  timeZone: "America/Guayaquil", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit",
+});
+
+/**
+ * Avisos a soporte (24-nov-2026): «el bot no respondió» y «saldo de OpenAI
+ * bajo». Le llegan a soporte por la app y por WhatsApp, no al negocio. Acá se
+ * anota el saldo (OpenAI no deja leerlo por API), se elige el mínimo y se
+ * prueba que el aviso de verdad suena en el teléfono.
+ */
+function SeccionAvisosASoporte({ onError }: { onError: (v: string) => void }) {
+  const [estado, setEstado] = useState<EstadoSoporte | null>(null);
+  const [saldo, setSaldo] = useState("");
+  const [umbral, setUmbral] = useState("");
+  const [ocupado, setOcupado] = useState<"" | "guardar" | "probar">("");
+  const [prueba, setPrueba] = useState("");
+
+  const cargar = useCallback(async () => {
+    try {
+      const r = await api<EstadoSoporte & { ok: boolean }>("/api/hub/soporte");
+      setEstado(r);
+      setUmbral(String(r.saldo?.umbralUsd ?? r.umbralPorDefecto));
+    } catch (e) { onError(e instanceof Error ? e.message : "No se pudo cargar el estado de soporte"); }
+  }, [onError]);
+  useEffect(() => { void cargar(); }, [cargar]);
+
+  const guardar = async () => {
+    setOcupado("guardar");
+    try {
+      await api("/api/hub/soporte/saldo", { method: "PUT", body: JSON.stringify({ saldoUsd: saldo, umbralUsd: umbral }) });
+      setSaldo("");
+      onError("");
+      await cargar();
+    } catch (e) { onError(e instanceof Error ? e.message : "No se pudo guardar el saldo"); }
+    finally { setOcupado(""); }
+  };
+
+  const probar = async () => {
+    setOcupado("probar");
+    setPrueba("");
+    try {
+      const r = await api<{ push: number; whatsapp: string }>("/api/hub/soporte/probar", { method: "POST" });
+      const wa = { texto: "salió como mensaje", plantilla: "salió como plantilla", sin_numero: "no hay número de soporte en la lista de asesores", fallo: "falló" }[r.whatsapp] ?? r.whatsapp;
+      setPrueba(`Por la app: ${r.push} ${r.push === 1 ? "aparato" : "aparatos"} · Por WhatsApp: ${wa}`);
+      await cargar();
+    } catch (e) { onError(e instanceof Error ? e.message : "No se pudo mandar la prueba"); }
+    finally { setOcupado(""); }
+  };
+
+  const s = estado?.saldo ?? null;
+  return <Tarjeta
+    titulo="Avisos a soporte"
+    sub="Si el bot no puede contestar (OpenAI sin crédito, WhatsApp rechaza el envío, un error) o el saldo de OpenAI baja del mínimo, te llega un aviso a ti, por la app y por WhatsApp. Un aviso al empezar, un recordatorio si sigue y otro cuando vuelve. El negocio no los recibe."
+    extra={<button onClick={() => void probar()} disabled={ocupado !== ""} className="rounded-full bg-bg px-3 py-1.5 text-[12px] font-semibold disabled:opacity-50">
+      {ocupado === "probar" ? "Enviando…" : "Probar aviso"}
+    </button>}
+  >
+    {!estado && <p className="text-[12px] text-text2">Cargando…</p>}
+    {estado && <div className="flex flex-col gap-4 text-[12px]">
+      {prueba && <p className="rounded-[6px] bg-bg px-3 py-2">{prueba}</p>}
+      {estado.aparatosConLaApp === 0
+        ? <p className="rounded-[6px] bg-[var(--color-warn,#e8b33a)]/15 px-3 py-2">
+            No tienes las notificaciones activadas en ningún aparato de este panel: instala la app y actívalas en <a className="underline" href="#/avisos">Avisos</a>. Sin eso solo queda el WhatsApp.
+          </p>
+        : <p><span className="text-text2">Aparatos con la app activada:</span> <b>{estado.aparatosConLaApp}</b></p>}
+
+      {estado.incidentesAbiertos.length > 0 && <div className="rounded-[6px] bg-[var(--color-danger,#e2564d)]/12 px-3 py-2">
+        {estado.incidentesAbiertos.map((i) => <p key={i.id}>
+          <b>🔴 {CAUSA_DEL_INCIDENTE[i.causa] ?? i.causa}</b>
+          {i.causa !== "saldo_bajo" && <> · {i.chats} {i.chats === 1 ? "chat" : "chats"} sin respuesta</>} · desde {fechaCorta(i.desde)}
+        </p>)}
+      </div>}
+
+      <div>
+        <p className="mb-1 font-semibold">Saldo de OpenAI</p>
+        {s
+          ? <p>
+              <span className={s.bajo ? "font-semibold text-[var(--color-danger,#e2564d)]" : "font-semibold"}>
+                Quedan {s.aproximado ? "unos " : ""}${s.restanteUsd.toFixed(2)}
+              </span>
+              <span className="text-text2"> · anotaste ${s.saldoUsd.toFixed(2)} el {fechaCorta(s.anotadoAt)} y desde entonces se gastaron ${s.gastadoUsd.toFixed(2)} · aviso por debajo de ${s.umbralUsd.toFixed(2)}</span>
+            </p>
+          : <p className="text-text2">Todavía no anotaste un saldo. OpenAI no deja leerlo por API: copia el que ves en platform.openai.com → Billing y desde ahí el bot le resta lo que se gasta. Sin saldo anotado no hay aviso de saldo bajo.</p>}
+        {estado.errorDelSaldo && <p className="mt-1 text-[var(--color-danger,#e2564d)]">{estado.errorDelSaldo}</p>}
+        <p className="mt-1 text-text2">
+          {estado.leeElGastoDeOpenAI
+            ? "El gasto es el de toda la cuenta de OpenAI (lo dice OpenAI, con unos minutos de atraso)."
+            : "Es una estimación: solo cuenta lo que gastó este bot, no los otros servicios ni las pruebas. Con OPENAI_ADMIN_KEY en Railway se cuenta toda la cuenta."}
+        </p>
+        <div className="mt-2 grid grid-cols-[1fr_1fr_auto] items-end gap-2">
+          <label>Saldo que ves ahora en OpenAI (USD)
+            <input type="number" min="0" step="0.01" inputMode="decimal" placeholder="25.00" className={inputCls} value={saldo} onChange={(e) => setSaldo(e.target.value)} />
+          </label>
+          <label>Avisarme por debajo de (USD)
+            <input type="number" min="0" step="0.5" inputMode="decimal" className={inputCls} value={umbral} onChange={(e) => setUmbral(e.target.value)} />
+          </label>
+          <button onClick={() => void guardar()} disabled={ocupado !== "" || saldo.trim() === ""} className="rounded-full bg-bg px-3 py-2 text-[12px] font-semibold disabled:opacity-50">
+            {ocupado === "guardar" ? "Guardando…" : "Guardar"}
+          </button>
+        </div>
+        <p className="mt-1 text-text2">Anótalo cada vez que recargues: el aviso queda listo para la próxima vez que baje.</p>
+      </div>
+
+      {estado.avisos.length > 0 && <div>
+        <p className="mb-1 font-semibold">Últimos avisos que te salieron</p>
+        <div className="max-h-56 overflow-y-auto rounded-[6px] bg-bg p-2.5">
+          {estado.avisos.map((a) => <div key={a.id} className="mb-2 border-b border-line pb-2 last:mb-0 last:border-0 last:pb-0">
+            <p><b>{a.titulo}</b></p>
+            <p className="text-text2">{a.cuerpo}</p>
+            <p className="text-text2">{fechaCorta(a.cuando)} · app: {a.push} · WhatsApp: {a.whatsapp.replace("_", " ")}</p>
+          </div>)}
+        </div>
+      </div>}
+    </div>}
   </Tarjeta>;
 }
 

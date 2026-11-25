@@ -37,6 +37,12 @@ export const TABLAS_DATOS = [
   // Fotos, audios y archivos del chat (23-nov): son datos de las conversaciones.
   "message_media",
   "push_subscriptions",
+  // Avisos a soporte (24-nov-2026): incidentes abiertos, avisos enviados y el
+  // saldo anotado son de cada servicio. Un incidente de producción no puede
+  // aparecer abierto en una base de pruebas.
+  "incidentes_del_bot",
+  "avisos_a_soporte",
+  "saldo_de_ia",
   "push_keys",
   "conversations",
   "messages",
