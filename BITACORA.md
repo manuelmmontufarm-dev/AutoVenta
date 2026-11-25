@@ -1,3 +1,14 @@
+## 25-nov-2026 · App del teléfono · Notificaciones que no llegaban con varios asesores del mismo nombre
+
+- **Qué:** el asesor de un usuario del panel se reconoce por nombre completo, luego por todas sus palabras y al final por
+  el primer nombre, siempre solo si queda uno (`elegirAsesorPorNombre`). `/hub/push/suscribir` decide el número en el
+  servidor si el teléfono no lo manda, y `miVentana` (cada vez que se abre la app) liga los teléfonos que quedaron sin
+  número (`ligarSuscripcionesSinNumero`).
+- **Por qué:** Carlos Romero (Competimotor, Android) activó las notificaciones el 23-nov y le dijo a Manuel el 25-nov
+  que no le salía ninguna. Hay tres asesores «Carlos»: la app no supo cuál era y guardó su teléfono sin número de
+  asesor, así que ningún aviso lo buscaba (`last_ok_at` vacío). Su registro se corrigió a mano en la base el 25-nov.
+- **Probado:** `test/ventanaDelAsesor.test.ts` (3 nuevas) y el caso Carlos en `test/avisosEnLaApp.integration.test.ts`
+  (rojo sin el arreglo, verde con él). Suite: los mismos fallos que main.
 ## 25-nov-2026 · Panel · La cotización armada en el panel aplica el Black Friday de la 2.ª llanta
 
 - **Qué:** `cuentaDelPanel` en `server/admin.ts`: la cotización del Cotizador y del «+» del chat (imagen, texto, PDF y la

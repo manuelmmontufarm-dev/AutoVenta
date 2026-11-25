@@ -11,7 +11,7 @@ process.env.WHATSAPP_VERIFY_TOKEN ||= "test";
 process.env.WHATSAPP_PHONE_ID ||= "test";
 process.env.DATABASE_URL ||= "postgresql://localhost/autoventa_no_se_conecta";
 
-const { esComandoAsesor, estadoDeVentana, mensajeParaReabrir, respuestaAlAsesor } = await import("../src/services/ventanaDelAsesor.js");
+const { elegirAsesorPorNombre, esComandoAsesor, estadoDeVentana, mensajeParaReabrir, respuestaAlAsesor } = await import("../src/services/ventanaDelAsesor.js");
 
 const AHORA = new Date("2026-11-22T15:00:00Z");
 const en = (min: number) => new Date(AHORA.getTime() + min * 60_000);
@@ -47,5 +47,29 @@ describe("ventana del asesor en la app", () => {
     expect(respuestaAlAsesor("Jenny Paz", 0)).not.toMatch(/pendiente/);
     expect(respuestaAlAsesor("Jenny Paz", 3)).toMatch(/los 3 avisos que tenías pendientes/);
     expect(respuestaAlAsesor("Jenny Paz", 1)).toMatch(/el aviso que tenías pendiente/);
+  });
+
+  // Competimotor, 25-nov-2026: tres «Carlos». Carlos Romero activó la app y no le llegaba nada.
+  const COMPETIMOTOR = [
+    { nombre: "Carlos André Pazmiño" }, { nombre: "Moroni Pazmiño" }, { nombre: "Carlos Andrés Ventas" },
+    { nombre: "Carlos Romero" }, { nombre: "Jenny Paz Alvarez" }, { nombre: "Joaquín Tamayo" },
+  ];
+
+  it("con varios asesores del mismo primer nombre, el nombre completo decide", () => {
+    expect(elegirAsesorPorNombre("Carlos Romero", COMPETIMOTOR)?.nombre).toBe("Carlos Romero");
+    expect(elegirAsesorPorNombre("carlos  romero ", COMPETIMOTOR)?.nombre).toBe("Carlos Romero");
+    expect(elegirAsesorPorNombre("Carlos Andrés", COMPETIMOTOR)?.nombre).toBe("Carlos Andrés Ventas");
+  });
+
+  it("un nombre más corto que el del asesor también lo encuentra; el primer nombre solo, si es único", () => {
+    expect(elegirAsesorPorNombre("Jenny Paz", COMPETIMOTOR)?.nombre).toBe("Jenny Paz Alvarez");
+    expect(elegirAsesorPorNombre("Joaquin Tamayo", COMPETIMOTOR)?.nombre).toBe("Joaquín Tamayo");
+    expect(elegirAsesorPorNombre("Moroni", COMPETIMOTOR)?.nombre).toBe("Moroni Pazmiño");
+  });
+
+  it("si sigue ambiguo no adivina: mejor no avisar que avisarle a otro", () => {
+    expect(elegirAsesorPorNombre("Carlos", COMPETIMOTOR)).toBeNull();
+    expect(elegirAsesorPorNombre("Pazmiño", COMPETIMOTOR)).toBeNull();
+    expect(elegirAsesorPorNombre("", COMPETIMOTOR)).toBeNull();
   });
 });

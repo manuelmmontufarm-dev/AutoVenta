@@ -12,7 +12,7 @@ import { cuentaDeSegundaLlanta, promocionVigente, segundaLlantaDe } from "../dom
 import { randomBytes } from "node:crypto";
 import express from "express";
 import { tel9 } from "../services/fuentes/contifico.js";
-import { miVentana } from "../services/ventanaDelAsesor.js";
+import { asesorDelUsuario, miVentana } from "../services/ventanaDelAsesor.js";
 import { anularRegistro, claveDeRegistros, claveDelEnlace, guardarFactura, leerMonto, listarVentasRegistradas, registrarVenta, validarEntrada, ventasACsv } from "../services/registroDeVentas.js";
 import { z } from "zod";
 import { sql } from "../db/client.js";
@@ -2773,16 +2773,21 @@ export function createAdminRouter(): express.Router {
     const suscripcion = leerSuscripcion(req.body?.suscripcion);
     if (!suscripcion) return res.status(400).json({ ok: false, error: "El teléfono no entregó una suscripción válida." });
     try {
+      // Si el teléfono no dijo qué asesor es, lo decide el servidor por el nombre
+      // (25-nov-2026: con tres «Carlos» la app mandaba vacío y no le llegaba nada).
+      const telefono = req.body?.telefono
+        ? String(req.body.telefono)
+        : (await asesorDelUsuario({ id: req.usuario.id, nombre: req.usuario.nombre }).catch(() => null))?.telefono ?? null;
       await guardarSuscripcion({
         userId: req.usuario.id,
         userName: req.usuario.nombre,
-        advisorPhone: req.body?.telefono ? String(req.body.telefono) : null,
+        advisorPhone: telefono,
         suscripcion,
         userAgent: req.header("user-agent"),
       });
       // La confirmación sale por el mismo camino que los avisos de verdad.
-      if (req.body?.telefono) {
-        await enviarPushAAsesores([String(req.body.telefono)], {
+      if (telefono) {
+        await enviarPushAAsesores([telefono], {
           titulo: "Notificaciones activadas",
           cuerpo: "Desde ahora las cotizaciones enviadas y las ventas confirmadas te llegan por aquí.",
           ruta: "#/avisos",

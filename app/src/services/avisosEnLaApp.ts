@@ -107,6 +107,22 @@ export async function borrarSuscripcion(endpoint: string): Promise<void> {
   await sql`delete from push_subscriptions where endpoint = ${endpoint}`;
 }
 
+/**
+ * Los teléfonos de este usuario que se activaron SIN número de asesor (no se
+ * supo quién era) quedan ligados a ese número. Sin esto el teléfono está
+ * registrado pero no le llega ningún aviso. Devuelve cuántos ligó.
+ */
+export async function ligarSuscripcionesSinNumero(userId: string, advisorPhone: string): Promise<number> {
+  const telefono = String(advisorPhone).replace(/\D/g, "");
+  if (!telefono) return 0;
+  const filas = await sql`
+    update push_subscriptions set advisor_phone = ${telefono}
+    where user_id = ${userId} and (advisor_phone is null or advisor_phone = '')
+    returning id
+  `;
+  return filas.length;
+}
+
 /** El asesor (teléfono) que este usuario dijo ser al activar las notificaciones. */
 export async function telefonoDelUsuario(userId: string): Promise<string | null> {
   const [fila] = await sql<{ advisor_phone: string | null }[]>`
