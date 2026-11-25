@@ -9,7 +9,7 @@
  * porque su contenido es de ejemplo; aquí depende de cuántas marcas, si hay
  * precio de lista, si hay descuento y cuántos beneficios trae el negocio.
  */
-import { cintaDelTema, type ConfigDeTema } from "../domain/temaDePieza.js";
+import { cintaDelTema, muestraFranjaDeTemporada, type ConfigDeTema } from "../domain/temaDePieza.js";
 import { cintaDeTema } from "./cintaDeTema.js";
 import {
   ARCHIVO_BLACK, BLACK_ITALIC, type Availability, type Child, type PriceFont, type SatoriNode, type Theme,
@@ -297,7 +297,7 @@ export function quotePoster(data: QuotePosterData, theme: Theme): SatoriNode {
     ),
     racingBar(theme),
     cintaDeTema(cintaDelTema(data.tema, { hayFranjaDeTemporada: Boolean(bf) }), CINTA_CLASICA),
-    bf ? franjaTemporada(line, bf, theme) : null,
+    bf && muestraFranjaDeTemporada(data.tema) ? franjaTemporada(line, bf, theme) : null,
 
     // Héroe: foto + identidad del producto
     el({ alignItems: "center", gap: 56, padding: "56px 64px 40px", position: "relative",

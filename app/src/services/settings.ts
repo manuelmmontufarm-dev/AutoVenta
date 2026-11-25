@@ -5,6 +5,7 @@
  * pegarle a la DB en cada mensaje entrante.
  */
 import { TEMAS, TEMA_INICIAL, disenoLimpio, type DisenoDeTema } from "../domain/temaDePieza.js";
+import { COLORES_INICIAL, coloresLimpios } from "../domain/coloresDePieza.js";
 import { z } from "zod";
 import { sql } from "../db/client.js";
 import { PIPELINE_STAGES, type Stage } from "../domain/pipeline.js";
@@ -377,6 +378,9 @@ export const PiecesConfigSchema = z.object({
     id: z.enum(TEMAS).default("automatico"),
     personalizado: z.unknown().optional().transform((v) => disenoLimpio(v as Partial<DisenoDeTema> | undefined)),
   }).default(TEMA_INICIAL),
+  // Los colores de la plantilla «día y noche» (25-nov): una paleta lista o una
+  // creada por el negocio. «original» = los de la maqueta (lo guardado antes).
+  colores: z.unknown().optional().transform((v) => coloresLimpios(v ?? COLORES_INICIAL)),
 });
 
 export type PiecesConfig = z.infer<typeof PiecesConfigSchema>;

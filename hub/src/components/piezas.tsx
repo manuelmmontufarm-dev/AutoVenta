@@ -54,6 +54,12 @@ const TEMA_INICIAL: ConfigTema = {
   personalizado: { titulo: "PROMOCIÓN ESPECIAL", bajada: "", fondo: "#111111", texto: "#ffffff", acento: "#ffc93c", adorno: "rayas" },
 };
 
+interface ParDeColores { principal: string; destacado: string }
+interface PaletaPropia extends ParDeColores { id: string; nombre: string }
+interface ConfigColores { id: string; propias: PaletaPropia[] }
+interface ColoresListos extends ParDeColores { id: string; nombre: string }
+const COLORES_INICIAL: ConfigColores = { id: "original", propias: [] };
+
 /** La apariencia de las piezas: lo único de esta pantalla que espera a «Aplicar». */
 export interface Apariencia {
   plantilla: string;
@@ -63,10 +69,14 @@ export interface Apariencia {
   /** «porcentaje» o «3x4»: cómo se dice la rebaja. */
   promocion: string;
   tema: ConfigTema;
+  /** Los colores de la plantilla «día y noche»: una paleta lista o una propia. */
+  colores: ConfigColores;
 }
 
 interface RespuestaDeConfig {
-  config: { paleta: string; fuente: string; plantilla?: string; modo?: string; promocion?: { modo: string }; tema?: ConfigTema };
+  config: { paleta: string; fuente: string; plantilla?: string; modo?: string; promocion?: { modo: string }; tema?: ConfigTema; colores?: ConfigColores };
+  promoDeTemporadaVigente?: boolean;
+  coloresListos?: ColoresListos[];
   paletas: string[];
   muestras?: Record<string, string[]>;
   fuentes: string[];
@@ -86,6 +96,9 @@ interface Opciones {
   temas: TemaDisponible[];
   modosPromocion: string[];
   descuentoDeMuestra: number | null;
+  /** ¿Corre hoy la promo de temporada? Decide cómo se muestra un tema «automático» viejo. */
+  promoDeTemporadaVigente: boolean;
+  coloresListos: ColoresListos[];
 }
 
 const aparienciaDe = (c: RespuestaDeConfig["config"]): Apariencia => ({
@@ -96,6 +109,7 @@ const aparienciaDe = (c: RespuestaDeConfig["config"]): Apariencia => ({
   fuente: c.fuente,
   promocion: c.promocion?.modo ?? "porcentaje",
   tema: c.tema ?? TEMA_INICIAL,
+  colores: c.colores ?? COLORES_INICIAL,
 });
 
 export const PIEZAS = [
@@ -195,6 +209,7 @@ export interface Piezas {
 
 const SIN_OPCIONES: Opciones = {
   paletas: [], muestras: {}, fuentes: [], plantillas: ["clasica"], modos: [], temas: [], modosPromocion: [], descuentoDeMuestra: null,
+  promoDeTemporadaVigente: false, coloresListos: [],
 };
 
 export function usePiezas(): Piezas {
@@ -223,6 +238,7 @@ export function usePiezas(): Piezas {
         paletas: cfg.paletas, muestras: cfg.muestras ?? {}, fuentes: cfg.fuentes,
         plantillas: cfg.plantillas ?? ["clasica"], modos: cfg.modos ?? [], temas: cfg.temas ?? [],
         modosPromocion: cfg.modosPromocion ?? [], descuentoDeMuestra: cfg.descuentoDeMuestra ?? null,
+        promoDeTemporadaVigente: Boolean(cfg.promoDeTemporadaVigente), coloresListos: cfg.coloresListos ?? [],
       });
       setBenefits(ben.benefits);
       setError("");
@@ -245,6 +261,7 @@ export function usePiezas(): Piezas {
     if (a.promocion !== "porcentaje") params.set("promocion", a.promocion);
     if (beneficios.length) params.set("beneficios", beneficios.join("|"));
     if (a.tema.id !== "automatico") params.set("tema", JSON.stringify(a.tema));
+    if (a.plantilla === "diaNoche" && a.colores.id !== "original") params.set("colores", JSON.stringify(a.colores));
     // El servidor no la lee: solo separa en la memoria lo dibujado antes y
     // después de un cambio de promociones.
     params.set("v", String(version));
@@ -394,10 +411,20 @@ const PROMOCION_NOTA: Record<string, string> = {
   "3x4": "La misma rebaja, dicha como «paga 3, lleva 4».",
 };
 const TEMA_NOTA: Record<string, string> = {
-  automatico: "Sin cinta; la de la promoción de temporada sale sola",
-  ninguno: "Nunca lleva cinta",
+  ninguno: "La de todos los días: sin cinta ni franja de temporada",
   personalizado: "Título, colores y adorno a su gusto",
 };
+
+/**
+ * El tema que se marca como elegido. Lo guardado antes del 25-nov es
+ * «automatico»: equivale a Black Friday mientras la promo de temporada corre y
+ * a Normal cuando no — que es lo que sale en la pieza (misma regla que
+ * `temaQueSeVe` en el servidor).
+ */
+const temaQueSeVe = (id: string, promoVigente: boolean): string =>
+  id !== "automatico" ? id : promoVigente ? "blackFriday" : "ninguno";
+
+const nuevoIdDePaleta = (): string => `propia-${Date.now().toString(36)}${Math.floor(Math.random() * 36).toString(36)}`;
 
 /** El mismo aviso que el servidor (`advertenciaDe3x4`), para la llanta de la vista previa. */
 function avisoDe3x4(descuento: number | null): string | null {
@@ -411,13 +438,28 @@ export function SeccionDiseno({ p }: { p: Piezas }) {
   const propio = a.tema.personalizado;
   const editar = (campo: keyof DisenoDeTema, valor: string) =>
     probar({ tema: { id: "personalizado", personalizado: { ...propio, [campo]: valor } } });
-  const elegido = o.temas.find((t) => t.id === a.tema.id);
+  const temaVisto = temaQueSeVe(a.tema.id, o.promoDeTemporadaVigente);
+  const elegido = o.temas.find((t) => t.id === temaVisto);
+
+  // Colores de «día y noche»: las listas y las que creó el negocio.
+  const col = a.colores;
+  const propia = col.propias.find((x) => x.id === col.id) ?? null;
+  const parActual: ParDeColores = propia ?? o.coloresListos.find((l) => l.id === col.id) ?? { principal: "#e52c2a", destacado: "#ffc93c" };
+  const elegirColores = (id: string) => ({ colores: { ...col, id } });
+  const editarPropia = (cambio: Partial<PaletaPropia>) =>
+    probar({ colores: { ...col, propias: col.propias.map((x) => (x.id === col.id ? { ...x, ...cambio } : x)) } });
+  const crearPaleta = () => {
+    const id = nuevoIdDePaleta();
+    probar({ colores: { id, propias: [...col.propias, { id, nombre: "Mi paleta", principal: parActual.principal, destacado: parActual.destacado }] } });
+  };
+  const borrarPropia = () =>
+    probar({ colores: { id: "original", propias: col.propias.filter((x) => x.id !== col.id) } });
   const aviso3x4 = a.promocion === "3x4" ? avisoDe3x4(o.descuentoDeMuestra) : null;
 
   return (
     <>
       {o.temas.length > 0 && (
-        <Bloque titulo="Tema" sub="La cinta de temporada que va arriba de la cotización, las opciones y el PDF. No cambia ningún precio.">
+        <Bloque titulo="Tema" sub="Cómo se viste la pieza: la cinta o franja de temporada arriba de la cotización, las opciones y el PDF. No cambia ningún precio.">
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {o.temas.map((t) => {
               const d = t.id === "personalizado" ? propio : t.diseno;
@@ -425,10 +467,10 @@ export function SeccionDiseno({ p }: { p: Piezas }) {
               return (
                 <button
                   key={t.id} type="button" data-testid={`tema-${t.id}`}
-                  aria-pressed={t.id === a.tema.id}
+                  aria-pressed={t.id === temaVisto}
                   onClick={() => probar({ tema })}
                   onMouseEnter={() => asomar({ tema })} onFocus={() => asomar({ tema })}
-                  className={`${opcion(t.id === a.tema.id)} flex flex-col items-start gap-1.5 px-3 py-2.5`}
+                  className={`${opcion(t.id === temaVisto)} flex flex-col items-start gap-1.5 px-3 py-2.5`}
                 >
                   {d ? (
                     <span className="flex h-7 w-full items-center gap-1.5 overflow-hidden rounded-[4px] px-2" style={{ backgroundColor: d.fondo }}>
@@ -437,7 +479,7 @@ export function SeccionDiseno({ p }: { p: Piezas }) {
                     </span>
                   ) : (
                     <span className="flex h-7 w-full items-center rounded-[4px] border border-dashed border-line-strong px-2 text-[11px] font-normal text-text2">
-                      {t.id === "automatico" ? "como siempre" : "sin cinta"}
+                      sin cinta
                     </span>
                   )}
                   <span>{t.nombre}</span>
@@ -447,7 +489,7 @@ export function SeccionDiseno({ p }: { p: Piezas }) {
             })}
           </div>
 
-          {elegido?.diseno && a.tema.id !== "personalizado" && (
+          {elegido?.diseno && temaVisto !== "personalizado" && (
             <button
               type="button" data-testid="tema-editar"
               className="btn-quiet mt-3 h-9 rounded-[6px] px-3 text-[13px]"
@@ -485,6 +527,53 @@ export function SeccionDiseno({ p }: { p: Piezas }) {
               </div>
             </div>
           )}
+        </Bloque>
+      )}
+
+      {a.plantilla === "diaNoche" && o.coloresListos.length > 0 && (
+        <Bloque titulo="Colores" sub="La paleta de la pieza: el color principal (precio, recomendada, íconos) y el de los destacados (insignias de descuento, medida). Elija una lista o cree la suya.">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {[...o.coloresListos, ...col.propias].map((x) => (
+              <button
+                key={x.id} type="button" data-testid={`colores-${x.id}`} aria-pressed={x.id === col.id}
+                onClick={() => probar(elegirColores(x.id))}
+                onMouseEnter={() => asomar(elegirColores(x.id))} onFocus={() => asomar(elegirColores(x.id))}
+                className={`${opcion(x.id === col.id)} flex flex-col items-start gap-1.5 px-3 py-2.5`}
+              >
+                <span className="flex h-7 w-full overflow-hidden rounded-[4px] border border-line">
+                  <span className="h-full flex-[3]" style={{ backgroundColor: x.principal }} />
+                  <span className="h-full flex-1" style={{ backgroundColor: x.destacado }} />
+                </span>
+                <span className="truncate">{x.nombre}</span>
+                {x.id.startsWith("propia-") && <span className="text-[12px] font-normal text-text2">Creada por ustedes</span>}
+              </button>
+            ))}
+            <button
+              type="button" data-testid="colores-crear" onClick={crearPaleta}
+              disabled={col.propias.length >= 12}
+              className="flex flex-col items-start justify-center gap-1 rounded-[8px] border border-dashed border-line-strong px-3 py-2.5 text-left text-[13px] hover:border-signal disabled:opacity-50"
+            >
+              <span className="font-semibold">+ Crear paleta</span>
+              <span className="text-[12px] font-normal text-text2">Parte de los colores elegidos</span>
+            </button>
+          </div>
+
+          {propia && (
+            <div className="mt-4 flex flex-wrap items-end gap-x-5 gap-y-3 rounded-[8px] border border-line p-4">
+              <label className="flex min-w-[180px] flex-1 flex-col gap-1">
+                <span className="text-[12px] font-semibold text-text2">Nombre</span>
+                <input className={CAMPO} maxLength={24} value={propia.nombre} data-testid="colores-nombre" onChange={(e) => { p.tecla(); editarPropia({ nombre: e.target.value }); }} />
+              </label>
+              {([["principal", "Principal"], ["destacado", "Destacados"]] as const).map(([campo, rotulo]) => (
+                <label key={campo} className="flex items-center gap-2 text-[13px]">
+                  <input type="color" data-testid={`colores-${campo}`} className="h-10 w-12 cursor-pointer rounded-[6px] border border-line-strong bg-bg" value={propia[campo]} onChange={(e) => editarPropia({ [campo]: e.target.value })} />
+                  {rotulo}
+                </label>
+              ))}
+              <button type="button" data-testid="colores-borrar" className="btn-quiet h-10 rounded-[6px] px-3 text-[13px]" onClick={borrarPropia}>Borrar esta paleta</button>
+            </div>
+          )}
+          <p className="mt-3 text-[12px] text-text2">Fondos, textos y grises son de la plantilla y no cambian, para que siempre se lea. Evite un color principal casi negro o casi blanco: se pierde en la versión oscura o en la clara. La comparativa sale con la plantilla clásica.</p>
         </Bloque>
       )}
 
@@ -546,7 +635,7 @@ export function SeccionDiseno({ p }: { p: Piezas }) {
               ))}
             </div>
             <p className="mt-3 text-[12px] text-text2">
-              Esta plantilla trae sus propios colores. La comparativa sale siempre con la clásica.
+              Los colores de esta plantilla se eligen arriba, en «Colores». La comparativa sale siempre con la clásica.
             </p>
           </>
         ) : (

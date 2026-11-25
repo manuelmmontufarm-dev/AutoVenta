@@ -1,3 +1,20 @@
+## 25-nov-2026 · Panel · «Oferta y diseño», tema Normal, paletas de color, avisos en pantalla y fila impar
+
+- **Qué:** la pestaña «Promociones» se llama «Oferta y diseño». En Diseño → Tema ya no existe «Automático»: «Normal» es la
+  pieza de todos los días (sin cinta ni franja de temporada, `muestraFranjaDeTemporada`) y lo guardado como `automatico`
+  se muestra como Black Friday mientras la promo corre y como Normal cuando no (`temaQueSeVe`; no se migra la base).
+  Nueva sección Colores para la plantilla día y noche (`domain/coloresDePieza.ts`, `pieces_config.colores`): 9 paletas
+  listas con nombre y paletas propias (nombre, principal y destacados); la pieza se arma igual y al final se recorre el
+  árbol cambiando los rojos y dorados de la maqueta (`recolorear`). En «Incluido sin costo», con número impar la tarjeta
+  que queda sola ocupa toda la fila. El panel deja de mostrar la tarjeta genérica «Nueva alerta del bot · Revisa Alertas
+  del bot u Oportunidades» y muestra el aviso real (el de la campana y la app) cuando llega (`hub/src/data/avisos.ts`).
+- **Por qué:** Manuel, 25-nov: el nombre de la pestaña se quedó corto, el automático «decía Black Friday», seguían
+  saliendo notificaciones de una pestaña que ya no existe, y los clientes necesitan poder cambiar los colores de la base.
+- **Probado:** `test/coloresDePieza.test.ts` (14); con la paleta original la imagen sale idéntica (los sha256 de las piezas
+  de Depot no cambian). Panel revisado en el simulador (`--stub --sin-prod`): crear, editar y guardar una paleta propia.
+  Suite: 4.808 verdes; las 3 rojas de siempre. Sin probar en vivo: la tarjeta del aviso nuevo (necesita un aviso real).
+- **Horas:** 1.
+
 ## 25-nov-2026 · Bot · Todo lo que manda el cliente queda guardado y visible en el panel
 
 - **Qué:** reacciones, mensajes que Meta entrega como `unsupported`/`unknown`, pedidos del catálogo, avisos de sistema,

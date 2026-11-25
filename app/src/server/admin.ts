@@ -7,6 +7,8 @@
  * Sin ADMIN_KEY la API queda abierta — solo aceptable durante el piloto.
  */
 import { TEMAS, TEMAS_LISTOS, nombreDelTema } from "../domain/temaDePieza.js";
+import { COLORES_LISTOS } from "../domain/coloresDePieza.js";
+import { promocionVigente } from "../domain/promocionDeTemporada.js";
 import { randomBytes } from "node:crypto";
 import express from "express";
 import { tel9 } from "../services/fuentes/contifico.js";
@@ -2553,10 +2555,17 @@ export function createAdminRouter(): express.Router {
       modosPromocion: MODOS_PROMOCION,
       // Los temas de la pieza (24-nov): los listos con su diseño, para pintar
       // las muestras y copiarlos a «personalizado».
-      temas: TEMAS.map((id) => ({
+      // «automatico» ya no se ofrece (25-nov): el panel lo muestra como Black
+      // Friday mientras la promo corre y como Normal cuando no (`temaQueSeVe`).
+      temas: TEMAS.filter((id) => id !== "automatico").map((id) => ({
         id, nombre: nombreDelTema(id),
-        diseno: id === "automatico" || id === "ninguno" ? null : id === "personalizado" ? null : TEMAS_LISTOS[id].diseno,
+        diseno: id === "ninguno" || id === "personalizado" ? null : TEMAS_LISTOS[id].diseno,
       })),
+      // Medido como la vista previa (que la muestra aunque esté «solo para
+      // números de prueba»): el tema marcado y la imagen de al lado dicen lo mismo.
+      promoDeTemporadaVigente: await comoVistaPrevia(async () => promocionVigente(politica.promocionDeTemporada)),
+      // Las paletas listas de «día y noche» (25-nov), con sus dos colores.
+      coloresListos: COLORES_LISTOS,
       descuentoDeMuestra: await descuentoDeLaMuestra().catch(() => null),
     });
   });
@@ -3246,6 +3255,7 @@ export function createAdminRouter(): express.Router {
       const promocion = req.query.promocion ? String(req.query.promocion) : undefined;
       // El tema llega como JSON ({ id, personalizado }); lo limpia `cintaDelTema` al dibujar.
       const tema = req.query.tema ? jsonDelPedido(req.query.tema) as never : undefined;
+      const colores = req.query.colores ? jsonDelPedido(req.query.colores) as never : undefined;
       const beneficios = req.query.beneficios
         ? String(req.query.beneficios).split("|").map((b) => b.trim()).filter(Boolean)
         // La vista previa dibuja un juego completo: con esa cantidad entran
@@ -3253,7 +3263,7 @@ export function createAdminRouter(): express.Router {
         : await applicableBenefitTexts({ quantity: politica.juegoCompleto });
       // El panel pide la imagen al ancho de su recuadro: llega mucho antes (render/quoteImage.ts).
       const ancho = req.query.ancho ? Number(req.query.ancho) : undefined;
-      const png = await comoVistaPrevia(() => renderPreviewPiece({ pieza, paleta, fuente, plantilla, modo, promocion, beneficios, tema, ancho }));
+      const png = await comoVistaPrevia(() => renderPreviewPiece({ pieza, paleta, fuente, plantilla, modo, promocion, beneficios, tema, colores, ancho }));
       res.setHeader("Content-Type", "image/png");
       res.setHeader("Cache-Control", "no-store");
       res.send(png);

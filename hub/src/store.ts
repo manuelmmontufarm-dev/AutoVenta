@@ -134,6 +134,8 @@ interface HubState {
   alertAction(id: number, action: "resolve" | "snooze" | "take"): Promise<void>;
   toggleDemo(): void;
   quitarToast(id: number): void;
+  /** Muestra un aviso en pantalla (la tarjeta de arriba a la derecha) con su sonido. */
+  avisar(toast: Omit<Toast, "id">): void;
   cambiarPower(activo: boolean, motivo?: string, confirmarFaltantes?: boolean): Promise<void>;
   cambiarExigirVentaRegistrada(exigir: boolean): Promise<void>;
 }
@@ -684,6 +686,11 @@ export const useHub = create<HubState>((set, get) => {
 
     quitarToast(id) {
       set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }));
+    },
+
+    avisar(toast) {
+      set((s) => ({ toasts: [...s.toasts.slice(-2), { ...toast, id: toastId++ }] }));
+      pingNotificacion();
     },
   };
 });
