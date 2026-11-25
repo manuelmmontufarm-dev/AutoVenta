@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { searchCatalog, sendImageToChat, sendPieceToChat, sendQuoteToChat, type CatalogProduct } from "../data/catalog";
+import { getQuoteTotal, searchCatalog, sendImageToChat, sendPieceToChat, sendQuoteToChat, type CatalogProduct } from "../data/catalog";
 import type { Ticket } from "../data/types";
 import { money } from "../lib/format";
 import { IconCamara, IconCheck, IconComparar, IconDoc, IconPlus, IconSearch, IconTire, IconX } from "./icons";
@@ -129,7 +129,7 @@ function CotizarEnChat({ ticket, onClose, onListo }: { ticket: Ticket; onClose: 
           <Cantidad valor={cantidad} onChange={setCantidad} max={Math.max(1, Math.min(8, elegido.stock || 8))} />
           <div className="text-right">
             <p className="text-[12px] text-text2">Total con IVA</p>
-            <p className="tnum font-mono text-[24px] font-bold">{money(elegido.salePrice * cantidad)}</p>
+            <TotalDeCotizacion product={elegido} quantity={cantidad} className="tnum font-mono text-[24px] font-bold" />
           </div>
         </div>
         {error && <p role="alert" className="text-[14px] text-signal">{error}</p>}
@@ -394,6 +394,34 @@ export function BotonAdjuntar({ ticket, onAviso }: { ticket: Ticket; onAviso: (t
           </Hoja>
         )}
       </AnimatePresence>
+    </>
+  );
+}
+
+/**
+ * El total que va a salir en la cotización, pedido al servidor: con Black
+ * Friday o una promoción por cantidad no es precio × cantidad (25-nov-2026:
+ * 4 Kenda decían $251.48 aquí y la pieza $234.70). Mientras contesta, o si no
+ * contesta, se muestra la cuenta simple.
+ */
+export function TotalDeCotizacion({ product, quantity, className }: { product: CatalogProduct; quantity: number; className: string }) {
+  const [real, setReal] = useState<{ clave: string; total: number; nota: string | null } | null>(null);
+  const clave = `${product.id}:${quantity}`;
+  useEffect(() => {
+    let vivo = true;
+    const t = setTimeout(() => {
+      getQuoteTotal(product, quantity)
+        .then((r) => { if (vivo) setReal({ clave, ...r }); })
+        .catch(() => undefined);
+    }, 150);
+    return () => { vivo = false; clearTimeout(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clave]);
+  const vigente = real?.clave === clave ? real : null;
+  return (
+    <>
+      <p className={className} data-testid="total-cotizacion">{money(vigente ? vigente.total : product.salePrice * quantity)}</p>
+      {vigente?.nota && <p className="mt-0.5 max-w-[240px] text-[11px] text-text2" data-testid="nota-cotizacion">{vigente.nota}</p>}
     </>
   );
 }

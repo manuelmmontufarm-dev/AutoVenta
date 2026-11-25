@@ -1,7 +1,7 @@
 import { navigate } from "../router";
 import { AnimatePresence, motion } from "framer-motion";
 import { MedidaChip } from "../components/ui";
-import { Cantidad, FilaProducto, Hoja } from "../components/adjuntar";
+import { Cantidad, FilaProducto, Hoja, TotalDeCotizacion } from "../components/adjuntar";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   downloadComparisonImage,
@@ -12,7 +12,6 @@ import {
   getComparisonMessage,
   getOptionsMessage,
   getQuoteMessage,
-  getQuoteTotal,
   hasAdminKey,
   saveAdminKey,
   searchCatalog,
@@ -1438,30 +1437,3 @@ function money(value: number): string {
 }
 
 
-/**
- * El total que va a salir en la cotización, pedido al servidor: con Black
- * Friday o una promoción por cantidad no es precio × cantidad (25-nov-2026:
- * 4 Kenda decían $251.48 aquí y la pieza $234.70). Mientras contesta, o si no
- * contesta, se muestra la cuenta simple.
- */
-function TotalDeCotizacion({ product, quantity, className }: { product: CatalogProduct; quantity: number; className: string }) {
-  const [real, setReal] = useState<{ clave: string; total: number; nota: string | null } | null>(null);
-  const clave = `${product.id}:${quantity}`;
-  useEffect(() => {
-    let vivo = true;
-    const t = setTimeout(() => {
-      getQuoteTotal(product, quantity)
-        .then((r) => { if (vivo) setReal({ clave, ...r }); })
-        .catch(() => undefined);
-    }, 150);
-    return () => { vivo = false; clearTimeout(t); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clave]);
-  const vigente = real?.clave === clave ? real : null;
-  return (
-    <>
-      <p className={className} data-testid="total-cotizacion">{money(vigente ? vigente.total : product.salePrice * quantity)}</p>
-      {vigente?.nota && <p className="mt-0.5 max-w-[240px] text-[11px] text-text2" data-testid="nota-cotizacion">{vigente.nota}</p>}
-    </>
-  );
-}
