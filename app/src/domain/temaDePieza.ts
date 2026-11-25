@@ -8,9 +8,13 @@
  * imagen). Es solo apariencia: no toca un solo precio. Las promociones siguen
  * en la pestaña Promociones; el tema es cómo se viste la pieza.
  *
- *   automatico   como siempre: sin cinta; la franja del Black Friday sale sola
- *                cuando la promo corre (domain/promocionDeTemporada.ts).
- *   ninguno      sin cinta.
+ *   automatico   lo guardado antes del 25-nov: sin cinta; la franja del Black
+ *                Friday sale sola cuando la promo corre. El panel ya no lo
+ *                ofrece: lo muestra como «Black Friday» mientras la promo corre
+ *                y como «Normal» cuando no (Manuel, 25-nov: «el automático
+ *                dice Black Friday; el normal debería ser normal»).
+ *   ninguno      «Normal»: sin cinta y sin la franja de temporada. La pieza de
+ *                todos los días. Los precios de la promo no cambian.
  *   <temporada>  uno de los temas listos (Navidad, Año Nuevo, Día de la Madre…).
  *   personalizado título, bajada, colores y adorno a gusto del negocio.
  *
@@ -108,7 +112,7 @@ export const TEMA_INICIAL: ConfigDeTema = { id: "automatico", personalizado: PER
 /** El nombre del tema para el panel. */
 export function nombreDelTema(id: TemaId): string {
   if (id === "automatico") return "Automático";
-  if (id === "ninguno") return "Sin tema";
+  if (id === "ninguno") return "Normal";
   if (id === "personalizado") return "Personalizado";
   return TEMAS_LISTOS[id].nombre;
 }
@@ -143,4 +147,23 @@ export function cintaDelTema(
   if (id === "blackFriday" && opciones.hayFranjaDeTemporada) return null;
   const diseno = id === "personalizado" ? disenoLimpio(tema?.personalizado) : TEMAS_LISTOS[id].diseno;
   return diseno.titulo || diseno.bajada ? diseno : null;
+}
+
+/**
+ * ¿La pieza muestra la franja de la promoción de temporada («BLACK FRIDAY ·
+ * TODO NOVIEMBRE»)? Con el tema «Normal» no: la pieza sale como la de todos
+ * los días. Es apariencia; el precio de la promo sigue en el panel de precio.
+ */
+export function muestraFranjaDeTemporada(tema: Partial<ConfigDeTema> | null | undefined): boolean {
+  return tema?.id !== "ninguno";
+}
+
+/**
+ * El tema que el PANEL marca como elegido. «automatico» ya no es una opción:
+ * equivale a Black Friday mientras la promo de temporada corre y a Normal el
+ * resto del tiempo, que es exactamente lo que sale en la pieza.
+ */
+export function temaQueSeVe(id: TemaId, promoDeTemporadaVigente: boolean): Exclude<TemaId, "automatico"> {
+  if (id !== "automatico") return id;
+  return promoDeTemporadaVigente ? "blackFriday" : "ninguno";
 }

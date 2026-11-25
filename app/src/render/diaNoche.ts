@@ -28,7 +28,7 @@ import { depotLogo, logoOficial } from "./assets.js";
 import { el, img, stripEmoji, text, type SatoriNode } from "./depotDesign.js";
 import { ahorroDeLaCotizacion, rotulosDeSegundaLlanta, textoVitrinaSegundaLlanta, type PosterLine } from "./depotPosters.js";
 import { cuentaDeSegundaLlanta } from "../domain/promocionDeTemporada.js";
-import { cintaDelTema, type ConfigDeTema } from "../domain/temaDePieza.js";
+import { cintaDelTema, muestraFranjaDeTemporada, type ConfigDeTema } from "../domain/temaDePieza.js";
 import { cintaDeTema } from "./cintaDeTema.js";
 import { etiquetaDePromocion } from "../domain/promocion.js";
 import type { PerfilDeNegocio } from "../negocio/perfil.js";
@@ -958,7 +958,8 @@ export function optionsPosterDiaNoche(data: OptionsDiaNocheData, modo: ModoPieza
     cintaDeTema(cintaDelTema(data.tema, { hayFranjaDeTemporada: Boolean(franjaBF) }),
       { escala: 1.1, fuenteTitulo: ANCHO(900), fuenteBajada: BARLOW(600), marginTop: 18 }),
     text({ ...ARCHIVO, fontSize: 30, lineHeight: 1, letterSpacing: -0.2, marginTop: 20, color: t.txt, whiteSpace: "nowrap" }, titulo),
-    franjaBF,
+    // Con el tema «Normal» la franja de temporada no va (25-nov).
+    muestraFranjaDeTemporada(data.tema) ? franjaBF : null,
     // La dorada, si queda: con Black Friday es solo de las marcas que siguen
     // con su −25 % (Winrun…), y lo dice.
     el({ justifyContent: "space-between", alignItems: "center", marginTop: franjaBF ? 12 : 4, gap: 16 }, bajada, insignia),
@@ -1076,7 +1077,7 @@ export function quotePosterDiaNoche(data: QuoteDiaNocheData, modo: ModoPieza): S
 
     cintaDeTema(cintaDelTema(data.tema, { hayFranjaDeTemporada: Boolean(bf || line.temporada?.precioEspecial) }),
       { escala: 1, fuenteTitulo: ANCHO(900), fuenteBajada: BARLOW(600) }),
-    bf || line.temporada?.precioEspecial ? franjaTemporadaDiaNoche(line) : null,
+    (bf || line.temporada?.precioEspecial) && muestraFranjaDeTemporada(data.tema) ? franjaTemporadaDiaNoche(line) : null,
 
     // Héroe
     el({
@@ -1280,16 +1281,29 @@ export function quotePosterDiaNoche(data: QuoteDiaNocheData, modo: ModoPieza): S
 
     // Incluido sin costo — con letra grande (Manuel, 12-sep: «no se lee»)
     beneficios.length ? cabeceraSeccion("INCLUIDO SIN COSTO", 19, t, true, 24) : null,
-    ...enFilas(beneficios, 2).map((fila, i) =>
-      el({ gap: 10, marginTop: i === 0 ? 14 : 10 },
+    // Número impar (Manuel, 25-nov: «que incluya toda la fila para que se vea
+    // relleno»): la que queda sola ocupa el ancho entero, con el ícono al lado
+    // del texto, en vez de dejar medio renglón vacío.
+    ...enFilas(beneficios, 2).map((fila, i) => {
+      const sola = fila.filter(Boolean).length === 1 && beneficios.length > 1;
+      return el({ gap: 10, marginTop: i === 0 ? 14 : 10 },
         ...fila.map((b) => b
-          ? panel({ flex: 1, minWidth: 0, flexDirection: "column", padding: "18px 18px 20px" },
-              cajaIcono(b.icono, 40, 20, t),
-              text({ ...ARCHIVO, fontSize: 17, lineHeight: 1.2, marginTop: 14, color: t.txt }, b.titulo),
-              b.detalle ? text({ ...BARLOW(400), fontSize: 14, lineHeight: 1.36, marginTop: 7, color: t.incP }, b.detalle) : null,
-            )
-          : el({ flex: 1 })),
-      )),
+          ? sola
+            ? panel({ flex: 1, minWidth: 0, alignItems: "center", gap: 16, padding: "18px 18px 20px" },
+                cajaIcono(b.icono, 40, 20, t),
+                el({ flex: 1, minWidth: 0, flexDirection: "column" },
+                  text({ ...ARCHIVO, fontSize: 17, lineHeight: 1.2, color: t.txt }, b.titulo),
+                  b.detalle ? text({ ...BARLOW(400), fontSize: 14, lineHeight: 1.36, marginTop: 5, color: t.incP }, b.detalle) : null,
+                ),
+              )
+            : panel({ flex: 1, minWidth: 0, flexDirection: "column", padding: "18px 18px 20px" },
+                cajaIcono(b.icono, 40, 20, t),
+                text({ ...ARCHIVO, fontSize: 17, lineHeight: 1.2, marginTop: 14, color: t.txt }, b.titulo),
+                b.detalle ? text({ ...BARLOW(400), fontSize: 14, lineHeight: 1.36, marginTop: 7, color: t.incP }, b.detalle) : null,
+              )
+          : sola ? null : el({ flex: 1 })),
+      );
+    }),
 
     el({ justifyContent: "space-between", marginTop: 16, paddingTop: 12, borderTop: `1px solid ${t.line}` },
       text({ ...BARLOW(400), fontSize: 8.5, color: t.sub }, MEDIOS_DE_PAGO_DIA_NOCHE),

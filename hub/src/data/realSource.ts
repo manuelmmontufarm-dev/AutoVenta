@@ -653,14 +653,15 @@ export class RealSource implements DataSource {
     if (type === "message" && parsed.conversationId) {
       this.emit({ tipo: "mensaje", ticketId: parsed.conversationId });
     }
-    if (type === "alert") {
-      this.emit({
-        tipo: "toast",
-        icono: parsed.icon ?? "🚨",
-        titulo: parsed.title ?? "Nueva alerta del bot",
-        cuerpo: parsed.body ?? "Revisa Alertas del bot u Oportunidades.",
-        ticketId: parsed.conversationId,
-      });
+    // Una alerta del bot ya no levanta la tarjeta genérica «Nueva alerta del
+    // bot · Revisa Alertas del bot u Oportunidades» (Manuel, 25-nov: esa
+    // pestaña ya no existe). Lo que el equipo tiene que saber llega como AVISO
+    // —el mismo de la campana y de la app del teléfono— con su título, el
+    // cliente y el toque que abre el chat: lo muestra `data/avisos.ts` al
+    // recargar con el «sync» de abajo. Solo si el servidor manda un título
+    // propio se muestra tal cual.
+    if (type === "alert" && parsed.title) {
+      this.emit({ tipo: "toast", icono: parsed.icon ?? "🔔", titulo: parsed.title, cuerpo: parsed.body, ticketId: parsed.conversationId });
     }
     this.emit({ tipo: "sync" });
   }

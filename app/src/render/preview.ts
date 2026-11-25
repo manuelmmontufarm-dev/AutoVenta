@@ -7,6 +7,7 @@
  * funcionar aunque Contífico esté caído.
  */
 import type { ConfigDeTema } from "../domain/temaDePieza.js";
+import type { ConfigDeColores } from "../domain/coloresDePieza.js";
 import { ensureCatalogReady, searchByText } from "../services/catalog.js";
 import { normalizeContificoProduct, type CatalogItem } from "../domain/catalog.js";
 import { brandProfilesForRender } from "../services/brandProfiles.js";
@@ -29,6 +30,8 @@ export interface PreviewOptions {
   identidad?: string;
   /** El tema que se está eligiendo en Ajustes (cinta de Navidad, personalizada…). */
   tema?: Partial<ConfigDeTema> | null;
+  /** Los colores que se están eligiendo (paleta lista o propia). */
+  colores?: Partial<ConfigDeColores> | null;
   /**
    * A cuántos píxeles de ancho se pasa la imagen. El panel pide el ancho de su
    * recuadro (×2 en pantallas retina): la vista previa llega en una fracción
@@ -108,6 +111,7 @@ async function dibujar(options: PreviewOptions): Promise<Buffer> {
     brandProfiles: await brandProfilesForRender(),
     identidad: options.identidad,
     tema: options.tema ?? null,
+    colores: options.colores ?? null,
   };
   const fecha = new Date().toLocaleDateString("es-EC", {
     day: "2-digit", month: "2-digit", year: "numeric", timeZone: "America/Guayaquil",

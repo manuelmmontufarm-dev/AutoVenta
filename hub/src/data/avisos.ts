@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { authHeaders } from "./realSource";
+import { useHub } from "../store";
 
 /*
  * Avisos en la app del teléfono (22-nov-2026): el historial por día y la
@@ -35,6 +36,15 @@ async function pedir<T>(ruta: string, init?: RequestInit): Promise<T> {
   return cuerpo;
 }
 
+/** El aviso como tarjeta en pantalla: su ícono, su título y «cliente · primera línea». */
+export function tarjetaDe(a: Aviso): { icono: string; titulo: string; cuerpo?: string; ticketId?: number } {
+  const emoji = a.titulo.match(/^[^\p{L}\p{N}]+/u)?.[0].trim() ?? "";
+  const titulo = a.titulo.replace(/^[^\p{L}\p{N}]+/u, "").trim() || "Aviso del bot";
+  const primera = a.mensaje.split("\n").map((l) => l.replace(/\*/g, "").trim()).find((l) => l && !l.includes(titulo)) ?? "";
+  const cuerpo = [a.cliente, primera].filter(Boolean).join(" · ");
+  return { icono: emoji || "🔔", titulo, cuerpo: cuerpo || undefined, ticketId: a.conversationId ?? undefined };
+}
+
 const VISTO = "autoventa.avisos.visto";
 const leerVisto = (): number => {
   try { return Number(window.localStorage.getItem(VISTO) ?? 0) || 0; } catch { return 0; }
@@ -58,6 +68,16 @@ export const useAvisos = create<EstadoAvisos>((set, get) => ({
   async cargar() {
     try {
       const r = await pedir<{ avisos: Aviso[]; soloMios: boolean }>("avisos");
+      // Lo que llegó desde la carga anterior se muestra en pantalla, con el
+      // mismo texto que la campana y la app del teléfono (25-nov: reemplaza a
+      // la tarjeta genérica de «Oportunidades»). La primera carga no avisa:
+      // eso es historial, no novedad.
+      const { cargado, avisos: antes } = get();
+      if (cargado) {
+        const tope = antes.reduce((m, a) => Math.max(m, a.id), 0);
+        const llegaron = r.avisos.filter((a) => a.id > tope).sort((a, b) => a.id - b.id).slice(-2);
+        for (const a of llegaron) useHub.getState().avisar(tarjetaDe(a));
+      }
       set({ avisos: r.avisos, soloMios: r.soloMios, cargado: true });
     } catch {
       set({ cargado: true });

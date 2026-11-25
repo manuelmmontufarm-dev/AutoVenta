@@ -17,6 +17,7 @@ import { modoDePromocion } from "../domain/promocion.js";
 import { hastaEnPalabras, marcaConSegundaLlanta, segundaLlantaDe, type SegundaLlanta } from "../domain/promocionDeTemporada.js";
 import { politica } from "../negocio/politica.js";
 import type { ConfigDeTema } from "../domain/temaDePieza.js";
+import { parDeColores, recolorear, type ConfigDeColores } from "../domain/coloresDePieza.js";
 import { garantiaDelPerfil, warrantyForBrand } from "../services/quoteMessages.js";
 import { loadFonts, loadFontsDiaNoche, productPhoto, type FontSpec, type RasterImage } from "./assets.js";
 import { DEFAULT_BRAND_PROFILES, resolveTheme, type SatoriNode, type Theme } from "./depotDesign.js";
@@ -112,6 +113,8 @@ export interface PieceTheme {
   identidad?: string;
   /** El tema (cinta de Navidad, Año Nuevo, personalizada…): `pieces_config.tema`. */
   tema?: Partial<ConfigDeTema> | null;
+  /** Los colores de «día y noche» (`pieces_config.colores`); sin ellos, los de la maqueta. */
+  colores?: Partial<ConfigDeColores> | null;
 }
 
 function themeOf(data: PieceTheme): Theme {
@@ -246,7 +249,7 @@ export async function renderQuoteImage(data: QuoteRenderData): Promise<Buffer> {
       },
       resolverModo(data.modo, data.ahora),
     );
-    return renderPng(node, DIA_NOCHE_ANCHO.cotizacion, undefined, { escala: DIA_NOCHE_ESCALA, fonts: loadFontsDiaNoche() });
+    return renderPng(recolorear(node, parDeColores(data.colores)), DIA_NOCHE_ANCHO.cotizacion, undefined, { escala: DIA_NOCHE_ESCALA, fonts: loadFontsDiaNoche() });
   }
   const node = quotePoster(
     {
@@ -346,7 +349,7 @@ export async function renderOptionsImage(data: OptionsRenderData): Promise<Buffe
       },
       resolverModo(data.modo, data.ahora),
     );
-    return renderPng(node, DIA_NOCHE_ANCHO.opciones, undefined, { escala: DIA_NOCHE_ESCALA, fonts: loadFontsDiaNoche() });
+    return renderPng(recolorear(node, parDeColores(data.colores)), DIA_NOCHE_ANCHO.opciones, undefined, { escala: DIA_NOCHE_ESCALA, fonts: loadFontsDiaNoche() });
   }
   const node = optionsPoster(
     {

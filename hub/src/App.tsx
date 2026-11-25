@@ -48,7 +48,7 @@ const NAV: readonly { id: string; label: string; icon: typeof IconInbox; requier
   //
   // Inventario y Promociones son trabajo de Excel: solo en la computadora.
   { id: "inventario", label: "Inventario", icon: IconDoc, requiere: null, soloEscritorio: true, herramienta: true },
-  { id: "promociones", label: "Promociones", icon: IconEtiqueta, requiere: null, soloEscritorio: true, herramienta: true },
+  { id: "promociones", label: "Oferta y diseño", icon: IconEtiqueta, requiere: null, soloEscritorio: true, herramienta: true },
   // «Validar»: el vendedor valida el número de un comprador. Solo para quien
   // tiene el permiso en Ajustes → Usuarios (Depot no lo usa).
   { id: "validar", label: "Validar", icon: IconPhone, requiere: null, herramienta: true },
@@ -104,7 +104,7 @@ const TITULOS: Record<string, { titulo: string; sub: string }> = {
   avisos: { titulo: "Avisos", sub: "Lo que el bot le avisó al equipo, por día" },
   validar: { titulo: "Validar número", sub: "¿Este comprador vino por WhatsApp? Escriba su número y registre la factura" },
   inventario: { titulo: "Inventario", sub: "El Excel de Fénix con el que el bot cotiza: súbalo cada día" },
-  promociones: { titulo: "Promociones", sub: "El precio, lo que incluye y cómo se ve la cotización que recibe el cliente" },
+  promociones: { titulo: "Oferta y diseño", sub: "Promociones, lo que incluye la compra y cómo se ve la cotización que recibe el cliente" },
   settings: { titulo: "Configuración técnica", sub: "WhatsApp, encendido y manual del bot" },
   ticket: { titulo: "Conversación", sub: "" },
 };
