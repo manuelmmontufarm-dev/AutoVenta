@@ -1,3 +1,93 @@
+## 24-nov-2026 · Bot + app + panel · A soporte le suena el teléfono cuando el bot no responde y cuando el saldo de OpenAI baja (rama `feat/avisos-bot-caido-y-saldo`)
+
+- **Por qué:** Manuel, 24-nov: «necesito que a mí me llegue una notificación ese rato si por a o b
+  razón no responde el bot, como ahorita que me quedé sin tokens; también un aviso si baja de 3
+  dólares los tokens». Ese día el crédito de OpenAI se acabó de 16:35 a 17:58: **13 chats** (12 de
+  Depot, 1 de Competimotor) recibieron «tengo un problema técnico para responderle. Se lo consulto y
+  le confirmo». El bot dejó 13 alertas `proveedor_ia_caido` en la pestaña Errores y **a nadie le
+  llegó nada al teléfono**: nadie quedó encargado de «consultarlo». Había pasado igual el 11-sep.
+- **Dónde se perdía:** `agent.ts` reintenta (1 vez el SDK + el rescate con el modelo de escalación)
+  y, si OpenAI sigue fallando, escribe `ai_runs.route = failed`, crea la alerta del panel y le
+  contesta la disculpa al cliente. Ahí terminaba. Lo que reventaba FUERA del agente (rutas directas,
+  candados de salida, envío) subía a `pipeline/inbound.ts`, que solo hace `console.error`.
+- **Qué:**
+  - **Aviso «el bot no respondió»** (`services/avisosASoporte.ts`, reglas y textos en
+    `domain/falloDelBot.ts`). Se dispara en cuatro puntos: el agente se rinde (OpenAI sin crédito,
+    429, timeout, 5xx, clave rechazada, respuesta vacía), el agente revienta, el turno entero
+    revienta o lleva 5 min colgado (`services/vigilanciaDelTurno.ts`), y WhatsApp rechaza la
+    respuesta del turno. Dice el cliente (Depot Tire / Competimotor), la causa en simple, el chat y
+    qué hacer. Los textos son fijos: no depende de OpenAI para redactarse.
+  - **Sin spam:** un incidente abierto por causa (índice único parcial en `incidentes_del_bot`).
+    Un aviso al abrirse, un recordatorio a los 30 min y después cada 2 h —solo si siguen entrando
+    fallos—, y un «volvió a responder» con cuánto duró y cuántos chats quedaron. El «volvió» pide
+    3 min sin fallos (un límite de velocidad intermitente abriría y cerraría cada minuto) y que
+    conteste el MODELO: que salga el saludo fijo no cierra un incidente de OpenAI.
+  - **No es fallo:** bot apagado a propósito, chat en manos de un asesor, bot en pausa en ese chat.
+    El turno ya se corta antes; el candado está repetido en `calladoAProposito` por si una puerta
+    nueva se olvida de preguntar.
+  - **A quién y por dónde:** al usuario `manuel` (soporte; existe en el panel de los dos clientes),
+    no a los asesores ni por los niveles de Ajustes → Avisos. Por la **app** a todos sus aparatos
+    (`enviarPushAUsuarios`, por usuario y no por teléfono de asesor) y **además por WhatsApp** a su
+    número: texto con la ventana de 24 h abierta, plantilla `aviso_asesor_v1` con la ventana
+    cerrada (el texto libre rebotaría con el 131047). Cada aviso queda en `avisos_a_soporte`.
+  - **Aviso de saldo bajo** (`services/saldoDeIA.ts`): soporte anota el saldo que ve en OpenAI y
+    el bot le resta lo gastado; al bajar del umbral ($3 por defecto, se cambia) avisa **una vez**
+    (incidente `saldo_bajo`) y queda listo de nuevo al anotar la recarga. Revisa cada 5 min.
+  - **Panel → Ajustes → Bot** (solo soporte): tarjeta «Avisos a soporte» con el saldo, el umbral,
+    los incidentes abiertos, los últimos avisos y **«Probar aviso»**.
+  - Una clave rechazada (401/403) ya cuenta como fallo del proveedor (`falloDelProveedor.ts`):
+    al cliente no se le pide repetir.
+  - Simulador: `POST /api/openai {"fallar":"sin_credito"}` (con `--stub`) apaga el OpenAI de
+    mentira con el cuerpo real del 24-nov. Migración `042_avisos_a_soporte` (la 041 la tiene
+    reservada la rama `feat/proveedor-fable`); las tres tablas son DATOS en `tablas.mjs`.
+- **El saldo, lo que se averiguó (probado contra la API real, solo lectura):**
+  - El saldo que queda **no se puede leer por API**: `credit_grants` contesta 403 a la clave del
+    bot y a la de administrador. La clave del bot tampoco lee el gasto (403 en `/v1/organization/costs`).
+  - La clave de administrador **sí** lee el gasto de toda la organización por día, con ~2 min de
+    atraso (medido una vez). Ya existía como `OPENAI_ADMIN_KEY` en el servicio de Depot, sin usar.
+  - Depot, Competimotor y el simulador usan claves del **mismo proyecto de la misma organización**:
+    el crédito es uno solo (por eso se cayeron los dos a la vez). Gasto de la semana: $7–$40 al día.
+  - **Quién gasta el crédito** (OpenAI contra `ai_runs` de los dos bots, día UTC):
+    18-nov $18,50 = Depot $16,52 + Competimotor $1,07 + resto $0,91 · 19-nov $37,71 = $18,98 +
+    $1,15 + **$17,58** · 20-nov $40,23 = $15,74 + $5,34 + **$19,14** · 21-nov $22,28 = $14,30 +
+    $4,22 + $3,76 · 22-nov $6,90 = $4,65 + $2,38 − $0,13 · 23-nov $16,74 = $12,07 + $4,69 − $0,02 ·
+    24-nov (hasta las 18:50) $32,43 = $14,84 + $3,61 + **$13,98**. El «resto» son las pruebas (el
+    simulador gasta del mismo crédito que producción): el día de la caída, casi la mitad. Los días
+    sin pruebas la cuenta por `ai_runs` calza con OpenAI al centavo (−$0,02 y −$0,13).
+  - Con `OPENAI_ADMIN_KEY`: saldo = anotado − gasto de la organización (se guarda cuánto llevaba
+    el día al anotar, porque OpenAI entrega el día entero). Error: los ~2 min de atraso. Sin ella:
+    se estima con `ai_runs` de ESE bot a la tarifa de la factura, se marca «unos $X» y **se queda
+    corto**: no ve al otro bot ($1–$5 al día) ni las pruebas (hasta $19 al día).
+- **Decidido sin preguntar:** el aviso no pasa por los niveles de Ajustes → Avisos (un «el bot está
+  caído» no puede depender de una casilla); el «error interno» de un solo turno también avisa
+  (pasó 3 veces en 30 días fuera de caídas); el recordatorio lo dispara un fallo nuevo, no un reloj
+  (de noche, sin clientes escribiendo, no suena).
+- **Ojo:**
+  - Sin saldo anotado **no hay aviso de saldo bajo**, y cada recarga hay que anotarla.
+  - El servicio de Competimotor no tiene `OPENAI_ADMIN_KEY`: como el crédito es compartido, alcanza
+    con anotar el saldo en el panel de Depot.
+  - Si se cae el servidor entero o la base, el bot no puede avisar de sí mismo: eso pide un
+    vigilante de afuera sobre `/health` (no está hecho).
+  - Los chats que quedaron sin respuesta durante una caída NO se retoman solos al volver; el aviso
+    de vuelta dice cuántos son, y hay que contestarlos a mano.
+  - El push de verdad no se prueba en el simulador (no hay teléfonos suscritos ahí): se prueba con
+    «Probar aviso» en producción.
+- **Probado:** `falloDelBot.test.ts` (reglas), `avisosASoporte.integration.test.ts` (30 fallos a la
+  vez → 1 aviso; recordatorios; vuelta; apagado / asesor → 0; plantilla con ventana cerrada),
+  `botSinCredito.integration.test.ts` (el agente de verdad contra un OpenAI que contesta el 429
+  real; visto en rojo sin los enganches: 0 avisos), `saldoDeIA.integration.test.ts` (cruce avisa
+  una vez; recarga rearma; OpenAI no contesta → no inventa), `soporteEndpoint.test.ts` (un admin
+  del negocio recibe 403). Simulador con `--stub`: turno sano → OpenAI sin crédito (1 aviso) → 3
+  mensajes más (sigue 1) → bot apagado (silencio, 0 avisos nuevos) → vuelve (1 «volvió», tras los
+  3 min de calma) → saldo anotado en $3,00 y cruce (1 aviso; la revisión siguiente no repite). La
+  tarjeta de Ajustes → Bot, en el navegador, con «Probar aviso». `sim:humo` 8/8, fidelidad y
+  perfil ajeno en verde, `--perfil ejemplo --humo` 8/8.
+- **No se pudo:** una corrida limpia de `npm test`: otra sesión tenía 12–14 simuladores abiertos y
+  el Postgres local llegó a sus 100 conexiones («too many clients»). Corridas solas, fallan tres
+  que **ya fallan en `main`** sin este cambio: `unidadEnLaCantidad` (quoteMessages.ts),
+  `hashesPiezasDepot` y `bitacoraDelPanel` (pide OPENAI_API_KEY).
+- **Horas:** 4.
+
 ## 24-nov-2026 · Panel · Promociones y Piezas en una sola pantalla con vista previa al instante; Seguimientos rehecho; Ajustes más corto (rama `feat/promociones-con-piezas`)
 
 - **Qué:**

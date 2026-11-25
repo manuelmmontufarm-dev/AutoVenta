@@ -71,10 +71,9 @@ async function usoEntre(desde: string, hastaExcl: string): Promise<UsoPeriodo> {
     const inp = Number(row.inp ?? 0);
     const cached = Math.min(Number(row.cached ?? 0), inp);
     const outp = Number(row.outp ?? 0);
-    const t = tarifaDe(row.model);
     // OpenAI reporta prompt_tokens INCLUYENDO los cacheados: se descuentan
     // del precio pleno y se cobran a tarifa de caché.
-    uso.usd += ((inp - cached) * t.input + cached * t.cachedInput + outp * t.output) / 1_000_000;
+    uso.usd += costoDeTokens(row.model, inp, cached, outp);
     uso.inputTokens += inp;
     uso.cachedInputTokens += cached;
     uso.outputTokens += outp;
@@ -83,6 +82,17 @@ async function usoEntre(desde: string, hastaExcl: string): Promise<UsoPeriodo> {
   uso.usd = redondear(uso.usd);
   uso.usdConIva = redondear(uso.usd * (1 + IVA));
   return uso;
+}
+
+/**
+ * Lo que costó un grupo de corridas de un modelo, en USD sin IVA. La misma
+ * cuenta que la factura mensual, para que el saldo estimado (services/saldoDeIA.ts)
+ * no se calcule con otra tarifa.
+ */
+export function costoDeTokens(model: string, inputTokens: number, cachedInputTokens: number, outputTokens: number): number {
+  const t = tarifaDe(model);
+  const cached = Math.min(cachedInputTokens, inputTokens);
+  return ((inputTokens - cached) * t.input + cached * t.cachedInput + outputTokens * t.output) / 1_000_000;
 }
 
 function redondear(n: number): number {

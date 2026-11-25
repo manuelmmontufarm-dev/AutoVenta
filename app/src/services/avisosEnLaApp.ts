@@ -167,40 +167,69 @@ export async function enviarPushAAsesores(telefonos: string[], aviso: AvisoPush)
   const llaves = [...new Set(telefonos.map((t) => tel9(t)).filter((t): t is string => Boolean(t)))];
   if (!llaves.length) return 0;
   try {
-    const subs = await sql<{ id: number; endpoint: string; p256dh: string; auth: string }[]>`
+    const subs = await sql<FilaDeSuscripcion[]>`
       select id, endpoint, p256dh, auth from push_subscriptions
       where advisor_phone is not null and failed_count < 5
         and right(regexp_replace(advisor_phone, '\\D', '', 'g'), 9) = any(${llaves})
     `;
-    if (!subs.length) return 0;
-    const { publicKey, privateKey } = await clavesPush();
-    const cuerpo = JSON.stringify(aviso);
-    let enviados = 0;
-    await Promise.all(subs.map(async (s) => {
-      try {
-        if (transporte) await transporte({ endpoint: s.endpoint }, cuerpo);
-        else {
-          await webpush.sendNotification(
-            { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
-            cuerpo,
-            { vapidDetails: { subject: asuntoVapid(), publicKey, privateKey }, TTL: 6 * 60 * 60, urgency: "high" },
-          );
-        }
-        enviados += 1;
-        await sql`update push_subscriptions set last_ok_at = now(), failed_count = 0 where id = ${s.id}`;
-      } catch (error) {
-        const status = (error as { statusCode?: number }).statusCode;
-        // 404/410: el teléfono desinstaló la app o revocó el permiso. Se borra:
-        // ese asesor vuelve a recibir por WhatsApp sin que nadie haga nada.
-        if (status === 404 || status === 410) await sql`delete from push_subscriptions where id = ${s.id}`;
-        else await sql`update push_subscriptions set failed_count = failed_count + 1 where id = ${s.id}`;
-      }
-    }));
-    return enviados;
+    return await entregarPush(subs, aviso);
   } catch (error) {
     console.error("⚠️ No se pudo mandar el aviso por la app:", error instanceof Error ? error.message : error);
     return 0;
   }
+}
+
+/**
+ * Manda el aviso a todos los teléfonos donde ESOS USUARIOS del panel activaron
+ * las notificaciones, sean o no asesores de la lista de avisos. Es el camino de
+ * los avisos a soporte (24-nov-2026: «el bot no respondió», «saldo bajo»): van
+ * a la persona, no a un nivel de asesor, y no dependen de la ventana de 24 h
+ * de WhatsApp. Nunca lanza.
+ */
+export async function enviarPushAUsuarios(userIds: readonly string[], aviso: AvisoPush): Promise<number> {
+  const ids = [...new Set(userIds.map((u) => u.trim()).filter(Boolean))];
+  if (!ids.length) return 0;
+  try {
+    const subs = await sql<FilaDeSuscripcion[]>`
+      select id, endpoint, p256dh, auth from push_subscriptions
+      where failed_count < 5 and user_id = any(${ids})
+    `;
+    return await entregarPush(subs, aviso);
+  } catch (error) {
+    console.error("⚠️ No se pudo mandar el aviso por la app:", error instanceof Error ? error.message : error);
+    return 0;
+  }
+}
+
+interface FilaDeSuscripcion { id: number; endpoint: string; p256dh: string; auth: string }
+
+/** El envío en sí, igual para asesores y para usuarios. Devuelve a cuántos teléfonos salió. */
+async function entregarPush(subs: FilaDeSuscripcion[], aviso: AvisoPush): Promise<number> {
+  if (!subs.length) return 0;
+  const { publicKey, privateKey } = await clavesPush();
+  const cuerpo = JSON.stringify(aviso);
+  let enviados = 0;
+  await Promise.all(subs.map(async (s) => {
+    try {
+      if (transporte) await transporte({ endpoint: s.endpoint }, cuerpo);
+      else {
+        await webpush.sendNotification(
+          { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
+          cuerpo,
+          { vapidDetails: { subject: asuntoVapid(), publicKey, privateKey }, TTL: 6 * 60 * 60, urgency: "high" },
+        );
+      }
+      enviados += 1;
+      await sql`update push_subscriptions set last_ok_at = now(), failed_count = 0 where id = ${s.id}`;
+    } catch (error) {
+      const status = (error as { statusCode?: number }).statusCode;
+      // 404/410: el teléfono desinstaló la app o revocó el permiso. Se borra:
+      // ese asesor vuelve a recibir por WhatsApp sin que nadie haga nada.
+      if (status === 404 || status === 410) await sql`delete from push_subscriptions where id = ${s.id}`;
+      else await sql`update push_subscriptions set failed_count = failed_count + 1 where id = ${s.id}`;
+    }
+  }));
+  return enviados;
 }
 
 // ── Historial ────────────────────────────────────────────────────────────────
