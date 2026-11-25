@@ -123,6 +123,15 @@ async function usoEntre(desde: string, hastaExcl: string): Promise<UsoPeriodo> {
   return uso;
 }
 
+/**
+ * Lo que costó un grupo de corridas de un modelo, en USD sin IVA. La misma
+ * cuenta que la factura mensual, para que el saldo estimado (services/saldoDeIA.ts)
+ * no se calcule con otra tarifa.
+ */
+export function costoDeTokens(model: string, inputTokens: number, cachedInputTokens: number, outputTokens: number): number {
+  return costoEnUsd(model, { input: inputTokens, cached: Math.min(cachedInputTokens, inputTokens), output: outputTokens });
+}
+
 function redondear(n: number): number {
   return Math.round(n * 100) / 100;
 }

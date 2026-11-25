@@ -1,4 +1,7 @@
 {
+  "id": "./",
+  "handle_links": "preferred",
+  "launch_handler": { "client_mode": ["navigate-existing", "auto"] },
   "name": "AutoVenta Hub",
   "short_name": "AutoVenta",
   "description": "Panel de ventas de AutoVenta: inbox, oportunidades y pipeline.",

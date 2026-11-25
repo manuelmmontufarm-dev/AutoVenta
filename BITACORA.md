@@ -1,3 +1,20 @@
+## 24-nov-2026 · Bot · Claude contra gpt-5.5: dos corridas de 50 y decisión Sonnet + Haiku (rama `feat/proveedor-fable`)
+
+- **Qué:** se completaron dos corridas de los 50 casos difíciles para control (gpt-5.5), Sonnet 5.5 + Guardián Haiku 5.5 y
+  Sonnet 5.5 + Guardián gpt-5.4-mini. `grafico-canary.mjs` acepta `--control`; nuevo `scripts/sim/progreso-lotes.mjs`
+  (tablero local del avance de los lotes, con aviso si una clave se queda sin saldo). Merge de main (042): la 041 corre
+  después de la 042 y sigue siendo `ULTIMA_MIGRACION_REGISTRADA`; `costoDeTokens` delega en `costoEnUsd`; el saldo
+  estimado de OpenAI (`saldoDeIA`) ya no cuenta corridas de modelos `claude-`.
+- **Por qué:** Manuel quiere bajar el costo de IA de Depot sin perder calidad y decidió pasar todo Depot a Sonnet + Haiku.
+- **Probado:** diferencia pareada por caso (media de 2 corridas, n=50) ± 2 EE: Sonnet+Haiku −0,20 ± 0,29 (juez gpt) y
+  −0,04 ± 0,23 (juez Opus): sin señal. Sonnet+mini −0,29 ± 0,27 y −0,27 ± 0,26: pérdida leve. Costo por conversación
+  $0,067 y $0,076 contra $0,233 del control (Guardián: $14,16 gpt-5.5, $2,53 mini, $0,50 Haiku por 100 conv.). Un caso
+  se repite bajo el límite con Sonnet: el 28 (medida a pedazos). La primera tanda se dañó porque la clave de pruebas de
+  OpenAI se quedó sin saldo; se descartó y se repitió. 20 simuladores a la vez NO aguanta: Postgres local corta en 100
+  conexiones («too many clients»); 12 sí. Suite: 4.782 verdes; las 3 rojas (`bitacoraDelPanel`, `hashesPiezasDepot`,
+  `unidadEnLaCantidad`) son de archivos idénticos a main. Reporte: `docs/reportes-historicos/2026-11-24-claude-control-chart.html`.
+- **Horas:** 3.
+
 ## 24-nov-2026 · Bot · Claude contra gpt-5.5: humo real y criba de 20 conversaciones (rama `feat/proveedor-fable`)
 
 - **Qué:** con la clave de pruebas de Anthropic, `npm run claude:humo` contra la API real (Fable, Opus, Sonnet, Haiku:
@@ -26,6 +43,200 @@
   `unidadEnLaCantidad`); `tsc` ✅; `sim:humo` ✅. La CALIDAD contra gpt-5.5 no está medida: necesita la clave y los
   lotes del plan (sección 6). Nada desplegado ni mergeado.
 - **Horas:** 1.
+## 24-nov-2026 · Bot + app + panel · A soporte le suena el teléfono cuando el bot no responde y cuando el saldo de OpenAI baja (rama `feat/avisos-bot-caido-y-saldo`)
+
+- **Por qué:** Manuel, 24-nov: «necesito que a mí me llegue una notificación ese rato si por a o b
+  razón no responde el bot, como ahorita que me quedé sin tokens; también un aviso si baja de 3
+  dólares los tokens». Ese día el crédito de OpenAI se acabó de 16:35 a 17:58: **13 chats** (12 de
+  Depot, 1 de Competimotor) recibieron «tengo un problema técnico para responderle. Se lo consulto y
+  le confirmo». El bot dejó 13 alertas `proveedor_ia_caido` en la pestaña Errores y **a nadie le
+  llegó nada al teléfono**: nadie quedó encargado de «consultarlo». Había pasado igual el 11-sep.
+- **Dónde se perdía:** `agent.ts` reintenta (1 vez el SDK + el rescate con el modelo de escalación)
+  y, si OpenAI sigue fallando, escribe `ai_runs.route = failed`, crea la alerta del panel y le
+  contesta la disculpa al cliente. Ahí terminaba. Lo que reventaba FUERA del agente (rutas directas,
+  candados de salida, envío) subía a `pipeline/inbound.ts`, que solo hace `console.error`.
+- **Qué:**
+  - **Aviso «el bot no respondió»** (`services/avisosASoporte.ts`, reglas y textos en
+    `domain/falloDelBot.ts`). Se dispara en cuatro puntos: el agente se rinde (OpenAI sin crédito,
+    429, timeout, 5xx, clave rechazada, respuesta vacía), el agente revienta, el turno entero
+    revienta o lleva 5 min colgado (`services/vigilanciaDelTurno.ts`), y WhatsApp rechaza la
+    respuesta del turno. Dice el cliente (Depot Tire / Competimotor), la causa en simple, el chat y
+    qué hacer. Los textos son fijos: no depende de OpenAI para redactarse.
+  - **Sin spam:** un incidente abierto por causa (índice único parcial en `incidentes_del_bot`).
+    Un aviso al abrirse, un recordatorio a los 30 min y después cada 2 h —solo si siguen entrando
+    fallos—, y un «volvió a responder» con cuánto duró y cuántos chats quedaron. El «volvió» pide
+    3 min sin fallos (un límite de velocidad intermitente abriría y cerraría cada minuto) y que
+    conteste el MODELO: que salga el saludo fijo no cierra un incidente de OpenAI.
+  - **No es fallo:** bot apagado a propósito, chat en manos de un asesor, bot en pausa en ese chat.
+    El turno ya se corta antes; el candado está repetido en `calladoAProposito` por si una puerta
+    nueva se olvida de preguntar.
+  - **A quién y por dónde:** al usuario `manuel` (soporte; existe en el panel de los dos clientes),
+    no a los asesores ni por los niveles de Ajustes → Avisos. Por la **app** a todos sus aparatos
+    (`enviarPushAUsuarios`, por usuario y no por teléfono de asesor) y **además por WhatsApp** a su
+    número: texto con la ventana de 24 h abierta, plantilla `aviso_asesor_v1` con la ventana
+    cerrada (el texto libre rebotaría con el 131047). Cada aviso queda en `avisos_a_soporte`.
+  - **Aviso de saldo bajo** (`services/saldoDeIA.ts`): soporte anota el saldo que ve en OpenAI y
+    el bot le resta lo gastado; al bajar del umbral ($3 por defecto, se cambia) avisa **una vez**
+    (incidente `saldo_bajo`) y queda listo de nuevo al anotar la recarga. Revisa cada 5 min.
+  - **Panel → Ajustes → Bot** (solo soporte): tarjeta «Avisos a soporte» con el saldo, el umbral,
+    los incidentes abiertos, los últimos avisos y **«Probar aviso»**.
+  - Una clave rechazada (401/403) ya cuenta como fallo del proveedor (`falloDelProveedor.ts`):
+    al cliente no se le pide repetir.
+  - Simulador: `POST /api/openai {"fallar":"sin_credito"}` (con `--stub`) apaga el OpenAI de
+    mentira con el cuerpo real del 24-nov. Migración `042_avisos_a_soporte` (la 041 la tiene
+    reservada la rama `feat/proveedor-fable`); las tres tablas son DATOS en `tablas.mjs`.
+- **El saldo, lo que se averiguó (probado contra la API real, solo lectura):**
+  - El saldo que queda **no se puede leer por API**: `credit_grants` contesta 403 a la clave del
+    bot y a la de administrador. La clave del bot tampoco lee el gasto (403 en `/v1/organization/costs`).
+  - La clave de administrador **sí** lee el gasto de toda la organización por día, con ~2 min de
+    atraso (medido una vez). Ya existía como `OPENAI_ADMIN_KEY` en el servicio de Depot, sin usar.
+  - Depot, Competimotor y el simulador usan claves del **mismo proyecto de la misma organización**:
+    el crédito es uno solo (por eso se cayeron los dos a la vez). Gasto de la semana: $7–$40 al día.
+  - **Quién gasta el crédito** (OpenAI contra `ai_runs` de los dos bots, día UTC):
+    18-nov $18,50 = Depot $16,52 + Competimotor $1,07 + resto $0,91 · 19-nov $37,71 = $18,98 +
+    $1,15 + **$17,58** · 20-nov $40,23 = $15,74 + $5,34 + **$19,14** · 21-nov $22,28 = $14,30 +
+    $4,22 + $3,76 · 22-nov $6,90 = $4,65 + $2,38 − $0,13 · 23-nov $16,74 = $12,07 + $4,69 − $0,02 ·
+    24-nov (hasta las 18:50) $32,43 = $14,84 + $3,61 + **$13,98**. El «resto» son las pruebas (el
+    simulador gasta del mismo crédito que producción): el día de la caída, casi la mitad. Los días
+    sin pruebas la cuenta por `ai_runs` calza con OpenAI al centavo (−$0,02 y −$0,13).
+  - Con `OPENAI_ADMIN_KEY`: saldo = anotado − gasto de la organización (se guarda cuánto llevaba
+    el día al anotar, porque OpenAI entrega el día entero). Error: los ~2 min de atraso. Sin ella:
+    se estima con `ai_runs` de ESE bot a la tarifa de la factura, se marca «unos $X» y **se queda
+    corto**: no ve al otro bot ($1–$5 al día) ni las pruebas (hasta $19 al día).
+- **Decidido sin preguntar:** el aviso no pasa por los niveles de Ajustes → Avisos (un «el bot está
+  caído» no puede depender de una casilla); el «error interno» de un solo turno también avisa
+  (pasó 3 veces en 30 días fuera de caídas); el recordatorio lo dispara un fallo nuevo, no un reloj
+  (de noche, sin clientes escribiendo, no suena).
+- **Ojo:**
+  - Sin saldo anotado **no hay aviso de saldo bajo**, y cada recarga hay que anotarla.
+  - El servicio de Competimotor no tiene `OPENAI_ADMIN_KEY`: como el crédito es compartido, alcanza
+    con anotar el saldo en el panel de Depot.
+  - Si se cae el servidor entero o la base, el bot no puede avisar de sí mismo: eso pide un
+    vigilante de afuera sobre `/health` (no está hecho).
+  - Los chats que quedaron sin respuesta durante una caída NO se retoman solos al volver; el aviso
+    de vuelta dice cuántos son, y hay que contestarlos a mano.
+  - El push de verdad no se prueba en el simulador (no hay teléfonos suscritos ahí): se prueba con
+    «Probar aviso» en producción.
+- **Probado:** `falloDelBot.test.ts` (reglas), `avisosASoporte.integration.test.ts` (30 fallos a la
+  vez → 1 aviso; recordatorios; vuelta; apagado / asesor → 0; plantilla con ventana cerrada),
+  `botSinCredito.integration.test.ts` (el agente de verdad contra un OpenAI que contesta el 429
+  real; visto en rojo sin los enganches: 0 avisos), `saldoDeIA.integration.test.ts` (cruce avisa
+  una vez; recarga rearma; OpenAI no contesta → no inventa), `soporteEndpoint.test.ts` (un admin
+  del negocio recibe 403). Simulador con `--stub`: turno sano → OpenAI sin crédito (1 aviso) → 3
+  mensajes más (sigue 1) → bot apagado (silencio, 0 avisos nuevos) → vuelve (1 «volvió», tras los
+  3 min de calma) → saldo anotado en $3,00 y cruce (1 aviso; la revisión siguiente no repite). La
+  tarjeta de Ajustes → Bot, en el navegador, con «Probar aviso». `sim:humo` 8/8, fidelidad y
+  perfil ajeno en verde, `--perfil ejemplo --humo` 8/8.
+- **No se pudo:** una corrida limpia de `npm test`: otra sesión tenía 12–14 simuladores abiertos y
+  el Postgres local llegó a sus 100 conexiones («too many clients»). Corridas solas, fallan tres
+  que **ya fallan en `main`** sin este cambio: `unidadEnLaCantidad` (quoteMessages.ts),
+  `hashesPiezasDepot` y `bitacoraDelPanel` (pide OPENAI_API_KEY).
+- **Horas:** 4.
+
+## 24-nov-2026 · Panel · Promociones y Piezas en una sola pantalla con vista previa al instante; Seguimientos rehecho; Ajustes más corto (rama `feat/promociones-con-piezas`)
+
+- **Qué:**
+  - **Promociones** (menú Herramientas) es ahora también lo que era Ajustes → Piezas. Tres pasos
+    —«Promociones», «Lo que incluye», «Diseño»— y a la derecha la cotización tal como le llega al
+    cliente. Código: `hub/src/components/piezas.tsx`.
+  - **Vista previa al instante:** un toque (tema, plantilla, color, interruptor de una promoción o
+    de un beneficio) la cambia sin el retardo de 350 ms ni el velo gris; lo ya visto sale de memoria
+    (1 ms); posar el cursor sobre una opción la va dibujando antes del clic; solo escribir texto
+    espera 300 ms. El servidor la dibuja al ancho del recuadro (`?ancho=860`,
+    `anchoDeVistaPrevia` en `render/quoteImage.ts`): de ~1,3 s a ~0,33 s por imagen. La pieza que
+    recibe el cliente NO cambia (mismo dibujo, mismo tamaño de siempre).
+  - Prender o apagar una promoción ahora mueve la vista previa, y sobre la misma llanta: la muestra
+    pone primero una marca que entra en la promo de temporada (`render/preview.ts`).
+  - Un solo «Aplicar» para la apariencia, pegado a la vista previa (antes había tres botones
+    iguales en tres tarjetas). Beneficios y promociones se siguen guardando al tocar.
+  - «Lo que incluye»: una fila por beneficio con interruptor; las condiciones (marca, mínimo de
+    llantas, fecha) se abren solo si hacen falta. Quitar uno pide confirmar.
+  - «Quién ve Black Friday» (apagada / números de prueba / todos) quedó plegado bajo las
+    promociones; se abre solo y avisa cuando no está en «todos».
+  - **Ajustes → Seguimientos** rehecho (`hub/src/components/seguimientos.tsx`): una columna que se
+    lee como frases, tiempos en horas y no en minutos, días como pastillas, plantillas con
+    interruptor que se guarda al tocar, «Seguridad y alertas» plegado y un «Guardar» que aparece
+    solo cuando hay cambios. Salió de la pantalla «Cómo debe escribir el seguimiento» (el prompt por
+    etapa): los textos guardados se conservan y el bot los sigue usando.
+  - **Ajustes:** salió la pestaña Piezas y el cupón de confirmación (apagado en Depot desde
+    siempre; el código y la tabla quedan). La pestaña **Bot** (guardián, origen de precios,
+    archivos, qué decir de cada marca) la ve solo soporte: el usuario `manuel` o la clave cruda.
+    El interruptor de encender/apagar el bot pasó a ser lo primero de «Negocio».
+- **Por qué:** Manuel, 24-nov: «combina el tab de Piezas a que salga junto con el de Promociones…
+  más simples de usar… que el PDF se actualice instantáneamente cuando aplastas un cambio»; «el tab
+  de Seguimientos también… lo de cómo debe ser cada seguimiento ni se usa»; «lo del cupón de
+  confirmación también quitemos y el tab de Bot solo debería poder verlo yo».
+- **Decidido sin preguntar:** el interruptor del bot NO se escondió con la pestaña Bot (es el botón
+  de emergencia del negocio y el punto «Bot contestando» del menú lleva a Ajustes). «Qué decir de
+  cada marca» no se borró: quedó en la pestaña Bot. La apariencia sigue pidiendo «Aplicar» para
+  que probar un tema no le cambie la cotización a los clientes.
+- **Ojo:** Promociones es solo de escritorio, así que desde el teléfono ya no se editan beneficios
+  ni el tema. Subir facturas por archivo (Competimotor) quedó en la pestaña Bot, solo soporte.
+- **Probado:** simulador con el catálogo de hoy, en el navegador: apagar/prender Black Friday
+  (KR20: $317,54 ↔ $340,24 en la vista previa), apagar un beneficio, tema Navidad y «Aplicar»
+  (guardado), personalizado escribiendo el título (16 teclas = 1 imagen), Seguimientos (3 → 4,5
+  horas guardó 270 min y conservó los textos por etapa).
+- **Horas:** 3.
+
+## 24-nov-2026 · App del teléfono · Tour apagado y los links de WhatsApp abren la app (rama `feat/tour-apagado-y-links-app`)
+
+- **Qué:** el tour de bienvenida ya no aparece (se quitó `<Tour />` de `hub/src/App.tsx`; el archivo
+  queda por si se quiere volver). El manifiesto de la app lleva `id`, `handle_links: "preferred"` y
+  `launch_handler: navigate-existing`: en **Android**, tocar en WhatsApp un link del panel
+  (`…/admin/#/ticket/123`) abre la app instalada y no Chrome, en la ventana que ya estaba abierta.
+- **Por qué:** Manuel, 24-nov: «apaga el tour» y «si aplasto el link de wpp en mi teléfono que se abra
+  el app, no el website».
+- **Ojo:** en **iPhone** no se puede: iOS no deja que una app de pantalla de inicio capture links,
+  siempre abren Safari. Ahí lo que abre la app son las notificaciones de la propia app (push).
+  En Android hay que reinstalar la app desde Chrome para que tome el manifiesto nuevo.
+- **Horas:** 0,5.
+
+## 24-nov-2026 · Piezas + panel · Tema de la cotización (Black Friday, Navidad… o personalizado) y el ahorro doble del Black Friday (rama `feat/plantillas-cotizacion`)
+
+- **Qué:**
+  - Ajustes → Piezas → «Tema de la cotización»: una cinta de temporada arriba de la cotización y de
+    las opciones, en las dos plantillas (y en el PDF, que es la misma imagen). 11 temas listos
+    (Black Friday, Cyber Monday, Navidad, Año Nuevo, San Valentín, Día de la Madre, Día del Padre,
+    Vacaciones, Regreso a clases, Aniversario, Liquidación), «Automático» (como siempre), «Sin tema» y
+    «Personalizado» (título, texto, 3 colores y adorno). «Editar … a mi gusto» copia uno listo al
+    personalizado. Vista previa en vivo. Se guarda en `pieces_config.tema`; lo guardado antes queda
+    en «Automático», así que en producción nada cambia hasta que alguien elija otro.
+    Código: `domain/temaDePieza.ts` (qué cinta), `render/cintaDeTema.ts` (cómo se dibuja).
+  - Arreglo: con el Black Friday la pieza decía «$252.66 ANTES $252.66» y «Ahorra $555.84» en 4 KR628
+    R17 (son $303.20): sumaba el −25 % del catálogo, que el 60 % reemplaza. El texto del bot ya lo
+    decía bien; ahora la pieza también (`ahorroDeLaCotizacion` y el «ANTES» de las dos plantillas).
+- **Por qué:** Manuel, 24-nov: «que también puedas elegir la template de cómo sale, tipo que salga con
+  promo de Black Friday o la de Navidad… o una editable que puedan cambiar todo lo que quieran». El
+  ahorro doble apareció al probarlo en el simulador con la cotización real.
+- **Probado:** simulador con el catálogo de hoy: tema Navidad elegido por API → cotización de 4 KR628
+  con la cinta, total $707,44 y «Ahorra $303.20»; personalizado por la vista previa; la pantalla de
+  Ajustes en el navegador (elegir, «Editar a mi gusto», cambiar el título, aplicar y quedó guardado).
+- **Horas:** 3.
+
+## 24-nov-2026 · Bot + panel (Depot) · El Black Friday (2.ª llanta al 60 %) pasa a la pestaña Promociones (rama `feat/black-friday-en-promociones`)
+
+- **Qué:** la promo de temporada de Depot se siembra una vez como fila de Promociones («Black Friday»,
+  60 % en la 2.ª llanta Falken y Kenda, sobre la lista, sin Excel), junto al «Descuento de siempre».
+  Su interruptor, sus fechas y su texto extra mandan sobre la política en cada sincronización del
+  catálogo (`fijarTemporadaDelPanel`); las cuentas no cambian. El panel muestra a qué marcas va y
+  cuántas llantas entran hoy.
+- **Por qué:** Manuel, 24-nov: «siguen con la promoción en la 2.ª llanta… préndele desde ahí, para que
+  siga con lo de Black Friday». Estaba prendida (Ajustes → Modo promoción = todos, hasta el 30-nov),
+  pero escrita en el código: Joaquín no la veía en Promociones ni podía extenderla sin un deploy.
+- **Probado:** simulador con el catálogo de hoy: prendida = 4 KR628 R17 a $707,44; apagada desde el
+  panel = $758,00; prendida con fin 7-dic = el saludo dice «Válido hasta el 7 de diciembre» y la
+  cotización COT firmada a $707,44.
+- **Horas:** 1,5.
+
+## 24-nov-2026 · App del teléfono · El ícono dice el nombre del cliente debajo del «AV» (rama `feat/nombre-bajo-logo`)
+
+- **Qué:** cada servicio dibuja el ícono de la app con su nombre abajo («DEPOT TIRE», «COMPETIMOTOR»)
+  y pone ese nombre bajo el ícono de la pantalla de inicio (manifiesto + `apple-mobile-web-app-title`).
+  Sale de `negocio.nombre`; rutas en `app/src/server/iconoDeLaApp.ts`, antes del estático.
+- **Por qué:** Manuel, 24-nov: las dos apps se veían iguales («AV» / «AutoVenta») en el teléfono.
+- **Ojo:** quien ya instaló la app puede seguir viendo el ícono viejo hasta borrarla y volver a
+  «Añadir a pantalla de inicio» (el teléfono guarda el ícono al instalar).
+- **Horas:** 0,5.
 
 ## 24-nov-2026 · Bot + panel (Depot) · Precios desde Contífico y el −25 % como promoción con interruptor (rama `fix/competimotor-precio-proforma`)
 
@@ -6414,6 +6625,8 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-11-24 | _(este mismo)_ | Tema de la cotización (Black Friday, Navidad… o personalizado) y el ahorro doble del Black Friday en la pieza | 3 |
+| 2026-11-24 | _(este mismo)_ | Depot: el Black Friday (2.ª llanta) pasa a la pestaña Promociones con interruptor y fechas | 1,5 |
 | 2026-11-24 | _(este mismo)_ | Depot: precios desde Contífico (Interbot de respaldo) y el −25 % como promoción con interruptor | 3,5 |
 | 2026-11-20 | _(este mismo)_ | Competimotor: seguro solo Kenda y Falken; «pantanera» = M/T, tipos por nombre, «23575r15», 30X9.5R15 = 235/75R15 | 1,5 |
 | 2026-11-20 | _(este mismo)_ | Competimotor cotiza con P2 y ofrece P3; Black Friday por código con P2 tachado y fin exacto el 30-nov | 3 |

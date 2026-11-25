@@ -6,6 +6,7 @@
  * x-admin-key (las páginas del hub piden la clave una vez y la recuerdan).
  * Sin ADMIN_KEY la API queda abierta — solo aceptable durante el piloto.
  */
+import { TEMAS, TEMAS_LISTOS, nombreDelTema } from "../domain/temaDePieza.js";
 import { randomBytes } from "node:crypto";
 import express from "express";
 import { tel9 } from "../services/fuentes/contifico.js";
@@ -160,6 +161,10 @@ import {
   cabeceraDeEvento,
   type AdvisorEventType,
 } from "../services/advisorNotifications.js";
+import {
+  USUARIOS_DE_SOPORTE, avisarASoporte, esUsuarioDeSoporte, estadoDeSoporte,
+} from "../services/avisosASoporte.js";
+import { UMBRAL_POR_DEFECTO_USD, anotarSaldo, estadoDelSaldo, revisarSaldo } from "../services/saldoDeIA.js";
 import {
   EVENTOS_POR_LA_APP, borrarSuscripcion, clavesPush, enviarPushAAsesores, guardarSuscripcion,
   historialDeAvisos, leerSuscripcion, telefonoDelUsuario,
@@ -2546,6 +2551,12 @@ export function createAdminRouter(): express.Router {
       // Cómo se nombra la rebaja (26-oct). Con el descuento de la llanta de
       // la vista previa, Ajustes avisa si con 3x4 saldría como porcentaje.
       modosPromocion: MODOS_PROMOCION,
+      // Los temas de la pieza (24-nov): los listos con su diseño, para pintar
+      // las muestras y copiarlos a «personalizado».
+      temas: TEMAS.map((id) => ({
+        id, nombre: nombreDelTema(id),
+        diseno: id === "automatico" || id === "ninguno" ? null : id === "personalizado" ? null : TEMAS_LISTOS[id].diseno,
+      })),
       descuentoDeMuestra: await descuentoDeLaMuestra().catch(() => null),
     });
   });
@@ -2554,7 +2565,7 @@ export function createAdminRouter(): express.Router {
     try {
       res.json({ ok: true, config: await savePiecesConfig(req.body) });
     } catch {
-      res.status(400).json({ ok: false, error: "Plantilla, modo, paleta, fuente o promoción inválidos" });
+      res.status(400).json({ ok: false, error: "Plantilla, modo, paleta, fuente, promoción o tema inválidos" });
     }
   });
 
@@ -2702,6 +2713,79 @@ export function createAdminRouter(): express.Router {
     if (!endpoint) return res.status(400).json({ ok: false, error: "Falta la suscripción" });
     await borrarSuscripcion(endpoint);
     res.json({ ok: true });
+  });
+
+  // ── Avisos a soporte (24-nov-2026) ────────────────────────────────────────
+  // «El bot no respondió» y «saldo de OpenAI bajo» le llegan a soporte de
+  // AutoVenta, no al negocio. Esta parte del panel (Ajustes → Bot) es solo de
+  // soporte: el saldo anotado, el umbral, los incidentes y un botón de prueba.
+  // La clave cruda (sin usuario) también pasa, como en el resto del panel.
+  const exigirSoporte = (req: express.Request, res: express.Response, next: express.NextFunction): void => {
+    if (!req.usuario || esUsuarioDeSoporte(req.usuario.id)) {
+      next();
+      return;
+    }
+    res.status(403).json({ ok: false, error: "Esto es solo para soporte de AutoVenta." });
+  };
+
+  router.get("/hub/soporte", exigirSoporte, async (_req, res) => {
+    try {
+      const [incidentes, aparatos] = await Promise.all([
+        estadoDeSoporte(),
+        sql<{ n: number }[]>`
+          select count(*)::int as n from push_subscriptions
+          where user_id = any(${[...USUARIOS_DE_SOPORTE]}) and failed_count < 5
+        `,
+      ]);
+      // El saldo va aparte: si OpenAI no contesta, el resto de la tarjeta se ve igual.
+      let saldo: Awaited<ReturnType<typeof estadoDelSaldo>> = null;
+      let errorDelSaldo: string | null = null;
+      try {
+        saldo = await estadoDelSaldo();
+      } catch (error) {
+        errorDelSaldo = mensaje(error, "No se pudo leer el gasto de OpenAI");
+      }
+      res.json({
+        ok: true,
+        ...incidentes,
+        aparatosConLaApp: aparatos[0]?.n ?? 0,
+        // Con clave de administrador el gasto es el de toda la organización;
+        // sin ella se estima con lo que registró este bot.
+        leeElGastoDeOpenAI: Boolean(config.openai.adminKey),
+        umbralPorDefecto: UMBRAL_POR_DEFECTO_USD,
+        saldo: saldo && {
+          saldoUsd: saldo.anotado.saldoUsd, umbralUsd: saldo.anotado.umbralUsd,
+          anotadoAt: saldo.anotado.anotadoAt.toISOString(), anotadoPor: saldo.anotado.anotadoPor,
+          gastadoUsd: saldo.gastadoUsd, restanteUsd: saldo.restanteUsd,
+          fuente: saldo.fuente, aproximado: saldo.aproximado, bajo: saldo.bajo,
+        },
+        errorDelSaldo,
+      });
+    } catch (error) {
+      res.status(500).json({ ok: false, error: mensaje(error, "No se pudo cargar el estado de soporte") });
+    }
+  });
+
+  router.put("/hub/soporte/saldo", exigirSoporte, async (req, res) => {
+    try {
+      const estado = await anotarSaldo(req.body, req.usuario?.id ?? null);
+      // Si ya se anotó por debajo del umbral, el aviso sale ahora y no en cinco minutos.
+      void revisarSaldo();
+      res.json({ ok: true, restanteUsd: estado.restanteUsd, bajo: estado.bajo, fuente: estado.fuente });
+    } catch (error) {
+      res.status(400).json({ ok: false, error: mensaje(error, "No se pudo guardar el saldo") });
+    }
+  });
+
+  router.post("/hub/soporte/probar", exigirSoporte, async (_req, res) => {
+    const resultado = await avisarASoporte({
+      clase: "prueba",
+      texto: {
+        titulo: `✅ ${business.name}: prueba de aviso`,
+        cuerpo: "Si lees esto, los avisos de «el bot no responde» y de saldo bajo te llegan a este teléfono.",
+      },
+    });
+    res.json({ ok: true, ...resultado });
   });
 
   // ── «Validar» dentro del panel (22-nov-2026) ──────────────────────────────
@@ -3160,12 +3244,16 @@ export function createAdminRouter(): express.Router {
       const plantilla = req.query.plantilla ? String(req.query.plantilla) : undefined;
       const modo = req.query.modo ? String(req.query.modo) : undefined;
       const promocion = req.query.promocion ? String(req.query.promocion) : undefined;
+      // El tema llega como JSON ({ id, personalizado }); lo limpia `cintaDelTema` al dibujar.
+      const tema = req.query.tema ? jsonDelPedido(req.query.tema) as never : undefined;
       const beneficios = req.query.beneficios
         ? String(req.query.beneficios).split("|").map((b) => b.trim()).filter(Boolean)
         // La vista previa dibuja un juego completo: con esa cantidad entran
         // también los beneficios con mínimo (alineación de Mundillantas).
         : await applicableBenefitTexts({ quantity: politica.juegoCompleto });
-      const png = await comoVistaPrevia(() => renderPreviewPiece({ pieza, paleta, fuente, plantilla, modo, promocion, beneficios }));
+      // El panel pide la imagen al ancho de su recuadro: llega mucho antes (render/quoteImage.ts).
+      const ancho = req.query.ancho ? Number(req.query.ancho) : undefined;
+      const png = await comoVistaPrevia(() => renderPreviewPiece({ pieza, paleta, fuente, plantilla, modo, promocion, beneficios, tema, ancho }));
       res.setHeader("Content-Type", "image/png");
       res.setHeader("Cache-Control", "no-store");
       res.send(png);

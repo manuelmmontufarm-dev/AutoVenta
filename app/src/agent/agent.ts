@@ -21,6 +21,7 @@ import { avisoRegistradoEnElCiclo } from "../services/avisoAlAsesor.js";
 import { medidasDelMensaje, medidaSinConfirmar } from "../domain/medidaDelCliente.js";
 import { esFalloDelProveedor } from "../domain/falloDelProveedor.js";
 import { createBotAlert } from "../services/followUps.js";
+import { reportarBotResponde, reportarFalloDelBot } from "../services/avisosASoporte.js";
 import { eleccionDeLaVitrina, type OpcionDeVitrina } from "../domain/eleccionDeVitrina.js";
 import { pideTelefono } from "../domain/ubicacionPedida.js";
 import type { ChatCompletion, ChatCompletionMessageParam, ChatCompletionTool } from "openai/resources/chat/completions";
@@ -165,10 +166,16 @@ function turnoExactoBarato(conversationId: number, stage: AgentContext["conversa
 export async function runAgent(ctx: AgentContext, userText: string): Promise<string> {
   try {
     // El retomado desde humano (resumeBot) no pasa por el turno de index.ts.
-    return await conElTelefonoDelTurno(ctx.customerPhone, () => ejecutarAgente(ctx, userText));
+    const texto = await conElTelefonoDelTurno(ctx.customerPhone, () => ejecutarAgente(ctx, userText));
+    // El modelo contestó: si había un incidente de OpenAI abierto, se cierra y
+    // soporte recibe el «volvió a responder» (services/avisosASoporte.ts).
+    if (!ctx.turnoFallido) void reportarBotResponde("ia");
+    return texto;
   } catch (error) {
     const mensaje = error instanceof Error ? error.message : String(error);
     console.error("❌ El turno del agente se cayó entero:", mensaje);
+    ctx.turnoFallido = true;
+    void reportarFalloDelBot({ error, conversationId: ctx.conversation.id, puerta: "agente" });
     await logAiRun({
       conversationId: ctx.conversation.id,
       stage: ctx.conversation.stage,
@@ -818,6 +825,8 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   let falloEnLoop = false;
   /** El error del proveedor, si lo hubo. Decide el texto final del turno. */
   let falloDelProveedor: unknown = null;
+  /** El último error de una llamada al modelo, sea de quien sea: es la causa que se le dice a soporte. */
+  let ultimoError: unknown = null;
 
   // LA VUELTA FORZADA TIENE SU PROPIA RONDA (conv 13635, 1-sep). Producción
   // corre con 3 rondas: el modelo gastó la 1 en buscar_llanta, la 2 en
@@ -854,6 +863,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
       }, { esfuerzo: config.anthropic.effortVendedor });
     } catch (error) {
       falloEnLoop = true;
+      ultimoError = error;
       // De quién fue el fallo cambia lo que recibe el cliente al final del
       // turno: ver `domain/falloDelProveedor.ts` y el cierre de esta función.
       if (esFalloDelProveedor(error)) falloDelProveedor = error;
@@ -1126,6 +1136,10 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
       return withDiscountNotice(texto, ctx, activeDiscount, pendingDiscount);
     }
   } catch (error) {
+    ultimoError = error;
+    // El rescate también puede ser el que descubre que el proveedor está caído
+    // (el bucle agotó las rondas y recién acá OpenAI contesta 429).
+    if (falloDelProveedor === null && esFalloDelProveedor(error)) falloDelProveedor = error;
     console.warn("⚠️ Rescate sin herramientas falló:", error instanceof Error ? error.message : error);
   }
 
@@ -1144,6 +1158,17 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     route: "failed",
     tools: usedTools,
     error: "max_iterations_or_empty_response",
+  });
+  // EL TURNO SE QUEDÓ SIN RESPUESTA: soporte se entera EN EL MOMENTO (24-nov).
+  // Hasta hoy esto dejaba una alerta en el panel y nada más: el 24-nov el
+  // crédito de OpenAI se acabó a las 16:35, 13 chats recibieron la disculpa de
+  // abajo y Manuel lo supo más de una hora después. No se espera al aviso: el
+  // cliente no tiene por qué esperar a que salga un push.
+  ctx.turnoFallido = true;
+  void reportarFalloDelBot({
+    error: falloDelProveedor ?? ultimoError ?? new Error("El modelo no devolvió una respuesta (rondas agotadas o texto vacío)"),
+    conversationId: ctx.conversation.id,
+    puerta: "agente",
   });
   // SI EL QUE SE CAYÓ FUE EL PROVEEDOR, NO SE LE PIDE AL CLIENTE QUE REPITA.
   //

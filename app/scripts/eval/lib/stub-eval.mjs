@@ -214,9 +214,32 @@ function respuestaJson(body) {
 
 // ── Servidor ─────────────────────────────────────────────────────────────────
 
+/**
+ * Las formas en que OpenAI deja de contestar, con el cuerpo que manda el de
+ * verdad. `sin_credito` es textual lo que devolvió el 24-nov-2026, cuando se
+ * acabó el saldo y el bot se quedó mudo sin que nadie se enterara. Se prenden
+ * con `server.fallar(modo)` (el simulador: POST /api/openai) para ver llegar el
+ * aviso a soporte sin gastar un token ni tocar la cuenta real.
+ */
+export const FALLAS_DE_OPENAI = {
+  sin_credito: { status: 429, error: {
+    message: "You have no credits remaining. Add credits to continue using the API at https://platform.openai.com/settings/organization/billing/.",
+    type: "insufficient_quota", param: null, code: "insufficient_quota" } },
+  limite: { status: 429, error: {
+    message: "Rate limit reached for gpt-5.5 in organization org-sim on tokens per min (TPM). Please try again in 20s.",
+    type: "tokens", param: null, code: "rate_limit_exceeded" } },
+  clave: { status: 401, error: {
+    message: "Incorrect API key provided: sk-proj-****sim. You can find your API key at https://platform.openai.com/account/api-keys.",
+    type: "invalid_request_error", param: null, code: "invalid_api_key" } },
+  caido: { status: 503, error: {
+    message: "The server is overloaded or not ready yet.", type: "server_error", param: null, code: null } },
+};
+
 export function levantar({ port = 4699, log = null, latencia = 5 } = {}) {
   if (log) writeFileSync(log, "");
   const anotar = (fila) => { if (log) appendFileSync(log, `${JSON.stringify(fila)}\n`); };
+  /** null = contesta normal; si no, la clave de `FALLAS_DE_OPENAI` que está prendida. */
+  let falla = null;
 
   const server = createServer((req, res) => {
     let crudo = "";
@@ -244,6 +267,12 @@ export function levantar({ port = 4699, log = null, latencia = 5 } = {}) {
 
       const body = (() => { try { return JSON.parse(crudo); } catch { return {}; } })();
       await new Promise((r) => setTimeout(r, latencia));
+      if (falla) {
+        anotar({ at: new Date().toISOString(), tipo: "falla", falla, model: body.model });
+        // `retry-after-ms` solo acorta el reintento del SDK: el de verdad espera más.
+        res.writeHead(FALLAS_DE_OPENAI[falla].status, { "Content-Type": "application/json", "retry-after-ms": "50" });
+        return res.end(JSON.stringify({ error: FALLAS_DE_OPENAI[falla].error }));
+      }
       // El Ángel Guardián no pide `json_object` sino un `json_schema` con
       // nombre. Sin esta rama, su llamada caía en el camino del agente, la
       // validación con zod la rechazaba y el guardián devolvía «sin_revision»:
@@ -278,6 +307,11 @@ export function levantar({ port = 4699, log = null, latencia = 5 } = {}) {
       });
     });
   });
+  /** Prende una falla de `FALLAS_DE_OPENAI` (o la apaga con null). Devuelve la que quedó. */
+  server.fallar = (modo) => {
+    falla = modo && FALLAS_DE_OPENAI[modo] ? modo : null;
+    return falla;
+  };
   return new Promise((resolve) => {
     server.listen(port, "127.0.0.1", () => resolve(server));
   });

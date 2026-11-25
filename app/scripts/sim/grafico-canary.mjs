@@ -15,10 +15,11 @@ import { resolve } from "node:path";
 
 const dir = resolve(import.meta.dirname, "mediciones");
 const leer = async (e) => JSON.parse(await readFile(resolve(dir, `canary-${e}.json`), "utf8")).casos;
-const control = await leer("control");
 // `--configs etiqueta=Nombre;etiqueta=Nombre` cambia qué se compara (24-nov:
 // las combinaciones con Claude) y `--titulo`/`--sub`/`--que-ves` el encabezado.
 const argv = (n, d = null) => { const i = process.argv.indexOf(`--${n}`); return i >= 0 ? process.argv[i + 1] : d; };
+// `--control etiqueta` cambia contra qué archivo se compara (24-nov: dos corridas apiladas).
+const control = await leer(argv("control", "control"));
 const PALETA = [["#eb6834", "#d95926"], ["#2a78d6", "#3987e5"], ["#1baf7a", "#199e70"], ["#eda100", "#c98500"]];
 const CONFIGS_FIJAS = [
   { etiqueta: "mini-ambos", nombre: "Vendedor + Guardián en mini", color: "#eb6834", colorDark: "#d95926" },

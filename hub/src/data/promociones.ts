@@ -17,6 +17,8 @@ export interface Parametros {
   regalo?: string;
   /** Porcentaje para TODAS las llantas, sin Excel (el «Descuento de siempre»). */
   todas?: boolean;
+  temporada?: boolean;
+  marcas?: string[];
 }
 
 export interface TipoParaElPanel {

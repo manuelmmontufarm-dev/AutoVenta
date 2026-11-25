@@ -45,8 +45,9 @@ import { VENTA_EN_TICKET_MIGRATION_ID, runVentaEnTicketMigration } from "./migra
 import { HISTORIAL_DEL_PANEL_MIGRATION_ID, runHistorialDelPanelMigration } from "./migrations/037_historial_del_panel.js";
 import { AVISOS_EN_LA_APP_MIGRATION_ID, runAvisosEnLaAppMigration } from "./migrations/038_avisos_en_la_app.js";
 import { runMediosDelChatMigration } from "./migrations/039_medios_del_chat.js";
-import { PROMOCIONES_MIGRATION_ID, runPromocionesMigration } from "./migrations/040_promociones.js";
+import { runPromocionesMigration } from "./migrations/040_promociones.js";
 import { TOKENS_ESCRITOS_EN_CACHE_MIGRATION_ID, runTokensEscritosEnCacheMigration } from "./migrations/041_tokens_escritos_en_cache.js";
+import { runAvisosASoporteMigration } from "./migrations/042_avisos_a_soporte.js";
 
 export const SCHEMA = /* sql */ `
 create table if not exists conversations (
@@ -461,6 +462,11 @@ async function aplicarEsquema(db: Sql): Promise<void> {
   await runAvisosEnLaAppMigration(db);
   await runMediosDelChatMigration(db);
   await runPromocionesMigration(db);
+  await runAvisosASoporteMigration(db);
+  // La 041 corre DESPUÉS de la 042 a propósito: la 042 llegó antes a producción,
+  // y `ULTIMA_MIGRACION_REGISTRADA` tiene que ser la que de verdad se registra
+  // última, o el atajo del candado daría el esquema por aplicado sin la columna
+  // `ai_runs.cache_write_tokens`.
   await runTokensEscritosEnCacheMigration(db);
   // 030 NO va acá: crea índices con CONCURRENTLY y corre después de abrir el
   // puerto (`crearIndicesEnSegundoPlano`), para que un deploy con la base

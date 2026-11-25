@@ -7,7 +7,6 @@ import { IconAjustes, IconAlert, IconCampana, IconChevronR, IconSliders, IconRef
 import { PageHeader } from "./components/ui";
 import { VersionBadge } from "./components/version-badge";
 import { setSonidoActivo, sonidoActivo, sonidoBoton } from "./lib/sound";
-import { Tour } from "./components/tour";
 import { navigate, useRoute, type Route } from "./router";
 import { Ajustes } from "./screens/Ajustes";
 import { Dashboard } from "./screens/Dashboard";
@@ -100,12 +99,12 @@ const TITULOS: Record<string, { titulo: string; sub: string }> = {
   pipeline: { titulo: "Pipeline", sub: "Tickets abiertos, de izquierda a derecha según avanzan" },
   "para-cerrar": { titulo: "Para cerrar", sub: "Ya aceptaron precio y local: a quién escribir hoy" },
   dashboard: { titulo: "Métricas", sub: "El negocio de un vistazo" },
-  ajustes: { titulo: "Ajustes", sub: "Negocio, seguimientos, avisos y usuarios" },
+  ajustes: { titulo: "Ajustes", sub: "Horarios, seguimientos, avisos y usuarios" },
   cotizador: { titulo: "Cotizador", sub: "Inventario y precios reales" },
   avisos: { titulo: "Avisos", sub: "Lo que el bot le avisó al equipo, por día" },
   validar: { titulo: "Validar número", sub: "¿Este comprador vino por WhatsApp? Escriba su número y registre la factura" },
   inventario: { titulo: "Inventario", sub: "El Excel de Fénix con el que el bot cotiza: súbalo cada día" },
-  promociones: { titulo: "Promociones", sub: "Arme, prenda y apague sus promociones: el bot las cotiza solo" },
+  promociones: { titulo: "Promociones", sub: "El precio, lo que incluye y cómo se ve la cotización que recibe el cliente" },
   settings: { titulo: "Configuración técnica", sub: "WhatsApp, encendido y manual del bot" },
   ticket: { titulo: "Conversación", sub: "" },
 };
@@ -492,7 +491,6 @@ export default function App() {
         <AvisosAlAbrir />
         <Toasts />
         <Confetti />
-        <Tour />
         {bloqueado && <ConnectionGate estado={conexion as "clave-invalida" | "sin-conexion"} />}
       </div>
     </MotionConfig>

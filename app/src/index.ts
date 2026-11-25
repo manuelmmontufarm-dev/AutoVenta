@@ -2,7 +2,7 @@
  * AutoVenta — bot de ventas de llantas por WhatsApp.
  * Punto de entrada: conecta webhook → pipeline → agente → WhatsApp.
  */
-import { sembrarDescuentoDeSiempre, sembrarPromocionDeLaPolitica } from "./services/promociones.js";
+import { sembrarDescuentoDeSiempre, sembrarPromocionDeLaPolitica, sembrarPromocionDeTemporada } from "./services/promociones.js";
 import { business, config } from "./config.js";
 import { validarCanaryAlArrancar } from "./agent/canary.js";
 import { conElTelefonoDelTurno, instalarCompuertaDeTemporada } from "./services/temporadaDelTurno.js";
@@ -82,7 +82,7 @@ import { preguntamosElDia, respondeAlDiaDeLaVisita } from "./domain/customerComm
 import { leerVisita } from "./domain/fechaDeVisita.js";
 import { avisarVisitaComprometida } from "./services/visitAlerts.js";
 import { emitirCuponDeConfirmacion, enviarTicketDeCupon } from "./services/coupons.js";
-import { authorizeConversationOutbound } from "./services/whatsappPolicy.js";
+import { authorizeConversationOutbound, OutboundPolicyError } from "./services/whatsappPolicy.js";
 import { splitBlocks } from "./services/quoteMessages.js";
 import { prepararSalida, type ContextoDeSalida } from "./services/prepararSalida.js";
 import { metadataDeOferta } from "./services/ofertaVigente.js";
@@ -127,6 +127,9 @@ import { quiereComprarADistancia } from "./domain/compraADistancia.js";
 import { registrarDondeEstaElCliente } from "./services/dondeEstaElCliente.js";
 import { avisarCompraADistancia } from "./services/compraADistancia.js";
 import { avisarPrecioPorVolumen } from "./services/avisoAlAsesor.js";
+import { reportarBotResponde, reportarFalloDelBot } from "./services/avisosASoporte.js";
+import { iniciarVigilanciaDelSaldo } from "./services/saldoDeIA.js";
+import { conVigilanciaDelTurno } from "./services/vigilanciaDelTurno.js";
 
 /** Pausa entre bloques: suficiente para que se lean como mensajes seguidos y no como spam. */
 const PAUSA_ENTRE_BLOQUES_MS = 900;
@@ -637,6 +640,8 @@ async function atenderTurno(
    */
   const clienteYaEscribioDeNuevo = (): Promise<boolean> =>
     clienteEscribioDespuesDe(conversation.id, idEntranteAlEmpezar);
+  /** Al menos un bloque le llegó al cliente: es lo que cierra un incidente de envío. */
+  let salioAlgo = false;
   for (const [indice, bloqueDelTurno] of bloques.entries()) {
     if (indice > 0) await esperar(PAUSA_ENTRE_BLOQUES_MS);
     let bloque = bloqueDelTurno;
@@ -667,6 +672,7 @@ async function atenderTurno(
       // del dominio leen los últimos salientes para entender la respuesta del
       // cliente, y tienen que ver la misma pregunta que se hizo.
       const { sentId, conBotones: salieronBotones } = await enviarBloque(conversation.id, from, bloque, botones);
+      salioAlgo = true;
       const metadataDelBloque = indice === indiceDeLaOferta ? metadatoDeOferta : { oferta: null };
       await appendMessage(conversation.id, "assistant", bloque, sentId, {
         authorKind: "bot",
@@ -681,6 +687,15 @@ async function atenderTurno(
       });
     } catch (sendError) {
       console.error(`❌ No se pudo enviar la respuesta a ${from}:`, sendError);
+      // El cliente acaba de escribir, así que la ventana está abierta: si
+      // WhatsApp rechaza la respuesta es un fallo de verdad (token vencido,
+      // Meta caído) y soporte se entera en el momento. La política de envío
+      // (chat en manos de un asesor, baja del cliente) no es un fallo.
+      if (!(sendError instanceof OutboundPolicyError)) {
+        void reportarFalloDelBot({
+          causa: "envio_rechazado", error: sendError, conversationId: conversation.id, puerta: "envío",
+        });
+      }
       // Si un bloque no sale, los siguientes tampoco van a salir (ventana
       // cerrada, token vencido…). Se guardan todos como fallidos para que el
       // hub muestre la respuesta completa que el cliente nunca recibió.
@@ -694,6 +709,10 @@ async function atenderTurno(
       break;
     }
   }
+  // El mensaje le llegó al cliente y no era la disculpa de un turno fallido:
+  // si había un incidente de envío o de turno abierto, se cierra y soporte
+  // recibe el «volvió a responder» (services/avisosASoporte.ts).
+  if (salioAlgo && !agentContext.turnoFallido) void reportarBotResponde("turno");
   // El ticket del cupón va al final y aparte: es lo que el cliente va a buscar
   // días después en el chat. Cubre los dos sitios que emiten en este turno —el
   // compromiso de arriba y la herramienta `agendar_visita`— y no sale si el
@@ -754,8 +773,11 @@ async function atenderTurno(
 // UN TURNO VE SOLO LO QUE ATIENDE (chats 29847 y 26561): lo que el cliente
 // escribió mientras este turno corría es del siguiente. Ver pipeline/corteDelTurno.ts.
 // La promo de temporada mira el teléfono del turno (services/temporadaDelTurno.ts).
+// Y lo que reviente o se cuelgue acá adentro le llega a soporte al teléfono
+// (services/vigilanciaDelTurno.ts): antes solo quedaba un console.error.
 const pipeline = new InboundPipeline(async (job) =>
-  enElTurno(await ultimoEntranteDe(job.waMessageIds), () => conElTelefonoDelTurno(job.from, () => atenderTurno(job))));
+  conVigilanciaDelTurno(job.from, async () =>
+    enElTurno(await ultimoEntranteDe(job.waMessageIds), () => conElTelefonoDelTurno(job.from, () => atenderTurno(job)))));
 
 /**
  * EL PEDIDO DE ASESOR NO SE CONTESTA CON SILENCIO.
@@ -1237,6 +1259,7 @@ console.log("✅ Esquema de base de datos listo");
 // pasa una vez a la pestaña Promociones, antes de armar el primer catálogo.
 await sembrarPromocionDeLaPolitica();
 await sembrarDescuentoDeSiempre();
+await sembrarPromocionDeTemporada();
 // Calentar las métricas ya no frena el arranque (26-oct): con la base cargada
 // esa consulta tardaba y el contenedor no llegaba a contestar /health a tiempo.
 void getHubMetrics().catch((error) => console.warn("⚠️ No se pudieron precalentar las métricas:", error instanceof Error ? error.message : error));
@@ -1263,6 +1286,9 @@ startVentasConfirmadasSync();
 // (FOLLOW_UP_WORKER=externo). Sin esto, un deploy sin servicio worker deja los
 // seguimientos apagados en silencio.
 startEmbeddedFollowUpWorker();
+// El saldo de OpenAI se revisa cada pocos minutos y avisa a soporte una vez al
+// cruzar el umbral (services/saldoDeIA.ts). No hace nada hasta que soporte anota un saldo.
+iniciarVigilanciaDelSaldo();
 
 const app = createServer();
 void validarCanaryAlArrancar();

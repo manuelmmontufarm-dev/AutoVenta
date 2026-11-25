@@ -9,6 +9,8 @@
  * porque su contenido es de ejemplo; aquí depende de cuántas marcas, si hay
  * precio de lista, si hay descuento y cuántos beneficios trae el negocio.
  */
+import { cintaDelTema, type ConfigDeTema } from "../domain/temaDePieza.js";
+import { cintaDeTema } from "./cintaDeTema.js";
 import {
   ARCHIVO_BLACK, BLACK_ITALIC, type Availability, type Child, type PriceFont, type SatoriNode, type Theme,
   availabilityChip, availabilityDot, availabilityPill, brandAccent, brandAccentDark,
@@ -192,7 +194,12 @@ export function rotulosDeSegundaLlanta(cantidad: number): { normales: string; re
  */
 export function ahorroDeLaCotizacion(line: PosterLine): number {
   const n = Math.max(1, Math.round(line.quantity || 1));
-  const catalogo = line.pvpConIva && line.pvpConIva > line.unitConIva ? (line.pvpConIva - line.unitConIva) * n : 0;
+  // Con el Black Friday la línea se firma a la lista (el 60 % REEMPLAZA el
+  // −25 %): la rebaja del catálogo solo cuenta si la lista de la pieza es más
+  // alta que ese precio normal. Antes se sumaba igual y la pieza decía
+  // «Ahorra $555.84» en 4 KR628 R17 cuando eran $303.20 (24-nov).
+  const base = line.segundaLlanta ? line.segundaLlanta.precioNormalConIva : line.unitConIva;
+  const catalogo = line.pvpConIva && line.pvpConIva > base + 0.005 ? (line.pvpConIva - base) * n : 0;
   return Math.round((catalogo + (line.segundaLlanta?.ahorroConIva ?? 0)) * 100) / 100;
 }
 
@@ -240,6 +247,8 @@ const golpesLabel = (line: PosterLine) =>
 // ===========================================================================
 
 export interface QuotePosterData {
+  /** El tema de la pieza (Ajustes → Piezas): la cinta de Navidad, Año Nuevo, personalizada… */
+  tema?: Partial<ConfigDeTema> | null;
   number: string;
   dateLabel: string;
   /** La marca comercial de la pieza (id de identidad); sin ella, la del negocio. */
@@ -254,6 +263,13 @@ export interface QuotePosterData {
   /** Beneficios vigentes, desde la tabla `benefits`. Vacío = no se dibuja la franja. */
   benefits?: readonly string[];
 }
+
+/** La cinta del tema en la clásica: de borde a borde, bajo la barra de carrera. */
+const CINTA_CLASICA = {
+  escala: 2, marginTop: 0, bordeABorde: true,
+  fuenteTitulo: { fontFamily: "Archivo Black", fontWeight: 900 },
+  fuenteBajada: { fontFamily: "Archivo", fontWeight: 700 },
+} as const;
 
 export function quotePoster(data: QuotePosterData, theme: Theme): SatoriNode {
   const { p, price } = theme;
@@ -280,6 +296,7 @@ export function quotePoster(data: QuotePosterData, theme: Theme): SatoriNode {
       ),
     ),
     racingBar(theme),
+    cintaDeTema(cintaDelTema(data.tema, { hayFranjaDeTemporada: Boolean(bf) }), CINTA_CLASICA),
     bf ? franjaTemporada(line, bf, theme) : null,
 
     // Héroe: foto + identidad del producto
@@ -568,7 +585,7 @@ function precioSegundaLlanta(line: PosterLine, bf: SegundaLlanta, theme: Theme):
       text({ fontSize: 19, color: p.darkSub }, IMPUESTOS_INCLUIDOS),
     ),
     el({ flexDirection: "column", alignItems: "flex-end", gap: 14 },
-      line.pvpConIva && line.pvpConIva > line.unitConIva
+      line.pvpConIva && line.pvpConIva > bf.precioNormalConIva + 0.005
         ? el({ flexDirection: "column", alignItems: "flex-end", gap: 2 },
             text({ fontSize: 14, fontWeight: 700, letterSpacing: 3, color: p.darkSub }, "ANTES"),
             text({ fontSize: 40, color: p.darkSub, textDecoration: "line-through" }, money(line.pvpConIva)),
@@ -687,6 +704,8 @@ function garantiaFila(texto: string, color: string): SatoriNode {
 // ===========================================================================
 
 export interface OptionsPosterData {
+  /** El tema de la pieza (Ajustes → Piezas): la cinta de Navidad, Año Nuevo, personalizada… */
+  tema?: Partial<ConfigDeTema> | null;
   dateLabel: string;
   sizeLabel?: string | null;
   /** La marca comercial de la pieza (id de identidad); sin ella, la del negocio. */
@@ -919,6 +938,7 @@ export function optionsPoster(data: OptionsPosterData, theme: Theme): SatoriNode
       data.identidad,
     ),
     racingBar(theme),
+    cintaDeTema(cintaDelTema(data.tema, { hayFranjaDeTemporada: data.lines.some((l) => l.vitrinaSegundaLlanta) }), CINTA_CLASICA),
     ...filas,
     hayEquivalentes
       ? el({ alignItems: "center", gap: 14, padding: "20px 64px", backgroundColor: "#fff3d6",

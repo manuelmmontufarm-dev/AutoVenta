@@ -371,6 +371,9 @@ async function main() {
       WHATSAPP_PHONE_ID: PHONE_ID,
       SELLER_PHONE: TELEFONO_ASESOR,
       ADMIN_KEY: "sim",
+      // El simulador nunca lee el gasto de la cuenta real de OpenAI: sin esta
+      // clave, el saldo (services/saldoDeIA.ts) se estima con sus propias corridas.
+      OPENAI_ADMIN_KEY: "",
       // OJO: ni PHASES_DEFAULT ni DEBOUNCE_MS se fuerzan.
       //
       // Las fases salen de `settings.phase_config`, que se copió de producción;
@@ -989,6 +992,17 @@ async function levantarUI({ registroBot }) {
       if (url.pathname === "/api/graph" && req.method === "POST") {
         const { rechazarBotones } = await cuerpoJson(req);
         return json(res, 200, { rechazarBotones: graph.rechazarBotones(rechazarBotones) });
+      }
+
+      // Para probar los avisos a soporte: {"fallar":"sin_credito"} hace que el
+      // OpenAI de mentira conteste como el de verdad el 24-nov-2026 (429 «You
+      // have no credits remaining»); también "limite", "clave" y "caido".
+      // {"fallar":null} lo deja contestando normal. Solo con --stub o --humo:
+      // contra el OpenAI real no hay nada que apagar.
+      if (url.pathname === "/api/openai" && req.method === "POST") {
+        if (!stubHumo) return json(res, 400, { error: "solo con --stub o --humo: no hay un OpenAI de mentira que apagar" });
+        const { fallar } = await cuerpoJson(req);
+        return json(res, 200, { fallar: stubHumo.fallar(fallar ?? null) });
       }
 
       if (url.pathname === "/api/reiniciar" && req.method === "POST") {

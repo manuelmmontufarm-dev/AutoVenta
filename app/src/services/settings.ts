@@ -4,6 +4,7 @@
  * /configuracion/ia del hub). Cache en memoria con TTL corto para no
  * pegarle a la DB en cada mensaje entrante.
  */
+import { TEMAS, TEMA_INICIAL, disenoLimpio, type DisenoDeTema } from "../domain/temaDePieza.js";
 import { z } from "zod";
 import { sql } from "../db/client.js";
 import { PIPELINE_STAGES, type Stage } from "../domain/pipeline.js";
@@ -370,6 +371,12 @@ export const PiecesConfigSchema = z.object({
   // (26-oct, feriado: «25 %» → «3x4»). La plata no cambia: sigue saliendo del
   // catálogo. Lo guardado antes de que existiera queda en porcentaje.
   promocion: z.object({ modo: z.enum(MODOS_PROMOCION).default("porcentaje") }).default({ modo: "porcentaje" }),
+  // El tema de la pieza (24-nov): la cinta de Black Friday, Navidad… o una a
+  // gusto. «automatico» = como siempre (lo guardado antes queda así).
+  tema: z.object({
+    id: z.enum(TEMAS).default("automatico"),
+    personalizado: z.unknown().optional().transform((v) => disenoLimpio(v as Partial<DisenoDeTema> | undefined)),
+  }).default(TEMA_INICIAL),
 });
 
 export type PiecesConfig = z.infer<typeof PiecesConfigSchema>;

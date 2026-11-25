@@ -17,15 +17,21 @@
  * SDK y no cambia con el idioma ni con la redacción del mensaje.
  */
 
-/** Los códigos que significan «no es por lo que mandaste». */
-const ESTADOS_DEL_PROVEEDOR = new Set([408, 409, 429, 500, 502, 503, 504, 529]);
+/**
+ * Los códigos que significan «no es por lo que mandaste».
+ *
+ * 401 y 403 entraron el 24-nov-2026: una clave revocada o sin permiso falla
+ * igual con cualquier mensaje, así que pedirle al cliente que repita es el
+ * mismo error que con la cuenta sin crédito.
+ */
+const ESTADOS_DEL_PROVEEDOR = new Set([401, 403, 408, 409, 429, 500, 502, 503, 504, 529]);
 
 /**
  * Las formas en que llega cuando no hay `status`: un error de red del fetch, o
  * un mensaje que empieza con el código.
  */
 const TEXTO_DEL_PROVEEDOR =
-  /\b(?:429|500|502|503|504|529)\b|\binsufficient_quota\b|\brate.?limit\b|\bno credits remaining\b|\bservice unavailable\b|\bbad gateway\b|\binternal server error\b|\bconnection error\b|\b(?:ETIMEDOUT|ECONNRESET|ECONNREFUSED|ENOTFOUND|EAI_AGAIN)\b|\btimed? ?out\b|\bsocket hang up\b|\boverloaded\b/i;
+  /\b(?:429|500|502|503|504|529)\b|\binsufficient_quota\b|\binvalid_api_key\b|\bincorrect api key\b|\brate.?limit\b|\bno credits remaining\b|\bservice unavailable\b|\bbad gateway\b|\binternal server error\b|\bconnection error\b|\b(?:ETIMEDOUT|ECONNRESET|ECONNREFUSED|ENOTFOUND|EAI_AGAIN)\b|\btimed? ?out\b|\bsocket hang up\b|\boverloaded\b/i;
 
 /** Lo nuestro, aunque el texto traiga un número que parezca de estado. */
 const CULPA_NUESTRA =

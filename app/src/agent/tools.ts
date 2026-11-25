@@ -197,6 +197,12 @@ export interface AgentContext {
   medidaSinConfirmar?: boolean;
   /** La intención activa es un servicio fuera del catálogo de llantas. */
   consultaFueraDeCatalogo?: boolean;
+  /**
+   * El agente no pudo contestar este turno (el proveedor de IA falló, el modelo
+   * devolvió vacío o el turno reventó). Lo marca `agent.ts`; con esto puesto,
+   * que salga la disculpa NO cuenta como «el bot respondió» para soporte.
+   */
+  turnoFallido?: boolean;
   comparedThisTurn?: boolean;
   resumedFromHuman?: boolean;
   discountNotice?: { source: "pending" | "offer"; id: number };

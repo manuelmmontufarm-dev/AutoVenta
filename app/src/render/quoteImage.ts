@@ -6,6 +6,7 @@
  * marcas, bloques compartidos) y `depotPosters.ts` (las piezas). Este módulo
  * solo traduce el catálogo al diseño y rasteriza.
  */
+import { AsyncLocalStorage } from "node:async_hooks";
 import { productoParaCantidad } from "../domain/promociones.js";
 import satori from "satori";
 import { renderAsync } from "@resvg/resvg-js";
@@ -15,6 +16,7 @@ import { medidaEstaPedida } from "../domain/medidaPedida.js";
 import { modoDePromocion } from "../domain/promocion.js";
 import { hastaEnPalabras, marcaConSegundaLlanta, segundaLlantaDe, type SegundaLlanta } from "../domain/promocionDeTemporada.js";
 import { politica } from "../negocio/politica.js";
+import type { ConfigDeTema } from "../domain/temaDePieza.js";
 import { garantiaDelPerfil, warrantyForBrand } from "../services/quoteMessages.js";
 import { loadFonts, loadFontsDiaNoche, productPhoto, type FontSpec, type RasterImage } from "./assets.js";
 import { DEFAULT_BRAND_PROFILES, resolveTheme, type SatoriNode, type Theme } from "./depotDesign.js";
@@ -108,6 +110,8 @@ export interface PieceTheme {
    * Final; por ahora la pasan explícita las pruebas y las vistas previas.
    */
   identidad?: string;
+  /** El tema (cinta de Navidad, Año Nuevo, personalizada…): `pieces_config.tema`. */
+  tema?: Partial<ConfigDeTema> | null;
 }
 
 function themeOf(data: PieceTheme): Theme {
@@ -238,6 +242,7 @@ export async function renderQuoteImage(data: QuoteRenderData): Promise<Buffer> {
           ? data.offerExpiresAt.toLocaleDateString("es-EC", { timeZone: "America/Guayaquil" })
           : null,
         benefits: data.benefits,
+        tema: data.tema,
       },
       resolverModo(data.modo, data.ahora),
     );
@@ -258,6 +263,7 @@ export async function renderQuoteImage(data: QuoteRenderData): Promise<Buffer> {
         ? data.offerExpiresAt.toLocaleDateString("es-EC", { timeZone: "America/Guayaquil" })
         : null,
       benefits: data.benefits,
+      tema: data.tema,
     },
     themeOf(data),
   );
@@ -336,6 +342,7 @@ export async function renderOptionsImage(data: OptionsRenderData): Promise<Buffe
         medidaConocida: Boolean(data.medidaPedida),
         benefits: data.benefits,
         identidad: data.identidad,
+        tema: data.tema,
       },
       resolverModo(data.modo, data.ahora),
     );
@@ -352,6 +359,7 @@ export async function renderOptionsImage(data: OptionsRenderData): Promise<Buffe
       lines,
       medidaConocida: Boolean(data.medidaPedida),
       benefits: data.benefits,
+      tema: data.tema,
     },
     themeOf(data),
   );
@@ -398,9 +406,20 @@ export async function renderPng(
   // webhook —que está en el camino crítico del ack a Meta—, ni /health que
   // vigila Railway, ni el SSE del panel. La variante asíncrona hace el mismo
   // trabajo en el threadpool de libuv y deja el event loop libre.
-  const png = await renderAsync(svg, { fitTo: { mode: "width", value: width * (opciones.escala ?? 2) } });
+  const png = await renderAsync(svg, { fitTo: { mode: "width", value: anchoDeVistaPrevia.getStore() ?? width * (opciones.escala ?? 2) } });
   return Buffer.from(png.asPng());
 }
+
+/**
+ * El ancho en píxeles al que sale la pieza cuando es SOLO la vista previa del
+ * panel (24-nov-2026). La pieza de verdad se rasteriza a 2–3× para que el
+ * cliente pueda ampliarla en WhatsApp; eso son más de 6 Mpx y ~1,3 s por
+ * imagen, que en una vista previa de 420 px de ancho no se ven y hacían que
+ * cada toque del panel se sintiera lento. El dibujo es el mismo (mismo SVG de
+ * satori): solo cambia a cuántos píxeles se pasa. Fuera de `run()` no hay
+ * valor y todo sale a su tamaño de siempre.
+ */
+export const anchoDeVistaPrevia = new AsyncLocalStorage<number>();
 
 // ---------------------------------------------------------------------------
 // Constructor de RenderLine desde el catálogo
