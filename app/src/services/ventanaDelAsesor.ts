@@ -12,7 +12,7 @@ import { config } from "../config.js";
 import { sql } from "../db/client.js";
 import { getChannelConfig } from "./channel.js";
 import { tel9 } from "./fuentes/contifico.js";
-import { telefonoDelUsuario } from "./avisosEnLaApp.js";
+import { ligarSuscripcionesSinNumero, telefonoDelUsuario } from "./avisosEnLaApp.js";
 
 /** Con cuánta anticipación la app avisa que se va a cerrar. Igual que `advisorWindow`. */
 const AVISAR_ANTES_MS = 3 * 60 * 60 * 1000;
@@ -97,10 +97,39 @@ interface FilaAsesor {
   ventana_hasta: Date | null;
 }
 
+/** «Carlos André» → ["carlos", "andre"]: sin tildes, en minúsculas, palabra por palabra. */
+const palabras = (s: string): string[] =>
+  s.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/\s+/).filter(Boolean);
+
+/**
+ * Qué asesor de la lista es este nombre de usuario. Se prueba de lo más seguro a
+ * lo menos, y en cada paso solo vale si queda UNO:
+ *   1. el nombre completo igual («Carlos Romero» = «Carlos Romero»);
+ *   2. todas las palabras del usuario están en el nombre del asesor
+ *      («Jenny Paz» → «Jenny Paz Alvarez»);
+ *   3. el primer nombre («Moroni» → «Moroni Pazmiño»).
+ *
+ * Antes solo existía el paso 3. En Competimotor hay tres asesores «Carlos» y
+ * Carlos Romero activó la app sin quedar ligado a su número: el teléfono quedó
+ * registrado pero nunca le llegó un aviso (Manuel, 25-nov-2026).
+ */
+export function elegirAsesorPorNombre<T extends { nombre: string }>(nombre: string, filas: readonly T[]): T | null {
+  const mio = palabras(nombre);
+  if (!mio.length) return null;
+  const unico = (lista: T[]) => (lista.length === 1 ? lista[0] : null);
+  const exacto = unico(filas.filter((f) => palabras(f.nombre).join(" ") === mio.join(" ")));
+  if (exacto) return exacto;
+  if (mio.length > 1) {
+    const contiene = unico(filas.filter((f) => { const suyas = palabras(f.nombre); return mio.every((p) => suyas.includes(p)); }));
+    if (contiene) return contiene;
+  }
+  return unico(filas.filter((f) => palabras(f.nombre)[0] === mio[0]));
+}
+
 /**
  * El asesor (fila de `advisors`) que corresponde a un usuario del panel: el
- * número que eligió al activar las notificaciones o, si no, el único asesor
- * activo cuyo primer nombre coincide con el suyo. Ambiguo o sin coincidencia:
+ * número que eligió al activar las notificaciones o, si no, el que se reconoce
+ * por su nombre (ver `elegirAsesorPorNombre`). Ambiguo o sin coincidencia:
  * null (mejor no avisar que avisarle a otro).
  */
 export async function asesorDelUsuario(usuario: { id: string; nombre: string }): Promise<FilaAsesor | null> {
@@ -113,11 +142,7 @@ export async function asesorDelUsuario(usuario: { id: string; nombre: string }):
     const porNumero = filas.find((f) => tel9(f.telefono) === llave);
     if (porNumero) return porNumero;
   }
-  const primero = (s: string) => s.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").split(/\s+/)[0] ?? "";
-  const mio = primero(usuario.nombre);
-  if (!mio) return null;
-  const coinciden = filas.filter((f) => primero(f.nombre) === mio);
-  return coinciden.length === 1 ? coinciden[0] : null;
+  return elegirAsesorPorNombre(usuario.nombre, filas);
 }
 
 export interface MiVentana {
@@ -133,6 +158,9 @@ export interface MiVentana {
 
 export async function miVentana(usuario: { id: string; nombre: string } | null, ahora = new Date()): Promise<MiVentana> {
   const asesor = usuario ? await asesorDelUsuario(usuario) : null;
+  // Se llama cada vez que se abre la app: un teléfono que se activó sin quedar
+  // ligado a su asesor se arregla solo en la próxima apertura.
+  if (usuario && asesor) await ligarSuscripcionesSinNumero(usuario.id, asesor.telefono).catch(() => 0);
   return {
     asesor: asesor ? { nombre: asesor.nombre, telefono: asesor.telefono } : null,
     estado: asesor ? estadoDeVentana(asesor.ventana_hasta, ahora) : null,

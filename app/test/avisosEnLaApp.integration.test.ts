@@ -149,4 +149,27 @@ describe("avisos en la app", () => {
     expect(todas.map((f) => f.channel)).toEqual(["whatsapp", "whatsapp"]);
     expect(pushes).toHaveLength(0);
   });
+
+  it("un teléfono activado sin número de asesor (tres «Carlos») se liga solo al abrir la app y recibe", async () => {
+    // Competimotor, 25-nov-2026: Carlos Romero activó la app en su Android, la
+    // app no supo cuál Carlos era y guardó el teléfono sin número: nunca le llegó nada.
+    const CARLOS = "593998545638";
+    await sql`insert into advisors (nombre, telefono, rol, active, prioridad) values
+      ('Carlos André Pazmiño', '593991244698', 'admin', true, 3),
+      ('Carlos Andrés Ventas', '593984872144', 'admin', true, 4),
+      ('Carlos Romero', ${CARLOS}, 'admin', true, 5)`;
+    await app.guardarSuscripcion({
+      userId: "carlos.romero", userName: "Carlos Romero", advisorPhone: null,
+      suscripcion: { endpoint: "https://fcm.example.test/carlos-android", keys: { p256dh: "p".repeat(40), auth: "a".repeat(16) } },
+    });
+    expect(await app.enviarPushAAsesores([CARLOS], { titulo: "x", cuerpo: "y" })).toBe(0);
+
+    const { miVentana } = await import("../src/services/ventanaDelAsesor.js");
+    const ventana = await miVentana({ id: "carlos.romero", nombre: "Carlos Romero" });
+    expect(ventana.asesor?.telefono).toBe(CARLOS);
+
+    pushes = [];
+    expect(await app.enviarPushAAsesores([CARLOS], { titulo: "Cotización enviada", cuerpo: "y" })).toBe(1);
+    expect(pushes.map((p) => p.endpoint)).toEqual(["https://fcm.example.test/carlos-android"]);
+  });
 });
