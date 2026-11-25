@@ -12,6 +12,8 @@ import { WhatsAppAPIError } from "whatsapp-api-js/errors";
 import { getWa } from "../wa/client.js";
 import { idDeNovedad, resumenDeNovedad, separarLote } from "../domain/loteDelWebhook.js";
 import { handleEchoWebhook } from "../wa/echoes.js";
+import { rescatarEntrante } from "../services/entrantesMudos.js";
+import { emitLiveEvent } from "../services/liveEvents.js";
 import { sql } from "../db/client.js";
 import { catalogStatus, searchBySize } from "../services/catalog.js";
 import {
@@ -68,7 +70,12 @@ async function despacharLote(wa: NonNullable<ReturnType<typeof getWa>>, raw: str
       if (error instanceof WhatsAppAPIError) {
         // «Unexpected payload» (200) es un cambio que la librería no despacha:
         // no es una falla. Firma inválida (401) sí corta el lote entero.
-        if (error.httpStatus === 200) continue;
+        if (error.httpStatus === 200) {
+          // Que quede escrito QUÉ se saltó: un campo nuevo de Meta que nadie
+          // lee no puede seguir pasando sin una sola línea en el log.
+          console.log(`ℹ️ Novedad del webhook sin manejador: ${resumenDeNovedad(parte)}`);
+          continue;
+        }
         console.error(`❌ Webhook rechazado (${error.httpStatus}): ${error.message} — ${resumenDeNovedad(parte)}`);
         return error.httpStatus;
       }
@@ -84,6 +91,10 @@ async function despacharLote(wa: NonNullable<ReturnType<typeof getWa>>, raw: str
       );
       if (veces >= MAX_REINTENTOS_DE_META) {
         console.error(`🚨 ${resumenDeNovedad(parte)} falló ${veces} veces: se deja de pedir reintento a Meta.`);
+        // Antes de soltarlo, se guarda tal cual: el bot ya no lo contesta, pero
+        // el asesor lo lee en la app (25-nov-2026: nada entrante se pierde).
+        const rescatada = await rescatarEntrante(parte);
+        if (rescatada) emitLiveEvent("message", rescatada);
       } else {
         estado = 500;
       }

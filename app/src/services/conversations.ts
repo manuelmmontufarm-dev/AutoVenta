@@ -207,6 +207,13 @@ export async function appendMessage(
     status?: "queued" | "sent" | "delivered" | "read" | "failed";
     metadata?: Record<string, unknown>;
     occurredAt?: Date;
+    /**
+     * Entrante que NO cuenta como «el cliente escribió» (una reacción, un aviso
+     * de sistema): suma al contador de no leídos, pero no mueve
+     * `last_customer_message_at`, que es el reloj de la ventana de 24 h y de
+     * los seguimientos. Ver `domain/entranteMudo.ts`.
+     */
+    sinActividad?: boolean;
   } = {},
 ): Promise<boolean> {
   const occurredAt = options.occurredAt ?? new Date();
@@ -243,7 +250,12 @@ export async function appendMessage(
     returning id
   `;
   if (rows.length > 0) {
-    if (role === "user") {
+    if (role === "user" && options.sinActividad) {
+      await sql`
+        update conversations set unread_count = unread_count + 1, updated_at = now()
+        where id = ${conversationId}
+      `;
+    } else if (role === "user") {
       await sql`
         update conversations
         set unread_count = unread_count + 1,

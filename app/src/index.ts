@@ -21,6 +21,8 @@ process.on("unhandledRejection", (reason) => {
     reason instanceof Error ? reason.stack ?? reason.message : reason,
   );
 });
+import { entranteMudo } from "./domain/entranteMudo.js";
+import { guardarEntranteMudo } from "./services/entrantesMudos.js";
 import { initWa, setWaHandlers, sendAdvisorText, sendCustomerText, sendCustomerButtons, showTyping, downloadMedia } from "./wa/client.js";
 import { describirFotoDeLlanta } from "./services/vision.js";
 import { bajarYGuardarMedio, guardarMedio } from "./services/mediosDelChat.js";
@@ -1033,6 +1035,18 @@ setWaHandlers({
       return;
     }
 
+    // LO QUE NO SE CONTESTA TAMBIÉN SE GUARDA (25-nov-2026). Una reacción, un
+    // `unsupported`, un pedido del catálogo o un aviso de sistema se cortaban
+    // con un `break`: ni fila ni log, y después no había forma de saber si el
+    // cliente había escrito. Siguen sin despertar al bot, pero el asesor los
+    // lee en la app. Ver `domain/entranteMudo.ts`.
+    const mudo = entranteMudo(message);
+    if (mudo) {
+      const convDelMudo = await guardarEntranteMudo(from, name, message.id, mudo, receivedAt);
+      if (convDelMudo) emitLiveEvent("message", convDelMudo);
+      return;
+    }
+
     switch (message.type) {
       case "text":
         // «/asesor» lo manda un asesor desde la app: no es un cliente (ver abajo).
@@ -1201,9 +1215,8 @@ setWaHandlers({
         break;
       }
       default: {
-        // Una REACCIÓN no es un mensaje: es un 👍 sobre algo que ya se dijo, y
-        // contestarle «mándame la medida» es ruido. Esas y las de sistema se
-        // siguen ignorando.
+        // Reacciones, `unsupported` y avisos de sistema ya se guardaron arriba
+        // (`entranteMudo`) sin despertar al bot: aquí no llegan.
         //
         // Lo demás que el bot no sabe leer —video, sticker, contacto— SÍ se
         // registra, aunque no se pueda interpretar: así queda la fila, el panel
@@ -1211,8 +1224,6 @@ setWaHandlers({
         // cliente que graba un video del costado de la llanta y no recibe nada
         // es un lead que se pierde en silencio, y desde fuera parece el bot
         // caído.
-        const mudos = ["reaction", "system", "order", "unknown", "unsupported"];
-        if (mudos.includes(message.type)) break;
         // Video y sticker: el bot no los lee, pero el archivo se guarda para el panel.
         if (message.type === "video" || message.type === "sticker") {
           const adjunto = (message as unknown as Record<string, { id?: string; mime_type?: string } | undefined>)[message.type];

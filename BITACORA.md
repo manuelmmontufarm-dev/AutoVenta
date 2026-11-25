@@ -1,3 +1,18 @@
+## 25-nov-2026 · Bot · Todo lo que manda el cliente queda guardado y visible en el panel
+
+- **Qué:** reacciones, mensajes que Meta entrega como `unsupported`/`unknown`, pedidos del catálogo, avisos de sistema,
+  formularios y botones de plantilla vacíos ahora se guardan como texto entre corchetes (`domain/entranteMudo.ts`,
+  `services/entrantesMudos.ts`): suman no leídos y salen en el chat, sin despertar al bot ni reabrir una venta cerrada.
+  Una reacción no mueve `last_customer_message_at`. En `server/webhook.ts`, un mensaje que falla las 3 veces que Meta lo
+  reintenta se guarda «de rescate» antes de soltarlo, y las novedades sin manejador dejan una línea en el log.
+- **Por qué:** Manuel reportó que al retomar un asesor un chat no se veía lo que el cliente mandaba (Competimotor, conv
+  1321). En ese chat no consta nada perdido, pero esos tipos se cortaban con un `break`, sin fila ni log: no había forma
+  de saber después si el cliente había escrito.
+- **Probado:** `test/entrantesMudos.test.ts` (12, Postgres real + consulta del panel); `sim:humo` verde; de punta a punta
+  en el simulador con `--stub` (texto → reacción → unsupported ×2 → pedido: todo guardado una vez, el bot solo contestó
+  el texto). Suite: 4.762 verdes; las 3 rojas de siempre (`bitacoraDelPanel`, `hashesPiezasDepot`, `unidadEnLaCantidad`).
+- **Horas:** 1.
+
 ## 24-nov-2026 · Bot · Depot pasa a Claude Sonnet 5.5 + Guardián Haiku 5.5 (producción)
 
 - **Qué:** la clave de Anthropic se recorta al leerla (`config.anthropic.apiKey`): pegada por terminal llegó con un salto
