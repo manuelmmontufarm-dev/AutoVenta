@@ -2,7 +2,11 @@
 
 > Parte de la [guía de cliente nuevo](README.md) (paso 2).
 > Lista viva: cada pregunta que haya que hacerle a un cliente y no esté aquí, se agrega.
-> Origen: lo que se le preguntó a Depot Tire y a Competimotor / Mundillantas (4 al 18-nov-2026).
+> Origen: lo que se le preguntó a Depot Tire y a Competimotor / Mundillantas (4 al 18-nov-2026), más lo
+> aprendido capacitando a Competimotor (18 al 25-nov-2026).
+>
+> **Versión para marcar casillas, cliente por cliente:** https://claude.ai/artifact/NRb7rUYzULMyij6ir1D8Cq
+> (las mismas preguntas, con las que bloquean el encendido arriba en un marcador).
 
 ## Cómo preguntar
 
@@ -33,7 +37,7 @@ La columna «Bloquea» dice si sin esa respuesta el bot no se puede encender.
 | A6 | **Quién tiene ese celular en la mano** y cuándo puede hacer una videollamada de 15 minutos? | Sí | Para escanear el código |
 | A7 | Usan o usaron algún CRM o bot conectado al WhatsApp (Kommo, otro)? | No | Si ya hay cuenta de API, el paso de Kommo se salta |
 | A8 | Tienen página web? Si no, cuál es su página de Facebook o Instagram? | Sí | Meta pide una dirección que abra con https |
-| A9 | Quién va a poner la **tarjeta** en la cuenta de WhatsApp para lo que cobra Meta? | No | Hace falta para las plantillas |
+| A9 | Quién va a poner la **tarjeta** en la cuenta de WhatsApp para lo que cobra Meta? Ya está puesta? | Sí | Sin método de pago **todas** las plantillas fallan (error 131042): no hay seguimientos, recordatorios ni avisos de respaldo (Competimotor, 20-nov) |
 | A10 | Cuántos números quieren con bot? Una marca por número? | Sí | Cada número es otro servicio y otra mensualidad |
 
 Mensaje modelo para A1–A3:
@@ -58,6 +62,8 @@ Mensaje modelo para A1–A3:
 | B9 | Venden **aros**? Vienen en el mismo Excel? Qué datos traen? | No | Mapeo del catálogo |
 | B10 | Venden llanta de **camión**? | No | Hoy queda fuera del bot |
 | B11 | Hay un precio mínimo o el bot no da descuentos? | No | Mapeo del catálogo |
+| B12 | Si el sistema tiene conexión directa (Contífico, Perseo): quién la activa y cuándo? | Sí, si es el camino | En Perseo la activa su personal y las llantas van marcadas «Visible» ([PERSEO.md](../integraciones/PERSEO.md)) |
+| B13 | Si el sistema está en un servidor del local (Fénix): nos dan acceso para leerlo? Qué base de datos usa, un usuario de **solo lectura** y una sesión remota | No | [FENIX.md](../integraciones/FENIX.md). Mientras tanto se trabaja con el Excel diario |
 
 ## Bloque C — El negocio (día 1, en Excel)
 
@@ -87,6 +93,11 @@ Mensaje modelo para A1–A3:
 | C22 | **Logos** originales (PNG con fondo transparente o el archivo del diseñador) y colores | No | `app/assets/<id>/` |
 | C23 | Con qué **marca** se presenta el bot y qué va en el encabezado de la cotización? | Sí | `presentacion` en el perfil |
 | C24 | Razón social, RUC y correo para **facturarles** | No | `facturacion` en el perfil |
+| C25 | Qué hace el bot cuando **no hay la medida** que piden: recomienda otra opción o pasa al asesor? | No | Política. En Competimotor no se nombra el stock: «Claro» y recomienda |
+| C26 | Qué **palabras** usan sus clientes para pedir? (ejemplo: «pantanera» = M/T) | No | Conocimiento del cliente |
+| C27 | Me mandan **20 chats reales** y las medidas que más venden? | Sí | Simulador (README, paso 9). Sin esto se prueba con medidas que no son las suyas |
+| C28 | Quién va a manejar las **promociones** en el panel (pestaña «Oferta y diseño»)? | No | Usuarios del panel |
+| C29 | Quieren un **tema** para la cotización en fechas especiales (Navidad, Black Friday)? | No | Oferta y diseño → Diseño |
 
 ## Bloque D — Anuncios (si van a pautar)
 
@@ -108,6 +119,12 @@ Mensaje modelo para A1–A3:
 | E3 | Quién cobra la comisión de una venta que trajo el bot? | Va en el acuerdo, no en el código |
 | E4 | Quién de ustedes va a entrar al panel? | Un usuario por persona |
 | E5 | Quién nos avisa si el bot contesta algo mal? | Un solo canal: el grupo de WhatsApp |
+| E6 | **Cada asesor** ya le escribió una vez al número del bot? | Bloquea. Si pasan más de 24 horas sin escribirle, Meta bloquea sus avisos (131047). Se repite cuando dejen de llegar |
+| E7 | Quien sube el Excel ya lo hizo **una vez solo**, con nosotros mirando? | Bloquea. Explicarlo no alcanza |
+| E8 | Los asesores tienen la **app del teléfono** instalada y recibieron un aviso de prueba? | `docs/instructivo-app-celular.pdf` |
+| E9 | Ya vieron una **cotización de muestra** en imagen y en PDF y dieron el visto bueno? | Bloquea. Logo, marca, garantías y pie |
+| E10 | Nos dan el **OK por escrito** para encender? | Bloquea |
+| E11 | Qué día revisamos juntos la primera semana? | |
 
 ---
 
