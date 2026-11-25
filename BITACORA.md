@@ -1,3 +1,18 @@
+## 24-nov-2026 · Bot · Depot pasa a Claude Sonnet 5.5 + Guardián Haiku 5.5 (producción)
+
+- **Qué:** la clave de Anthropic se recorta al leerla (`config.anthropic.apiKey`): pegada por terminal llegó con un salto
+  de línea al final. Nuevo `scripts/canary/claude-antes-despues.mjs`: gráficos de control de producción (solo lectura),
+  fase I = 7–23 nov, fase II = desde el cambio, con tabla de qué modelo atendió cada corrida (respaldo incluido).
+  Variables de Depot_Tire: `OPENAI_CANARY_MODEL=claude-haiku-5-5`, `…_VENDEDOR=claude-sonnet-5-5`,
+  `…_GUARDIAN=claude-haiku-5-5`, `AI_CANARY_SCOPE=vendedor,guardian`, `AI_CANARY_DIGITS=0,…,9`.
+- **Por qué:** Manuel decidió pasar todo Depot a Claude después de la medición del simulador (−0,20 ± 0,29, 29 % del costo).
+  Esto cierra la fase III del canary (Guardián gpt-5.4-mini en impares).
+- **Para volver atrás:** `AI_CANARY_DIGITS=1,3,5,7,9`, `AI_CANARY_SCOPE=guardian`, `OPENAI_CANARY_MODEL=gpt-5.4-mini`,
+  `OPENAI_CANARY_MODEL_GUARDIAN=gpt-5.4-mini`, `OPENAI_CANARY_MODEL_VENDEDOR=gpt-5.4`.
+- **Probado:** la clave de producción responde 200 con Sonnet y Haiku. Línea de base de producción (7–23 nov):
+  $0,087 por conversación, 36 % de chats con cotización, 6,7 % con día de visita, 34,7 % de borradores corregidos.
+- **Horas:** 1.
+
 ## 24-nov-2026 · Bot · Claude contra gpt-5.5: dos corridas de 50 y decisión Sonnet + Haiku (rama `feat/proveedor-fable`)
 
 - **Qué:** se completaron dos corridas de los 50 casos difíciles para control (gpt-5.5), Sonnet 5.5 + Guardián Haiku 5.5 y
