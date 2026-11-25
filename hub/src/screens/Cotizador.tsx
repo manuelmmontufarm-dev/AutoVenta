@@ -12,6 +12,7 @@ import {
   getComparisonMessage,
   getOptionsMessage,
   getQuoteMessage,
+  getQuoteTotal,
   hasAdminKey,
   saveAdminKey,
   searchCatalog,
@@ -480,7 +481,7 @@ export function Cotizador() {
                 <Cantidad valor={quoteQuantity} onChange={setQuoteQuantity} />
                 <div className="text-right">
                   <p className="text-[12px] text-text2">Total con IVA</p>
-                  <p className="tnum font-mono text-[24px] font-bold">{money(quoteProduct.salePrice * quoteQuantity)}</p>
+                  <TotalDeCotizacion product={quoteProduct} quantity={quoteQuantity} className="tnum font-mono text-[24px] font-bold" />
                 </div>
               </div>
               <label className="flex flex-col gap-1.5 text-[13px] text-text2">
@@ -1166,9 +1167,7 @@ function QuotePanel({
         </label>
         <div className="text-right">
           <p className="text-[12px] text-text2">Total con IVA</p>
-          <p className="tnum mt-0.5 font-mono text-[22px] font-bold">
-            {money(product.salePrice * quantity)}
-          </p>
+          <TotalDeCotizacion product={product} quantity={quantity} className="tnum mt-0.5 font-mono text-[22px] font-bold" />
         </div>
       </div>
       <div className="mt-auto pt-5">
@@ -1438,3 +1437,31 @@ function money(value: number): string {
   }).format(value);
 }
 
+
+/**
+ * El total que va a salir en la cotización, pedido al servidor: con Black
+ * Friday o una promoción por cantidad no es precio × cantidad (25-nov-2026:
+ * 4 Kenda decían $251.48 aquí y la pieza $234.70). Mientras contesta, o si no
+ * contesta, se muestra la cuenta simple.
+ */
+function TotalDeCotizacion({ product, quantity, className }: { product: CatalogProduct; quantity: number; className: string }) {
+  const [real, setReal] = useState<{ clave: string; total: number; nota: string | null } | null>(null);
+  const clave = `${product.id}:${quantity}`;
+  useEffect(() => {
+    let vivo = true;
+    const t = setTimeout(() => {
+      getQuoteTotal(product, quantity)
+        .then((r) => { if (vivo) setReal({ clave, ...r }); })
+        .catch(() => undefined);
+    }, 150);
+    return () => { vivo = false; clearTimeout(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clave]);
+  const vigente = real?.clave === clave ? real : null;
+  return (
+    <>
+      <p className={className} data-testid="total-cotizacion">{money(vigente ? vigente.total : product.salePrice * quantity)}</p>
+      {vigente?.nota && <p className="mt-0.5 max-w-[240px] text-[11px] text-text2" data-testid="nota-cotizacion">{vigente.nota}</p>}
+    </>
+  );
+}
