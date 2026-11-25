@@ -1,3 +1,15 @@
+## 25-nov-2026 · Docs · Preguntas nuevas de alta de cliente, aprendidas capacitando a Competimotor
+
+- **Qué:** `docs/cliente-nuevo/PREGUNTAS.md` suma 13 preguntas: B12–B13 (conexión directa y acceso al servidor local),
+  C25–C29 (sin stock, palabras del cliente, 20 chats reales, quién maneja promociones, tema de la cotización) y E6–E11
+  (cada asesor le escribe al bot, subir el Excel una vez solo, app del teléfono, visto bueno a la cotización, OK por
+  escrito, fecha de revisión). La tarjeta en la cuenta de WhatsApp (A9) pasa a bloqueante. Enlace al checklist para
+  marcar casillas por cliente.
+- **Por qué:** Manuel, 25-nov: pidió un checklist con todo lo que hay que pedirle al cliente para quedar tranquilos, y
+  que lo nuevo quede en la guía.
+- **Probado:** solo documentación; no hay código.
+- **Horas:** 0,5.
+
 ## 25-nov-2026 · Panel · Un solo encabezado por pieza y promociones por Excel coherentes en opciones y comparativa
 
 - **Qué:** (1) un tema con cinta propia (Navidad, personalizado…) reemplaza a la franja de temporada en vez de sumarse:
