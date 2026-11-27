@@ -29,6 +29,7 @@
  */
 import { esCierreComercialDelTurno, esPlazoDeDecision } from "./cierreTurno.js";
 import { despedidaQueCorresponde } from "./cierrePerdido.js";
+import { pidioTiempo } from "./clientePosterga.js";
 
 export type MotivoDeNoRescatar = "despedida" | "plazo" | "visita_registrada";
 
@@ -46,6 +47,8 @@ export function mereceRescate(input: {
   ultimoDelCliente: string | null | undefined;
   /** ¿Ya hay día de visita anotado en la ficha? */
   visitaRegistrada: boolean;
+  /** Sprint 4 (Competimotor): «Por ahora no gracias», «yo le escribo cuando reúna» tampoco se rescatan (1247). */
+  respetarPlazo?: boolean;
 }): Rescate {
   if (input.visitaRegistrada) return { rescatar: false, motivo: "visita_registrada" };
   const texto = (input.ultimoDelCliente ?? "").trim();
@@ -53,6 +56,7 @@ export function mereceRescate(input: {
   // El plazo va antes que la despedida: «ya le confirmo» es un compromiso
   // vivo, no un cierre, y el motivo que se guarda tiene que decir eso.
   if (esPlazoDeDecision(texto)) return { rescatar: false, motivo: "plazo" };
+  if (input.respetarPlazo && pidioTiempo(texto)) return { rescatar: false, motivo: "plazo" };
   if (
     AGRADECIMIENTO_SOLO.test(texto.normalize("NFD").replace(/[̀-ͯ]/g, ""))
     || despedidaQueCorresponde(texto)

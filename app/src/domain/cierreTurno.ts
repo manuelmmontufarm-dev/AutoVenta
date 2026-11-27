@@ -1,4 +1,5 @@
 import { isExplicitPurchaseConfirmation } from "./salesIntent.js";
+import { pidioTiempo } from "./clientePosterga.js";
 
 const normalizar = (texto: string) =>
   (texto ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
@@ -86,6 +87,12 @@ export type CierreDelTurno =
 export function tipoDeCierreDelTurno(
   texto: string,
   anteriorDelCliente: string | null = null,
+  /**
+   * Sprint 4 (Competimotor, 538): el «Ok» que sigue a «yo le aviso, por ahora
+   * estoy ocupado» es el acuse de ESE plazo, no una invitación a volver a
+   * preguntar el día. Sin la bandera (Depot), igual que antes.
+   */
+  opciones: { plazoCierraElAcuse?: boolean } = {},
 ): CierreDelTurno | null {
   const actual = normalizar(texto);
   if (!actual) return null;
@@ -105,6 +112,9 @@ export function tipoDeCierreDelTurno(
   if (ACUSE.test(actual)) {
     const anterior = normalizar(anteriorDelCliente ?? "");
     if (anterior && (isExplicitPurchaseConfirmation(anterior) || esRechazoSuave(anterior))) {
+      return "acuse_del_cierre";
+    }
+    if (anterior && opciones.plazoCierraElAcuse && (esPlazoDeDecision(anterior) || pidioTiempo(anteriorDelCliente ?? ""))) {
       return "acuse_del_cierre";
     }
   }

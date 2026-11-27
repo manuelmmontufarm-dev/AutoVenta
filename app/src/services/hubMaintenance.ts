@@ -18,6 +18,7 @@ import { setStage } from "./conversations.js";
 import { resumeBotIfUnanswered, type ResumeBotResult } from "./resumeBot.js";
 import { isBotActive } from "./botPower.js";
 import { mereceRescate } from "../domain/rescateDeChat.js";
+import { politica as politicaComercial } from "../negocio/politica.js";
 import { createBotAlert, getFollowUpPolicy } from "./followUps.js";
 import { isWithinBusinessHours } from "../domain/followUps.js";
 import type { Stage } from "../domain/pipeline.js";
@@ -249,6 +250,8 @@ export async function rescatarChatsOlvidados(
     const { rescatar, motivo } = mereceRescate({
       ultimoDelCliente: fila.ultimo_del_cliente,
       visitaRegistrada: Boolean(fila.visit_date),
+      // Sprint 4 (Competimotor, 1247): «Por ahora no gracias» no se rescata.
+      respetarPlazo: Boolean(politicaComercial.seguimientos?.respetarPlazoDelCliente),
     });
     if (!rescatar) console.log(`💤 No se rescata la conv ${fila.id}: ${motivo}.`);
     return rescatar;

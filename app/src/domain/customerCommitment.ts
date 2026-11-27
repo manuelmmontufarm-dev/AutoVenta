@@ -401,8 +401,10 @@ export function extractCustomerCommitment(
   // miércoles, porque `relativoEnTexto` cuenta «ahora» como hoy y el hoy se
   // leía antes que el fin de semana. «Ahora» solo es el día de la visita si
   // no hay otro día en la frase.
+  // Lo mismo con un tramo (Sprint 4, chat 1011): «la próxima semana voy por qué
+  // me quedé AHORA sin fondos» quedó como visita de ESE día a las 15:00.
   const hoyDeVerdad = relativo === "hoy"
-    && (/\b(?:hoy|oy|hoi|oi|hoyy)\b/.test(normalized) || !(dia || FIN_DE_SEMANA.test(normalized)));
+    && (/\b(?:hoy|oy|hoi|oi|hoyy)\b/.test(normalized) || !(dia || FIN_DE_SEMANA.test(normalized) || VAGO.test(normalized)));
   if (hoyDeVerdad) return conFranja(15, 0);
   // El día de la semana manda sobre "mañana": "mañana sábado" es el sábado.
   if (dia) return conFranja(10, diasHastaElDia(dia.indice, now, semana));

@@ -14,6 +14,8 @@ import { emitLiveEvent } from "./liveEvents.js";
 import { authorizeConversationOutbound } from "./whatsappPolicy.js";
 import { hasUnansweredCustomerMessage } from "../domain/conversationState.js";
 import { flagRepetitiveConversation } from "./conversationQuality.js";
+import { politica } from "../negocio/politica.js";
+import { splitBlocks } from "./quoteMessages.js";
 
 export type ResumeBotResult =
   | "answered"
@@ -112,14 +114,23 @@ export async function resumeBotIfUnanswered(conversationId: number): Promise<Res
     // Un candado bloqueó el envío (duplicado/atascado): ya alertó al asesor y
     // para el que llama esto equivale a que no había nada seguro que responder.
     if (!salida.texto) return "nothing_pending";
-    const providerId = await sendCustomerText(conversationId, claimed.phone, salida.texto);
     // La oferta de cotizar se guarda como hecho al enviarla (ver services/ofertaVigente.ts).
     const metadatoDeOferta = await metadataDeOferta(
       conversationId, claimed.current_cycle, salida.texto, contextoDeSalida.ofertaDelTurno,
     );
-    await appendMessage(conversationId, "assistant", salida.texto, providerId, {
-      authorKind: "bot", status: "sent", metadata: { resumedAfterHuman: true, ...metadatoDeOferta },
-    });
+    // EL «---» NO LE LLEGA AL CLIENTE (Sprint 4, auditoría Competimotor 26-nov,
+    // chats 1331, 1344, 108, 427): esta puerta mandaba el turno entero en un
+    // solo mensaje y el separador de bloques salía escrito. Con la política del
+    // negocio sale partido como en `index.ts`; sin ella (Depot), igual que antes.
+    const bloques = politica.seguimientos?.retomadaSinSeparador ? splitBlocks(salida.texto) : [salida.texto];
+    for (const [indice, bloque] of bloques.entries()) {
+      const ultimo = indice === bloques.length - 1;
+      const providerId = await sendCustomerText(conversationId, claimed.phone, bloque);
+      await appendMessage(conversationId, "assistant", bloque, providerId, {
+        authorKind: "bot", status: "sent",
+        metadata: { resumedAfterHuman: true, ...(ultimo ? metadatoDeOferta : {}) },
+      });
+    }
     await enviarTicketDeCupon({
       conversationId, cycle: claimed.current_cycle, to: claimed.phone, emitidoDesde: cuponesDesde,
     });

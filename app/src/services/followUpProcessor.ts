@@ -1,7 +1,7 @@
 import { sql } from "../db/client.js";
 import { emitirCuponDeConfirmacion, enviarTicketDeCupon } from "./coupons.js";
 import { porQueNoPasaPorElLocal } from "./dondeEstaElCliente.js";
-import { config } from "../config.js";
+import { business, config } from "../config.js";
 import { isWithinBusinessHours } from "../domain/followUps.js";
 import { metadataDeOferta } from "./ofertaVigente.js";
 import { appendMessage } from "./conversations.js";
@@ -163,7 +163,10 @@ export async function processFollowUpJob(
   // Lo que sí se marca es el modo, para que la redacción con IA sepa que aquí
   // no se pregunta nada — y para que el guardián lo revise con esa vara.
   const visitaAgendada = Boolean(
-    !isAuthorizedCampaign && context.visit_date && !yaPasoElDiaDeLaVisita(context.visit_date, now) && context.nearest_store,
+    !isAuthorizedCampaign && context.visit_date && !yaPasoElDiaDeLaVisita(context.visit_date, now)
+      // Con un solo local (Competimotor) el local ya está elegido aunque la
+      // ficha lo tenga vacío (Sprint 4, chat 1375). Depot tiene dos: igual que antes.
+      && (context.nearest_store || business.stores.length === 1),
   );
 
   // EL MISMO DUEÑO QUE AL AGENDAR (familia 6, 20-oct): un job que se agendó
