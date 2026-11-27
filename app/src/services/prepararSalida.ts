@@ -61,7 +61,7 @@ import { sinJsonCrudo } from "../domain/jsonCrudo.js";
 import { sinTrastienda } from "../domain/sinTrastienda.js";
 import { conLocalesReales } from "./localesReales.js";
 import { sql } from "../db/client.js";
-import { formaDePagoSinDefinir, marcaQueNombro } from "../domain/preguntaDirecta.js";
+import { formaDePagoSinDefinir, marcaQueNombro, pideFotos } from "../domain/preguntaDirecta.js";
 import { conElEnvioExplicado, respuestaDeUbicacionFueraDeCobertura, respuestaFijaFueraDeCobertura, sinPreguntaDeLocalConUnoSolo, sinVisitaNiMapas } from "../domain/visitaImposible.js";
 import { localesQueLeQuedanLejos, sinElLocalLejano } from "../domain/localLejano.js";
 import {
@@ -669,6 +669,20 @@ export const PASOS: readonly PasoDeSalida[] = [
       const con = conElEnvioExplicado(texto, ctx.textoDelCliente);
       if (con !== texto) console.log(`🚚 Conv ${ctx.conversation.id}: el Guardián quitó el envío; se repone.`);
       return con;
+    },
+  },
+  {
+    // LA FOTO SE CONTESTA (F-06 / N2, 1456 y 538): si el cliente pidió foto y el
+    // texto final no la menciona (el Guardián o el atajo dejaron solo la
+    // pregunta del menú), va una línea al frente. La lámina ya es la foto: no
+    // se reenvía (`preparar_opciones`). Solo Competimotor, después del Guardián.
+    nombre: "la_foto_se_contesta",
+    corre: ["respuesta", "retomada"],
+    async aplicar(texto, ctx) {
+      if (!politica.casosSueltosF06 || !pideFotos(ctx.textoDelCliente)) return texto;
+      if (/\bfotos?\b|\bimagen\b|\bl[aá]mina\b/i.test(texto)) return texto;
+      console.log(`📷 Conv ${ctx.conversation.id}: pidió foto y el texto no la contestaba; se agrega la línea.`);
+      return `La imagen que le mandé arriba es la foto de las llantas 👆 Si desea fotos reales, un asesor se las puede compartir por aquí.\n---\n${texto}`;
     },
   },
   {
@@ -2008,7 +2022,13 @@ export async function conElLocalUnico(
       enlaces: false,
     }));
   }
-  return bloques.filter(Boolean).join("\n---\n");
+  // Un bloque que quedó solo con el separador (el borrador traía «---» suelto
+  // y se le quitó todo lo demás) no se manda: salía «---» como mensaje (simulador 27-nov, 1456).
+  return bloques
+    .flatMap((b) => (b ?? "").split(/\n\s*-{3,}\s*\n/))
+    .map((b) => b.replace(/^\s*-{3,}\s*$/gm, "").trim())
+    .filter(Boolean)
+    .join("\n---\n");
 }
 
 async function cerrarConLaAlternativa(

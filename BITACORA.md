@@ -49,7 +49,7 @@
     la visita vigente o con el cliente escribiendo ese día. «Claro, quedo pendiente…» en el chat dice qué queda hecho;
     «¿Le agendo una cita?» mata la oferta de cotizar vieja.
   - **Candados después del Guardián** (que los quitaba en el simulador): el envío al de otra ciudad se repone, la marca
-    pedida que la lámina no trae se nombra con aviso real al asesor (también si el texto ya la nombraba: sin aviso, `sin_aviso_inventado` la cambiaba por «Se lo consulto…», chat 884), y la lámina de quien pidió carga solo lleva llantas
+    pedida que la lámina no trae se nombra con aviso real al asesor (también si el texto ya la nombraba: sin aviso, `sin_aviso_inventado` la cambiaba por «Se lo consulto…», chat 884), y la foto pedida se contesta en una línea si el texto final no la nombra, la lámina de quien pidió carga solo lleva llantas
     de carga (`preparar_opciones`, la puerta única). `agendar_visita` tampoco agenda «Estoy. De quitto».
   - **Doble botón:** «la 1» + «la 2» en la misma ráfaga son un turno y manda el último toque (también detrás de la
     política, revisión de la coordinadora: Depot parte la ráfaga como siempre). `cliente_sin_respuesta` pospuesta: el panel
