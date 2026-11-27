@@ -97,6 +97,28 @@ describe("Competimotor: nunca «no hay» al cliente", () => {
     ]) expect(diceNoHay(bueno), bueno).toBe(false);
   });
 
+  it("27-nov: negar una PROMOCIÓN no es negar el stock (simulador con Claude, 185/65R14 con 81 en stock)", async () => {
+    const { diceNoHay, sinNoHay } = await import("../src/domain/sinNoHay.js");
+    // A «X viernes negro hay más descuento» el vendedor escribió esto, y el
+    // candado le pegaba «Un asesor también lo está revisando para
+    // conseguírsela» + aviso «pedido sin stock» al asesor, con 81 llantas.
+    const real = "Claro, el descuento que le puedo ofrecer es pagando en efectivo o transferencia; en esta llanta no tengo una promo adicional confirmada.";
+    for (const bueno of [
+      real,
+      "En esta llanta no tenemos promoción de Black Friday.",
+      "En esa medida no hay descuento adicional, solo el precio en efectivo.",
+      "Esa llanta no tiene oferta por ahora.",
+      "En 185/65R14 no tengo ninguna promoción vigente.",
+    ]) expect(diceNoHay(bueno), bueno).toBe(false);
+    expect(sinNoHay(real, { hayOpciones: false, pidePrecio: false })).toBe(real);
+    // Lo que sí niega el stock sigue cayendo, aunque la oración hable de promoción.
+    for (const malo of [
+      "En esta llanta no tengo stock, pero hay promoción en otras.",
+      "No tenemos esa llanta en promoción ni en stock.",
+      "No hay llantas de promoción en 185/65R14.",
+    ]) expect(diceNoHay(malo), malo).toBe(true);
+  });
+
   it("la búsqueda sin stock deja la marca primero y la regla del negocio al final", async () => {
     const { conSinNoHay } = await import("../src/agent/tools.js");
     const { pedidoSinStockDelResultado, CAMPO_SIN_STOCK } = await import("../src/domain/sinNoHay.js");
