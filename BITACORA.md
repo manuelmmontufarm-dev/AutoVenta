@@ -1,3 +1,23 @@
+## 27-nov-2026 · Bot · Competimotor: cierre de los cinco sprints de la auditoría del 26-nov (revisión final)
+
+- **Qué:** integración de los sprints 1 a 5 en `fix/auditoria-2026-11-26` (F-01 «Sí tenemos», F-02/F-03 precio y
+  cierre, F-04 apertura, F-05 seguimientos, F-06 casos sueltos y el chat 1456). Todo detrás de la política del
+  negocio (`mundillantas`); Depot no cambia. Informe: `docs/reportes-historicos/2026-11-26-arreglos-auditoria.html`;
+  auditoría: `docs/reportes-historicos/2026-11-26-auditoria-competimotor.md`.
+- **Probado (revisión final, con todo junto):** replay de los chats reales, 2 vueltas más sobre las 3 de cada sprint:
+  S1 7/7, S2 11/11, S3 13/13, S4 12/13 (falla el «sí» a «¿Le agendo una cita?»: no cotiza, pero no pregunta el día).
+  Suite 5052 pasan; fallan 2 pruebas en 3 archivos que ya fallan en `main` 4e53288 (bitácora del panel, hashes de
+  Depot —idénticos a `main`—, unidad en la cantidad). Guardas de Depot 38/38, fidelidad 12/12, `sim:humo` Depot y
+  mundillantas 8/8. Costo de la conversación estándar (Depot): mediana $0.287 en `main` y $0.311 en la rama (+8 %,
+  rangos solapados, entrada del guardián idéntica: 15108 y 15111).
+- **Pendiente:** «sí» a la cita y volver a ofrecer el día tras la pregunta del viernes negro (rama
+  `claude/s5-cita-y-dia-wip`, sin integrar); «necesito las 4» con menú de 2–3 opciones; botones con la medida cuando
+  dos opciones se llaman igual; «está caro» + otra pregunta en el mismo mensaje; la guía tras la venta (469).
+  Para Manuel: equivalente hasta 30 mm de ancho en Competimotor, cheques, forma de pago a distancia, y si la apertura
+  corta, «asesor» a secas y el aviso de traspaso se prenden también en Depot.
+- **Próxima auditoría:** corre con el embudo (sección Embudo de `/auditar-desde-ultimo-cambio`) y los sprints salen
+  de lo que el embudo muestre. Punto de partida: 165 chats, 128 con opciones, 36 con cotización, 7 con día, 1 venta.
+
 ## 26-nov-2026 · Bot · Competimotor: dos precios desde la lista, respuesta al «está caro» y cierre «hoy o cita» (Sprint 2, F-02/F-03)
 
 - **Qué:** detrás de `politica.ventaConDosPrecios` (solo `mundillantas`): la lista de opciones dice el total con
