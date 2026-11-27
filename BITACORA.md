@@ -114,6 +114,10 @@
   promo incluida) reemplaza la copia de `followUps.ts`. Del Sprint 3: las dos líneas de «solo aro» del playbook
   siguen la apertura corta (solo con `aperturaCorta`). La cantidad del «está caro» ahora es la que el cliente dijo
   después de la lámina, antes que la ficha (que trae el juego de 4 por defecto: por eso 1321 decía 4).
+- **Revisión de la coordinadora (27-nov):** «presupuesto» a secas ya no es objeción (en Ecuador es pedir la cotización;
+  cuenta solo como tope: «se me sale del presupuesto», «mi presupuesto es…»), ni «¿cuál es la más cara?» ni «no está
+  caro». «Lo más económico que tengo» usa `minimoParaMostrar` del Sprint 1 (stock ≥ 1 en Competimotor). 1303 repetido
+  en el simulador: igual que antes.
 - **Horas:** 3.
 
 ## 25-nov-2026 · Bot · Entiende y explica cada promoción del panel (y si se suma con el 25 %)

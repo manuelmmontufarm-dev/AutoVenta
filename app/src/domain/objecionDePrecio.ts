@@ -30,12 +30,24 @@ const normal = (t: string) => t.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/
 export function esObjecionDePrecio(texto: string | null | undefined): boolean {
   const n = normal(texto ?? "");
   if (!n.trim()) return false;
-  return /\b(?:caro|cara|caros|caras|carito|carita|caritos|caritas|carisim[oa]s?|carazo)\b/.test(n)
-    || /\b(?:elevad[oa]s?|exagerad[oa]s?|costos[oa]s?)\b/.test(n)
-    || /\bmuy\s+alt[oa]s?\b/.test(n)
-    || /\b(?:algo|alguna|algun|otra|otras|opcion|opciones|hay)\s+(?:\w+\s+){0,2}mas\s+(?:accesible|barat\w*|economic\w*)/.test(n)
-    || /\bmas\s+accesible\b/.test(n)
-    || /\b(?:mi|el)\s+tope\b|\btope\s+(?:es|de|seria)\b|\bpresupuesto\b/.test(n);
+  // Revisión de la coordinadora (27-nov): «¿cuál es la más cara?», «y la más cara
+  // cuánto?» piden un dato, y «no está caro» / «no me parece caro» dicen lo
+  // contrario. Esas frases salen antes de buscar «caro»: si no, el paso
+  // reemplazaría el turno entero con «Le entiendo 👍».
+  const sinFalsos = n
+    .replace(/\b(?:la|el|las|los)\s+mas\s+(?:car[oa]s?|barat[oa]s?|economic[oa]s?|accesibles?)\b/g, " ")
+    .replace(/\bno\s+(?:(?:esta|estan|es|son|me\s+parecen?|lo\s+veo|las?\s+veo|los\s+veo|se\s+ven?)\s+)?(?:tan\s+|muy\s+|nada\s+)?car[oa]s?\b/g, " ");
+  return /\b(?:caro|cara|caros|caras|carito|carita|caritos|caritas|carisim[oa]s?|carazo)\b/.test(sinFalsos)
+    || /\b(?:elevad[oa]s?|exagerad[oa]s?|costos[oa]s?)\b/.test(sinFalsos)
+    || /\bmuy\s+alt[oa]s?\b/.test(sinFalsos)
+    || /\b(?:algo|alguna|algun|otra|otras|opcion|opciones|hay)\s+(?:\w+\s+){0,2}mas\s+(?:accesible|barat\w*|economic\w*)/.test(sinFalsos)
+    || /\bmas\s+accesible\b/.test(sinFalsos)
+    || /\b(?:mi|el)\s+tope\b|\btope\s+(?:es|de|seria)\b/.test(sinFalsos)
+    // «Presupuesto» a secas es pedir la cotización en Ecuador («envíeme el presupuesto
+    // de las 4»): solo cuenta como tope.
+    || /\b(?:sale|salen|pasa|pasan|excede|exceden)\s+(?:\w+\s+){0,2}(?:del|de\s+mi)\s+presupuesto\b/.test(sinFalsos)
+    || /\bfuera\s+de\s+(?:mi\s+)?presupuesto\b|\bno\s+me\s+alcanza\s+(?:el\s+)?presupuesto\b/.test(sinFalsos)
+    || /\bmi\s+presupuesto\s+(?:es|son|seria|llega|alcanza|no)\b|\btengo\s+(?:un\s+)?presupuesto\s+de\b/.test(sinFalsos);
 }
 
 export interface OpcionVista {

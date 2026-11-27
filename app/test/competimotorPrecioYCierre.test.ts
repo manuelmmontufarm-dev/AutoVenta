@@ -133,6 +133,12 @@ describe("2 · «está caro» es objeción de precio (textos reales)", () => {
     "tiene algo más accesible?",
     "está carito",
     "mi tope es 400",
+    "se me sale del presupuesto",
+    "está fuera de mi presupuesto",
+    "no me alcanza el presupuesto",
+    "mi presupuesto es de 400",
+    "tengo un presupuesto de 500",
+    "la más cara está carísima",
   ])("«%s» → objeción", (texto) => {
     expect(objecion.esObjecionDePrecio(texto)).toBe(true);
   });
@@ -142,6 +148,15 @@ describe("2 · «está caro» es objeción de precio (textos reales)", () => {
     "la 1",
     "para mi carro",
     "en efectivo hay descuento?",
+    // Revisión de la coordinadora (27-nov): «presupuesto» es pedir la cotización, y la pregunta por la opción.
+    "me ayuda con un presupuesto",
+    "envíeme el presupuesto de las 4",
+    "¿cuál es la más cara?",
+    "y la más cara cuánto?",
+    "cuál es la más barata",
+    "no está caro",
+    "no es cara",
+    "no me parece caro",
   ])("«%s» → NO es objeción", (texto) => {
     expect(objecion.esObjecionDePrecio(texto)).toBe(false);
   });

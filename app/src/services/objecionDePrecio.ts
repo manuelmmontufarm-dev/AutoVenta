@@ -15,6 +15,7 @@ import { cantidadDichaConTolerancia, respuestaAObjecionDePrecio, type OpcionMasB
 import { buildBenefitsBlock } from "./benefits.js";
 import { MAX_NUMERADA } from "../domain/listaDeOpciones.js";
 import { extractExplicitQuantity } from "../domain/salesIntent.js";
+import { minimoParaMostrar } from "../domain/stockCorto.js";
 
 interface Guardada { codigo?: string; nombre?: string; precio_con_iva?: number; efectivo_con_iva?: number | null }
 
@@ -105,14 +106,17 @@ export async function loQueVioElCliente(conversationId: number, cycle: number): 
   };
 }
 
-/** La más barata de la medida que alcanza para la cantidad, si es más barata que todo lo que vio. */
+/**
+ * La más barata de la medida que la lámina también mostraría (`minimoParaMostrar`: en
+ * Competimotor, stock único, basta 1; Depot, las que pidió), si es más barata que todo lo que vio.
+ */
 function masBarataDeLaMedida(medida: string | null, cantidad: number, vistas: readonly (OpcionVista & { codigo: string | null })[]): OpcionMasBarata | null {
   const size = medida ? parseTireSize(medida) : null;
   if (!size) return null;
   const minimo = Math.min(...vistas.map((v) => v.tarjeta));
   const codigos = new Set(vistas.map((v) => v.codigo).filter(Boolean));
   const candidata = searchBySize(size)
-    .filter((i) => i.sizeLabel === medida && !codigos.has(i.code) && i.stock >= cantidad && i.minimumPriceWithTax > 0 && i.minimumPriceWithTax < minimo)
+    .filter((i) => i.sizeLabel === medida && !codigos.has(i.code) && i.stock >= minimoParaMostrar(cantidad) && i.minimumPriceWithTax > 0 && i.minimumPriceWithTax < minimo)
     .sort((a, b) => a.minimumPriceWithTax - b.minimumPriceWithTax)[0];
   if (!candidata) return null;
   return { nombre: `${candidata.brand} ${candidata.design}`.trim(), tarjeta: candidata.minimumPriceWithTax, efectivo: efectivoDeLaLlanta(candidata) };
