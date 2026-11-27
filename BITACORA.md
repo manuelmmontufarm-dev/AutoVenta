@@ -1,3 +1,25 @@
+## 26-nov-2026 · Bot · Competimotor: apertura corta y nada de lámina a ciegas (Sprint 3, F-04)
+
+- **Qué:** `politica.aperturaCorta` (solo `mundillantas`) con la lógica en `domain/aperturaCorta.ts` y
+  `services/aperturaCorta.ts`. (1) La auto-respuesta de WhatsApp Business (`metadata.automatica`) ya no cuenta como
+  saliente en la decisión del primer contacto, y las dos frases de anuncio de Meta que el detector no conocía («Hola.
+  ¿Puedes darme más información sobre esto?», «¡Hola! Me gustaría conseguir más información sobre esto.») son saludo
+  pelado: sale la apertura corta de siempre (2 mensajes). (2) `guia_medida` se niega si el cliente no dijo con sus
+  palabras que no sabe/no encuentra la medida. (3) `opciones_sin_medida`: las dos primeras veces del ciclo, una pregunta
+  de las tres vías (medida, foto, vehículo) en vez de guía + muestra de tres medidas; desde la tercera, lo de siempre.
+  (4) Solo el aro («rin 16») → una pregunta por lo que falta de la medida, una vez por ciclo, en vez de la lámina
+  mezclada (`mostrarPorAro`). (5) «Dónde las consigo» de entrada → local y después la pregunta. (6) «Estas son las que
+  más se usan en su vehículo» solo con vehículo en la ficha (cierre de la lámina y hecho del vendedor).
+- **Por qué:** auditoría del 26-nov. Medido en la base de Competimotor (17–26-nov, primer mensaje del bot, cliente sin
+  medida): apertura corta 73 chats → 53 dieron medida o foto (73 %); apertura larga 38 → 22 (58 %). La larga salía en
+  40 de 40 casos con la auto-respuesta del celular delante, o con las otras dos frases del anuncio. La lámina sin medida
+  mostraba tres KR601 de tres medidas con «¿Le cotizo la 1, la 2 o la 3?» y «su vehículo» sin vehículo.
+- **Probado:** simulador `--perfil mundillantas` (modelos de producción, inventario de nov), 13 chats reales × 3 vueltas
+  (989, 290, 1125, 659, 999, 902, 1063, 1112, 1051, 1437, 794 y los sanos 1331, 1011), con el ANTES reproducido sin el
+  arreglo. `test/aperturaCorta*.test.ts` (36, 9 en rojo sin el arreglo), Depot idéntico (`aperturaCorta.depot.test.ts`).
+  Suite: los mismos 4 archivos que fallan en main.
+- **Horas:** 3.
+
 ## 25-nov-2026 · Bot · Entiende y explica cada promoción del panel (y si se suma con el 25 %)
 
 - **Qué:** `domain/promocionesComoHecho.ts`: la lista de promociones del panel vigentes (regla en palabras, marcas,
@@ -6741,6 +6763,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-11-26 | _(este mismo)_ | Competimotor: apertura corta (sin guía ni auto-respuesta delante), aro solo → pregunta, «su vehículo» solo con vehículo (Sprint 3, F-04) | 3 |
 | 2026-11-24 | _(este mismo)_ | Tema de la cotización (Black Friday, Navidad… o personalizado) y el ahorro doble del Black Friday en la pieza | 3 |
 | 2026-11-24 | _(este mismo)_ | Depot: el Black Friday (2.ª llanta) pasa a la pestaña Promociones con interruptor y fechas | 1,5 |
 | 2026-11-24 | _(este mismo)_ | Depot: precios desde Contífico (Interbot de respaldo) y el −25 % como promoción con interruptor | 3,5 |

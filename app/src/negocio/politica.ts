@@ -160,6 +160,19 @@ export interface PoliticaComercial {
    * `domain/preciosEspeciales.ts`. Sin el campo, o vencido, no existe.
    */
   preciosEspeciales?: PreciosEspeciales | null;
+  // Sprint 3
+  /**
+   * OPCIONAL: la apertura corta y sin lámina a ciegas (Competimotor, auditoría
+   * del 26-nov-2026, familia F-04). Con true: la auto-respuesta de WhatsApp
+   * Business y las frases de anuncio de Meta («¿Puedes darme más información
+   * sobre esto?») no apagan el saludo corto; la guía de medida sale solo si el
+   * cliente dice que no la encuentra; «dónde las consigo» de entrada recibe el
+   * local y después la pregunta; con solo el aro o «precio» se pregunta lo que
+   * falta en vez de mandar tres medidas distintas; y «Estas son las que más se
+   * usan en su vehículo» solo si dijo su vehículo. Ver `domain/aperturaCorta.ts`.
+   * Sin el campo (Depot): nada cambia.
+   */
+  aperturaCorta?: boolean;
 }
 
 /** Una lista de precios de promoción por código, con su fin. */
