@@ -117,4 +117,7 @@ export const POLITICA_MUNDILLANTAS: PoliticaComercial = {
   // «Pantanera» = M/T, y R/T también sirve (Carlos y Jenny): el M/T que pone el
   // modelo no deja fuera a la R/T cuando el cliente solo dijo el uso (469).
   usoDelClienteAmpliaElTipo: true,
+  // Sprint 3 — auditoría 26-nov-2026 (F-04): la apertura larga (guía + «sin ese
+  // dato no le puedo asegurar…») dio medida en 58 % de los chats; la corta, 73 %.
+  aperturaCorta: true,
 };

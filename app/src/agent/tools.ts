@@ -120,6 +120,8 @@ import { ejemplosDeLaEscalera, nivelDeLinea, ordenDeNivel, reglasEscalera } from
 import { separarPorUso, tiposCompatibles, usoDeLosTextos, usoDeclarado, type UsoDeclarado } from "../domain/usoYTipo.js";
 import { condicionesDelRespaldo, costoPorKm, respaldoCompleto, respaldoDeMarca } from "../domain/respaldoMarcas.js";
 import { politica } from "../negocio/politica.js";
+import { pedidoDeMedidaSinDatos } from "../services/aperturaCorta.js";
+import { ERROR_GUIA_SIN_PEDIRLA } from "../domain/aperturaCorta.js";
 import { fichaDeModelo, lonasPorCodigo } from "../domain/conocimientoProducto.js";
 import {
   debeBloquearReenvio, JUEGO_COMPLETO, medidaDesdeContenido, opcionesQueAlcanzan, tipoQueFiltraLaBusqueda, tipoSolicitadoEn,
@@ -197,6 +199,12 @@ export interface AgentContext {
    * Lo calcula `agent.ts` con `medidaConfirmadaPorCliente`.
    */
   medidaSinConfirmar?: boolean;
+  /**
+   * Sprint 3 (F-04): la ficha tiene el vehículo que dijo el cliente. Sin él, la
+   * lámina no puede cerrar con «Estas son las que más se usan en su vehículo»
+   * (solo con `politica.aperturaCorta`). Lo calcula `agent.ts`.
+   */
+  vehiculoEnFicha?: boolean;
   /** La intención activa es un servicio fuera del catálogo de llantas. */
   consultaFueraDeCatalogo?: boolean;
   /**
@@ -1779,6 +1787,13 @@ export function buildTools(ctx: AgentContext) {
         .describe("true SOLO si el cliente acaba de decir que no sabe la medida, que no la encuentra o que no sabe dónde mirar. false cuando la mandas tú por iniciativa propia al pedir la medida."),
     }),
     run: async ({ aro, lo_pidio_el_cliente }) => {
+      // Sprint 3 (F-04, Competimotor): con la apertura corta la guía sale SOLO
+      // si el cliente dice con sus palabras que no la sabe o no la encuentra.
+      // Mandada de entrada (989, 1091, 290) o en cada ciclo a quien ya la dio
+      // (432) frenaba la conversación; `lo_pidio_el_cliente` del modelo no basta.
+      if (politica.aperturaCorta && !pideLaGuiaDeMedida(ctx.currentUserText)) {
+        return JSON.stringify({ error: ERROR_GUIA_SIN_PEDIRLA });
+      }
       // Mismo criterio que el candado de opciones: la pieza se manda una vez por
       // ciclo. Repetir una infografía que el cliente ya tiene en pantalla se lee
       // como que el bot no lo escuchó.
@@ -1918,6 +1933,16 @@ export function buildTools(ctx: AgentContext) {
       "Úsala cuando el cliente pide opciones, precio o cotización y NO tienes medida, ni aro, ni vehículo. Ese pedido NUNCA se contesta solo con una pregunta: esta herramienta te dice qué toca según cuántas veces ya se lo pediste. La primera vez te devuelve los aros que sí hay en stock para que pidas el aro ofreciendo algo concreto; si el cliente ya lo pidió otra vez sin darlo, te devuelve una muestra real del stock para que la mandes con preparar_opciones y le expliques por qué el aro decide. Si el cliente SÍ dio un aro va buscar_por_aro_y_tipo, y si dio vehículo va fitment_vehiculo — esta es solo para cuando no hay nada.",
     schema: z.object({}),
     run: async () => {
+      // Sprint 3 (F-04): con la apertura corta, una pregunta de las tres vías
+      // en vez de la guía de entrada y de la muestra de medidas mezcladas.
+      const pedidoCorto = await pedidoDeMedidaSinDatos(ctx.conversation.id);
+      if (pedidoCorto) {
+        return JSON.stringify({
+          paso: "pedir_la_medida",
+          mensaje_para_enviar: pedidoCorto,
+          regla: "Responde exactamente con mensaje_para_enviar. Si el cliente contesta con la medida, una foto o su vehículo, sigue de una hacia las opciones.",
+        });
+      }
       await ensureCatalogReady();
       const aros = arosConStock();
       const rango = rangoDeAros(aros);
@@ -2916,6 +2941,7 @@ export function buildTools(ctx: AgentContext) {
         entregarRecomendacion,
         ofrecerCotizar: entregarRecomendacion && !autorizaCotizar,
         pedirMedida: Boolean(ctx.medidaSinConfirmar),
+        vehiculoDicho: Boolean(ctx.vehiculoEnFicha) || (ctx.toolTrace ?? []).some((t) => t.herramienta === "fitment_vehiculo"),
         recomendacion,
         motivo: motivo.trim().replace(/\.$/, ""),
         precioConIva: entregada.minimumPriceWithTax ?? null,
