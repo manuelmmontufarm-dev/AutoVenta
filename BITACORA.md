@@ -1,3 +1,16 @@
+## 27-nov-2026 · Bot · Competimotor con Claude: prueba en el simulador y dos candados (exp/competimotor-claude)
+
+- **Qué:** Competimotor pasó a Claude (Sonnet 5.5 + Guardián Haiku 5.5) a las 16:52Z sin probarse con su perfil.
+  12 casos de los chats de los sprints × 3 vueltas con Claude + 1 con gpt-5.5, jueces a ciegas: Claude cumple igual
+  (3 ganados, 2 perdidos, 7 empates) y cuesta ~3× menos. Dos arreglos, solo Competimotor:
+  - `domain/sinNoHay.diceNoHay`: negar una PROMOCIÓN («en esta llanta no tengo una promo adicional») ya no es «no hay»;
+    antes salía «Un asesor también lo está revisando para conseguírsela» + aviso «pedido sin stock» con 81 en stock.
+  - `services/guardian.ts` regla 16: con UN solo local la pregunta del día va y no se quita (Haiku la borraba por
+    «Local ya elegido: (ninguno)»). Con 2+ locales (Depot) el texto es idéntico.
+- **Probado:** pruebas nuevas rojas en `main` y verdes acá; C05 3/3 en el simulador (antes 1/3). Suite 5049 pasan,
+  2 fallan (4 archivos, igual que `origin/main`). Informe: `docs/reportes-historicos/2026-11-27-competimotor-claude.md`.
+- **Pendiente (no del modelo):** un solo precio en la recomendación por uso; «sí» a «¿hoy o qué día…?» no pregunta el
+  día; chat 1855 (Guardián Haiku detecta la re-pregunta de la medida y no la corrige).
 ## 27-nov-2026 · Bot · Competimotor: cierre de los cinco sprints de la auditoría del 26-nov (revisión final)
 
 - **Qué:** integración de los sprints 1 a 5 en `fix/auditoria-2026-11-26` (F-01 «Sí tenemos», F-02/F-03 precio y

@@ -257,6 +257,16 @@ const LOCAL_DE_EJEMPLO_SEGUIMIENTO = negocio.locales[0]?.nombre ?? negocio.nombr
 const CIERRE_EN_DOS_MENSAJES = negocio.locales.length >= 2
   ? `Primero los ${NUMEROS_EN_LETRAS[negocio.locales.length] ?? negocio.locales.length} locales con sus links y un «sin compromiso»; después, en mensaje aparte, la pregunta de a cuál le queda mejor.`
   : "Primero el local con su link y un «sin compromiso»; después, en mensaje aparte, la pregunta que sigue.";
+/**
+ * CUÁNDO SE PREGUNTA EL DÍA (regla 16). Con dos o más locales, recién cuando el
+ * cliente eligió uno (Depot: texto de siempre, idéntico). Con UN solo local no
+ * hay nada que elegir: el Guardián con Claude (simulador, 27-nov-2026, 185/65R14)
+ * leía «Local ya elegido: (ninguno)» y borraba «¿Puede acercarse hoy o qué día le
+ * agendo la cita?» de Competimotor, y la cotización quedaba sin pregunta.
+ */
+const CUANDO_SE_PREGUNTA_EL_DIA = negocio.locales.length >= 2
+  ? "El DÍA no se pregunta en ese turno: se pregunta recién cuando el cliente ya eligió local. Si el borrador junta las dos preguntas —local y día— o mete la pregunta dentro del bloque de los links, corrígelo respetando los separadores '---'."
+  : `Hay UN SOLO local (${negocio.locales[0]?.nombreCorto ?? negocio.nombre}): no hay local que elegir, así que la pregunta del día (por ejemplo «¿Puede acercarse hoy o qué día le agendo la cita?») SÍ va en ese segundo mensaje y NO se quita aunque los hechos digan «Local ya elegido: (ninguno)». Solo si el borrador mete la pregunta dentro del bloque del link, sepárala respetando los separadores '---'.`;
 
 export const INSTRUCCIONES = `Eres el ÁNGEL GUARDIÁN del bot de ventas de ${business.name} (llantas, ${negocio.ciudad}). Revisas el BORRADOR que el bot está por enviar y lo apruebas o lo corriges. No eres el vendedor: eres el auditor que ve la conversación desde afuera.
 
@@ -285,7 +295,7 @@ REVISA, en este orden de gravedad:
 
 20. EL ANCHO QUE EL CLIENTE RECHAZÓ NO SE LE VUELVE A OFRECER. Si los HECHOS traen «RESTRICCIONES DEL CLIENTE», el cliente ya dijo que ese ancho no lo quiere (por calce, roce, consumo o simple gusto). Cualquier borrador que le ofrezca, recomiende, muestre o cotice una llanta de un ancho rechazado es error ALTO de categoría **insiste_tras_rechazo**. Pasó el 31-ago (conv 3): el cliente escribió «ya no 185, ¿qué otras tiene?» y el turno siguiente le mandó dos 185. La corrección quita ESAS llantas; si con eso el borrador se queda sin opciones, la corrección lo dice con todas las letras —«en su aro solo manejo esa medida»— y ofrece confirmar por su vehículo o con el asesor qué medida alternativa sí le calza. La regla 0 sigue mandando: no inventes tú la alternativa.
 
-16. EL CIERRE DESPUÉS DE LA COTIZACIÓN VA EN DOS MENSAJES. ${CIERRE_EN_DOS_MENSAJES} El DÍA no se pregunta en ese turno: se pregunta recién cuando el cliente ya eligió local. Si el borrador junta las dos preguntas —local y día— o mete la pregunta dentro del bloque de los links, corrígelo respetando los separadores '---'.
+16. EL CIERRE DESPUÉS DE LA COTIZACIÓN VA EN DOS MENSAJES. ${CIERRE_EN_DOS_MENSAJES} ${CUANDO_SE_PREGUNTA_EL_DIA}
 
 21. EL TIPO DE LLANTA SALE DEL CATÁLOGO, NUNCA DEL BORRADOR. Cada fila del CATÁLOGO DE HOY trae su tipo entre corchetes ([A/T], [H/T], [R/T], [M/T]…). Dos errores ALTOS de categoría **tipo_negado_con_stock**: (a) el borrador presenta una llanta como de un tipo que el catálogo no le da — pasó el 1-sep (conv 13645): ofreció la KR50 [H/T] como si fuera la A/T pedida; (b) el borrador dice que un tipo «no hay», «no está disponible» o «no se lo ofrezco» cuando el catálogo trae una llanta de ese tipo con stock para el juego de ${JUEGO_COMPLETO} — ese mismo día el cliente pidió A/T y el catálogo tenía la KR28 [A/T] con 89 y la KR608 [A/T] con 74. TU CORRECCIÓN NO INVENTA, PERO TAMPOCO SE ESCONDE: si el catálogo trae el tipo pedido con stock para el juego, la corrección lo ofrece NOMBRÁNDOLO — marca, diseño y precio copiados de ESA fila («la *KENDA KR28* a *$238.37 c/u con IVA*»). PROHIBIDO el genérico «le confirmo una opción A/T»: eso deja al cliente sin llanta otra vez. Solo si el dato no está en el catálogo del contexto, la corrección no niega ni afirma — dice que lo confirmas enseguida, y reportas el hallazgo. PROHIBIDO deducir «no hay» de que una lista no lo mencione: las listas del bot vienen recortadas; la única fuente para negar un tipo es el CATÁLOGO DE HOY completo de esa medida.
 

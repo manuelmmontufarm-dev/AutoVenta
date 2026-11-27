@@ -107,9 +107,25 @@ export function pideElPrecio(texto: string | null | undefined): boolean {
 const SIN_STOCK = /\b(?:est[aá]n?\s+)?(?:sin\s+stock|agotad[oa]s?)\b/gi;
 const NO_PUEDO_PRECIO = /\bno\s+(?:le\s+)?(?:puedo|podr[ií]a|alcanzo\s+a)\s+(?:darle|dar|confirmarle|confirmar|pasarle|ofrecerle)\s+(?:el\s+|un\s+|su\s+)?precio\b/i;
 
+/**
+ * NEGAR UNA PROMOCIÓN NO ES NEGAR EL STOCK (simulador con Claude, 27-nov-2026).
+ * A «X viernes negro hay más descuento» el vendedor escribió «en esta llanta no
+ * tengo una promo adicional confirmada»: «llanta … no tengo» caía como «no hay»,
+ * y salía «Un asesor también lo está revisando para conseguírsela» más el aviso
+ * «pedido sin stock» al asesor, con 81 llantas en stock. La negación cuyo objeto
+ * es la promoción (sola o con un determinante) se borra antes de buscar el «no
+ * hay»; «no tengo stock, pero hay promoción» o «no tenemos esa llanta en
+ * promoción» siguen cayendo.
+ */
+const PROMOCION = "(?:promo\\w*|descuentos?|ofertas?|rebajas?|precios?\\s+especial(?:es)?|black\\s+friday|viernes\\s+negro)";
+const NIEGA_PROMOCION = new RegExp(
+  `\\b${VERBO_NEGADO}\\s+(?:(?:una?|ning[uú]n[ao]?|otr[ao]s?|alg[uú]n[ao]?|m[aá]s)\\s+)?${PROMOCION}\\b`,
+  "gi",
+);
+
 /** ¿El texto le dice al cliente que no hay (en cualquiera de sus formas)? */
 export function diceNoHay(texto: string | null | undefined): boolean {
-  const t = texto ?? "";
+  const t = (texto ?? "").replace(NIEGA_PROMOCION, " ");
   const prueba = (re: RegExp) => { re.lastIndex = 0; return re.test(t); };
   return prueba(NIEGA_LLANTA) || prueba(LLANTA_LUEGO_NIEGA) || prueba(SIN_STOCK) || NO_PUEDO_PRECIO.test(t) || NO_SALE_EN_STOCK.test(t);
 }
