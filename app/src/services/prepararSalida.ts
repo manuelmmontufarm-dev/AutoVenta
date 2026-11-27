@@ -61,7 +61,7 @@ import { sinJsonCrudo } from "../domain/jsonCrudo.js";
 import { sinTrastienda } from "../domain/sinTrastienda.js";
 import { conLocalesReales } from "./localesReales.js";
 import { sql } from "../db/client.js";
-import { formaDePagoSinDefinir, marcaQueNombro } from "../domain/preguntaDirecta.js";
+import { formaDePagoSinDefinir, marcaQueNombro, pideFotos } from "../domain/preguntaDirecta.js";
 import { conElEnvioExplicado, respuestaDeUbicacionFueraDeCobertura, respuestaFijaFueraDeCobertura, sinPreguntaDeLocalConUnoSolo, sinVisitaNiMapas } from "../domain/visitaImposible.js";
 import { localesQueLeQuedanLejos, sinElLocalLejano } from "../domain/localLejano.js";
 import {
@@ -672,6 +672,20 @@ export const PASOS: readonly PasoDeSalida[] = [
     },
   },
   {
+    // LA FOTO SE CONTESTA (F-06 / N2, 1456 y 538): si el cliente pidió foto y el
+    // texto final no la menciona (el Guardián o el atajo dejaron solo la
+    // pregunta del menú), va una línea al frente. La lámina ya es la foto: no
+    // se reenvía (`preparar_opciones`). Solo Competimotor, después del Guardián.
+    nombre: "la_foto_se_contesta",
+    corre: ["respuesta", "retomada"],
+    async aplicar(texto, ctx) {
+      if (!politica.casosSueltosF06 || !pideFotos(ctx.textoDelCliente)) return texto;
+      if (/\bfotos?\b|\bimagen\b|\bl[aá]mina\b/i.test(texto)) return texto;
+      console.log(`📷 Conv ${ctx.conversation.id}: pidió foto y el texto no la contestaba; se agrega la línea.`);
+      return `La imagen que le mandé arriba es la foto de las llantas 👆 Si desea fotos reales, un asesor se las puede compartir por aquí.\n---\n${texto}`;
+    },
+  },
+  {
     // LA MARCA QUE PIDIÓ SE NOMBRA (F-06, chat 884: «Maxiis 195/50/15» → la lámina
     // con otras marcas sin decir nada de Maxxis). Si la lámina de ESTE turno no
     // trae la marca que nombró y el texto tampoco la nombra, va una línea al
@@ -697,7 +711,6 @@ export const PASOS: readonly PasoDeSalida[] = [
       }
       const lamina = codigos.map((c) => findByCode(c)).filter((p): p is NonNullable<typeof p> => Boolean(p));
       if (!lamina.length || lamina.some((p) => normalizeCatalogText(p.brand ?? "") === marca)) return texto;
-      if (new RegExp(`\\b${marca.replace(/(.)\1/g, "$1+")}`, "i").test(texto.normalize("NFD").replace(/[\u0300-\u036f]/g, ""))) return texto;
       const nombre = marca.toUpperCase();
       // La frase dice que la revisa un asesor: el aviso existe de verdad (si no,
       // `sin_aviso_inventado` la cambiaba por «Se lo consulto y le confirmo.»).
@@ -716,6 +729,8 @@ export const PASOS: readonly PasoDeSalida[] = [
         action: `Revisar si se consigue ${nombre} y escribirle al cliente.`,
       }).catch(() => undefined);
       console.log(`🏷️ Conv ${ctx.conversation.id}: pidió ${nombre} y la lámina no la trae; se nombra y se avisa al asesor.`);
+      const yaLaNombra = new RegExp(`\\b${marca.replace(/(.)\1/g, "$1+")}`, "i").test(texto.normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
+      if (yaLaNombra) return texto;
       return `La *${nombre}* en esa medida se la revisa un asesor; mientras tanto, estas son las que tengo 👇\n---\n${texto}`;
     },
   },
@@ -2007,7 +2022,13 @@ export async function conElLocalUnico(
       enlaces: false,
     }));
   }
-  return bloques.filter(Boolean).join("\n---\n");
+  // Un bloque que quedó solo con el separador (el borrador traía «---» suelto
+  // y se le quitó todo lo demás) no se manda: salía «---» como mensaje (simulador 27-nov, 1456).
+  return bloques
+    .flatMap((b) => (b ?? "").split(/\n\s*-{3,}\s*\n/))
+    .map((b) => b.replace(/^\s*-{3,}\s*$/gm, "").trim())
+    .filter(Boolean)
+    .join("\n---\n");
 }
 
 async function cerrarConLaAlternativa(

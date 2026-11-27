@@ -21,6 +21,7 @@ import { extractFlotationSizes, extractTireSizes } from "./tireSize.js";
 import { aroEnTexto } from "./medidaConfirmada.js";
 import { esAcuseSimple } from "./ofertaAceptada.js";
 import { marcaElegidaASecas } from "./consultaConRespaldo.js";
+import { politica } from "../negocio/politica.js";
 
 // «Pantanera» es la M/T en Santo Domingo (Competimotor, conv 469, 20-nov-2026):
 // «Llantas 23575r15» + «Tipo pantaneras» + «Que precio tiene ?» es UN pedido.
@@ -77,11 +78,13 @@ function completaLoAnterior(texto: string): boolean {
  * DOS BOTONES SEGUIDOS SON UNA SOLA ELECCIÓN (auditoría Competimotor 26-nov,
  * chats 1085 y 1295): el cliente tocó «la 1» y «la 2» en el mismo segundo; la
  * regla de abajo los partía en dos turnos y salían dos cotizaciones cruzadas,
- * cada una con su mapa y su pregunta del día. Es un error de hecho, igual para
- * Depot: toda una ráfaga hecha SOLO de posiciones del menú va en un turno.
+ * cada una con su mapa y su pregunta del día. Con `politica.casosSueltosF06`,
+ * toda una ráfaga hecha SOLO de posiciones del menú va en un turno.
  */
 function soloPosicionesDelMenu(textos: readonly string[]): boolean {
-  return textos.length >= 2 && textos.every((t) => /^\s*la\s+[123]\s*$/i.test(t) || /^\s*[123]\s*$/.test(t));
+  // Solo con `politica.casosSueltosF06` (Competimotor): sin la perilla (Depot)
+  // la ráfaga se parte y se une como siempre (revisión de la coordinadora, ronda 1).
+  return politica.casosSueltosF06 === true && textos.length >= 2 && textos.every((t) => /^\s*la\s+[123]\s*$/i.test(t) || /^\s*[123]\s*$/.test(t));
 }
 
 /**

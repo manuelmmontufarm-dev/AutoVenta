@@ -180,6 +180,8 @@ describe("el orden de los candados en el turno", () => {
       // se nombra en una línea, después del Guardián que la quitaba.
       // F-06: el envío al de otra ciudad se repone si el Guardián lo quitó.
       "envio_al_cliente_de_otra_ciudad_tras_guardian",
+      // F-06 / N2: la foto pedida se contesta en una línea si el texto no la nombra.
+      "la_foto_se_contesta",
       "la_marca_pedida_se_nombra",
       "sin_no_hay",
       "alcance_fuera_de_catalogo",

@@ -62,9 +62,9 @@ describe("Depot: los arreglos de F-06 detrás de la política no lo tocan", () =
   it("«Estoy por Manta ahorita… el próximo fin de semana» sigue como antes en Depot", () => {
     expect(dondeEstaElCliente("Listo amigo, entonces será para el próximo fin de semana porque estoy por Manta ahorita.")?.estado).toBe("fuera");
   });
-  it("el doble botón SÍ cambia en Depot (error de hecho): un turno", async () => {
+  it("el doble botón en Depot: igual que antes (dos turnos, unión con salto de línea)", async () => {
     const { gruposDeLaRafaga, textoDeLaRafaga } = await import("../src/domain/rafaga.js");
-    expect(gruposDeLaRafaga(["la 1", "la 2"])).toEqual([[0, 1]]);
-    expect(textoDeLaRafaga(["la 1", "la 2"])).toBe("la 2");
+    expect(gruposDeLaRafaga(["la 1", "la 2"])).toEqual([[0], [1]]);
+    expect(textoDeLaRafaga(["la 1", "la 2"])).toBe("la 1\nla 2");
   });
 });

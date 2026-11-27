@@ -28,7 +28,8 @@
 
 - **Qué:** todo detrás de `politica.casosSueltosF06` (solo `mundillantas`), salvo el doble botón.
   - **Otra ciudad:** a quien dice que está en otra ciudad se le explica el envío en ese turno (frase del perfil
-    `envioAlClienteDeOtraCiudad`: Laar Courier / Transportes Bemaut, lo paga el cliente, el costo lo confirma un asesor)
+    `envioAlClienteDeOtraCiudad`: Laar Courier / Transportes Bemaut, lo paga el cliente; costo y forma de pago los confirma
+    un asesor —la forma de pago a distancia no está confirmada, ronda 2 de la coordinadora—)
     en vez de «no tenemos local fuera» o del relleno («Claro, le ayudo con eso»); la respuesta fija con un solo local dice
     dirección + envío; «Estoy. De quitto» ya es Quito y no agenda visita de hoy; «estoy por Manta ahorita… el próximo fin
     de semana» (845, caso sano) es `viene`; con un solo local no sale «¿cuál local le queda mejor?».
@@ -49,9 +50,11 @@
     la visita vigente o con el cliente escribiendo ese día. «Claro, quedo pendiente…» en el chat dice qué queda hecho;
     «¿Le agendo una cita?» mata la oferta de cotizar vieja.
   - **Candados después del Guardián** (que los quitaba en el simulador): el envío al de otra ciudad se repone, la marca
-    pedida que la lámina no trae se nombra con aviso real al asesor, y la lámina de quien pidió carga solo lleva llantas
+    pedida que la lámina no trae se nombra con aviso real al asesor (también si el texto ya la nombraba: sin aviso, `sin_aviso_inventado` la cambiaba por «Se lo consulto…», chat 884), y la foto pedida se contesta en una línea si el texto final no la nombra, la lámina de quien pidió carga solo lleva llantas
     de carga (`preparar_opciones`, la puerta única). `agendar_visita` tampoco agenda «Estoy. De quitto».
-  - **Doble botón (error de hecho, también Depot):** «la 1» + «la 2» en la misma ráfaga son un turno y manda el último toque.
+  - **Doble botón:** «la 1» + «la 2» en la misma ráfaga son un turno y manda el último toque (también detrás de la
+    política, revisión de la coordinadora: Depot parte la ráfaga como siempre). `cliente_sin_respuesta` pospuesta: el panel
+    la muestra al vencer `snoozed_until` (filtro al leer, sin proceso), y se resuelve si el asesor contesta antes.
 - **Por qué:** auditoría de Competimotor del 26-nov, familia F-06 (1142, 1258, 1614, 710, 1202, 720, 469, 1717, 1632,
   1652, 454, 697, 538, 859, 884, 1085, 1295, 227, 293) y la única venta del periodo (1456, $842,40) que el bot escondió.
 - **Probado:** `test/s5CasosSueltos.test.ts` (rojo antes del arreglo), `test/s5CasosSueltos.depot.test.ts` (Depot igual),
