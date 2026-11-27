@@ -18,8 +18,12 @@
   1790 y 463 afirmaban «precio promocional» de llantas que no están en la tabla `promociones`.
 - **Probado:** `test/competimotorPrecioYCierre.test.ts` (47; 32 en rojo contra `HEAD`) y `test/sprint2DepotNoCambia.test.ts`
   (7). Simulador (perfil mundillantas, gpt-5.5 de producción, inventario del 20-nov): los 9 chats y los sanos 302 y
-  1734, 3 vueltas. `verificar-precios`: 444/444 y el efectivo de la lista = el del bloque. Suite: solo los fallos que
-  ya tenía `HEAD` (bitácora del panel, hashes de Depot —idénticos a `HEAD`—, unidad en la cantidad).
+  1734, 3 vueltas válidas cada uno (las corridas que cortó el sueño de la Mac o un error del script de prueba se
+  repitieron). Pendiente: 1321 toma las 2 llantas en 1 de 3 corridas (en 2 dijo 4); 302 leyó «1» como «1 llanta» una
+  vez de 5, no se repitió. `verificar-precios`: 444/444 y el efectivo de la lista = el del bloque. Suite: solo los 3
+  fallos que ya tiene `HEAD` (bitácora del panel, hashes de Depot —idénticos a `HEAD`—, unidad en la cantidad).
+  `sim:humo` Depot 8/8; `--perfil ejemplo --humo` inestable con la máquina cargada (pasa 2/2 en la rama y falla 2/2 en
+  `HEAD` en la misma tanda).
 - **Horas:** 3.
 
 ## 25-nov-2026 · Bot · Entiende y explica cada promoción del panel (y si se suma con el 25 %)
