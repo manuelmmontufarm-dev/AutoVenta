@@ -1,0 +1,2746 @@
+{
+ "generado": "2026-11-27T19:25:48.234Z",
+ "excluidos": [],
+ "resumen": [
+  {
+   "lote": "bm-a",
+   "casos": 40,
+   "con_nota": 40,
+   "nota": 5.1,
+   "nota_sd": 1.37,
+   "dif_vs_base": null,
+   "dif_sigma": null,
+   "pct_cotiza": 28,
+   "graves_guardian": 19,
+   "convs_con_grave": 11,
+   "errores_visibles": 14,
+   "nota_baja": 12,
+   "usd_anthropic_conv": 0.0674,
+   "usd_total_conv": 0.0858,
+   "usd_anthropic_lote": 2.695,
+   "tok_vend_entrada_conv": 64200,
+   "tok_vend_salida_conv": 942,
+   "lat_vend_p50_ms": 3903,
+   "lat_vend_p90_ms": 6516,
+   "seg_conv_p50": 94
+  },
+  {
+   "lote": "bm-c",
+   "casos": 40,
+   "con_nota": 40,
+   "nota": 5,
+   "nota_sd": 1.5,
+   "dif_vs_base": -0.1,
+   "dif_sigma": 0.2,
+   "pct_cotiza": 23,
+   "graves_guardian": 27,
+   "convs_con_grave": 16,
+   "errores_visibles": 14,
+   "nota_baja": 14,
+   "usd_anthropic_conv": 0.063,
+   "usd_total_conv": 0.0934,
+   "usd_anthropic_lote": 2.521,
+   "tok_vend_entrada_conv": 61463,
+   "tok_vend_salida_conv": 991,
+   "lat_vend_p50_ms": 4322,
+   "lat_vend_p90_ms": 6215,
+   "seg_conv_p50": 117
+  },
+  {
+   "lote": "bm-d",
+   "casos": 40,
+   "con_nota": 40,
+   "nota": 4.83,
+   "nota_sd": 1.28,
+   "dif_vs_base": -0.28,
+   "dif_sigma": 0.19,
+   "pct_cotiza": 25,
+   "graves_guardian": 24,
+   "convs_con_grave": 13,
+   "errores_visibles": 10,
+   "nota_baja": 17,
+   "usd_anthropic_conv": 0.0095,
+   "usd_total_conv": 0.0355,
+   "usd_anthropic_lote": 0.382,
+   "tok_vend_entrada_conv": 62220,
+   "tok_vend_salida_conv": 2254,
+   "lat_vend_p50_ms": 5107,
+   "lat_vend_p90_ms": 7907,
+   "seg_conv_p50": 109
+  },
+  {
+   "lote": "bm-e",
+   "casos": 10,
+   "con_nota": 10,
+   "nota": 4.8,
+   "nota_sd": 1.69,
+   "dif_vs_base": -0.3,
+   "dif_sigma": 0.47,
+   "pct_cotiza": 0,
+   "graves_guardian": 10,
+   "convs_con_grave": 5,
+   "errores_visibles": 3,
+   "nota_baja": 4,
+   "usd_anthropic_conv": 0.1581,
+   "usd_total_conv": 0.2118,
+   "usd_anthropic_lote": 1.581,
+   "tok_vend_entrada_conv": 64410,
+   "tok_vend_salida_conv": 1074,
+   "lat_vend_p50_ms": 5562,
+   "lat_vend_p90_ms": 7344,
+   "seg_conv_p50": 164
+  }
+ ],
+ "porLote": {
+  "bm-a": {
+   "filas": [
+    {
+     "n": 1,
+     "nota": 7,
+     "fallas": [],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.034999999999999996,
+     "usd_total": 0.0412,
+     "tok_vend_entrada": 28346,
+     "tok_vend_salida": 298,
+     "segundos": 147
+    },
+    {
+     "n": 2,
+     "nota": 6,
+     "fallas": [
+      "no_ofrece_nada_concreto",
+      "demasiado_largo"
+     ],
+     "visibles": [
+      "stock_contradictorio"
+     ],
+     "cotiza": false,
+     "graves": 2,
+     "invariantes": 0,
+     "usd_anthropic": 0.2207,
+     "usd_total": 0.3371,
+     "tok_vend_entrada": 203259,
+     "tok_vend_salida": 2950,
+     "segundos": 150
+    },
+    {
+     "n": 3,
+     "nota": 3,
+     "fallas": [
+      "no_entendio_lo_que_pidio",
+      "repite_pregunta_ya_respondida",
+      "respuesta_generica"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 2,
+     "invariantes": 1,
+     "usd_anthropic": 0.0968,
+     "usd_total": 0.1029,
+     "tok_vend_entrada": 51253,
+     "tok_vend_salida": 561,
+     "segundos": 74
+    },
+    {
+     "n": 4,
+     "nota": 3,
+     "fallas": [
+      "repite_pregunta_ya_respondida",
+      "no_entendio_lo_que_pidio",
+      "respuesta_generica"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0548,
+     "usd_total": 0.056,
+     "tok_vend_entrada": 75169,
+     "tok_vend_salida": 921,
+     "segundos": 275
+    },
+    {
+     "n": 5,
+     "nota": 6,
+     "fallas": [
+      "no_entendio_lo_que_pidio"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0282,
+     "usd_total": 0.0418,
+     "tok_vend_entrada": 36146,
+     "tok_vend_salida": 726,
+     "segundos": 48
+    },
+    {
+     "n": 6,
+     "nota": 6,
+     "fallas": [
+      "no_da_precio_pedido",
+      "respuesta_generica"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0548,
+     "usd_total": 0.0556,
+     "tok_vend_entrada": 46061,
+     "tok_vend_salida": 765,
+     "segundos": 148
+    },
+    {
+     "n": 7,
+     "nota": 5,
+     "fallas": [
+      "inventa_dato",
+      "no_entendio_lo_que_pidio"
+     ],
+     "visibles": [
+      "dato_inventado"
+     ],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.092,
+     "usd_total": 0.0935,
+     "tok_vend_entrada": 83144,
+     "tok_vend_salida": 1296,
+     "segundos": 71
+    },
+    {
+     "n": 8,
+     "nota": 2,
+     "fallas": [
+      "no_entendio_lo_que_pidio",
+      "repite_pregunta_ya_respondida",
+      "respuesta_generica",
+      "tono_robotico",
+      "no_avanza_al_cierre"
+     ],
+     "visibles": [
+      "precio_contradictorio"
+     ],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 1,
+     "usd_anthropic": 0.1008,
+     "usd_total": 0.2361,
+     "tok_vend_entrada": 131294,
+     "tok_vend_salida": 2106,
+     "segundos": 216
+    },
+    {
+     "n": 9,
+     "nota": 8,
+     "fallas": [],
+     "visibles": [],
+     "cotiza": true,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.035,
+     "usd_total": 0.0456,
+     "tok_vend_entrada": 44489,
+     "tok_vend_salida": 753,
+     "segundos": 53
+    },
+    {
+     "n": 10,
+     "nota": 5,
+     "fallas": [
+      "contradice_turno_anterior",
+      "repite_pregunta_ya_respondida"
+     ],
+     "visibles": [
+      "stock_contradictorio"
+     ],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.04869999999999999,
+     "usd_total": 0.0535,
+     "tok_vend_entrada": 58942,
+     "tok_vend_salida": 934,
+     "segundos": 157
+    },
+    {
+     "n": 11,
+     "nota": 3,
+     "fallas": [
+      "no_entendio_lo_que_pidio",
+      "contradice_turno_anterior",
+      "abandona_al_cliente",
+      "no_avanza_al_cierre"
+     ],
+     "visibles": [
+      "medida_equivocada"
+     ],
+     "cotiza": true,
+     "graves": 2,
+     "invariantes": 0,
+     "usd_anthropic": 0.1923,
+     "usd_total": 0.2004,
+     "tok_vend_entrada": 179925,
+     "tok_vend_salida": 1850,
+     "segundos": 94
+    },
+    {
+     "n": 12,
+     "nota": 8,
+     "fallas": [],
+     "visibles": [],
+     "cotiza": true,
+     "graves": 1,
+     "invariantes": 0,
+     "usd_anthropic": 0.0305,
+     "usd_total": 0.0531,
+     "tok_vend_entrada": 32595,
+     "tok_vend_salida": 424,
+     "segundos": 68
+    },
+    {
+     "n": 13,
+     "nota": 5,
+     "fallas": [
+      "no_entendio_lo_que_pidio",
+      "no_ofrece_nada_concreto",
+      "respuesta_generica"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 1,
+     "invariantes": 0,
+     "usd_anthropic": 0.0732,
+     "usd_total": 0.0748,
+     "tok_vend_entrada": 83017,
+     "tok_vend_salida": 1755,
+     "segundos": 50
+    },
+    {
+     "n": 14,
+     "nota": 6,
+     "fallas": [
+      "no_da_precio_pedido"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0364,
+     "usd_total": 0.0459,
+     "tok_vend_entrada": 45160,
+     "tok_vend_salida": 704,
+     "segundos": 48
+    },
+    {
+     "n": 15,
+     "nota": 5,
+     "fallas": [
+      "contradice_turno_anterior",
+      "no_entendio_lo_que_pidio",
+      "no_avanza_al_cierre"
+     ],
+     "visibles": [
+      "stock_contradictorio"
+     ],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0368,
+     "usd_total": 0.0414,
+     "tok_vend_entrada": 45721,
+     "tok_vend_salida": 621,
+     "segundos": 168
+    },
+    {
+     "n": 16,
+     "nota": 4,
+     "fallas": [
+      "no_entendio_lo_que_pidio",
+      "tono_robotico",
+      "no_avanza_al_cierre"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.030600000000000002,
+     "usd_total": 0.0314,
+     "tok_vend_entrada": 33325,
+     "tok_vend_salida": 540,
+     "segundos": 275
+    },
+    {
+     "n": 17,
+     "nota": 6,
+     "fallas": [
+      "no_entendio_lo_que_pidio",
+      "no_avanza_al_cierre"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0528,
+     "usd_total": 0.0579,
+     "tok_vend_entrada": 35217,
+     "tok_vend_salida": 648,
+     "segundos": 275
+    },
+    {
+     "n": 18,
+     "nota": 7,
+     "fallas": [
+      "respuesta_generica"
+     ],
+     "visibles": [],
+     "cotiza": true,
+     "graves": 1,
+     "invariantes": 0,
+     "usd_anthropic": 0.0619,
+     "usd_total": 0.0789,
+     "tok_vend_entrada": 48646,
+     "tok_vend_salida": 754,
+     "segundos": 67
+    },
+    {
+     "n": 19,
+     "nota": 4,
+     "fallas": [
+      "tono_robotico",
+      "no_avanza_al_cierre",
+      "no_entendio_lo_que_pidio"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0214,
+     "usd_total": 0.026,
+     "tok_vend_entrada": 16576,
+     "tok_vend_salida": 228,
+     "segundos": 153
+    },
+    {
+     "n": 20,
+     "nota": 4,
+     "fallas": [
+      "contradice_turno_anterior",
+      "inventa_dato",
+      "no_entendio_lo_que_pidio"
+     ],
+     "visibles": [
+      "dato_inventado"
+     ],
+     "cotiza": true,
+     "graves": 2,
+     "invariantes": 0,
+     "usd_anthropic": 0.1557,
+     "usd_total": 0.161,
+     "tok_vend_entrada": 123384,
+     "tok_vend_salida": 2087,
+     "segundos": 195
+    },
+    {
+     "n": 28,
+     "nota": 4,
+     "fallas": [
+      "no_entendio_lo_que_pidio",
+      "repite_pregunta_ya_respondida",
+      "pide_foto_innecesaria"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0988,
+     "usd_total": 0.1006,
+     "tok_vend_entrada": 117692,
+     "tok_vend_salida": 1515,
+     "segundos": 70
+    },
+    {
+     "n": 21,
+     "nota": 5,
+     "fallas": [
+      "inventa_dato",
+      "no_ofrece_nada_concreto"
+     ],
+     "visibles": [
+      "dato_inventado"
+     ],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0474,
+     "usd_total": 0.0617,
+     "tok_vend_entrada": 54816,
+     "tok_vend_salida": 854,
+     "segundos": 76
+    },
+    {
+     "n": 22,
+     "nota": 3,
+     "fallas": [
+      "abandona_al_cliente"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 1,
+     "usd_anthropic": 0.0388,
+     "usd_total": 0.0392,
+     "tok_vend_entrada": 34887,
+     "tok_vend_salida": 488,
+     "segundos": 253
+    },
+    {
+     "n": 23,
+     "nota": 6,
+     "fallas": [
+      "no_avanza_al_cierre"
+     ],
+     "visibles": [],
+     "cotiza": true,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0247,
+     "usd_total": 0.0362,
+     "tok_vend_entrada": 35486,
+     "tok_vend_salida": 478,
+     "segundos": 40
+    },
+    {
+     "n": 24,
+     "nota": 5,
+     "fallas": [
+      "contradice_turno_anterior",
+      "respuesta_generica"
+     ],
+     "visibles": [
+      "precio_contradictorio"
+     ],
+     "cotiza": false,
+     "graves": 3,
+     "invariantes": 0,
+     "usd_anthropic": 0.1455,
+     "usd_total": 0.1479,
+     "tok_vend_entrada": 157272,
+     "tok_vend_salida": 2087,
+     "segundos": 77
+    },
+    {
+     "n": 25,
+     "nota": 6,
+     "fallas": [
+      "repite_pregunta_ya_respondida",
+      "no_avanza_al_cierre"
+     ],
+     "visibles": [],
+     "cotiza": true,
+     "graves": 0,
+     "invariantes": 1,
+     "usd_anthropic": 0.0428,
+     "usd_total": 0.2084,
+     "tok_vend_entrada": 24707,
+     "tok_vend_salida": 311,
+     "segundos": 70
+    },
+    {
+     "n": 26,
+     "nota": 5,
+     "fallas": [
+      "no_entendio_lo_que_pidio",
+      "inventa_dato",
+      "contradice_turno_anterior"
+     ],
+     "visibles": [
+      "dato_inventado",
+      "stock_contradictorio"
+     ],
+     "cotiza": false,
+     "graves": 2,
+     "invariantes": 0,
+     "usd_anthropic": 0.0739,
+     "usd_total": 0.1034,
+     "tok_vend_entrada": 38343,
+     "tok_vend_salida": 442,
+     "segundos": 113
+    },
+    {
+     "n": 27,
+     "nota": 5,
+     "fallas": [
+      "no_avanza_al_cierre",
+      "repite_pregunta_ya_respondida"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0026,
+     "usd_total": 0.0069,
+     "tok_vend_entrada": 0,
+     "tok_vend_salida": 0,
+     "segundos": 148
+    },
+    {
+     "n": 29,
+     "nota": 5,
+     "fallas": [
+      "no_da_precio_pedido",
+      "inventa_dato",
+      "contradice_turno_anterior"
+     ],
+     "visibles": [
+      "dato_inventado"
+     ],
+     "cotiza": false,
+     "graves": 2,
+     "invariantes": 0,
+     "usd_anthropic": 0.074,
+     "usd_total": 0.0932,
+     "tok_vend_entrada": 48229,
+     "tok_vend_salida": 819,
+     "segundos": 79
+    },
+    {
+     "n": 30,
+     "nota": 5,
+     "fallas": [
+      "inventa_dato",
+      "demasiado_largo"
+     ],
+     "visibles": [
+      "dato_inventado"
+     ],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0763,
+     "usd_total": 0.0936,
+     "tok_vend_entrada": 65214,
+     "tok_vend_salida": 854,
+     "segundos": 88
+    },
+    {
+     "n": 31,
+     "nota": 7,
+     "fallas": [],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0308,
+     "usd_total": 0.0466,
+     "tok_vend_entrada": 32662,
+     "tok_vend_salida": 546,
+     "segundos": 61
+    },
+    {
+     "n": 32,
+     "nota": 7,
+     "fallas": [],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0178,
+     "usd_total": 0.0218,
+     "tok_vend_entrada": 22256,
+     "tok_vend_salida": 326,
+     "segundos": 145
+    },
+    {
+     "n": 33,
+     "nota": 4,
+     "fallas": [
+      "no_entendio_lo_que_pidio",
+      "contradice_turno_anterior",
+      "tono_robotico"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 1,
+     "invariantes": 0,
+     "usd_anthropic": 0.1843,
+     "usd_total": 0.195,
+     "tok_vend_entrada": 157459,
+     "tok_vend_salida": 2517,
+     "segundos": 112
+    },
+    {
+     "n": 34,
+     "nota": 5,
+     "fallas": [
+      "repite_pregunta_ya_respondida",
+      "demasiado_largo"
+     ],
+     "visibles": [],
+     "cotiza": true,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0197,
+     "usd_total": 0.0311,
+     "tok_vend_entrada": 22186,
+     "tok_vend_salida": 332,
+     "segundos": 48
+    },
+    {
+     "n": 35,
+     "nota": 4,
+     "fallas": [
+      "inventa_dato",
+      "no_entendio_lo_que_pidio",
+      "repite_pregunta_ya_respondida"
+     ],
+     "visibles": [
+      "dato_inventado"
+     ],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.15719999999999998,
+     "usd_total": 0.1635,
+     "tok_vend_entrada": 122163,
+     "tok_vend_salida": 1713,
+     "segundos": 205
+    },
+    {
+     "n": 36,
+     "nota": 5,
+     "fallas": [
+      "repite_pregunta_ya_respondida",
+      "no_avanza_al_cierre"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 1,
+     "usd_anthropic": 0.068,
+     "usd_total": 0.0696,
+     "tok_vend_entrada": 92510,
+     "tok_vend_salida": 1386,
+     "segundos": 188
+    },
+    {
+     "n": 37,
+     "nota": 4,
+     "fallas": [
+      "no_entendio_lo_que_pidio",
+      "contradice_turno_anterior"
+     ],
+     "visibles": [],
+     "cotiza": true,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0445,
+     "usd_total": 0.0658,
+     "tok_vend_entrada": 34907,
+     "tok_vend_salida": 433,
+     "segundos": 75
+    },
+    {
+     "n": 38,
+     "nota": 6,
+     "fallas": [],
+     "visibles": [],
+     "cotiza": true,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0429,
+     "usd_total": 0.0492,
+     "tok_vend_entrada": 62231,
+     "tok_vend_salida": 878,
+     "segundos": 53
+    },
+    {
+     "n": 39,
+     "nota": 5,
+     "fallas": [
+      "no_entendio_lo_que_pidio",
+      "no_da_precio_pedido"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0264,
+     "usd_total": 0.0339,
+     "tok_vend_entrada": 21186,
+     "tok_vend_salida": 457,
+     "segundos": 169
+    },
+    {
+     "n": 40,
+     "nota": 5,
+     "fallas": [
+      "no_entendio_lo_que_pidio",
+      "tono_robotico"
+     ],
+     "visibles": [],
+     "cotiza": true,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0204,
+     "usd_total": 0.0319,
+     "tok_vend_entrada": 22122,
+     "tok_vend_salida": 339,
+     "segundos": 52
+    }
+   ],
+   "latencias": [
+    4409,
+    3570,
+    6009,
+    5681,
+    2306,
+    6516,
+    6860,
+    5722,
+    3825,
+    4447,
+    3606,
+    5443,
+    1263,
+    7794,
+    4741,
+    3612,
+    6588,
+    4121,
+    1834,
+    3903,
+    6022,
+    5349,
+    3730,
+    6572,
+    3593,
+    5780,
+    4268,
+    4730,
+    6729,
+    5206,
+    3669,
+    3913,
+    3761,
+    5630,
+    4209,
+    3391,
+    2496,
+    3674,
+    6087,
+    4306,
+    3425,
+    3836,
+    4166,
+    3387,
+    5882,
+    4139,
+    2616,
+    3413,
+    3279,
+    3665,
+    5022,
+    3084,
+    4903,
+    5412,
+    6984,
+    3138,
+    1601,
+    4055,
+    2597,
+    4355,
+    5250,
+    3486,
+    4987,
+    3099,
+    5598,
+    7487,
+    4078,
+    6266,
+    6650,
+    3554,
+    3078,
+    1290,
+    3806,
+    2875,
+    3049,
+    3729,
+    1790,
+    2689,
+    2464,
+    4299,
+    1859,
+    1590,
+    3068,
+    2423,
+    3793,
+    4702,
+    2768,
+    3325,
+    1536,
+    4410,
+    5329,
+    3619,
+    4289,
+    4058,
+    2635,
+    4046,
+    7029,
+    4931,
+    2505,
+    6156,
+    2365,
+    2215,
+    3801,
+    6404,
+    3579,
+    6636,
+    2485,
+    2424,
+    4618
+   ]
+  },
+  "bm-c": {
+   "filas": [
+    {
+     "n": 1,
+     "nota": 6,
+     "fallas": [],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.046,
+     "usd_total": 0.0484,
+     "tok_vend_entrada": 28334,
+     "tok_vend_salida": 309,
+     "segundos": 147
+    },
+    {
+     "n": 2,
+     "nota": 6,
+     "fallas": [
+      "no_entendio_lo_que_pidio",
+      "demasiado_largo"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 1,
+     "invariantes": 0,
+     "usd_anthropic": 0.2541,
+     "usd_total": 0.4349,
+     "tok_vend_entrada": 228324,
+     "tok_vend_salida": 3035,
+     "segundos": 160
+    },
+    {
+     "n": 3,
+     "nota": 2,
+     "fallas": [
+      "no_entendio_lo_que_pidio",
+      "repite_pregunta_ya_respondida",
+      "respuesta_generica",
+      "no_avanza_al_cierre"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 3,
+     "invariantes": 1,
+     "usd_anthropic": 0.0612,
+     "usd_total": 0.0643,
+     "tok_vend_entrada": 47871,
+     "tok_vend_salida": 693,
+     "segundos": 70
+    },
+    {
+     "n": 4,
+     "nota": 3,
+     "fallas": [
+      "repite_pregunta_ya_respondida",
+      "no_entendio_lo_que_pidio",
+      "tono_robotico"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0527,
+     "usd_total": 0.0539,
+     "tok_vend_entrada": 75237,
+     "tok_vend_salida": 982,
+     "segundos": 273
+    },
+    {
+     "n": 5,
+     "nota": 5,
+     "fallas": [
+      "no_entendio_lo_que_pidio",
+      "repite_pregunta_ya_respondida",
+      "contradice_turno_anterior"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 1,
+     "invariantes": 0,
+     "usd_anthropic": 0.0275,
+     "usd_total": 0.0419,
+     "tok_vend_entrada": 36173,
+     "tok_vend_salida": 749,
+     "segundos": 51
+    },
+    {
+     "n": 6,
+     "nota": 5,
+     "fallas": [
+      "contradice_turno_anterior"
+     ],
+     "visibles": [
+      "precio_contradictorio"
+     ],
+     "cotiza": false,
+     "graves": 1,
+     "invariantes": 0,
+     "usd_anthropic": 0.0371,
+     "usd_total": 0.0379,
+     "tok_vend_entrada": 46319,
+     "tok_vend_salida": 767,
+     "segundos": 151
+    },
+    {
+     "n": 7,
+     "nota": 5,
+     "fallas": [
+      "inventa_dato",
+      "no_entendio_lo_que_pidio"
+     ],
+     "visibles": [
+      "dato_inventado"
+     ],
+     "cotiza": false,
+     "graves": 1,
+     "invariantes": 0,
+     "usd_anthropic": 0.1015,
+     "usd_total": 0.1031,
+     "tok_vend_entrada": 107715,
+     "tok_vend_salida": 1761,
+     "segundos": 65
+    },
+    {
+     "n": 8,
+     "nota": 3,
+     "fallas": [
+      "contradice_turno_anterior",
+      "no_entendio_lo_que_pidio",
+      "repite_pregunta_ya_respondida",
+      "tono_robotico"
+     ],
+     "visibles": [
+      "precio_contradictorio"
+     ],
+     "cotiza": false,
+     "graves": 1,
+     "invariantes": 2,
+     "usd_anthropic": 0.0844,
+     "usd_total": 0.3198,
+     "tok_vend_entrada": 106500,
+     "tok_vend_salida": 2025,
+     "segundos": 232
+    },
+    {
+     "n": 9,
+     "nota": 7,
+     "fallas": [],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0323,
+     "usd_total": 0.0401,
+     "tok_vend_entrada": 33837,
+     "tok_vend_salida": 771,
+     "segundos": 44
+    },
+    {
+     "n": 10,
+     "nota": 6,
+     "fallas": [
+      "repite_pregunta_ya_respondida"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0409,
+     "usd_total": 0.0435,
+     "tok_vend_entrada": 58928,
+     "tok_vend_salida": 891,
+     "segundos": 154
+    },
+    {
+     "n": 11,
+     "nota": 3,
+     "fallas": [
+      "no_da_precio_pedido",
+      "no_ofrece_nada_concreto",
+      "contradice_turno_anterior",
+      "abandona_al_cliente"
+     ],
+     "visibles": [
+      "medida_equivocada"
+     ],
+     "cotiza": true,
+     "graves": 5,
+     "invariantes": 2,
+     "usd_anthropic": 0.19629999999999997,
+     "usd_total": 0.4005,
+     "tok_vend_entrada": 149518,
+     "tok_vend_salida": 2006,
+     "segundos": 137
+    },
+    {
+     "n": 12,
+     "nota": 8,
+     "fallas": [],
+     "visibles": [],
+     "cotiza": true,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0288,
+     "usd_total": 0.0515,
+     "tok_vend_entrada": 32595,
+     "tok_vend_salida": 408,
+     "segundos": 74
+    },
+    {
+     "n": 13,
+     "nota": 6,
+     "fallas": [
+      "no_avanza_al_cierre",
+      "contradice_turno_anterior"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 1,
+     "invariantes": 0,
+     "usd_anthropic": 0.07210000000000001,
+     "usd_total": 0.0782,
+     "tok_vend_entrada": 69395,
+     "tok_vend_salida": 1419,
+     "segundos": 53
+    },
+    {
+     "n": 14,
+     "nota": 3,
+     "fallas": [
+      "no_entendio_lo_que_pidio",
+      "no_da_precio_pedido",
+      "no_avanza_al_cierre",
+      "tono_robotico",
+      "respuesta_generica"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 1,
+     "usd_anthropic": 0.0538,
+     "usd_total": 0.0594,
+     "tok_vend_entrada": 69099,
+     "tok_vend_salida": 1467,
+     "segundos": 57
+    },
+    {
+     "n": 15,
+     "nota": 5,
+     "fallas": [
+      "contradice_turno_anterior",
+      "no_entendio_lo_que_pidio",
+      "no_avanza_al_cierre"
+     ],
+     "visibles": [
+      "stock_contradictorio"
+     ],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0356,
+     "usd_total": 0.0402,
+     "tok_vend_entrada": 45721,
+     "tok_vend_salida": 711,
+     "segundos": 166
+    },
+    {
+     "n": 16,
+     "nota": 4,
+     "fallas": [
+      "no_entendio_lo_que_pidio",
+      "tono_robotico",
+      "no_avanza_al_cierre"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0291,
+     "usd_total": 0.0298,
+     "tok_vend_entrada": 33325,
+     "tok_vend_salida": 586,
+     "segundos": 274
+    },
+    {
+     "n": 17,
+     "nota": 4,
+     "fallas": [
+      "no_da_precio_pedido",
+      "no_entendio_lo_que_pidio",
+      "respuesta_generica"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0196,
+     "usd_total": 0.026,
+     "tok_vend_entrada": 23648,
+     "tok_vend_salida": 310,
+     "segundos": 272
+    },
+    {
+     "n": 18,
+     "nota": 8,
+     "fallas": [],
+     "visibles": [],
+     "cotiza": true,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0418,
+     "usd_total": 0.0521,
+     "tok_vend_entrada": 48589,
+     "tok_vend_salida": 785,
+     "segundos": 67
+    },
+    {
+     "n": 19,
+     "nota": 4,
+     "fallas": [
+      "tono_robotico",
+      "no_avanza_al_cierre"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.019200000000000002,
+     "usd_total": 0.0214,
+     "tok_vend_entrada": 16480,
+     "tok_vend_salida": 100,
+     "segundos": 157
+    },
+    {
+     "n": 20,
+     "nota": 6,
+     "fallas": [
+      "inventa_dato"
+     ],
+     "visibles": [
+      "dato_inventado"
+     ],
+     "cotiza": false,
+     "graves": 2,
+     "invariantes": 0,
+     "usd_anthropic": 0.1547,
+     "usd_total": 0.1571,
+     "tok_vend_entrada": 157980,
+     "tok_vend_salida": 2835,
+     "segundos": 213
+    },
+    {
+     "n": 28,
+     "nota": 4,
+     "fallas": [
+      "contradice_turno_anterior",
+      "pide_foto_innecesaria",
+      "no_entendio_lo_que_pidio"
+     ],
+     "visibles": [
+      "medida_equivocada"
+     ],
+     "cotiza": false,
+     "graves": 2,
+     "invariantes": 0,
+     "usd_anthropic": 0.086,
+     "usd_total": 0.0878,
+     "tok_vend_entrada": 114223,
+     "tok_vend_salida": 1907,
+     "segundos": 82
+    },
+    {
+     "n": 21,
+     "nota": 4,
+     "fallas": [
+      "inventa_dato",
+      "no_ofrece_nada_concreto",
+      "respuesta_generica"
+     ],
+     "visibles": [
+      "dato_inventado"
+     ],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0833,
+     "usd_total": 0.0949,
+     "tok_vend_entrada": 76581,
+     "tok_vend_salida": 797,
+     "segundos": 77
+    },
+    {
+     "n": 22,
+     "nota": 3,
+     "fallas": [
+      "abandona_al_cliente"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 1,
+     "usd_anthropic": 0.0376,
+     "usd_total": 0.038,
+     "tok_vend_entrada": 34067,
+     "tok_vend_salida": 474,
+     "segundos": 253
+    },
+    {
+     "n": 23,
+     "nota": 5,
+     "fallas": [
+      "contradice_turno_anterior",
+      "no_avanza_al_cierre"
+     ],
+     "visibles": [
+      "precio_contradictorio"
+     ],
+     "cotiza": true,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.024999999999999998,
+     "usd_total": 0.0377,
+     "tok_vend_entrada": 35484,
+     "tok_vend_salida": 477,
+     "segundos": 44
+    },
+    {
+     "n": 24,
+     "nota": 5,
+     "fallas": [
+      "contradice_turno_anterior",
+      "no_ofrece_nada_concreto"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 1,
+     "invariantes": 0,
+     "usd_anthropic": 0.14800000000000002,
+     "usd_total": 0.1502,
+     "tok_vend_entrada": 156196,
+     "tok_vend_salida": 2470,
+     "segundos": 87
+    },
+    {
+     "n": 25,
+     "nota": 3,
+     "fallas": [
+      "contradice_turno_anterior",
+      "no_entendio_lo_que_pidio",
+      "demasiado_largo"
+     ],
+     "visibles": [
+      "precio_contradictorio"
+     ],
+     "cotiza": true,
+     "graves": 4,
+     "invariantes": 0,
+     "usd_anthropic": 0.043,
+     "usd_total": 0.0581,
+     "tok_vend_entrada": 24821,
+     "tok_vend_salida": 319,
+     "segundos": 70
+    },
+    {
+     "n": 26,
+     "nota": 6,
+     "fallas": [
+      "inventa_dato",
+      "contradice_turno_anterior"
+     ],
+     "visibles": [
+      "dato_inventado",
+      "stock_contradictorio"
+     ],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0425,
+     "usd_total": 0.2058,
+     "tok_vend_entrada": 12657,
+     "tok_vend_salida": 232,
+     "segundos": 117
+    },
+    {
+     "n": 27,
+     "nota": 5,
+     "fallas": [
+      "no_avanza_al_cierre"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0027,
+     "usd_total": 0.0069,
+     "tok_vend_entrada": 0,
+     "tok_vend_salida": 0,
+     "segundos": 150
+    },
+    {
+     "n": 29,
+     "nota": 5,
+     "fallas": [
+      "no_da_precio_pedido",
+      "no_entendio_lo_que_pidio",
+      "inventa_dato"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 1,
+     "invariantes": 0,
+     "usd_anthropic": 0.0746,
+     "usd_total": 0.0938,
+     "tok_vend_entrada": 48250,
+     "tok_vend_salida": 931,
+     "segundos": 77
+    },
+    {
+     "n": 30,
+     "nota": 4,
+     "fallas": [
+      "no_entendio_lo_que_pidio",
+      "respuesta_generica",
+      "inventa_dato",
+      "no_da_precio_pedido"
+     ],
+     "visibles": [
+      "dato_inventado"
+     ],
+     "cotiza": false,
+     "graves": 1,
+     "invariantes": 0,
+     "usd_anthropic": 0.0596,
+     "usd_total": 0.0756,
+     "tok_vend_entrada": 65355,
+     "tok_vend_salida": 883,
+     "segundos": 90
+    },
+    {
+     "n": 31,
+     "nota": 7,
+     "fallas": [],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0303,
+     "usd_total": 0.0461,
+     "tok_vend_entrada": 32662,
+     "tok_vend_salida": 526,
+     "segundos": 60
+    },
+    {
+     "n": 32,
+     "nota": 6,
+     "fallas": [
+      "no_avanza_al_cierre"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0179,
+     "usd_total": 0.0237,
+     "tok_vend_entrada": 22256,
+     "tok_vend_salida": 335,
+     "segundos": 147
+    },
+    {
+     "n": 33,
+     "nota": 5,
+     "fallas": [
+      "contradice_turno_anterior",
+      "tono_robotico"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.14470000000000002,
+     "usd_total": 0.1584,
+     "tok_vend_entrada": 133473,
+     "tok_vend_salida": 2307,
+     "segundos": 121
+    },
+    {
+     "n": 34,
+     "nota": 7,
+     "fallas": [
+      "repite_pregunta_ya_respondida"
+     ],
+     "visibles": [],
+     "cotiza": true,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0194,
+     "usd_total": 0.0306,
+     "tok_vend_entrada": 22186,
+     "tok_vend_salida": 342,
+     "segundos": 44
+    },
+    {
+     "n": 35,
+     "nota": 7,
+     "fallas": [
+      "repite_pregunta_ya_respondida"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 1,
+     "invariantes": 1,
+     "usd_anthropic": 0.1207,
+     "usd_total": 0.1231,
+     "tok_vend_entrada": 80940,
+     "tok_vend_salida": 1374,
+     "segundos": 190
+    },
+    {
+     "n": 36,
+     "nota": 5,
+     "fallas": [
+      "repite_pregunta_ya_respondida",
+      "no_avanza_al_cierre"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 1,
+     "usd_anthropic": 0.0786,
+     "usd_total": 0.0802,
+     "tok_vend_entrada": 105450,
+     "tok_vend_salida": 2097,
+     "segundos": 197
+    },
+    {
+     "n": 37,
+     "nota": 3,
+     "fallas": [
+      "no_entendio_lo_que_pidio",
+      "no_ofrece_nada_concreto",
+      "abandona_al_cliente"
+     ],
+     "visibles": [],
+     "cotiza": true,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0442,
+     "usd_total": 0.0653,
+     "tok_vend_entrada": 35006,
+     "tok_vend_salida": 438,
+     "segundos": 69
+    },
+    {
+     "n": 38,
+     "nota": 5,
+     "fallas": [
+      "contradice_turno_anterior"
+     ],
+     "visibles": [
+      "precio_contradictorio"
+     ],
+     "cotiza": true,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0053,
+     "usd_total": 0.167,
+     "tok_vend_entrada": 0,
+     "tok_vend_salida": 0,
+     "segundos": 65
+    },
+    {
+     "n": 39,
+     "nota": 5,
+     "fallas": [
+      "no_entendio_lo_que_pidio",
+      "no_da_precio_pedido"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 1,
+     "invariantes": 0,
+     "usd_anthropic": 0.029699999999999997,
+     "usd_total": 0.0374,
+     "tok_vend_entrada": 21186,
+     "tok_vend_salida": 736,
+     "segundos": 176
+    },
+    {
+     "n": 40,
+     "nota": 7,
+     "fallas": [],
+     "visibles": [],
+     "cotiza": true,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0392,
+     "usd_total": 0.0514,
+     "tok_vend_entrada": 22122,
+     "tok_vend_salida": 404,
+     "segundos": 52
+    }
+   ],
+   "latencias": [
+    4648,
+    3620,
+    5533,
+    5284,
+    6666,
+    5166,
+    3931,
+    6215,
+    4983,
+    3994,
+    4124,
+    3764,
+    5907,
+    1318,
+    7713,
+    4826,
+    4247,
+    8136,
+    6481,
+    853,
+    6154,
+    5363,
+    5882,
+    3714,
+    8162,
+    5039,
+    3328,
+    3818,
+    6031,
+    4793,
+    3819,
+    7219,
+    4022,
+    6015,
+    3281,
+    2422,
+    3842,
+    5605,
+    4817,
+    3759,
+    5434,
+    5798,
+    3259,
+    5487,
+    3737,
+    2761,
+    3863,
+    3399,
+    4322,
+    2338,
+    6333,
+    4779,
+    6141,
+    2639,
+    3636,
+    6088,
+    2141,
+    3276,
+    5231,
+    5418,
+    5508,
+    4318,
+    3667,
+    5310,
+    5017,
+    6721,
+    4675,
+    6371,
+    5695,
+    5133,
+    4148,
+    1774,
+    4276,
+    2510,
+    3563,
+    1750,
+    3578,
+    2502,
+    3891,
+    2223,
+    2450,
+    3191,
+    2184,
+    4935,
+    4623,
+    2696,
+    5167,
+    2381,
+    2048,
+    4676,
+    4074,
+    4728,
+    2051,
+    4632,
+    1344,
+    4510,
+    1473,
+    1752,
+    5524,
+    4320,
+    5669,
+    5735,
+    6650,
+    3428,
+    3838,
+    5341
+   ]
+  },
+  "bm-d": {
+   "filas": [
+    {
+     "n": 1,
+     "nota": 4,
+     "fallas": [
+      "contradice_turno_anterior",
+      "repite_pregunta_ya_respondida"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0036,
+     "usd_total": 0.0059,
+     "tok_vend_entrada": 28387,
+     "tok_vend_salida": 929,
+     "segundos": 146
+    },
+    {
+     "n": 2,
+     "nota": 5,
+     "fallas": [
+      "no_entendio_lo_que_pidio",
+      "contradice_turno_anterior",
+      "respuesta_generica"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 5,
+     "invariantes": 1,
+     "usd_anthropic": 0.027700000000000002,
+     "usd_total": 0.1613,
+     "tok_vend_entrada": 153618,
+     "tok_vend_salida": 7862,
+     "segundos": 178
+    },
+    {
+     "n": 3,
+     "nota": 4,
+     "fallas": [
+      "repite_pregunta_ya_respondida",
+      "no_entendio_lo_que_pidio",
+      "no_avanza_al_cierre"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0155,
+     "usd_total": 0.0202,
+     "tok_vend_entrada": 79395,
+     "tok_vend_salida": 2363,
+     "segundos": 84
+    },
+    {
+     "n": 4,
+     "nota": 4,
+     "fallas": [
+      "no_entendio_lo_que_pidio",
+      "respuesta_generica"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0075,
+     "usd_total": 0.0087,
+     "tok_vend_entrada": 73577,
+     "tok_vend_salida": 1992,
+     "segundos": 282
+    },
+    {
+     "n": 5,
+     "nota": 4,
+     "fallas": [
+      "pide_dato_que_ya_tiene",
+      "repite_pregunta_ya_respondida",
+      "no_entendio_lo_que_pidio"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0065,
+     "usd_total": 0.0175,
+     "tok_vend_entrada": 23497,
+     "tok_vend_salida": 1040,
+     "segundos": 52
+    },
+    {
+     "n": 6,
+     "nota": 6,
+     "fallas": [
+      "no_da_precio_pedido",
+      "respuesta_generica"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0055,
+     "usd_total": 0.0062,
+     "tok_vend_entrada": 46128,
+     "tok_vend_salida": 1430,
+     "segundos": 150
+    },
+    {
+     "n": 7,
+     "nota": 6,
+     "fallas": [
+      "inventa_dato",
+      "pide_dato_que_ya_tiene"
+     ],
+     "visibles": [
+      "dato_inventado"
+     ],
+     "cotiza": false,
+     "graves": 2,
+     "invariantes": 0,
+     "usd_anthropic": 0.0116,
+     "usd_total": 0.0132,
+     "tok_vend_entrada": 97819,
+     "tok_vend_salida": 3786,
+     "segundos": 68
+    },
+    {
+     "n": 8,
+     "nota": 2,
+     "fallas": [
+      "no_entendio_lo_que_pidio",
+      "repite_pregunta_ya_respondida",
+      "respuesta_generica",
+      "tono_robotico"
+     ],
+     "visibles": [
+      "precio_contradictorio"
+     ],
+     "cotiza": false,
+     "graves": 1,
+     "invariantes": 1,
+     "usd_anthropic": 0.013600000000000001,
+     "usd_total": 0.1598,
+     "tok_vend_entrada": 117549,
+     "tok_vend_salida": 2548,
+     "segundos": 207
+    },
+    {
+     "n": 9,
+     "nota": 6,
+     "fallas": [
+      "no_ofrece_nada_concreto"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0059,
+     "usd_total": 0.0138,
+     "tok_vend_entrada": 33230,
+     "tok_vend_salida": 1490,
+     "segundos": 46
+    },
+    {
+     "n": 10,
+     "nota": 4,
+     "fallas": [
+      "contradice_turno_anterior",
+      "abandona_al_cliente",
+      "no_avanza_al_cierre"
+     ],
+     "visibles": [
+      "stock_contradictorio"
+     ],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.006200000000000001,
+     "usd_total": 0.0088,
+     "tok_vend_entrada": 40020,
+     "tok_vend_salida": 1573,
+     "segundos": 159
+    },
+    {
+     "n": 11,
+     "nota": 4,
+     "fallas": [
+      "repite_pregunta_ya_respondida",
+      "no_entendio_lo_que_pidio",
+      "abandona_al_cliente",
+      "no_avanza_al_cierre"
+     ],
+     "visibles": [],
+     "cotiza": true,
+     "graves": 1,
+     "invariantes": 0,
+     "usd_anthropic": 0.0168,
+     "usd_total": 0.1849,
+     "tok_vend_entrada": 86061,
+     "tok_vend_salida": 2549,
+     "segundos": 116
+    },
+    {
+     "n": 12,
+     "nota": 7,
+     "fallas": [
+      "no_entendio_lo_que_pidio"
+     ],
+     "visibles": [],
+     "cotiza": true,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0074,
+     "usd_total": 0.03,
+     "tok_vend_entrada": 32637,
+     "tok_vend_salida": 750,
+     "segundos": 70
+    },
+    {
+     "n": 13,
+     "nota": 6,
+     "fallas": [
+      "no_avanza_al_cierre",
+      "repite_pregunta_ya_respondida"
+     ],
+     "visibles": [],
+     "cotiza": true,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.008799999999999999,
+     "usd_total": 0.0141,
+     "tok_vend_entrada": 73803,
+     "tok_vend_salida": 3087,
+     "segundos": 55
+    },
+    {
+     "n": 14,
+     "nota": 4,
+     "fallas": [
+      "no_da_precio_pedido",
+      "no_avanza_al_cierre",
+      "tono_robotico",
+      "repite_pregunta_ya_respondida"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 1,
+     "usd_anthropic": 0.009,
+     "usd_total": 0.0146,
+     "tok_vend_entrada": 57248,
+     "tok_vend_salida": 2606,
+     "segundos": 59
+    },
+    {
+     "n": 15,
+     "nota": 6,
+     "fallas": [
+      "contradice_turno_anterior",
+      "demasiado_largo"
+     ],
+     "visibles": [
+      "stock_contradictorio"
+     ],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0105,
+     "usd_total": 0.0118,
+     "tok_vend_entrada": 88679,
+     "tok_vend_salida": 2392,
+     "segundos": 174
+    },
+    {
+     "n": 16,
+     "nota": 3,
+     "fallas": [
+      "no_entendio_lo_que_pidio",
+      "tono_robotico",
+      "respuesta_generica",
+      "no_avanza_al_cierre"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.006,
+     "usd_total": 0.0067,
+     "tok_vend_entrada": 33987,
+     "tok_vend_salida": 951,
+     "segundos": 274
+    },
+    {
+     "n": 17,
+     "nota": 6,
+     "fallas": [
+      "no_entendio_lo_que_pidio"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0055,
+     "usd_total": 0.0107,
+     "tok_vend_entrada": 48052,
+     "tok_vend_salida": 2263,
+     "segundos": 278
+    },
+    {
+     "n": 18,
+     "nota": 6,
+     "fallas": [
+      "no_ofrece_nada_concreto"
+     ],
+     "visibles": [],
+     "cotiza": true,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0087,
+     "usd_total": 0.0189,
+     "tok_vend_entrada": 34823,
+     "tok_vend_salida": 1518,
+     "segundos": 68
+    },
+    {
+     "n": 19,
+     "nota": 5,
+     "fallas": [
+      "tono_robotico",
+      "no_avanza_al_cierre"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.005,
+     "usd_total": 0.0073,
+     "tok_vend_entrada": 16846,
+     "tok_vend_salida": 107,
+     "segundos": 150
+    },
+    {
+     "n": 20,
+     "nota": 5,
+     "fallas": [
+      "no_avanza_al_cierre",
+      "inventa_dato"
+     ],
+     "visibles": [
+      "dato_inventado"
+     ],
+     "cotiza": false,
+     "graves": 1,
+     "invariantes": 0,
+     "usd_anthropic": 0.0173,
+     "usd_total": 0.0195,
+     "tok_vend_entrada": 113473,
+     "tok_vend_salida": 5702,
+     "segundos": 210
+    },
+    {
+     "n": 28,
+     "nota": 3,
+     "fallas": [
+      "no_entendio_lo_que_pidio",
+      "pide_foto_innecesaria",
+      "tono_robotico",
+      "no_da_precio_pedido"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 3,
+     "invariantes": 0,
+     "usd_anthropic": 0.009000000000000001,
+     "usd_total": 0.1925,
+     "tok_vend_entrada": 56763,
+     "tok_vend_salida": 2114,
+     "segundos": 82
+    },
+    {
+     "n": 21,
+     "nota": 5,
+     "fallas": [
+      "no_ofrece_nada_concreto",
+      "respuesta_generica"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.008,
+     "usd_total": 0.0208,
+     "tok_vend_entrada": 76183,
+     "tok_vend_salida": 2019,
+     "segundos": 69
+    },
+    {
+     "n": 22,
+     "nota": 3,
+     "fallas": [
+      "abandona_al_cliente"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 1,
+     "usd_anthropic": 0.0033,
+     "usd_total": 0.0037,
+     "tok_vend_entrada": 35463,
+     "tok_vend_salida": 1284,
+     "segundos": 256
+    },
+    {
+     "n": 23,
+     "nota": 4,
+     "fallas": [
+      "repite_pregunta_ya_respondida",
+      "tono_robotico",
+      "no_avanza_al_cierre"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 1,
+     "invariantes": 0,
+     "usd_anthropic": 0.0076,
+     "usd_total": 0.0119,
+     "tok_vend_entrada": 58337,
+     "tok_vend_salida": 2818,
+     "segundos": 51
+    },
+    {
+     "n": 24,
+     "nota": 3,
+     "fallas": [
+      "contradice_turno_anterior",
+      "inventa_dato",
+      "no_entendio_lo_que_pidio"
+     ],
+     "visibles": [
+      "medida_equivocada",
+      "dato_inventado"
+     ],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0175,
+     "usd_total": 0.0198,
+     "tok_vend_entrada": 185855,
+     "tok_vend_salida": 5901,
+     "segundos": 95
+    },
+    {
+     "n": 25,
+     "nota": 5,
+     "fallas": [
+      "inventa_dato",
+      "no_entendio_lo_que_pidio"
+     ],
+     "visibles": [
+      "dato_inventado"
+     ],
+     "cotiza": true,
+     "graves": 3,
+     "invariantes": 1,
+     "usd_anthropic": 0.014,
+     "usd_total": 0.1486,
+     "tok_vend_entrada": 86634,
+     "tok_vend_salida": 3257,
+     "segundos": 86
+    },
+    {
+     "n": 26,
+     "nota": 4,
+     "fallas": [
+      "no_entendio_lo_que_pidio",
+      "pide_dato_que_ya_tiene",
+      "inventa_dato",
+      "no_avanza_al_cierre"
+     ],
+     "visibles": [
+      "dato_inventado"
+     ],
+     "cotiza": false,
+     "graves": 1,
+     "invariantes": 0,
+     "usd_anthropic": 0.010599999999999998,
+     "usd_total": 0.0425,
+     "tok_vend_entrada": 12657,
+     "tok_vend_salida": 1141,
+     "segundos": 109
+    },
+    {
+     "n": 27,
+     "nota": 5,
+     "fallas": [
+      "no_avanza_al_cierre",
+      "tono_robotico"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0025,
+     "usd_total": 0.0066,
+     "tok_vend_entrada": 0,
+     "tok_vend_salida": 0,
+     "segundos": 148
+    },
+    {
+     "n": 29,
+     "nota": 6,
+     "fallas": [
+      "no_da_precio_pedido",
+      "no_entendio_lo_que_pidio"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0122,
+     "usd_total": 0.0298,
+     "tok_vend_entrada": 48226,
+     "tok_vend_salida": 2538,
+     "segundos": 82
+    },
+    {
+     "n": 30,
+     "nota": 3,
+     "fallas": [
+      "no_entendio_lo_que_pidio",
+      "no_da_precio_pedido",
+      "respuesta_generica",
+      "no_avanza_al_cierre"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0119,
+     "usd_total": 0.0289,
+     "tok_vend_entrada": 65442,
+     "tok_vend_salida": 2163,
+     "segundos": 97
+    },
+    {
+     "n": 31,
+     "nota": 6,
+     "fallas": [
+      "no_ofrece_nada_concreto"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0063999999999999994,
+     "usd_total": 0.022,
+     "tok_vend_entrada": 32707,
+     "tok_vend_salida": 1177,
+     "segundos": 60
+    },
+    {
+     "n": 32,
+     "nota": 7,
+     "fallas": [],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0033,
+     "usd_total": 0.0049,
+     "tok_vend_entrada": 22319,
+     "tok_vend_salida": 652,
+     "segundos": 146
+    },
+    {
+     "n": 33,
+     "nota": 6,
+     "fallas": [
+      "respuesta_generica"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 3,
+     "invariantes": 1,
+     "usd_anthropic": 0.0162,
+     "usd_total": 0.0324,
+     "tok_vend_entrada": 134441,
+     "tok_vend_salida": 4136,
+     "segundos": 120
+    },
+    {
+     "n": 34,
+     "nota": 6,
+     "fallas": [
+      "repite_pregunta_ya_respondida"
+     ],
+     "visibles": [],
+     "cotiza": true,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0051,
+     "usd_total": 0.0161,
+     "tok_vend_entrada": 22253,
+     "tok_vend_salida": 665,
+     "segundos": 48
+    },
+    {
+     "n": 35,
+     "nota": 4,
+     "fallas": [
+      "inventa_dato",
+      "no_entendio_lo_que_pidio",
+      "contradice_turno_anterior"
+     ],
+     "visibles": [
+      "dato_inventado"
+     ],
+     "cotiza": false,
+     "graves": 1,
+     "invariantes": 0,
+     "usd_anthropic": 0.0159,
+     "usd_total": 0.022,
+     "tok_vend_entrada": 123202,
+     "tok_vend_salida": 4314,
+     "segundos": 215
+    },
+    {
+     "n": 36,
+     "nota": 6,
+     "fallas": [
+      "repite_pregunta_ya_respondida",
+      "respuesta_generica"
+     ],
+     "visibles": [],
+     "cotiza": true,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0081,
+     "usd_total": 0.0129,
+     "tok_vend_entrada": 57703,
+     "tok_vend_salida": 2650,
+     "segundos": 188
+    },
+    {
+     "n": 37,
+     "nota": 3,
+     "fallas": [
+      "no_entendio_lo_que_pidio",
+      "repite_pregunta_ya_respondida"
+     ],
+     "visibles": [],
+     "cotiza": true,
+     "graves": 1,
+     "invariantes": 0,
+     "usd_anthropic": 0.0083,
+     "usd_total": 0.0243,
+     "tok_vend_entrada": 45763,
+     "tok_vend_salida": 1100,
+     "segundos": 69
+    },
+    {
+     "n": 38,
+     "nota": 6,
+     "fallas": [],
+     "visibles": [],
+     "cotiza": true,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0085,
+     "usd_total": 0.0145,
+     "tok_vend_entrada": 64016,
+     "tok_vend_salida": 2522,
+     "segundos": 63
+    },
+    {
+     "n": 39,
+     "nota": 5,
+     "fallas": [
+      "no_entendio_lo_que_pidio",
+      "respuesta_generica"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 1,
+     "invariantes": 0,
+     "usd_anthropic": 0.006200000000000001,
+     "usd_total": 0.0138,
+     "tok_vend_entrada": 32753,
+     "tok_vend_salida": 1929,
+     "segundos": 178
+    },
+    {
+     "n": 40,
+     "nota": 6,
+     "fallas": [
+      "no_entendio_lo_que_pidio"
+     ],
+     "visibles": [],
+     "cotiza": true,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.008400000000000001,
+     "usd_total": 0.018,
+     "tok_vend_entrada": 49264,
+     "tok_vend_salida": 849,
+     "segundos": 57
+    }
+   ],
+   "latencias": [
+    6297,
+    4393,
+    9357,
+    10515,
+    9324,
+    9758,
+    7880,
+    4849,
+    6063,
+    6300,
+    4815,
+    4260,
+    3954,
+    6615,
+    5885,
+    4391,
+    5845,
+    6621,
+    3611,
+    7455,
+    4141,
+    4103,
+    4035,
+    3387,
+    5053,
+    4715,
+    4447,
+    4818,
+    6236,
+    4191,
+    7488,
+    7907,
+    3681,
+    3023,
+    5911,
+    4096,
+    9476,
+    5395,
+    5762,
+    4558,
+    7597,
+    4647,
+    4582,
+    3852,
+    2986,
+    7017,
+    6340,
+    3884,
+    4957,
+    1689,
+    6780,
+    5049,
+    6726,
+    3893,
+    5570,
+    3960,
+    3512,
+    7856,
+    1156,
+    4554,
+    3721,
+    5633,
+    7710,
+    9550,
+    7311,
+    6142,
+    7072,
+    6361,
+    5998,
+    9373,
+    952,
+    5431,
+    6138,
+    9338,
+    5612,
+    5742,
+    5254,
+    3677,
+    3108,
+    3907,
+    4431,
+    2906,
+    3403,
+    4047,
+    4823,
+    5107,
+    5226,
+    4450,
+    3976,
+    1235,
+    6538,
+    5026,
+    1918,
+    5677,
+    9098,
+    7014,
+    5653,
+    6037,
+    5052,
+    4891,
+    1168,
+    7669,
+    6129,
+    8219,
+    6776,
+    4003,
+    4774,
+    3265
+   ]
+  },
+  "bm-e": {
+   "filas": [
+    {
+     "n": 1,
+     "nota": 6,
+     "fallas": [],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.082,
+     "usd_total": 0.0864,
+     "tok_vend_entrada": 28472,
+     "tok_vend_salida": 365,
+     "segundos": 143
+    },
+    {
+     "n": 2,
+     "nota": 5,
+     "fallas": [
+      "no_entendio_lo_que_pidio",
+      "contradice_turno_anterior",
+      "demasiado_largo"
+     ],
+     "visibles": [
+      "stock_contradictorio"
+     ],
+     "cotiza": false,
+     "graves": 1,
+     "invariantes": 1,
+     "usd_anthropic": 0.5561999999999999,
+     "usd_total": 0.677,
+     "tok_vend_entrada": 186683,
+     "tok_vend_salida": 2916,
+     "segundos": 172
+    },
+    {
+     "n": 3,
+     "nota": 3,
+     "fallas": [
+      "abandona_al_cliente",
+      "repite_pregunta_ya_respondida",
+      "no_entendio_lo_que_pidio"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 1,
+     "usd_anthropic": 0.1964,
+     "usd_total": 0.2018,
+     "tok_vend_entrada": 84245,
+     "tok_vend_salida": 1535,
+     "segundos": 198
+    },
+    {
+     "n": 4,
+     "nota": 3,
+     "fallas": [
+      "repite_pregunta_ya_respondida",
+      "no_entendio_lo_que_pidio",
+      "respuesta_generica"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.1524,
+     "usd_total": 0.1535,
+     "tok_vend_entrada": 86048,
+     "tok_vend_salida": 1185,
+     "segundos": 277
+    },
+    {
+     "n": 5,
+     "nota": 6,
+     "fallas": [
+      "no_entendio_lo_que_pidio"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.0419,
+     "usd_total": 0.0565,
+     "tok_vend_entrada": 34675,
+     "tok_vend_salida": 429,
+     "segundos": 51
+    },
+    {
+     "n": 6,
+     "nota": 7,
+     "fallas": [],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 2,
+     "invariantes": 0,
+     "usd_anthropic": 0.07719999999999999,
+     "usd_total": 0.0802,
+     "tok_vend_entrada": 17338,
+     "tok_vend_salida": 201,
+     "segundos": 149
+    },
+    {
+     "n": 7,
+     "nota": 3,
+     "fallas": [
+      "inventa_dato",
+      "contradice_turno_anterior",
+      "no_entendio_lo_que_pidio",
+      "pide_dato_que_ya_tiene"
+     ],
+     "visibles": [
+      "dato_inventado"
+     ],
+     "cotiza": false,
+     "graves": 2,
+     "invariantes": 0,
+     "usd_anthropic": 0.0057,
+     "usd_total": 0.1693,
+     "tok_vend_entrada": 0,
+     "tok_vend_salida": 0,
+     "segundos": 66
+    },
+    {
+     "n": 8,
+     "nota": 3,
+     "fallas": [
+      "no_entendio_lo_que_pidio",
+      "repite_pregunta_ya_respondida",
+      "no_avanza_al_cierre"
+     ],
+     "visibles": [
+      "precio_contradictorio"
+     ],
+     "cotiza": false,
+     "graves": 4,
+     "invariantes": 2,
+     "usd_anthropic": 0.239,
+     "usd_total": 0.4538,
+     "tok_vend_entrada": 107542,
+     "tok_vend_salida": 2129,
+     "segundos": 236
+    },
+    {
+     "n": 9,
+     "nota": 5,
+     "fallas": [
+      "pide_dato_que_ya_tiene"
+     ],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 1,
+     "invariantes": 0,
+     "usd_anthropic": 0.0956,
+     "usd_total": 0.1034,
+     "tok_vend_entrada": 33175,
+     "tok_vend_salida": 599,
+     "segundos": 48
+    },
+    {
+     "n": 10,
+     "nota": 7,
+     "fallas": [],
+     "visibles": [],
+     "cotiza": false,
+     "graves": 0,
+     "invariantes": 0,
+     "usd_anthropic": 0.13449999999999998,
+     "usd_total": 0.1357,
+     "tok_vend_entrada": 65917,
+     "tok_vend_salida": 1376,
+     "segundos": 164
+    }
+   ],
+   "latencias": [
+    4884,
+    6689,
+    7344,
+    7173,
+    3594,
+    7300,
+    6461,
+    6219,
+    4963,
+    8475,
+    5456,
+    4320,
+    5603,
+    4924,
+    5660,
+    3231,
+    5004,
+    6951,
+    4582,
+    10918,
+    4965,
+    3085,
+    4486,
+    5562,
+    6060
+   ]
+  }
+ }
+}

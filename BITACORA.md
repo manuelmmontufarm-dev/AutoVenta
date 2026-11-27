@@ -1,3 +1,15 @@
+## 27-nov-2026 · Medición · Barrido de modelos del vendedor (Sonnet low/medium, Haiku medium, Opus low)
+
+- **Qué:** el lote difícil del 24-nov (casos 1–40) repetido en el simulador con cuatro vendedores, Guardián Haiku en
+  todos; juez a ciegas con subagentes de Claude Code. Informe: `docs/reportes-historicos/2026-11-27-barrido-modelos.md`
+  (+ `.html` con gráfico de control). Scripts en `app/scripts/sim/barrido/`. Producción no se tocó.
+- **Resultado:** ninguna combinación vende mejor que Sonnet `low` (producción): C Sonnet `medium` −0,10 ± 0,20,
+  D Haiku `medium` −0,28 ± 0,19, E Opus `low` −0,30 ± 0,47 (10 casos); todo dentro de límites. Haiku cuesta $0,036
+  por conversación contra $0,086 (−59 %); Opus $0,21 y no cotizó en ninguno de 10. Caso 28 sale mal con todos (4, 4, 3).
+- **De paso:** el rescate `tool_chain_finalized` lo escribe gpt-5.5 aunque el vendedor sea Claude, y su fila de
+  `ai_runs` cobra las rondas de Claude a tarifa de gpt-5.5; Haiku llega más al límite de herramientas (6 contra 2).
+- **Gasto:** API de Anthropic entre $7,18 y $8,78 (tope $10). Horas: ~2,5.
+- **Siguiente (decide Manuel):** canary de Haiku vendedor en producción midiendo % que cotiza, o quedarse en Sonnet.
 ## 27-nov-2026 · Bot · Competimotor: cierre de los cinco sprints de la auditoría del 26-nov (revisión final)
 
 - **Qué:** integración de los sprints 1 a 5 en `fix/auditoria-2026-11-26` (F-01 «Sí tenemos», F-02/F-03 precio y
