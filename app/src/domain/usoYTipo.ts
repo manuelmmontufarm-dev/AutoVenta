@@ -23,6 +23,17 @@
  * Puro: sin base ni catálogo. El tipo de cada producto lo resuelve quien llama.
  */
 
+import { politica } from "../negocio/politica.js";
+
+/**
+ * LO QUE NOMBRA LA CARGA SIN SER USO DE CARGA (chat 454 de Competimotor,
+ * 20-nov): «Índice de carga y velocidad: 103V (… Extra Load / XL, es decir,
+ * reforzada para mayor carga)» es la ficha de una SUV, y el menú salió con «de
+ * COMERCIAL / H/T no me queda stock». El índice de carga y el XL son de una
+ * llanta de pasajero. Solo con `politica.casosSueltosF06`.
+ */
+const CARGA_QUE_NO_ES_USO = /\bindices?\s+de\s+carga\b|\bmayor\s+carga\b|\bextra\s*load\b|\breforzada\b/g;
+
 export type UsoDeclarado = "agarre" | "pavimento" | "mixto" | "tierra" | "lodo" | "carga";
 
 const normalizar = (t: string) =>
@@ -40,7 +51,12 @@ const NEGADO =
  * varios («ciudad y a veces finca» es mixto, no pavimento).
  */
 export function usoDeclarado(texto: string): UsoDeclarado | null {
-  const n = normalizar(texto ?? "").replace(NEGADO, " ");
+  let n = normalizar(texto ?? "").replace(NEGADO, " ");
+  if (politica.casosSueltosF06) {
+    n = n.replace(CARGA_QUE_NO_ES_USO, " ");
+    // «Para cargar» (chat 1652): el verbo también es el uso.
+    if (/\b(?:para\s+cargar|cargar\s+peso|llevar\s+carga|de\s+carga)\b/.test(n)) return "carga";
+  }
   if (/\b(?:lodo|barro|fango|pantano|pantanos\w*|pantaner\w*|cantera|trocha|mina|mineria|obra|m\s?[/-]\s?t|mud)\b/.test(n)) return "lodo";
   if (/\b(?:camino\s+mixto|caminos\s+mixtos|asfalto\s+y\s+(?:tierra|lastre|ripio))\b/.test(n)) return "mixto";
   if (/\b(?:ripio|lastre|piedra|tierra|destapad\w*|monta[nñ]a|finca|campo|oriente)\b/.test(n)) return "tierra";

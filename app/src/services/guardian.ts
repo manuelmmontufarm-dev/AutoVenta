@@ -31,6 +31,9 @@ import { loQueDijoElCliente } from "../domain/fechaDeVisita.js";
  * no ve los errores que el redactor no vio.
  */
 import { porQueNoPasaPorElLocal } from "./dondeEstaElCliente.js";
+import { hechosDePreguntaDirecta, marcaQueNombro } from "../domain/preguntaDirecta.js";
+import { codigosMostrados } from "./sinStockAlAsesor.js";
+import { normalizeCatalogText } from "../domain/catalog.js";
 import { hechoDelLocalLejano, localesQueLeQuedanLejos } from "../domain/localLejano.js";
 import { cantidadValidaDeLaFicha } from "../domain/cantidadGrande.js";
 import { hechoDeEquivalentesDevueltos } from "../domain/equivalentesPorMostrar.js";
@@ -760,8 +763,34 @@ export async function armarContexto(
   const anunciosVigentes = await getAnunciosVigentes().catch(() => []);
   const item = cotizacion?.items?.[0];
   const ahorro = ahorroDeLaCotizacion(cotizacion?.items ?? null);
+  // F-06 caso 4: la pregunta directa (fotos, forma de pago sin definir, marca
+  // que no está en la lámina) es un HECHO para que `ignora-pregunta` tenga con
+  // qué juzgar. Vacío con Depot. Ver domain/preguntaDirecta.ts.
+  // La ráfaga entera del cliente (sus mensajes desde lo último del bot): «Maxiis
+  // 195/50/15» + «Estan en promoción? También» (884) es UN turno.
+  const rachaDelCliente: string[] = [];
+  // Las piezas de ESTE turno (la lámina sale antes que el texto) se saltan.
+  let k = 0;
+  while (k < mensajes.length && mensajes[k].direction !== "inbound") k++;
+  for (; k < mensajes.length && mensajes[k].direction === "inbound"; k++) rachaDelCliente.push(mensajes[k].content ?? "");
+  const turnoDelCliente = rachaDelCliente.reverse().join("\n") || ultimoDelCliente;
+  const marcaPedida = marcaQueNombro(turnoDelCliente);
+  const laminaDelTurno = codigosMostrados(huella).map((c: string) => findByCode(c)).filter((p): p is NonNullable<typeof p> => Boolean(p));
+  const marcaPedidaSinStock = marcaPedida && laminaDelTurno.length
+    && !laminaDelTurno.some((p) => normalizeCatalogText(p.brand ?? "") === marcaPedida)
+    ? marcaPedida.toUpperCase() : null;
+  const [laminaDelCiclo] = await sql<{ codes: unknown }[]>`
+    select metadata->'codes' as codes from messages
+    where conversation_id=${conversationId} and cycle=${cycle} and metadata->>'piece'='options'
+    order by created_at desc, id desc limit 1
+  `.catch(() => []);
+  const opcionesEnLaLamina = (Array.isArray(laminaDelCiclo?.codes) ? laminaDelCiclo.codes.map(String) : [])
+    .map((c) => findByCode(c)).filter((p): p is NonNullable<typeof p> => Boolean(p))
+    .map((p) => `${p.brand ?? ""} ${p.design ?? ""} ${p.sizeLabel ?? ""}`.trim());
+  const hechosDeLaPregunta = hechosDePreguntaDirecta(turnoDelCliente, { marcaPedidaSinStock, opcionesEnLaLamina });
   return [
     "== HECHOS REGISTRADOS ==",
+    ...hechosDeLaPregunta,
     `El bot se presenta como ${FIRMA_DE_PRESENTACION.replace(/^Soy /, "")}: es su nombre oficial (decisión del negocio, 14-sep), no un dato inventado. Si el cliente pregunta si habla con un bot o una persona, el borrador NO puede negar que es un asistente virtual.`,
     `Medidas que el cliente pidió: ${pedidas.length ? pedidas.join(", ") : "(ninguna todavía)"}`,
     // HECHO DURO (familia 1-B, 22-24 sep): qué es una equivalente. Sin él, el
@@ -775,7 +804,7 @@ export async function armarContexto(
     // la regla de medida sola el revisor reescribió «no son equivalentes» por
     // «equivalentes que sí le entran» sobre llantas que no llevan su Extra Load.
     hechoDeRequisitosDelCliente(mensajes.filter((m) => m.direction === "inbound").map((m) => m.content).reverse()),
-    "EQUIVALENCIA (regla del taller, no se negocia): una medida distinta de la del cliente solo es «equivalente», «le entra» o «de su aro» si es del MISMO aro, su diámetro exterior está dentro del 3 % y su ancho a no más de 20 mm. Ofrecer como equivalente una que no cumple es **medida_incorrecta** ALTA, y tu corrección tampoco la llama así. Si el cliente pidió «más ancha» o «más alta», la que se le ofrece tiene que ir para ese lado.",
+    `EQUIVALENCIA (regla del taller, no se negocia): una medida distinta de la del cliente solo es «equivalente», «le entra» o «de su aro» si es del MISMO aro, su diámetro exterior está dentro del 3 % y su ancho a no más de ${negocio.anchoMaximoEquivalenteMm ?? 20} mm. Ofrecer como equivalente una que no cumple es **medida_incorrecta** ALTA, y tu corrección tampoco la llama así. Si el cliente pidió «más ancha» o «más alta», la que se le ofrece tiene que ir para ese lado.`,
     hechos?.vehicle ? `Vehículo: ${hechos.vehicle}` : null,
     // El anuncio y la clase de vehículo son HECHOS: sin ellos el revisor aprobó
     // llantas de sedán para una «camioneta 4x4» (convs 20211 y 20209, 14-sep).

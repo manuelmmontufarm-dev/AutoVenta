@@ -40,7 +40,7 @@ export async function sendCustomerText(
   conversationId: number,
   to: string,
   body: string,
-  actor: "bot" | "owner" | "worker" = "bot",
+  actor: "bot" | "owner" | "worker" | "handoff_notice" = "bot",
 ): Promise<string | undefined> {
   await assertConversationOutbound({ conversationId, contentType: "text", actor });
   // Lo PRIMERO que el negocio le dice a alguien empieza saludando. El prompt ya

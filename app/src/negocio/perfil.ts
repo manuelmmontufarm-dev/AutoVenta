@@ -374,6 +374,14 @@ export interface PerfilDeNegocio {
    * el bot nunca la ofrecía como equivalente. Depot no lo declara.
    */
   equivalenciasEnPulgadas?: Array<{ metrica: string; pulgadas: string }>;
+  /**
+   * Cuánto puede cambiar el ANCHO (mm) de una equivalente del mismo aro. Sin el
+   * campo, 20 mm (dos pasos: `domain/equivalencia.ts`, regla de Depot).
+   * Competimotor (chat 1456, 24-nov-2026): pidió 305/50R20 y el asesor le vendió
+   * la KENDA KR628 275/55R20 (813 contra 810 mm de diámetro); con 20 mm el bot
+   * solo veía la SUMAXX 285/55R20 y dijo «es la única que tengo».
+   */
+  anchoMaximoEquivalenteMm?: number;
 }
 
 /**

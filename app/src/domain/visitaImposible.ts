@@ -32,6 +32,7 @@ import { motivoDeUbicacion } from "./ubicacionPedida.js";
 import { INVITACION_COMPRA_A_DISTANCIA } from "./compraADistancia.js";
 
 import { negocio, comoPatronConTildes } from "../negocio/index.js";
+import { politica } from "../negocio/politica.js";
 
 /** Los bloques del turno, tal como los separa la cadena de salida. */
 const SEPARADOR = /\n---\n/;
@@ -70,9 +71,19 @@ function enLista(nombres: readonly string[]): string {
   return nombres.length <= 1 ? nombres.join("") : `${nombres.slice(0, -1).join(", ")} y ${nombres[nombres.length - 1]}`;
 }
 
-const RESPUESTA_FUERA_DE_COBERTURA =
-  `Nuestros locales están en ${negocio.ciudad}: ${enLista(negocio.locales.map((l) => `*${l.nombreCorto}*`))}.`
-  + ` Por ahora no tenemos local fuera de ${negocio.ciudad}.`;
+const UN_SOLO_LOCAL = negocio.locales.length === 1 ? negocio.locales[0] : null;
+/**
+ * Competimotor (`politica.casosSueltosF06` con su frase de envío, auditoría
+ * 26-nov, chats 710, 1614, 1258): tiene UN local, y a quien está en otra ciudad
+ * lo que le sirve es saber cómo le llegan las llantas, no que «no hay local».
+ */
+const CON_ENVIO = politica.casosSueltosF06 && politica.vendeADistancia && politica.envioAlClienteDeOtraCiudad
+  ? politica.envioAlClienteDeOtraCiudad
+  : null;
+const RESPUESTA_FUERA_DE_COBERTURA = CON_ENVIO && UN_SOLO_LOCAL
+  ? `Estamos en ${negocio.ciudad}: *${UN_SOLO_LOCAL.nombreCorto}*, ${UN_SOLO_LOCAL.direccion.replace(new RegExp(`,\\s*${negocio.ciudad}\\s*$`), "")}.\n\n${CON_ENVIO}`
+  : `Nuestros locales están en ${negocio.ciudad}: ${enLista(negocio.locales.map((l) => `*${l.nombreCorto}*`))}.`
+    + ` Por ahora no tenemos local fuera de ${negocio.ciudad}.`;
 
 /**
  * Lo que sale cuando el candado final dejó vacío el turno de un cliente que está
@@ -131,4 +142,46 @@ export function sinVisitaNiMapas(texto: string): TurnoSinVisita {
   // SOLO «¿A cuál local le queda mejor ir?» a alguien de Guayaquil (conv
   // 18106): la respuesta de verdad ya salió en su propio mensaje.
   return { texto: limpios.join("\n---\n"), quitado: true };
+}
+
+/**
+ * EL ENVÍO SE EXPLICA EN EL TURNO EN QUE DICE DE DÓNDE ES (Competimotor,
+ * auditoría 26-nov: 1614 «Soy de manta» → «Un asesor le está revisando la mejor
+ * opción para su zona»; 1142 «Estoy. De quitto» → «Claro, le ayudo con eso.»).
+ * Si el cliente acaba de decir que está en otra ciudad y el borrador no habla
+ * del envío, se agrega la frase del perfil. Corre ANTES del Guardián (que la
+ * tiene en sus hechos) y el candado final quita mapas y día igual que siempre.
+ * Sin `politica.casosSueltosF06` + frase de envío (Depot), devuelve el texto.
+ */
+export function conElEnvioExplicado(texto: string, textoDelCliente: string | null | undefined): string {
+  if (!CON_ENVIO) return texto;
+  if (dondeEstaElCliente(textoDelCliente)?.estado !== "fuera") return texto;
+  if (/\b(?:laar|bemaut|courier|env[ií]o|enviamos|enviar(?:le)?\s+las\s+llantas)\b/i.test(texto)) return texto;
+  const limpio = sinVisitaNiMapas(texto).texto.trim();
+  // Lo que queda del borrador sin mapas ni visita: si es relleno («Claro, le
+  // ayudo con eso.», «Perfecto, gracias.»), sale solo la respuesta fija.
+  const relleno = !limpio || limpio.length < 60 && !/\d|\?/.test(limpio);
+  const fija = UN_SOLO_LOCAL
+    ? `Estamos en ${negocio.ciudad}, en ${UN_SOLO_LOCAL.direccion.replace(new RegExp(`,\\s*${negocio.ciudad}\\s*$`), "")}.\n\n${CON_ENVIO}`
+    : CON_ENVIO;
+  return relleno ? fija : `${limpio}\n---\n${fija}`;
+}
+
+/**
+ * CON UN SOLO LOCAL NO SE PREGUNTA «¿CUÁL LOCAL?» (Competimotor, chat 1142:
+ * «¿Cuál local le queda mejor?» después de la cotización; chat 227: «¿En cuál
+ * local le queda mejor acercarse?»). Solo quita la oración. Con
+ * `politica.casosSueltosF06`; con dos locales o más (Depot) no toca nada.
+ */
+export function sinPreguntaDeLocalConUnoSolo(texto: string): string {
+  if (!politica.casosSueltosF06 || negocio.locales.length !== 1) return texto;
+  const CUAL_LOCAL = /\b(?:a|en)?\s*cu[aá]l\s+(?:de\s+(?:nuestros|los)\s+)?local(?:es)?\b|\bqu[eé]\s+local\b|\ble\s+queda\s+bien\s+este\s+local\b/i;
+  if (!CUAL_LOCAL.test(texto)) return texto;
+  return texto
+    .split(/\n---\n/)
+    .map((b) => (CUAL_LOCAL.test(b)
+      ? b.split("\n").map((linea) => linea.split(/(?<=[.!?])\s+/).filter((o) => !CUAL_LOCAL.test(o)).join(" ")).join("\n").trim()
+      : b))
+    .filter(Boolean)
+    .join("\n---\n");
 }

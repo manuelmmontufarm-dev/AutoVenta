@@ -1,9 +1,11 @@
 import { sql } from "../db/client.js";
 import { emitirCuponDeConfirmacion, enviarTicketDeCupon } from "./coupons.js";
 import { porQueNoPasaPorElLocal } from "./dondeEstaElCliente.js";
+import { politica } from "../negocio/politica.js";
 import { business, config } from "../config.js";
 import { isWithinBusinessHours } from "../domain/followUps.js";
 import { metadataDeOferta } from "./ofertaVigente.js";
+import { ofreceCita } from "../domain/ofertaVigente.js";
 import { appendMessage } from "./conversations.js";
 import {
   createBotAlert,
@@ -168,6 +170,22 @@ export async function processFollowUpJob(
       // ficha lo tenga vacío (Sprint 4, chat 1375). Depot tiene dos: igual que antes.
       && (context.nearest_store || business.stores.length === 1),
   );
+
+  // LA VISITA RECIÉN CONFIRMADA NO SE VUELVE A CONFIRMAR (F-06 / N5, chat 1456):
+  // 10:58 «le esperamos el miércoles», 13:58 «✅ Perfecto, le esperamos el
+  // miércoles…», 17:11 la víspera y 08:58 «hoy»: cuatro mensajes en 22 h. El
+  // primer seguimiento repetía lo que el turno acababa de decir. Con
+  // `politica.casosSueltosF06`, si la visita está agendada, el cliente no
+  // escribió desde la confirmación y esta salió hace menos de 24 h, el primero
+  // no sale; el «no se olvide» del día sigue igual. Depot: igual que siempre.
+  if (politica.casosSueltosF06 && visitaAgendada && context.job_type === "in_window_first"
+    && context.last_assistant_message_at && context.last_customer_message_at
+    && context.last_customer_message_at <= context.last_assistant_message_at
+    && now.getTime() - new Date(context.last_customer_message_at).getTime() < 24 * 3_600_000) {
+    await markFollowUpJobCancelled(job.id, "visita_recien_confirmada");
+    console.log(`🤐 Seguimiento ${job.id} de la conv ${context.id}: la visita se confirmó hace menos de 24 h; no se repite.`);
+    return;
+  }
 
   // EL MISMO DUEÑO QUE AL AGENDAR (familia 6, 20-oct): un job que se agendó
   // antes —o con el código anterior— no se redacta ni pasa por el Guardián si
@@ -427,6 +445,10 @@ export async function processFollowUpJob(
       status: "sent",
       metadata: {
         followUpJobId: job.id, followUpAttemptId: Number(attempt.id), ...metadatoDeOferta,
+        // F-06 / P2 (S4): «¿Le agendo una cita?» es una oferta de VISITA, no de
+        // cotizar: se guarda como hecho al enviarla y mata la oferta de cotizar
+        // del seguimiento anterior (`ofertaVigente`). Detectado sobre lo que sale.
+        ...(ofreceCita(content) ? { ofrece_cita: true } : {}),
         // El hecho «salió la lista con precios» (lo lee el siguiente seguimiento; nunca se recupera del texto).
         ...(listaConPrecios ? { listaConPrecios } : {}),
       },

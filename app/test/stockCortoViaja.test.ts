@@ -154,6 +154,11 @@ describe("el orden de los candados en el turno", () => {
       "sin_pregunta_pendiente_consecutiva",
       "guardian_deterministico",
       "respuesta_de_ubicacion_fuera_de_cobertura",
+      // F-06 (Competimotor): el aviso al asesor por la forma de pago sin definir
+      // (697 «cheques») y el envío explicado al de otra ciudad (1614, 1142),
+      // antes del Guardián para que él lo revise.
+      "forma_de_pago_sin_definir_al_asesor",
+      "envio_al_cliente_de_otra_ciudad",
       "pregunta_legitima_tras_cotizacion_bloqueada",
       "angel_guardian",
       "guardian_no_vende_solo",
@@ -171,6 +176,11 @@ describe("el orden de los candados en el turno", () => {
       "aviso_de_stock",
       // Competimotor (21-nov): nunca «no hay» al cliente y aviso al asesor. Después
       // del Guardián (el último que reescribe) y antes de separar la pregunta.
+      // F-06 (Competimotor, 884 «Maxiis»): la marca pedida que la lámina no trae
+      // se nombra en una línea, después del Guardián que la quitaba.
+      // F-06: el envío al de otra ciudad se repone si el Guardián lo quitó.
+      "envio_al_cliente_de_otra_ciudad_tras_guardian",
+      "la_marca_pedida_se_nombra",
       "sin_no_hay",
       "alcance_fuera_de_catalogo",
       "despedida_de_venta_perdida",
@@ -224,6 +234,9 @@ describe("el orden de los candados en el turno", () => {
       // El seguimiento que solo dice «quedo pendiente» no sale (Sprint 4,
       // Competimotor 1273, todos los clientes). Sobre el texto definitivo.
       "sin_seguimiento_vacio",
+      // F-06 / P2 (Competimotor, 1273): «quedo pendiente» a secas en el chat se
+      // cambia por lo que queda hecho. Reescribe: antes de separar la pregunta.
+      "respuesta_sin_quedo_pendiente",
       // El «¿Cuál le cotizo…?» del menú sin elegir, después del Guardián y antes
       // de separar la pregunta (revisión final del sprint 1, 21-oct).
       "menu_sin_elegir_pregunta_cual",
@@ -253,6 +266,8 @@ describe("el orden de los candados en el turno", () => {
       // 18234, 18262, 18302, 18417, 17668). Corre último porque es el único
       // sitio donde ya están todas las piezas del turno sobre la mesa.
       "sin_visita_si_no_puede_venir",
+      // F-06 (Competimotor, 1142): con un solo local no se pregunta «¿cuál local?». Solo quita.
+      "sin_cual_local_con_un_solo_local",
       // La red del final: ningún mensaje sale cortado con su coma (12-sep).
       "sin_frase_colgando",
       // Solo seguimientos (simulador Competimotor 20-nov, s12): el monto de la
@@ -328,6 +343,8 @@ describe("el orden de los candados en el turno", () => {
       // no queda nada devuelve null para no enviar: solo quita, nunca agrega,
       // que es la regla de todo lo que corre después de este punto.
       "sin_visita_si_no_puede_venir",
+      // F-06 (Competimotor, 1142): con un solo local no se pregunta «¿cuál local?». Solo quita.
+      "sin_cual_local_con_un_solo_local",
       // La red del final: ningún mensaje sale cortado con su coma (12-sep).
       "sin_frase_colgando",
       // Solo seguimientos (simulador Competimotor 20-nov, s12): el monto de la

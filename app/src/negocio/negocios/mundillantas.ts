@@ -281,4 +281,8 @@ export const MUNDILLANTAS: PerfilDeNegocio = {
   // Carlos (Competimotor), 20-nov-2026, conv 469: la 30X9.5R15 es la 235/75R15
   // en pulgadas; ahí están sus M/T cuando la métrica no tiene.
   equivalenciasEnPulgadas: [{ metrica: "235/75R15", pulgadas: "30X9.5R15" }],
+  // Chat 1456 (24-nov-2026): el asesor vendió 4 KENDA KR628 275/55R20 a quien
+  // pidió 305/50R20 (30 mm menos de ancho, 0,3 % de diámetro). Tres pasos de
+  // ancho; el diámetro sigue mandando con el mismo 3 %. [DUDA PARA EL DUEÑO]
+  anchoMaximoEquivalenteMm: 30,
 };
