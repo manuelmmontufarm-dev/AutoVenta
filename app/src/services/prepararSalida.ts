@@ -93,7 +93,9 @@ import { conPreguntaEnSuPropioMensaje } from "../domain/preguntaSola.js";
 import { despedidaQueCorresponde } from "../domain/cierrePerdido.js";
 import { motivoDeUbicacion, ofrecioLaUbicacion } from "../domain/ubicacionPedida.js";
 import { pideOtroDia } from "./rutaOtroDia.js";
-import { buildStoreLinksBlock, buildVisitPlanQuestion, ubicacionDelLocalUnico } from "./quoteMessages.js";
+import { buildStoreLinksBlock, buildVisitPlanQuestion, preguntaHoyOCita, ubicacionDelLocalUnico } from "./quoteMessages.js";
+import { preguntamosElDia } from "../domain/customerCommitment.js";
+import { conLaPreguntaDelDia } from "../domain/preguntaDelDia.js";
 import { buildStoreLinksBlockOnce } from "./storeLinks.js";
 import { business } from "../config.js";
 import { productosDelCatalogoMencionados } from "./catalog.js";
@@ -218,6 +220,8 @@ export interface ContextoDeSalida {
   medidaSinConfirmar?: boolean;
   /** Sprint 2: este turno ya contestó con el bloque de precios por forma de pago (Competimotor). */
   preciosPorPagoRespondidos?: boolean;
+  /** La pregunta del día que `el_dia_vuelve_tras_el_precio` agregó: `sin_calco_reciente` no la quita (F-06, 1790). */
+  preguntaDelDiaQueVuelve?: string;
 }
 
 export interface PasoDeSalida {
@@ -1242,6 +1246,29 @@ export const PASOS: readonly PasoDeSalida[] = [
     },
   },
   {
+    // LA PREGUNTA DEL DÍA VUELVE DESPUÉS DE CONTESTAR EL PRECIO (F-06, revisión
+    // final; chat 1790): a «¿Qué día cree que puede ir?» el cliente preguntó
+    // «X viernes negro hay más descuento»; el bloque de precios por pago (S2)
+    // reemplazó el turno y la pregunta del día no volvió. Si el bot había
+    // preguntado el día (`preguntamosElDia` sobre el último saliente, el mismo
+    // lector del pipeline), el turno contestó precios y no hay visita
+    // registrada, cierra con «¿Puede acercarse hoy o qué día le agendo la cita?».
+    nombre: "el_dia_vuelve_tras_el_precio",
+    corre: ["respuesta"],
+    async aplicar(texto, ctx) {
+      if (!politica.casosSueltosF06 || !ctx.preciosPorPagoRespondidos) return texto;
+      const [ficha] = await sql<{ visit_date: Date | null }[]>`select visit_date from conversations where id=${ctx.conversation.id}`;
+      if (ficha?.visit_date) return texto;
+      if (!preguntamosElDia(await lastOutboundText(ctx.conversation.id))) return texto;
+      console.log(`📅 Conv ${ctx.conversation.id}: contestó el precio tras la pregunta del día; vuelve la pregunta.`);
+      const conElDia = conLaPreguntaDelDia(texto, preguntaHoyOCita(new Date()));
+      // Si ya cerraba con la del día, no hay nada que eximir: sale como venía.
+      if (conElDia === texto) return texto;
+      ctx.preguntaDelDiaQueVuelve = conElDia.split("\n---\n").pop();
+      return conElDia;
+    },
+  },
+  {
     // EL DESCUENTO SE CONTESTA CON EL DE SU COTIZACIÓN.
     //
     // Caso 1 de las pruebas de Manuel, 12-sep (conv 3, 17:16):
@@ -1810,6 +1837,9 @@ export const PASOS: readonly PasoDeSalida[] = [
         texto,
         vigentes.map((m) => m.content ?? ""),
         ultimaPieza === null ? vigentes.length : vigentes.filter((m) => new Date(m.created_at).getTime() > ultimaPieza).length,
+        // La pregunta del día que volvió tras el precio la puso un hecho de este
+        // turno (visita pendiente, contestó otra cosa): no es calco (F-06, 1790).
+        ctx.preguntaDelDiaQueVuelve ? [ctx.preguntaDelDiaQueVuelve] : [],
       );
       if (ultimaPieza !== null && sinBloquesCalcados(texto, vigentes.map((m) => m.content ?? "")).calcados.length > resultado.calcados.length) {
         console.log(`🆕 Conv ${ctx.conversation.id}: la pregunta repetida va sobre una lámina o cotización nueva; no es calco y se conserva.`);
