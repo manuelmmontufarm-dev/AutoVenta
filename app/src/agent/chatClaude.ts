@@ -277,6 +277,13 @@ export function aRespuestaOpenAI(respuesta: RespuestaClaude, peticion: PeticionC
   if (!texto && !llamadas.length) {
     throw new Error(`empty_response: Claude terminó sin texto ni herramienta (stop_reason: ${respuesta.stop_reason ?? "?"})`);
   }
+  // CORTADA A LA MITAD (27-nov-2026). Con texto, `max_tokens` es una frase
+  // cortada que le llegaría al cliente, o un JSON del Guardián que no se puede
+  // leer (y el borrador saldría sin revisar). Con herramienta, los argumentos
+  // pueden venir incompletos. Que conteste el respaldo con la petición entera.
+  if (respuesta.stop_reason === "max_tokens") {
+    throw new Error(`truncated_response: Claude se cortó por max_tokens (${respuesta.usage.output_tokens} tokens de salida)`);
+  }
 
   const mensaje: ChatCompletionMessage = {
     role: "assistant",
@@ -300,7 +307,8 @@ export function aRespuestaOpenAI(respuesta: RespuestaClaude, peticion: PeticionC
     model: respuesta.model,
     choices: [{
       index: 0,
-      finish_reason: llamadas.length ? "tool_calls" : respuesta.stop_reason === "max_tokens" ? "length" : "stop",
+      // `max_tokens` ya no llega acá: se lanza `truncated_response` arriba.
+      finish_reason: llamadas.length ? "tool_calls" : "stop",
       logprobs: null,
       message: mensaje,
     }],
@@ -315,27 +323,39 @@ export function aRespuestaOpenAI(respuesta: RespuestaClaude, peticion: PeticionC
   };
 }
 
+/** Tope de espera y reintentos de UNA llamada (el cliente trae los de siempre). */
+export interface OpcionesHttpClaude {
+  timeout?: number;
+  maxRetries?: number;
+}
+
 export interface DependenciasClaude {
   /** Para las pruebas: la llamada al API, sin red. */
-  crear?: (cuerpo: CuerpoClaude) => Promise<RespuestaClaude>;
+  crear?: (cuerpo: CuerpoClaude, http?: OpcionesHttpClaude) => Promise<RespuestaClaude>;
 }
+
+/** Un 400 que no tiene nada que ver con el razonamiento reenviado: repetir no lo arregla. */
+const NO_ES_EL_RAZONAMIENTO = /credit balance is too low|purchase credits/i;
 
 export async function completarConClaude(
   peticion: PeticionChat,
-  opciones: { esfuerzo: EsfuerzoClaude },
+  opciones: { esfuerzo: EsfuerzoClaude; http?: OpcionesHttpClaude },
   dependencias: DependenciasClaude = {},
 ): Promise<ChatCompletion> {
-  const crear = dependencias.crear ?? ((cuerpo: CuerpoClaude) => clienteClaude().beta.messages.create(cuerpo));
+  const http = opciones.http ?? {};
+  const crear = dependencias.crear
+    ?? ((cuerpo: CuerpoClaude) => clienteClaude().beta.messages.create(cuerpo, http));
   const { cuerpo, usoCrudo } = aPeticionClaude(peticion, opciones);
   let respuesta: RespuestaClaude;
   try {
-    respuesta = await crear(cuerpo);
+    respuesta = await crear(cuerpo, http);
   } catch (error) {
     // Punto 2 de arriba: un bloque de razonamiento atado a otro prefijo es un
     // 400 que repetir igual no arregla. Sin esos bloques la petición es válida.
-    if (!usoCrudo || !(error instanceof Anthropic.BadRequestError)) throw error;
+    // El crédito agotado también llega como 400: ese no se repite.
+    if (!usoCrudo || !(error instanceof Anthropic.BadRequestError) || NO_ES_EL_RAZONAMIENTO.test(error.message)) throw error;
     console.warn("⚠️ Claude rechazó la ronda con su razonamiento anterior; se repite sin esos bloques:", error.message);
-    respuesta = await crear(aPeticionClaude(peticion, { ...opciones, conCrudo: false }).cuerpo);
+    respuesta = await crear(aPeticionClaude(peticion, { esfuerzo: opciones.esfuerzo, conCrudo: false }).cuerpo, http);
   }
   return aRespuestaOpenAI(respuesta, peticion);
 }
