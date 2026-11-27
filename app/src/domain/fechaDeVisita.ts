@@ -33,6 +33,7 @@
  */
 import { extractCustomerCommitment, fechaDelDia, tieneVerboDeVisita, type CustomerCommitment } from "./customerCommitment.js";
 import { diaEnTexto, normalizarTexto, relativoEnTexto } from "./diasEnEspanol.js";
+import { politica } from "../negocio/politica.js";
 
 export type NoEsVisita = "texto_de_una_foto" | "envia_informacion" | "pide_otro_dia" | "pregunta";
 
@@ -52,9 +53,29 @@ const NOMBRE_DE_PROMOCION =
  * «el viernes hay más descuento», «el sábado atienden», «black friday hay
  * descuento»: preguntan algo del día. Solo cuenta sin verbo de visita: «el
  * viernes voy, ¿hay parqueadero?» sigue siendo la visita del viernes.
+ *
+ * SOLO CON `politica.seguimientos.preguntaConDiaNoAgenda` (Competimotor). En
+ * Depot, de 175 visitas registradas en 30 días (base de producción, 26-nov),
+ * esta regla habría borrado 8 y en casi todas el cliente SÍ daba el día:
+ * «Lunes 01 diciembre / Hasta que hora atienden», «Él día sábado que tengo
+ * libre… asta que hora atienden», «Mañana atienden en cumbaya???». Para todos
+ * vale solo el nombre de la promoción (`NOMBRE_DE_PROMOCION`).
  */
+const PREGUNTA_DE_PRECIO =
+  /\b(?:hay|habra|habria|tienen|tendran|hacen|dan)\s+(?:mas\s+|algun\s+|otro\s+)?(?:descuentos?|promos?|promociones?|ofertas?|rebajas?|precios?\s+especial(?:es)?)\b|\bque\s+(?:descuentos?|promos?|precio)\b|\bcuanto\b/;
 const PREGUNTA_SOBRE_EL_DIA =
-  /[?¿]|\b(?:hay|habra|habria|tienen|tendran|hacen|dan)\s+(?:mas\s+|algun\s+|otro\s+)?(?:descuentos?|promos?|promociones?|ofertas?|rebajas?|precios?\s+especial(?:es)?)\b|\b(?:atienden|abren|trabajan|atiende|abre|trabaja|estan\s+abiertos)\b|\bque\s+(?:descuentos?|promos?|precio)\b|\bcuanto\b/;
+  /[?¿]|\b(?:atienden|abren|trabajan|atiende|abre|trabaja|estan\s+abiertos)\b/;
+
+/** Cómo se lee un día que viene dentro de una pregunta. */
+export interface OpcionesDeLectura {
+  /** El bot acababa de preguntar el día o el local (ver `respondeAlDiaDeLaVisita`). */
+  respondiendoAlDia?: boolean;
+  /**
+   * La regla ancha de las preguntas (horario, descuento, «?»). Por defecto la
+   * del negocio: `politica.seguimientos.preguntaConDiaNoAgenda` (Competimotor).
+   */
+  preguntaAncha?: boolean;
+}
 
 /**
  * ¿El texto pregunta por un día o por la promoción, sin decir que viene?
@@ -64,15 +85,25 @@ const PREGUNTA_SOBRE_EL_DIA =
  * da el día en una oración y pregunta otra cosa en la siguiente: esa visita
  * vale (simulador, 26-nov).
  */
-function esPreguntaSobreElDia(texto: string): boolean {
-  const n = normalizarTexto(texto).replace(/\s+/g, " ");
+function esPreguntaSobreElDia(texto: string, opciones: OpcionesDeLectura = {}): boolean {
+  const conRenglones = normalizarTexto(texto);
+  const n = conRenglones.replace(/\s+/g, " ");
   const promo = NOMBRE_DE_PROMOCION.test(n);
   NOMBRE_DE_PROMOCION.lastIndex = 0;
   if (tieneVerboDeVisita(n.replace(NOMBRE_DE_PROMOCION, " "))) return false;
   if (promo) return true;
-  const oraciones = n.split(/(?<=[.!?\n])\s*|(?=¿)/).map((o) => o.trim()).filter(Boolean);
+  // Lo de acá abajo es la regla ancha: solo con la política (ver arriba).
+  if (!(opciones.preguntaAncha ?? Boolean(politica.seguimientos?.preguntaConDiaNoAgenda))) return false;
+  // Los renglones se cortan ANTES de juntar los espacios: «Lunes 01 diciembre\n
+  // Hasta que hora atienden» son dos oraciones, y la del día no pregunta nada.
+  const oraciones = conRenglones.split(/\n+|(?<=[.!?])\s+|(?=¿)/)
+    .map((o) => o.replace(/\s+/g, " ").trim()).filter(Boolean);
   const conDia = oraciones.filter((o) => diaEnTexto(o) != null || relativoEnTexto(o) != null);
-  return conDia.length > 0 && conDia.every((o) => PREGUNTA_SOBRE_EL_DIA.test(o));
+  // Contestando «¿Qué día puede pasar?», «el sábado atienden?» ES el sábado: solo
+  // una pregunta de precio o descuento («el viernes hay más descuento») le quita el día.
+  const pregunta = (o: string) =>
+    PREGUNTA_DE_PRECIO.test(o) || (!opciones.respondiendoAlDia && PREGUNTA_SOBRE_EL_DIA.test(o));
+  return conDia.length > 0 && conDia.every(pregunta);
 }
 
 /** El texto sin el nombre de la promoción («viernes negro», «black friday»). */
@@ -103,7 +134,7 @@ const ENVIA_INFORMACION =
   /\b(?:le|les|te)\s+(?:paso|pasare|mando|mandare|envio|enviare|comparto|compartire|hago\s+llegar|escribo|escribire)\b/g;
 
 /** ¿Por qué este texto no puede ser un compromiso de visita, aunque nombre un día? */
-export function porQueNoEsVisita(texto: string | null | undefined): NoEsVisita | null {
+export function porQueNoEsVisita(texto: string | null | undefined, opciones: OpcionesDeLectura = {}): NoEsVisita | null {
   const crudo = texto ?? "";
   const dicho = loQueDijoElCliente(crudo);
   if (crudo.includes("[El cliente mandó una foto") && !dicho) return "texto_de_una_foto";
@@ -114,7 +145,7 @@ export function porQueNoEsVisita(texto: string | null | undefined): NoEsVisita |
   if (sinElEnvio !== n && !tieneVerboDeVisita(sinElEnvio)) return "envia_informacion";
   // Sprint 4 (1790): una pregunta sobre el día o la promoción no agenda nada,
   // ni por el pipeline ni por `agendar_visita` con el día que pase el modelo.
-  if (esPreguntaSobreElDia(dicho)) return "pregunta";
+  if (esPreguntaSobreElDia(dicho, opciones)) return "pregunta";
   return null;
 }
 
@@ -122,14 +153,14 @@ export function porQueNoEsVisita(texto: string | null | undefined): NoEsVisita |
 export function leerVisita(
   texto: string,
   ahora = new Date(),
-  opciones: { respondiendoAlDia?: boolean } = {},
+  opciones: OpcionesDeLectura = {},
 ): CustomerCommitment | null {
-  if (porQueNoEsVisita(texto)) return null;
+  if (porQueNoEsVisita(texto, opciones)) return null;
   // «el viernes negro paso» trae verbo de visita pero el «viernes» es de la
   // promoción: el día se busca en el texto sin su nombre.
   const dicho = sinNombreDePromocion(loQueDijoElCliente(texto));
   if (!dicho) return null;
-  return extractCustomerCommitment(dicho, ahora, opciones);
+  return extractCustomerCommitment(dicho, ahora, { respondiendoAlDia: opciones.respondiendoAlDia });
 }
 
 /**
@@ -142,13 +173,16 @@ export function fechaParaAgendar(input: {
   ahora?: Date;
   /** El bot acababa de preguntar el día o el local (ver `respondeAlDiaDeLaVisita`). */
   respondiendoAlDia?: boolean;
+  /** Ver `OpcionesDeLectura.preguntaAncha` (por defecto, la del negocio). */
+  preguntaAncha?: boolean;
 }): { fecha: Date | null; texto: string; franja?: string; noEsVisita?: NoEsVisita } {
   const ahora = input.ahora ?? new Date();
   const frase = input.textoDelCliente.trim().replace(/\s+/g, " ").slice(0, 180);
-  const motivo = porQueNoEsVisita(input.textoDelCliente);
+  const lectura: OpcionesDeLectura = { respondiendoAlDia: input.respondiendoAlDia ?? false, preguntaAncha: input.preguntaAncha };
+  const motivo = porQueNoEsVisita(input.textoDelCliente, lectura);
   if (motivo) return { fecha: null, texto: frase, noEsVisita: motivo };
   // La misma señal que el pipeline: sin la pregunta del día, «las 4» no es el día 4.
-  const delCliente = leerVisita(input.textoDelCliente, ahora, { respondiendoAlDia: input.respondiendoAlDia ?? false });
+  const delCliente = leerVisita(input.textoDelCliente, ahora, lectura);
   if (delCliente?.visitDate) {
     return { fecha: delCliente.visitDate, texto: delCliente.text, franja: delCliente.visitTimeLabel };
   }
@@ -156,7 +190,10 @@ export function fechaParaAgendar(input: {
   // de 3): el cliente dio un tramo sin día y el modelo pasó «jueves» (hoy); se
   // registraba «su visita para jueves 26 de noviembre». Si lo que dijo el
   // cliente es un tramo, el día del modelo no vale: la herramienta no agenda.
-  if (delCliente?.tipo === "tramo" && !delCliente.visitTimeLabel) {
+  // Un rango CON días («el miércoles o jueves te visito», Depot 50312) no entra:
+  // ahí el modelo elige uno de los que dijo el cliente, igual que antes.
+  if (delCliente?.tipo === "tramo" && !delCliente.visitTimeLabel
+    && diaEnTexto(normalizarTexto(loQueDijoElCliente(input.textoDelCliente))) == null) {
     return { fecha: null, texto: delCliente.text };
   }
   if (PIDE_OTRO_DIA.test(normalizarTexto(loQueDijoElCliente(input.textoDelCliente)))) {

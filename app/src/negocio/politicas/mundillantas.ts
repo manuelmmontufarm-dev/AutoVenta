@@ -119,5 +119,7 @@ export const POLITICA_MUNDILLANTAS: PoliticaComercial = {
     incluidoEnLaCompra:
       "Comprando las 4 le incluye sin costo enllantaje, balanceo, nitrógeno y alineación, y el mantenimiento cada 10.000 km (rotación, revisión mecánica y nitrógeno)",
     retomadaSinSeparador: true,
+    preguntaConDiaNoAgenda: true,
+    recordatorioSoloConCotizacion: true,
   },
 };

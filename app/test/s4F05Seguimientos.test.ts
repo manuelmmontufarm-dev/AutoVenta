@@ -29,15 +29,20 @@ const ec = (iso: string) => new Date(`${iso}-05:00`);
 // ── B. Visita inventada (1790) ───────────────────────────────────────────────
 describe("B · un día dentro de una pregunta o del nombre de la promo no es visita", () => {
   const ahora = ec("2026-11-26T06:55:00"); // jueves
-  const preguntando = { respondiendoAlDia: true };
+  // Competimotor: la regla ancha de las preguntas (`preguntaConDiaNoAgenda`).
+  const preguntando = { respondiendoAlDia: true, preguntaAncha: true };
+  const sinPreguntarCM = { respondiendoAlDia: false, preguntaAncha: true };
+  const depot = { respondiendoAlDia: true, preguntaAncha: false };
 
   it("1790: «X viernes  negro  hay más descuento» (doble espacio) no registra visita", () => {
     expect(leerVisita("X viernes  negro  hay más descuento", ahora, preguntando)).toBeNull();
     expect(porQueNoEsVisita("X viernes  negro  hay más descuento")).toBe("pregunta");
+    // El nombre de la promoción vale para todos: también en Depot.
+    expect(leerVisita("X viernes  negro  hay más descuento", ahora, depot)).toBeNull();
   });
 
   it("agendar_visita tampoco puede registrarla con el día del modelo", () => {
-    const r = fechaParaAgendar({ dia: "viernes", textoDelCliente: "X viernes  negro  hay más descuento", ahora, respondiendoAlDia: true });
+    const r = fechaParaAgendar({ dia: "viernes", textoDelCliente: "X viernes  negro  hay más descuento", ahora, respondiendoAlDia: true, preguntaAncha: false });
     expect(r.fecha).toBeNull();
     expect(r.noEsVisita).toBe("pregunta");
   });
@@ -60,14 +65,52 @@ describe("B · un día dentro de una pregunta o del nombre de la promo no es vis
   it.each([
     "el viernes hay más descuento?",
     "el viernes hay más descuento",
-    "el sábado atienden?",
-    "el sábado atienden",
+    "El martes cuánto queda las 4 llantas con el descuento",
     "black friday hay descuento",
     "Para el black friday",
     "viernes de descuentos",
     "y el viernes negro?",
-  ])("«%s» no es visita", (texto) => {
+  ])("Competimotor: «%s» no es visita", (texto) => {
     expect(leerVisita(texto, ahora, preguntando)?.visitDate ?? null).toBeNull();
+  });
+
+  it.each(["el sábado atienden?", "el sábado atienden"])(
+    "Competimotor sin que el bot preguntara el día: «%s» no es visita", (texto) => {
+      expect(leerVisita(texto, ahora, sinPreguntarCM)?.visitDate ?? null).toBeNull();
+    });
+
+  it("Competimotor contestando «¿Qué día puede pasar?»: «el sábado atienden?» deja agendar el sábado (como antes)", () => {
+    expect(porQueNoEsVisita("el sábado atienden?", preguntando)).toBeNull();
+    const r = fechaParaAgendar({ dia: "sábado", textoDelCliente: "el sábado atienden?", ahora, respondiendoAlDia: true, preguntaAncha: true });
+    expect(r.noEsVisita).toBeUndefined();
+    expect(new Date(r.fecha!.getTime() - 5 * 3_600_000).getUTCDay()).toBe(6);
+  });
+
+  it("Competimotor: el día en su propio renglón («Lunes 01 diciembre\\nHasta que hora atienden») registra", () => {
+    const r = leerVisita("Lunes 01 diciembre\nHasta que hora atienden", ahora, preguntando);
+    expect(new Date(r!.visitDate!.getTime() - 5 * 3_600_000).toISOString().slice(0, 10)).toBe("2026-12-01");
+  });
+
+  // Las visitas REALES de Depot (base de producción, 30 días al 26-nov) que la
+  // regla ancha habría borrado: en Depot siguen registrando igual que antes.
+  it.each([
+    ["Lunes 01 diciembre\nHasta que hora atienden", "2026-12-01"],                                       // 50560
+    ["Él día sábado que tengo libre de mi trabajo asta que hora atienden disculpe", "2026-11-28"],          // 52032
+    ["El martes cuánto queda las 4 llantas con el descuento", "2026-12-01"],                               // 48534
+  ])("Depot igual que antes: «%s»", (texto, dia) => {
+    const r = leerVisita(texto, ahora, depot);
+    expect(new Date(r!.visitDate!.getTime() - 5 * 3_600_000).toISOString().slice(0, 10)).toBe(dia);
+  });
+
+  it("Depot: agendar_visita con «Mañana atienden en cumbaya???» sigue usando el día del modelo (39482)", () => {
+    const r = fechaParaAgendar({ dia: "viernes", textoDelCliente: "Mañana atienden en cumbaya???", ahora, respondiendoAlDia: false, preguntaAncha: false });
+    expect(r.noEsVisita).toBeUndefined();
+    expect(r.fecha).toBeTruthy();
+  });
+
+  it("un rango CON días («el miércoles o jueves te visito», Depot 50312) usa el día del modelo, como antes", () => {
+    const r = fechaParaAgendar({ dia: "miércoles", textoDelCliente: "El día miércoles o jueves te visito", ahora, respondiendoAlDia: true, preguntaAncha: false });
+    expect(r.fecha).toBeTruthy();
   });
 
   it.each([
@@ -182,9 +225,14 @@ describe("C · el recordatorio nombra lo COTIZADO, no la medida de la ficha", ()
     expect(variablesDe("recordatorio", v, false)).toEqual(["Cliente", "sábado", "275/55R20"]);
     expect(medidaQueSePuedeAfirmar(v)).toBe("275/55R20");
   });
-  it("1456: sin cotización no se afirma «ya tenemos listas sus llantas»", () => {
+  it("1456 (Competimotor): sin cotización no se afirma «ya tenemos listas sus llantas»", () => {
     const v = { name: "x", visit_date: new Date("2026-11-25T15:00:00Z"), nearest_store: "Competimotor", tire_size: "305/50R20", medida_cotizada: null };
-    expect(medidaQueSePuedeAfirmar(v)).toBeNull();
+    expect(medidaQueSePuedeAfirmar(v, true)).toBeNull();
+  });
+  it("Depot: sin cotización, la medida de la ficha como siempre", () => {
+    const v = { name: "x", visit_date: new Date("2026-11-25T15:00:00Z"), nearest_store: "Depot Tire Cumbayá", tire_size: "205/55R16", medida_cotizada: null };
+    expect(medidaQueSePuedeAfirmar(v, false)).toBe("205/55R16");
+    expect(variablesDe("recordatorio", v, true, false)[3]).toBe("205/55R16");
   });
 });
 
@@ -246,5 +294,19 @@ describe("D · Competimotor: el segundo seguimiento no repite la lista del prime
   it("Depot (sin seguimientoConPregunta): la lista de siempre", () => {
     const uno = buildContextualFollowUpMessage(base, "in_window_first");
     expect(uno).toMatch(/^🛞 Estas son las opciones 225\/65R17 que le mostré:/);
+  });
+
+  // Revisión de la coordinadora (ronda 1, punto 4): el texto fijo —sin IA— es
+  // SOLO para los dos con pregunta de sí/no; lo anota la rama que lo armó.
+  it.each([
+    ["el 1.º con pregunta", conPregunta, "in_window_first", true],
+    ["el 2.º con pregunta", conPregunta, "in_window_second", true],
+    ["pedir la medida", { stage: "nuevo", seguimientoConPregunta: conPregunta.seguimientoConPregunta }, "in_window_first", false],
+    ["con visita registrada", { ...conPregunta, customerCommitment: "Para el viernes", visitDate: new Date("2026-11-27T15:00:00Z") }, "in_window_second", false],
+    ["sin llanta que nombrar", { ...conPregunta, recomendada: null, selectedProductLabel: null }, "in_window_first", false],
+  ] as const)("¿texto fijo? %s → %s", (_n, ctx, kind, esperado) => {
+    const salida: { conPreguntaDeSiNo?: boolean } = {};
+    buildContextualFollowUpMessage(ctx as FollowUpMessageContext, kind, ec("2026-11-24T16:48:00"), salida);
+    expect(Boolean(salida.conPreguntaDeSiNo)).toBe(esperado);
   });
 });

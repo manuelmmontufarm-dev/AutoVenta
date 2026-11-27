@@ -42,6 +42,19 @@ vi.mock("../src/services/ventasConfirmadas.js", () => ({
   cruceVigente: async () => ({ ventas, descartes: [] }),
 }));
 
+// Sprint 4: el «sin cotización no sale» es de Competimotor (`politica.seguimientos`);
+// Depot (sin el campo) lo sigue recibiendo con la medida de la ficha.
+const perfil = vi.hoisted(() => ({ seguimientos: undefined as unknown }));
+vi.mock("../src/negocio/politica.js", async (importOriginal) => {
+  const real = await importOriginal<typeof import("../src/negocio/politica.js")>();
+  return {
+    ...real,
+    politica: new Proxy(real.politica, {
+      get: (destino, clave) => (clave === "seguimientos" ? perfil.seguimientos : Reflect.get(destino, clave)),
+    }),
+  };
+});
+
 const { sql } = await import("../src/db/client.js");
 const { ensureSchema } = await import("../src/db/schema.js");
 const { barrerRecordatorios } = await import("../src/services/recordatoriosDeVisita.js");
@@ -86,6 +99,7 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
+  perfil.seguimientos = undefined;
   plantillas.length = 0;
   ultimaSync = null;
   ventas = [];
@@ -117,7 +131,16 @@ describe("recordatorio de la víspera", () => {
     expect(msg.content).toBe("Hola María, le recordamos su visita de mañana viernes en Depot Tire Cumbayá. Ya tenemos listas sus llantas 195/65R15.");
   });
 
-  it("Sprint 4 (1456): sin cotización no afirma «ya tenemos listas sus llantas»: no sale", async () => {
+  it("Depot: sin cotización sale como siempre, con la medida de la ficha", async () => {
+    await conversacion({ sinCotizacion: true });
+    await prender("recordatorio_visita_v1");
+    const r = await barrerRecordatorios("recordatorio", VISPERA);
+    expect(r).toMatchObject({ enviados: 1 });
+    expect(plantillas[0].variables).toEqual(["María", "viernes", "Depot Tire Cumbayá", "205/55R16"]);
+  });
+
+  it("Sprint 4 (1456, Competimotor): sin cotización no afirma «ya tenemos listas sus llantas»: no sale", async () => {
+    perfil.seguimientos = { recordatorioSoloConCotizacion: true };
     await conversacion({ sinCotizacion: true });
     await prender("recordatorio_visita_v1");
     const r = await barrerRecordatorios("recordatorio", VISPERA);

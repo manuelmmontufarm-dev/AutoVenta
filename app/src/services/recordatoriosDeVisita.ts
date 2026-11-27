@@ -1,5 +1,6 @@
 import { sql } from "../db/client.js";
 import { negocio } from "../negocio/index.js";
+import { politica } from "../negocio/politica.js";
 import { sendApprovedTemplate } from "../wa/client.js";
 import { appendMessage } from "./conversations.js";
 import { isBotActive } from "./botPower.js";
@@ -68,19 +69,30 @@ export interface DatosDeVisita {
    * tenemos listas sus llantas 305/50R20» con la medida de la ficha —la que el
    * cliente PIDIÓ, que no había— cuando se le cotizó 285/55R20 (302: dijo
    * 285/50R20 y se cotizó 275/55R20). Lo que está «listo» es lo cotizado.
-   * `undefined` = quien llama no lo sabe (pruebas viejas): se usa la ficha.
+   * Vacío o `undefined` (sin cotización): ver `medidaQueSePuedeAfirmar`.
    */
   medida_cotizada?: string | null;
 }
 
 /**
- * La medida que el recordatorio puede AFIRMAR que está lista: la cotizada.
- * Sin cotización en el ciclo (`null`) no hay llantas listas que nombrar y el
- * recordatorio no sale (su texto lo fija Meta: «Ya tenemos listas sus llantas…»).
+ * Sin cotización, ¿el recordatorio se calla? Solo con la política
+ * (`politica.seguimientos.recordatorioSoloConCotizacion`, Competimotor); Depot
+ * sigue recibiéndolo con la medida de la ficha, como siempre.
  */
-export function medidaQueSePuedeAfirmar(v: DatosDeVisita): string | null {
-  if (v.medida_cotizada === undefined) return v.tire_size?.trim() || null;
-  return v.medida_cotizada?.trim() || null;
+function soloConCotizacionDelNegocio(): boolean {
+  return Boolean(politica.seguimientos?.recordatorioSoloConCotizacion);
+}
+
+/**
+ * La medida que el recordatorio puede AFIRMAR que está lista: la cotizada, para
+ * todos. Sin cotización en el ciclo, la de la ficha (Depot, como antes) o
+ * ninguna (`soloConCotizacion`, Competimotor 1456: el recordatorio no sale; su
+ * texto lo fija Meta: «Ya tenemos listas sus llantas…»).
+ */
+export function medidaQueSePuedeAfirmar(v: DatosDeVisita, soloConCotizacion = soloConCotizacionDelNegocio()): string | null {
+  const cotizada = v.medida_cotizada?.trim();
+  if (cotizada) return cotizada;
+  return soloConCotizacion ? null : v.tire_size?.trim() || null;
 }
 
 /**
@@ -88,11 +100,16 @@ export function medidaQueSePuedeAfirmar(v: DatosDeVisita): string | null {
  * (Competimotor) la plantilla lleva el nombre del local escrito y tiene una
  * variable menos; con varios (Depot) el local va como variable.
  */
-export function variablesDe(tipo: TipoRecordatorio, v: DatosDeVisita, conLocal = negocio.locales.length > 1): string[] {
+export function variablesDe(
+  tipo: TipoRecordatorio,
+  v: DatosDeVisita,
+  conLocal = negocio.locales.length > 1,
+  soloConCotizacion = soloConCotizacionDelNegocio(),
+): string[] {
   const nombre = nombreParaSaludo(v.name);
   const dia = DIAS[new Date(`${relojDeGuayaquil(v.visit_date).dia}T12:00:00Z`).getUTCDay()];
   const local = v.nearest_store?.trim() || "nuestro local";
-  const medida = (v.medida_cotizada === undefined ? v.tire_size?.trim() : v.medida_cotizada?.trim()) || "cotizadas";
+  const medida = medidaQueSePuedeAfirmar(v, soloConCotizacion) || "cotizadas";
   if (tipo === "recordatorio") return conLocal ? [nombre, dia, local, medida] : [nombre, dia, medida];
   return conLocal ? [nombre, local, medida] : [nombre, medida];
 }
@@ -192,8 +209,9 @@ export async function barrerRecordatorios(tipo: TipoRecordatorio, ahora = new Da
     const diaDeCompra = compras?.get(Number(c.id));
     const compro = Boolean(diaDeCompra && diaDeCompra >= diaRelativo(ahora, -14));
     if (vivo || compro) { resultado.omitidos += 1; continue; }
-    // Sin cotización no hay «llantas listas» que recordar (1456): no sale.
-    if (!medidaQueSePuedeAfirmar(c)) {
+    // Sin cotización no hay «llantas listas» que recordar (1456): con la
+    // política no sale. Depot (sin ella) lo recibe con la medida de la ficha.
+    if (soloConCotizacionDelNegocio() && !medidaQueSePuedeAfirmar(c)) {
       console.log(`⏭️  Recordatorio de visita de la conv ${c.id} sin enviar: no hay cotización en el ciclo.`);
       resultado.omitidos += 1;
       continue;

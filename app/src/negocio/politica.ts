@@ -188,6 +188,18 @@ export interface PoliticaDeSeguimientos {
   incluidoEnLaCompra: string;
   /** La retomada tras humano sale partida en mensajes: el «---» nunca le llega al cliente (1331, 1344). */
   retomadaSinSeparador: boolean;
+  /**
+   * Un día dentro de una pregunta («el sábado atienden?», «el viernes hay más
+   * descuento») no registra visita (1790). Sin el campo (Depot) solo el nombre
+   * de la promoción («viernes negro») deja de ser un día. Ver `domain/fechaDeVisita.ts`.
+   */
+  preguntaConDiaNoAgenda: boolean;
+  /**
+   * Sin cotización no sale el recordatorio de la víspera (1456: «ya tenemos
+   * listas sus llantas» con la medida que pidió, no la cotizada). Sin el campo
+   * (Depot) sale como siempre, con la medida de la ficha.
+   */
+  recordatorioSoloConCotizacion: boolean;
 }
 
 /** Una lista de precios de promoción por código, con su fin. */

@@ -288,12 +288,23 @@ function seguimientoConPreguntaDeSiNo(
   return `🛞 Le recuerdo la que le recomendé: *${llanta}${size}*.${precio} Si le sirve, ¿se la cotizo?`;
 }
 
+/**
+ * Lo que el constructor anota sobre la rama que usó (el hecho que se guarda al
+ * enviar, nunca leído del texto).
+ */
+export interface SalidaDelSeguimiento {
+  /** El texto llevó la lista CON PRECIOS. */
+  conLista?: boolean;
+  /** Sprint 4: el texto es uno de los dos seguimientos con pregunta de sí/no (Competimotor). */
+  conPreguntaDeSiNo?: boolean;
+}
+
 export function buildContextualFollowUpMessage(
   context: FollowUpMessageContext,
   kind: FollowUpMessageKind,
   now = new Date(),
   /** Si se pasa, el constructor anota aquí si el texto llevó la lista CON PRECIOS (el hecho que se guarda al enviar). */
-  salida?: { conLista?: boolean },
+  salida?: SalidaDelSeguimiento,
 ): string {
   context = conElLocalUnico(context);
   const texto = redactarSeguimiento(context, kind, now, salida);
@@ -306,7 +317,7 @@ function redactarSeguimiento(
   context: FollowUpMessageContext,
   kind: FollowUpMessageKind,
   now: Date,
-  salida?: { conLista?: boolean },
+  salida?: SalidaDelSeguimiento,
 ): string {
   const prefix = questionPrefix(context, kind);
   const size = context.tireSize ? ` ${context.tireSize}` : "";
@@ -439,7 +450,10 @@ function redactarSeguimiento(
       || (context.optionsCount ?? 0) > 0 || Boolean(context.selectedProductCode))
   ) {
     const distinto = seguimientoConPreguntaDeSiNo(context, kind, context.seguimientoConPregunta);
-    if (distinto) return distinto;
+    if (distinto) {
+      if (salida) salida.conPreguntaDeSiNo = true;
+      return distinto;
+    }
   }
 
   if (context.stage === "cotizacion_enviada") {

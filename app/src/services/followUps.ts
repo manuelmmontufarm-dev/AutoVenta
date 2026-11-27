@@ -33,7 +33,7 @@ import { opcionEnDigitos } from "../domain/opcionEnLetras.js";
 import { asesoresActivos, notifyAdvisor } from "./advisorNotifications.js";
 import { politica } from "../negocio/politica.js";
 import { negocio } from "../negocio/index.js";
-import { conElLocalUnico } from "../domain/followUpMessages.js";
+import { conElLocalUnico, type SalidaDelSeguimiento } from "../domain/followUpMessages.js";
 import { loQueDijoElCliente } from "../domain/fechaDeVisita.js";
 import { nextBusinessInstant } from "../domain/followUps.js";
 
@@ -381,15 +381,26 @@ function direccionDelLocal(): string {
  *
  * La misma regla que `services/preciosPorPago.ts` (Competimotor cotiza con
  * tarjeta: el efectivo es el Precio C, nunca más caro que el de tarjeta, y el de
- * tarjeta nunca más caro que el de hoy). Ese archivo es del Sprint 2 y no
- * exporta el precio de UNA llanta: cuando lo exporte, esto pasa a llamarlo.
- * Null si la llanta no trae precio por forma de pago: no se dice ninguno.
+ * tarjeta nunca más caro que el de hoy). Null si la llanta no trae precio por
+ * forma de pago: no se dice ninguno.
+ *
+ * CON UNA PROMOCIÓN SOBRE LA LLANTA, SIN PRECIO. El «cuadro rojo» del Black
+ * Friday (tabla `promociones`, aro 18–20, hasta el 5-dic) y cualquier promo del
+ * panel cambian el precio que vio el cliente en la lámina y la cotización; esta
+ * copia de la regla no puede garantizar la MISMA cifra desde la misma fuente, y
+ * un precio distinto al cotizado es la familia F-03. Sale sin precio.
+ *
+ * TODO(Sprint 2, al integrar): `domain/preciosPorPago.ts` tiene que exportar
+ * `precioEnEfectivoDeUnaLlanta(item: CatalogItem): number | null` —el mismo
+ * número que la lámina y `mensajeDePreciosPorPago`, con la promoción aplicada—
+ * y esta función pasa a llamarlo (y se borra la copia de la regla).
  */
 function precioEnEfectivoDeHoy(codigo: string | null | undefined): number | null {
   if (!codigo || politica.precioDeCotizacion !== "tarjeta") return null;
   const item = findByCode(codigo);
   const precios = item?.preciosPorPago;
   if (!item || !precios) return null;
+  if (item.promocionDePrecio || item.promocionPorCantidad) return null;
   const tarjeta = Math.min(precios.tarjetaConIva, item.minimumPriceWithTax);
   const efectivo = Math.min(precios.efectivoConIva, tarjeta);
   return efectivo > 0 ? Math.round(efectivo * 100) / 100 : null;
@@ -1358,13 +1369,19 @@ export async function ensureFollowUpJobCopy(input: {
   // el texto final.
   // Compra a distancia: el texto fijo ya dice lo único que corresponde (pago y
   // envío con el asesor). Redactarlo con IA era invitarla a hablar de la visita.
+  // Sprint 4: los dos seguimientos distintos de Competimotor son texto fijo
+  // con precio y pregunta de sí/no; la redacción con IA no puede llevar
+  // precios (`isSafeCopy`) y volvía a la lista o al «quedo pendiente». SOLO
+  // cuando la plantilla de verdad armó uno de esos dos (lo anota la rama, no se
+  // adivina): pedir la medida, la visita, etc. se siguen redactando con IA.
+  const conPregunta: SalidaDelSeguimiento = {};
+  const textoConPregunta = copyContext.seguimientoConPregunta
+    ? buildContextualFollowUpMessage(copyContext, kind, now, conPregunta)
+    : null;
   const copy = copyContext.sinVisita === "compra_a_distancia"
     ? { text: buildContextualFollowUpMessage(copyContext, kind, now), source: "determinista_compra_a_distancia" }
-    // Sprint 4: los dos seguimientos distintos de Competimotor son texto fijo
-    // con precio y pregunta de sí/no; la redacción con IA no puede llevar
-    // precios (`isSafeCopy`) y volvía a la lista o al «quedo pendiente».
-    : copyContext.seguimientoConPregunta
-      ? { text: buildContextualFollowUpMessage(copyContext, kind, now), source: "fallback" as const }
+    : conPregunta.conPreguntaDeSiNo && textoConPregunta
+      ? { text: textoConPregunta, source: "determinista_pregunta_si_no" }
     : await generateFollowUpCopy(
       { ...copyContext, storeLinks: undefined },
       kind,

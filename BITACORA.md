@@ -1,3 +1,15 @@
+## 26-nov-2026 · Bot · Sprint 4 ronda 1 (revisión): Depot igual en visitas y recordatorios
+
+- **Qué:** la regla ancha «un día dentro de una pregunta no agenda» queda solo con
+  `politica.seguimientos.preguntaConDiaNoAgenda` (Competimotor); para todos, solo el nombre de la promoción. El
+  «recordatorio sin cotización no sale» queda solo con `recordatorioSoloConCotizacion`. Un rango con días («miércoles
+  o jueves») vuelve a usar el día del modelo. El 1.º seguimiento sale sin precio si la llanta tiene promoción (no se
+  puede garantizar la cifra de la lámina; TODO Sprint 2). El texto fijo solo cuando la rama armó uno de los dos
+  seguimientos con pregunta, con fuente `determinista_pregunta_si_no`.
+- **Por qué:** revisión de la coordinadora. Medido contra Depot (175 visitas registradas en 30 días, solo lectura):
+  la regla ancha borraba 8 visitas reales («Lunes 01 diciembre / Hasta que hora atienden»); ahora 0.
+- **Horas:** 1,5.
+
 ## 26-nov-2026 · Bot · Sprint 4 (F-05): seguimientos y datos falsos de la auditoría de Competimotor
 
 - **Qué:**
