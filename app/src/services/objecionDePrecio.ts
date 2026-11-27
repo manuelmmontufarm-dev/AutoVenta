@@ -8,6 +8,7 @@
  * (Depot) no se llama.
  */
 import { sql } from "../db/client.js";
+import { updateConversationFacts } from "./conversations.js";
 import { findByCode, searchBySize } from "./catalog.js";
 import { parseTireSize } from "../domain/tireSize.js";
 import { efectivoDeLaLlanta } from "../domain/preciosPorPago.js";
@@ -22,6 +23,8 @@ interface Guardada { codigo?: string; nombre?: string; precio_con_iva?: number; 
 /** Lo que el cliente tiene a la vista: la lámina o la cotización, la más nueva del ciclo. */
 export async function loQueVioElCliente(conversationId: number, cycle: number): Promise<{
   vistas: Array<OpcionVista & { codigo: string | null }>; cantidad: number; medida: string | null;
+  /** El cliente dijo, después de la cotización, otra cantidad que la cotizada (1974). */
+  cantidadCambio?: boolean;
 } | null> {
   const [lamina] = await sql<{ metadata: Record<string, unknown> | null; created_at: Date }[]>`
     select metadata, created_at from messages
@@ -37,19 +40,20 @@ export async function loQueVioElCliente(conversationId: number, cycle: number): 
   const [ficha] = await sql<{ selected_quantity: number | null }[]>`
     select selected_quantity from conversations where id=${conversationId}
   `;
-  // La cantidad que el cliente DIJO después de ver la lámina («Nesecito dos cuanto es
-  // el valor», 1321): de SUS mensajes, nunca del texto del bot.
-  const dichos = lamina
-    ? await sql<{ content: string | null }[]>`
-        select content from messages
-        where conversation_id=${conversationId} and cycle=${cycle} and direction='inbound'
-          and created_at > ${lamina.created_at}
-        order by created_at desc limit 6
-      `
-    : [];
-  const dicha = dichos
-    .map((m) => extractExplicitQuantity(m.content ?? "") ?? cantidadDichaConTolerancia(m.content))
-    .find((n): n is number => n !== null && n >= 1) ?? null;
+  // La cantidad que el cliente DIJO después de ver la lámina o la cotización
+  // («Nesecito dos cuanto es el valor», 1321; «Esta caro solo dos necesito»
+  // tras una cotización de 4, 1974): de SUS mensajes, nunca del texto del bot.
+  const cantidadDichaDesde = async (desde: Date) => {
+    const dichos = await sql<{ content: string | null }[]>`
+      select content from messages
+      where conversation_id=${conversationId} and cycle=${cycle} and direction='inbound'
+        and created_at > ${desde}
+      order by created_at desc limit 6
+    `;
+    return dichos
+      .map((m) => extractExplicitQuantity(m.content ?? "") ?? cantidadDichaConTolerancia(m.content))
+      .find((n): n is number => n !== null && n >= 1 && n <= 12) ?? null;
+  };
   const efectivoDe = (codigo: string | null, guardado: unknown) => {
     if (Number(guardado) > 0) return Number(guardado);
     const item = codigo ? findByCode(codigo) : undefined;
@@ -61,6 +65,10 @@ export async function loQueVioElCliente(conversationId: number, cycle: number): 
     const tarjeta = Number(linea.salePriceWithTax);
     if (!(tarjeta > 0)) return null;
     const item = codigo ? findByCode(codigo) : undefined;
+    const cotizada = Math.max(1, Math.round(Number(linea.quantity) || 1));
+    // Lo que dijo DESPUÉS de la cotización manda sobre la cantidad cotizada: la
+    // cotización de 4 se armó con el juego que se asume por defecto (1974).
+    const dicha = await cantidadDichaDesde(new Date(cotizacion.created_at));
     return {
       vistas: [{
         codigo,
@@ -68,11 +76,13 @@ export async function loQueVioElCliente(conversationId: number, cycle: number): 
         tarjeta,
         efectivo: efectivoDe(codigo, null),
       }],
-      cantidad: Math.max(1, Math.round(Number(linea.quantity) || 1)),
+      cantidad: dicha ?? cotizada,
       medida: typeof linea.sizeLabel === "string" ? linea.sizeLabel : item?.sizeLabel ?? null,
+      ...(dicha !== null && dicha !== cotizada ? { cantidadCambio: true } : {}),
     };
   }
   if (!lamina?.metadata) return null;
+  const dicha = await cantidadDichaDesde(new Date(lamina.created_at));
   const md = lamina.metadata;
   const guardadas: Guardada[] = Array.isArray(md.lista)
     ? (md.lista as Guardada[])
@@ -129,5 +139,12 @@ export async function respuestaAObjecionDeLaConversacion(conversationId: number,
   const masBarata = masBarataDeLaMedida(vio.medida, vio.cantidad, vio.vistas);
   const marcas = [...vio.vistas.map((v) => v.nombre.split(" ")[0]), ...(masBarata ? [masBarata.nombre.split(" ")[0]] : [])];
   const incluye = await buildBenefitsBlock({ brands: marcas, quantity: vio.cantidad }).catch(() => "");
-  return respuestaAObjecionDePrecio({ vistas: vio.vistas, cantidad: vio.cantidad, medida: vio.medida, masBarata, incluye: incluye || null });
+  const respuesta = respuestaAObjecionDePrecio({
+    vistas: vio.vistas, cantidad: vio.cantidad, medida: vio.medida, masBarata, incluye: incluye || null, cantidadCambio: vio.cantidadCambio,
+  });
+  // La ficha queda con SU cantidad: el «sí» que sigue cotiza 2, no otra vez 4 (1974).
+  if (respuesta && vio.cantidadCambio) {
+    await updateConversationFacts(conversationId, { selectedQuantity: vio.cantidad }).catch(() => undefined);
+  }
+  return respuesta;
 }
