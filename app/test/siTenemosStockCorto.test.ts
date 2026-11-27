@@ -112,28 +112,23 @@ describe("Competimotor: sin ninguna, lo más cercano en el MISMO turno (560)", (
   });
 });
 
-describe("Competimotor: «ya le estoy revisando el valor promocional…» no sale con precio a la vista", () => {
-  // 1555 (24-nov 13:09), textual.
-  const TEXTO_1555 = "Claro, en todo terreno para 235/60R16 le recomiendo A/T: sirve para uso mixto entre asfalto y tierra, manteniendo manejo en carretera.\n\n"
-    + "Claro, ya le estoy revisando el valor promocional con el que me llegó esa mercadería.\n\n"
-    + "¿Le reviso alternativas del mismo aro 16 para completar las 4 llantas?";
-  // 1538 (12:11), textual: la cotización de $575 ya había salido.
+describe("Competimotor: «ya le estoy revisando el valor promocional…» solo para una llanta con stock 0", () => {
+  // 1538 (12:11), textual: la cotización de $575 de ESA llanta ya había salido.
   const TEXTO_1538 = "Claro, ya le estoy revisando el valor promocional con el que me llegó esa mercadería.\n\n"
     + "En esa medida ya le dejé cotizadas *4 llantas KENDA KR33A 225/70R15* por *$575.00* ($143.75 c/u con IVA). Es reforzada de *8 lonas*.";
 
-  it("1555 con la lámina en el turno: la frase se cambia por «Le recomiendo estas opciones»", () => {
-    const limpio = sinNoHay.sinNoHay(TEXTO_1555, { hayOpciones: true, pidePrecio: true });
-    expect(limpio).not.toMatch(/valor promocional/);
-    expect(limpio).toContain(sinNoHay.FRASE_SIN_STOCK_CON_OPCIONES);
-  });
-
-  it("1538 con la cotización en el texto: la frase se quita y el precio queda", () => {
+  it("1538: con la cotización de esa llanta en el texto (sin lámina) la frase se quita y el precio queda", () => {
     const limpio = sinNoHay.sinNoHay(TEXTO_1538, { hayOpciones: false, pidePrecio: true });
     expect(limpio).not.toMatch(/valor promocional/);
     expect(limpio).toContain("*$575.00*");
   });
 
-  it("sin nada que mostrar y con la pregunta de precio, la frase de Carlos sigue saliendo", () => {
+  it("con lámina de alternativas vale la regla del 24-nov tal cual (el precio a la vista es de las otras)", () => {
+    const limpio = sinNoHay.sinNoHay("De esa no me sale en stock.", { hayOpciones: true, pidePrecio: true });
+    expect(limpio).toBe(sinNoHay.FRASE_PRECIO_SIN_STOCK_CON_OPCIONES);
+  });
+
+  it("sin nada que mostrar y con la pregunta de precio, la frase de Carlos sola", () => {
     const limpio = sinNoHay.sinNoHay("De esa medida no tengo stock.", { hayOpciones: false, pidePrecio: true });
     expect(limpio).toBe(sinNoHay.FRASE_PRECIO_SIN_STOCK);
   });

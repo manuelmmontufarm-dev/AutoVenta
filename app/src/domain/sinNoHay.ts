@@ -56,9 +56,9 @@ export const REGLA_SIN_NO_HAY_VENDEDOR =
   + "di en una frase algo bueno y cierto de ella (solo con datos que tengas) y sigue con "
   + `«le recomiendo estas opciones:»; si no, «${FRASE_SIN_STOCK_CON_OPCIONES}». Manda con preparar_opciones las más cercanas, `
   + "en este orden: misma medida con otro tipo o marca; equivalentes (incluida la medida en pulgadas); mismo aro. "
-  + `Si PREGUNTA EL PRECIO de la que quiere, no tiene stock y NO hay ninguna parecida que mostrar, di palabra por palabra: «${FRASE_PRECIO_SIN_STOCK}». `
-  + "Si en el turno van opciones o un precio, esa frase NO va (sería decirle que está revisando un precio que ya tiene en pantalla): "
-  + `va «${FRASE_SIN_STOCK_CON_OPCIONES}». NUNCA inventes un precio de lo que no tiene stock. `
+  + `Si PREGUNTA EL PRECIO de la que quiere y no tiene stock, di palabra por palabra: «${FRASE_PRECIO_SIN_STOCK}» `
+  + "y continúa con «Hasta eso, le puedo recomendar estas opciones:» y las más cercanas. NUNCA inventes un precio de lo que no tiene stock. "
+  + "Esa frase es SOLO para una llanta con stock 0: si en el turno va la cotización o el precio de ESA llanta, no va. "
   + "Una llanta con stock de 1 o más SÍ se ofrece y se cotiza por lo que pide (el asesor consigue las que faltan): no es «sin stock». "
   + "PROHIBIDO preguntar «¿le busco una medida equivalente?» o «¿le reviso alternativas?» y dejarlo ahí: si hay parecidas, se muestran "
   + "YA, en este mismo turno, con preparar_opciones. "
@@ -71,8 +71,8 @@ export const REGLA_SIN_NO_HAY_GUARDIAN =
   `REGLA DEL NEGOCIO, SIN EXCEPCIÓN: al cliente NUNCA se le dice ${PROHIBIDAS}, ni se nombra el stock de lo que no está. `
   + "Si el borrador lo dice, es **tono** (severidad alta) y tu corrección QUITA esa frase y pone en su lugar "
   + `«${FRASE_SIN_STOCK_CON_OPCIONES}» (si el turno manda opciones) o «${FRASE_SIN_STOCK_SIN_OPCIONES}» (si no manda ninguna); `
-  + `si el cliente preguntó el precio de lo que no está y el turno NO manda opciones ni precio, «${FRASE_PRECIO_SIN_STOCK}»; `
-  + `con opciones o precio a la vista esa frase es falsa y se cambia por «${FRASE_SIN_STOCK_CON_OPCIONES}». `
+  + `si el cliente preguntó el precio de lo que no está, «${FRASE_PRECIO_SIN_STOCK}» seguido de «Hasta eso, le puedo recomendar estas opciones:» cuando hay opciones. `
+  + "Si el turno manda la cotización o el precio de la llanta que pidió (sin lámina de alternativas), esa frase es falsa: se quita. "
   + "No agregues llantas, precios ni plazos que el borrador no traía. "
   + "Esas frases («Claro…», «ya le estoy revisando el valor promocional con el que me llegó esa mercadería», «un asesor ya se la está revisando») "
   + "son texto APROBADO por el dueño y el asesor ya fue avisado: NO son promesa sin respaldo ni dato inventado, déjalas pasar tal cual.";
@@ -127,19 +127,20 @@ function oraciones(bloque: string): string[] {
  * devuelve el texto tal cual (mismo objeto).
  */
 export function sinNoHay(texto: string, opts: { hayOpciones: boolean; pidePrecio?: boolean }): string {
-  // «Ya le estoy revisando el valor promocional…» con una lámina o un precio en
-  // pantalla es falso: 1538 (cotización de $575 enviada), 1632 (lista con
-  // precios) y 1555 (auditoría 26-nov, F-01). Ahí se cambia por la de siempre.
-  const precioALaVista = opts.hayOpciones || PRECIO_EN_EL_TEXTO.test(texto);
-  const base = precioALaVista ? sinFraseDelValorPromocional(texto, opts.hayOpciones) : texto;
+  // «Ya le estoy revisando el valor promocional…» junto a la cotización o el
+  // precio de ESA llanta es falso (1538: la cotización de $575 ya había salido).
+  // Con lámina de alternativas vale la regla del 24-nov tal cual: el precio a
+  // la vista es de las otras, no de la que pidió (auditoría 26-nov, F-01).
+  const precioDeEsaLlanta = !opts.hayOpciones && PRECIO_EN_EL_TEXTO.test(texto);
+  const base = precioDeEsaLlanta ? sinFraseDelValorPromocional(texto) : texto;
   if (!diceNoHay(base)) return base;
   texto = base;
-  const frase = opts.hayOpciones
-    ? FRASE_SIN_STOCK_CON_OPCIONES
-    : precioALaVista
-      // Sin lámina pero con precio en el texto (una cotización): la negación solo se quita.
-      ? ""
-      : opts.pidePrecio ? FRASE_PRECIO_SIN_STOCK : FRASE_SIN_STOCK_SIN_OPCIONES;
+  const frase = precioDeEsaLlanta
+    // Con la cotización en el texto, la negación solo se quita.
+    ? ""
+    : opts.pidePrecio
+      ? (opts.hayOpciones ? FRASE_PRECIO_SIN_STOCK_CON_OPCIONES : FRASE_PRECIO_SIN_STOCK)
+      : (opts.hayOpciones ? FRASE_SIN_STOCK_CON_OPCIONES : FRASE_SIN_STOCK_SIN_OPCIONES);
   // Ya recomienda en una oración que NO niega: la que niega solo se quita.
   let yaDicha = oraciones(texto).some((o) => YA_RECOMIENDA.test(o) && !diceNoHay(o));
   const bloques = texto.split(/(\n?---\n?)/);
@@ -192,23 +193,11 @@ const PRECIO_EN_EL_TEXTO = /\$\s?\d/;
 const VALOR_PROMOCIONAL = /[^.?!\n]*valor promocional con el que me lleg[^.?!\n]*[.?!]*\s*/gi;
 const HASTA_ESO = /\s*Hasta eso,?\s*le puedo recomendar estas opciones:?/gi;
 
-/**
- * Quita la frase del «valor promocional» (y su «Hasta eso, le puedo
- * recomendar…»); si el turno trae opciones y la oración quedaba como la que
- * las presentaba, pone en su lugar la de siempre, una sola vez.
- */
-function sinFraseDelValorPromocional(texto: string, hayOpciones: boolean): string {
+/** Quita la frase del «valor promocional» (y su «Hasta eso, le puedo recomendar…»). */
+function sinFraseDelValorPromocional(texto: string): string {
   VALOR_PROMOCIONAL.lastIndex = 0;
   if (!VALOR_PROMOCIONAL.test(texto)) return texto;
-  const yaPresenta = /le recomiendo estas opciones/i.test(texto);
-  let puesta = false;
-  const limpio = texto
-    .replace(HASTA_ESO, "")
-    .replace(VALOR_PROMOCIONAL, () => {
-      if (!hayOpciones || yaPresenta || puesta) return "";
-      puesta = true;
-      return `${FRASE_SIN_STOCK_CON_OPCIONES} `;
-    });
+  const limpio = texto.replace(HASTA_ESO, "").replace(VALOR_PROMOCIONAL, "");
   return limpio
     .split(/\n?---\n?/)
     .map((b) => b.trim())

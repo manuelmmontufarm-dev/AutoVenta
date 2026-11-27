@@ -192,12 +192,7 @@ describe("Competimotor: nunca «no hay» al cliente", () => {
     expect(limpio).toContain("fabricada en Cuenca");
   });
 
-  // 26-nov (auditoría, F-01): con opciones en el turno, «ya le estoy revisando
-  // el valor promocional…» es falso —el cliente tiene el precio en pantalla
-  // (1538, 1555, 1632)—: sale «Claro, con gusto. Le recomiendo estas opciones:».
-  // La frase de Carlos queda para cuando no hay nada que mostrar (test de abajo
-  // y `siTenemosStockCorto.test.ts`). El asesor se sigue enterando del precio.
-  it("24-nov: si pregunta el PRECIO de la que quiere y no hay, CON opciones: «Claro… le recomiendo estas opciones», y el asesor se entera de que pidió precio", async () => {
+  it("24-nov: si pregunta el PRECIO de la que quiere y no hay: valor promocional + «hasta eso, le puedo recomendar», y el asesor se entera de que pidió precio", async () => {
     const paso = await pasoSinNoHay();
     const { pideElPrecio } = await import("../src/domain/sinNoHay.js");
     expect(pideElPrecio("Qué precio tiene la continental?")).toBe(true);
@@ -213,8 +208,8 @@ describe("Competimotor: nunca «no hay» al cliente", () => {
       tipo: "respuesta", huella, textoDelCliente: "Y qué precio tiene la Continental?",
     });
     expect(salida).not.toMatch(/stock|no me sale/i);
-    expect(salida).not.toMatch(/valor promocional/);
-    expect(salida).toContain("Claro, con gusto. Le recomiendo estas opciones:");
+    expect(salida).toContain("Claro, ya le estoy revisando el valor promocional con el que me llegó esa mercadería.");
+    expect(salida).toContain("Hasta eso, le puedo recomendar estas opciones:");
     expect(salida).toContain("¿Le cotizo la A o la B?");
     expect(avisos).toHaveLength(1);
     expect(String(avisos[0].reason)).toMatch(/precio/i);

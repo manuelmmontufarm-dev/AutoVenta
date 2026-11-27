@@ -41,24 +41,34 @@ export async function faltanteDeLaCotizacionVigente(
   conversationId: number,
   cycle: number,
 ): Promise<FaltanteVigente | null> {
+  return nombraElStockAlCliente() ? faltanteRealVigente(conversationId, cycle) : null;
+}
+
+/** El faltante de verdad, se le diga o no al cliente: lo que necesita saber el asesor. */
+async function faltanteRealVigente(conversationId: number, cycle: number): Promise<FaltanteVigente | null> {
   const [cotizacion] = await sql<FilaCotizacion[]>`
     select quote_number, total, items from quotes
     where conversation_id = ${conversationId} and cycle = ${cycle}
     order by created_at desc limit 1
   `;
-  return faltanteDeCotizacion(cotizacion ?? null);
+  return faltanteReal(cotizacion ?? null);
 }
 
-/** El mismo cálculo sobre una fila ya leída, para no consultar dos veces. */
+/**
+ * El mismo cálculo sobre una fila ya leída, para no consultar dos veces: lo
+ * que se le puede NOMBRAR al cliente. Con stock único entre locales
+ * (Competimotor) es null —ni el reenvío, ni la ruta directa, ni el Guardián lo
+ * repiten—; lo que se le AVISA al asesor sale de `faltanteReal` igual.
+ */
 export function faltanteDeCotizacion(cotizacion: FilaCotizacion | null): FaltanteVigente | null {
+  return nombraElStockAlCliente() ? faltanteReal(cotizacion) : null;
+}
+
+function faltanteReal(cotizacion: FilaCotizacion | null): FaltanteVigente | null {
   const línea = (cotizacion?.items ?? [])[0];
   const codigo = línea?.code;
   const cantidad = línea?.quantity;
   if (!cotizacion || !codigo || !cantidad) return null;
-  // Stock único entre locales (Competimotor): el faltante NO es algo que se le
-  // diga al cliente —ni el reenvío, ni la ruta directa, ni el candado de salida,
-  // ni el Guardián lo repiten—; el asesor lo recibió como alerta al cotizar.
-  if (!nombraElStockAlCliente()) return null;
 
   const producto = findByCode(codigo);
   if (!producto) return null;
@@ -101,8 +111,24 @@ export async function asegurarAvisoDeStock(
   texto: string,
 ): Promise<{ texto: string; pegado: boolean }> {
   try {
-    const corto = await faltanteDeLaCotizacionVigente(conversationId, cycle);
+    const corto = await faltanteRealVigente(conversationId, cycle);
     if (!corto) return { texto, pegado: false };
+    // Stock único (Competimotor): al cliente no se le pega nada, pero el asesor
+    // sigue avisado de que faltan llantas para esa cotización. Misma llave que
+    // la alerta de `generar_cotizacion`: si ya salió al cotizar, no se repite.
+    if (!nombraElStockAlCliente()) {
+      await createBotAlert({
+        conversationId,
+        cycle,
+        type: "stock_insuficiente",
+        priority: "high",
+        summary: `Stock corto en ${corto.numero ?? "la cotización vigente"}: ${corto.cantidad} pedidas y ${corto.stockHoy} en catálogo`,
+        exactReason: `${corto.cantidad} × ${corto.etiqueta || corto.codigo} (código ${corto.codigo}); el catálogo marca ${corto.stockHoy}. Al cliente no se le nombra el stock.`,
+        suggestedAction: "Conseguir las que faltan entre locales antes de que el cliente venga.",
+        dedupeKey: `${conversationId}:${cycle}:stock_insuficiente:${corto.codigo}`,
+      }).catch(() => {});
+      return { texto, pegado: false };
+    }
     const recordatorio = recordatorioQueFalta(texto, corto);
     if (!recordatorio) return { texto, pegado: false };
 

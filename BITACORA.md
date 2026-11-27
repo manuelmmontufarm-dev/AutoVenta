@@ -8,17 +8,18 @@
   hecho duro (`REGLA_STOCK_CORTO_SE_VENDE`) y filas sin «STOCK CORTO». Con la segunda, «pantaneras» sin tipo escrito
   busca por uso (M/T y R/T) aunque el modelo pase M/T (`tipoQueFiltraLaBusqueda`). Sin ninguna en la medida,
   `preparar_opciones` y `buscar_por_aro_y_tipo` devuelven lo más cercano con stock y la orden de mostrarlo en el mismo
-  turno (`reglaDeLasMasCercanas`). «Ya le estoy revisando el valor promocional…» se cambia por «Claro, con gusto. Le
-  recomiendo estas opciones:» cuando el turno trae lámina o precio (`sinNoHay`).
+  turno (`reglaDeLasMasCercanas`). «Ya le estoy revisando el valor promocional…» se quita solo cuando el turno trae la
+  cotización o el precio de ESA llanta (1538); con lámina de alternativas sigue la regla del 24-nov. El candado de
+  salida no le nombra el faltante al cliente pero sí deja la alerta `stock_insuficiente` al asesor.
 - **Por qué:** auditoría de Competimotor del 26-nov (F-01): 1331, 1344, 1555, 1588, 560 y 469 recibieron «no me sale en
   stock» / «un asesor ya se la está revisando» con KR28 = 2, WR9001 = 1, R380 = 2, KR601 = 2 en catálogo, y el asesor
   las vendió minutos después; la única venta del periodo (469, $437) fue una de esas. La regla de Depot (Joaquín,
   26-ago: no enseñar menos de 4) se aplicaba a un negocio con un solo stock entre locales. Depot no cambia.
-- **Probado:** `test/siTenemosStockCorto.test.ts` y `test/siTenemosDepotIgual.test.ts` (rojo sin el arreglo). Simulador
+- **Probado:** `test/siTenemosStockCorto.test.ts`, `test/siTenemosDepotIgual.test.ts` y
+  `test/siTenemosAlAsesor.integration.test.ts` (rojo sin el arreglo). Simulador
   `--perfil mundillantas` con el catálogo vivo del 26-nov (KR29 en 0 como el 20-nov): 1331, 1344, 1588, 1555, 560, 469,
   1011 y una medida sin A/T, 3 vueltas cada uno (ver el cuadro del sprint). Se actualizaron tres pruebas que fijaban la
-  conducta vieja de Competimotor (`recomendacionPorMarca.herramientas`, `competimotorPantaneras`, el caso de precio con
-  opciones de `competimotorSinNoHay`).
+  conducta vieja de Competimotor (`recomendacionPorMarca.herramientas`, `competimotorPantaneras`).
 - **Horas:** 2.
 
 ## 25-nov-2026 · Bot · Entiende y explica cada promoción del panel (y si se suma con el 25 %)
