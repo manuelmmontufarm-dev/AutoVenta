@@ -1,3 +1,19 @@
+## 27-nov-2026 · Bot · Depot: auditoría de los primeros días con Claude (solo lectura)
+
+- **Qué:** auditoría de las 293 conversaciones de Depot desde el cambio a Sonnet 5.5 + Guardián Haiku 5.5
+  (25-nov 01:41 UTC) hasta el 27-nov 17:10 UTC, leídas completas en 12 lotes, más embudo y costo con gráficos
+  de control. Informe: `docs/reportes-historicos/2026-11-27-auditoria-claude-depot.md`; gráficos:
+  `2026-11-27-claude-depot-control.html`; lecturas por lote en `2026-11-27-auditoria-claude-depot-lotes/`.
+- **Resultado:** cotización (36 → 41 %) y día de visita (6,7 → 5,4 %) dentro del ruido; costo por conversación
+  14,2 → 5,8 ¢ (señal); cero turnos rotos (antes 23). Familia nueva: el Guardián Haiku rompe borradores
+  buenos (no recibe la fecha de hoy; aprueba con hallazgos 34 % contra 1,4 %; corrige el doble de
+  seguimientos). De antes: elección sin cotización (52940, mensaje durante un deploy en horario),
+  seguimientos que ignoran el último mensaje (redacción IA rota por `temperature`), cantidad/medida mal
+  leída, «(, total» de `sinNumerosDeCotizacion`.
+- **Pendiente:** arreglar el Guardián (fecha de hoy, no agregar datos, hallazgo alta = corregir), no
+  desplegar en horario, redacción de seguimientos. Escalada a Sonnet para ahorrar ~6 %.
+- **Horas:** 1,5.
+
 ## 27-nov-2026 · Bot · Competimotor: cierre de los cinco sprints de la auditoría del 26-nov (revisión final)
 
 - **Qué:** integración de los sprints 1 a 5 en `fix/auditoria-2026-11-26` (F-01 «Sí tenemos», F-02/F-03 precio y
