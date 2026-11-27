@@ -80,16 +80,34 @@ export function respuestaAObjecionDePrecio(input: {
   medida: string | null;
   masBarata: OpcionMasBarata | null;
   incluye: string | null;
+  /**
+   * El cliente acaba de decir OTRA cantidad que la que se le cotizó (1974, 27-nov:
+   * cotización de 4 por $671.60 y «Esta caro solo dos necesito»). Lo primero es
+   * el precio de SU cantidad con los dos pagos: lo que vio era el total de 4.
+   */
+  cantidadCambio?: boolean;
 }): string | null {
   const conEfectivo = input.vistas.filter((v) => v.efectivo !== null && v.efectivo > 0 && v.efectivo < v.tarjeta);
-  if (!conEfectivo.length && !input.masBarata) return null;
+  if (!conEfectivo.length && !input.masBarata && !input.cantidadCambio) return null;
   const c = Number.isInteger(input.cantidad) && input.cantidad >= 1 ? input.cantidad : 4;
   const cuantas = `${c} ${c === 1 ? "llanta" : "llantas"}`;
   const cu = (unitario: number) => (c > 1 ? ` (${dinero(unitario)} c/u)` : "");
   const numerada = input.vistas.length >= 2 && input.vistas.every((v) => v.n);
   const enLaMedida = input.medida ? ` en *${input.medida}*` : "";
   const partes: string[] = [];
-  if (conEfectivo.length) {
+  if (input.cantidadCambio) {
+    partes.push(
+      [
+        `Le entiendo 👍 Para *${cuantas}* le queda así:`,
+        ...input.vistas.map((v) => {
+          const efectivo = v.efectivo !== null && v.efectivo > 0 && v.efectivo < v.tarjeta
+            ? ` o *${dinero(centavos(v.efectivo * c))}* en efectivo o transferencia${cu(v.efectivo)}`
+            : cu(v.tarjeta);
+          return `${numerada ? `${v.n} · ` : "• "}${v.nombre} — *${dinero(centavos(v.tarjeta * c))}* con tarjeta${efectivo}`;
+        }),
+      ].join("\n"),
+    );
+  } else if (conEfectivo.length) {
     partes.push(
       [
         "Le entiendo 👍 Pagando en *efectivo o transferencia* le queda más bajo:",
@@ -117,7 +135,9 @@ export function respuestaAObjecionDePrecio(input: {
     : numerada
       ? preguntaDeLaLista(input.vistas.length)
       // No «¿Se la cotizo?»: es la que ya se le hizo antes del «caro» y el candado de calcos la quita.
-      : "¿Le preparo la cotización? 😊";
+      : input.cantidadCambio
+        ? `¿Le preparo la cotización de ${c === 1 ? "la llanta" : `las ${c}`}? 😊`
+        : "¿Le preparo la cotización? 😊";
   return `${partes.join("\n\n")}\n---\n${pregunta}`;
 }
 
@@ -168,7 +188,10 @@ const NUMEROS: Record<string, number> = { un: 1, una: 1, uno: 1, dos: 2, tres: 3
 export function cantidadDichaConTolerancia(texto: string | null | undefined): number | null {
   const n = normal(texto ?? "");
   if (/\bun\s+par\b|\bel\s+par\b/.test(n)) return 2;
-  const m = n.match(/\b(?:ne[cs]+e[cs]+ito|nesesito|quiero|quisiera|solo|deme|dame|serian|son)\s+(?:las?\s+|unas?\s+)?([1-6]|una?|uno|dos|tres|cuatro|cinco|seis)\b(?!\s*(?:dias?|horas?|meses|semanas|\/))/);
+  const NUM = "([1-6]|una?|uno|dos|tres|cuatro|cinco|seis)";
+  const m = n.match(new RegExp(`\\b(?:ne[cs]+e[cs]+ito|nesesito|quiero|quisiera|solo|solamente|deme|dame|serian|son)\\s+(?:las?\\s+|unas?\\s+)?${NUM}\\b(?!\\s*(?:dias?|horas?|meses|semanas|\\/))`))
+    // 1974 (27-nov): «Esta caro solo dos necesito» — el número antes del verbo.
+    ?? n.match(new RegExp(`\\b${NUM}\\s+(?:nomas|no\\s+mas|nada\\s+mas|necesito|nesesito|ne[cs]+e[cs]+ito|quiero|me\\s+(?:hacen|hace)\\s+falta)\\b`));
   if (!m) return null;
   return /^\d$/.test(m[1]) ? Number(m[1]) : NUMEROS[m[1]] ?? null;
 }

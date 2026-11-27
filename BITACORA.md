@@ -1,3 +1,13 @@
+## 27-nov-2026 · Bot · Competimotor: «está caro, solo dos necesito» tras la cotización recotiza por 2 (chat 1974)
+
+- **Qué:** con una cotización a la vista, la respuesta al «está caro» tomaba la cantidad de la cotización (4) y no
+  lo que el cliente dijo después. Ahora manda lo dicho: «Para *2 llantas*: $335.80 con tarjeta o $305.90 en
+  efectivo», la más barata también por 2, y la ficha queda en 2. `cantidadDichaConTolerancia` lee «dos necesito».
+  Solo `ventaConDosPrecios` (Competimotor); sin cambio de cantidad, la respuesta de siempre.
+- **Probado:** prueba de integración nueva (roja sin el arreglo); simulador `mundillantas` con Claude e inventario
+  del 27-nov, 1974 textual + variante + control 3/3 cada uno (`scripts/sim/escenarios-1974-cantidad.mjs`). Suite:
+  fallan los mismos 4 archivos que en `main` 019a7d5.
+- **Horas:** 0,3.
 ## 27-nov-2026 · Bot · Competimotor: cierre de los cinco sprints de la auditoría del 26-nov (revisión final)
 
 - **Qué:** integración de los sprints 1 a 5 en `fix/auditoria-2026-11-26` (F-01 «Sí tenemos», F-02/F-03 precio y

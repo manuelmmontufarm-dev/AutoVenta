@@ -305,8 +305,50 @@ describe("la cantidad del «está caro» es la que dijo el cliente (1321)", () =
   ])("«%s» → %i", (texto, n) => {
     expect(objecion.cantidadDichaConTolerancia(texto)).toBe(n);
   });
-  it.each(["No gracias están muy caras", "paso en dos días", "225/60 rin 17", "la 2"])("«%s» → sin cantidad", (texto) => {
+  it.each(["No gracias están muy caras", "paso en dos días", "225/60 rin 17", "la 2", "en dos días le escribo"])("«%s» → sin cantidad", (texto) => {
     expect(objecion.cantidadDichaConTolerancia(texto)).toBeNull();
+  });
+  it.each([
+    ["Esta  caro solo dos necesito", 2],
+    ["dos nomás", 2],
+    ["solo necesito dos", 2],
+    ["una nada más", 1],
+  ])("1974: «%s» → %i (el número antes del verbo)", (texto, n) => {
+    expect(objecion.cantidadDichaConTolerancia(texto)).toBe(n);
+  });
+});
+
+describe("1974 · cotizó 4 y el cliente dice «Esta caro solo dos necesito»: se recotiza por 2", () => {
+  // Chat 1974, 27-nov 13:56: COT-MWZCEM9Q, 4 × MAXXIS MAS1 MARAUDER 255/60R15 a $167.90 = $671.60;
+  // efectivo $152.95. El bot contestó con los totales de 4 ($611.80) y ofreció otra marca.
+  const base = {
+    vistas: [{ nombre: "MAXXIS MAS1 MARAUDER", tarjeta: 167.9, efectivo: 152.95 }],
+    medida: "255/60R15",
+    incluye: null,
+  };
+  it("los dos precios por 2, nunca el total de 4", () => {
+    const r = objecion.respuestaAObjecionDePrecio({ ...base, cantidad: 2, masBarata: null, cantidadCambio: true })!;
+    expect(r).toContain("Para *2 llantas*");
+    expect(r).toContain("*$335.80* con tarjeta o *$305.90* en efectivo o transferencia ($152.95 c/u)");
+    expect(r).not.toMatch(/671\.60|611\.80|4 llantas/);
+    expect(r.split("\n---\n").at(-1)).toBe("¿Le preparo la cotización de las 2? 😊");
+  });
+  it("con una más barata en la medida, también va por 2", () => {
+    const r = objecion.respuestaAObjecionDePrecio({
+      ...base, cantidad: 2, cantidadCambio: true, masBarata: { nombre: "COOPER COBRA RADIAL GT LB", tarjeta: 154.99, efectivo: 148 },
+    })!;
+    expect(r).toContain("*$335.80* con tarjeta");
+    expect(r).toContain("2 llantas *$309.98* con tarjeta o *$296.00*");
+    expect(r).not.toMatch(/619\.96|592\.00/);
+  });
+  it("sin efectivo en el catálogo igual contesta: el cambio de cantidad ya es algo nuevo que decir", () => {
+    const r = objecion.respuestaAObjecionDePrecio({ ...base, vistas: [{ nombre: "MAXXIS MAS1 MARAUDER", tarjeta: 167.9, efectivo: null }], cantidad: 2, masBarata: null, cantidadCambio: true });
+    expect(r).toContain("MAXXIS MAS1 MARAUDER — *$335.80* con tarjeta ($167.90 c/u)");
+  });
+  it("sin cambio de cantidad, la respuesta de siempre (no cambia nada)", () => {
+    const r = objecion.respuestaAObjecionDePrecio({ ...base, cantidad: 4, masBarata: null })!;
+    expect(r).toContain("Le entiendo 👍 Pagando en *efectivo o transferencia* le queda más bajo:");
+    expect(r).toContain("4 llantas: *$611.80*");
   });
 });
 
