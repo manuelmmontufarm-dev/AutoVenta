@@ -176,6 +176,11 @@ describe("el orden de los candados en el turno", () => {
       "aviso_de_stock",
       // Competimotor (21-nov): nunca «no hay» al cliente y aviso al asesor. Después
       // del Guardián (el último que reescribe) y antes de separar la pregunta.
+      // F-06 (Competimotor, 884 «Maxiis»): la marca pedida que la lámina no trae
+      // se nombra en una línea, después del Guardián que la quitaba.
+      // F-06: el envío al de otra ciudad se repone si el Guardián lo quitó.
+      "envio_al_cliente_de_otra_ciudad_tras_guardian",
+      "la_marca_pedida_se_nombra",
       "sin_no_hay",
       "alcance_fuera_de_catalogo",
       "despedida_de_venta_perdida",

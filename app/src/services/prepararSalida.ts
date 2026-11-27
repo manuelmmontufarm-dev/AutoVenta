@@ -61,7 +61,7 @@ import { sinJsonCrudo } from "../domain/jsonCrudo.js";
 import { sinTrastienda } from "../domain/sinTrastienda.js";
 import { conLocalesReales } from "./localesReales.js";
 import { sql } from "../db/client.js";
-import { formaDePagoSinDefinir } from "../domain/preguntaDirecta.js";
+import { formaDePagoSinDefinir, marcaQueNombro } from "../domain/preguntaDirecta.js";
 import { conElEnvioExplicado, respuestaDeUbicacionFueraDeCobertura, respuestaFijaFueraDeCobertura, sinPreguntaDeLocalConUnoSolo, sinVisitaNiMapas } from "../domain/visitaImposible.js";
 import { localesQueLeQuedanLejos, sinElLocalLejano } from "../domain/localLejano.js";
 import {
@@ -110,6 +110,7 @@ import {
   type MetadataDePieza,
 } from "../domain/equivalentePendiente.js";
 import { catalogoConPreciosPorPago, findByCode } from "./catalog.js";
+import { normalizeCatalogText } from "../domain/catalog.js";
 import { preciosPorPagoDeLaConversacion } from "./preciosPorPago.js";
 import { preguntaPorPrecioSegunPago } from "../domain/preciosPorPago.js";
 import { contextoDeEquivalencias } from "./medidasDelPedido.js";
@@ -651,6 +652,67 @@ export const PASOS: readonly PasoDeSalida[] = [
         ctx.conversation.id, ctx.conversation.current_cycle, texto,
       );
       return conStock.texto;
+    },
+  },
+  {
+    // EL ENVÍO, OTRA VEZ DESPUÉS DEL GUARDIÁN (F-06, simulador 27-nov: a «Soy de
+    // manta» y «Soy de GYE» el Guardián dejó «Perfecto, gracias.» / «Sí, es en
+    // Santo Domingo.»). Mismo dueño que `envio_al_cliente_de_otra_ciudad`; si el
+    // texto ya habla del envío, no toca nada.
+    nombre: "envio_al_cliente_de_otra_ciudad_tras_guardian",
+    corre: ["respuesta", "retomada"],
+    async aplicar(texto, ctx) {
+      const con = conElEnvioExplicado(texto, ctx.textoDelCliente);
+      if (con !== texto) console.log(`🚚 Conv ${ctx.conversation.id}: el Guardián quitó el envío; se repone.`);
+      return con;
+    },
+  },
+  {
+    // LA MARCA QUE PIDIÓ SE NOMBRA (F-06, chat 884: «Maxiis 195/50/15» → la lámina
+    // con otras marcas sin decir nada de Maxxis). Si la lámina de ESTE turno no
+    // trae la marca que nombró y el texto tampoco la nombra, va una línea al
+    // frente, sin «no hay» (Competimotor). Después del Guardián, que la quitaba.
+    nombre: "la_marca_pedida_se_nombra",
+    corre: ["respuesta", "retomada"],
+    async aplicar(texto, ctx) {
+      if (!politica.casosSueltosF06) return texto;
+      const marca = marcaQueNombro(ctx.textoDelCliente);
+      if (!marca) return texto;
+      // Los códigos de la lámina de ESTE turno: de la huella (agente) o, si el
+      // turno fue por una ruta directa sin huella, de la pieza guardada (hecho).
+      let codigos = codigosMostrados(ctx.huella ?? []);
+      if (!codigos.length) {
+        const [pieza] = await sql<{ codes: unknown }[]>`
+          select metadata->'codes' as codes from messages
+          where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
+            and metadata->>'piece'='options'
+            and created_at > coalesce((select max(created_at) from messages where conversation_id=${ctx.conversation.id} and direction='inbound'), 'epoch')
+          order by created_at desc, id desc limit 1
+        `;
+        codigos = Array.isArray(pieza?.codes) ? pieza.codes.map(String) : [];
+      }
+      const lamina = codigos.map((c) => findByCode(c)).filter((p): p is NonNullable<typeof p> => Boolean(p));
+      if (!lamina.length || lamina.some((p) => normalizeCatalogText(p.brand ?? "") === marca)) return texto;
+      if (new RegExp(`\\b${marca.replace(/(.)\1/g, "$1+")}`, "i").test(texto.normalize("NFD").replace(/[\u0300-\u036f]/g, ""))) return texto;
+      const nombre = marca.toUpperCase();
+      // La frase dice que la revisa un asesor: el aviso existe de verdad (si no,
+      // `sin_aviso_inventado` la cambiaba por «Se lo consulto y le confirmo.»).
+      const ciclo = ctx.conversation.current_cycle;
+      const dedupeKey = `${ctx.conversation.id}:${ciclo}:marca_pedida_${marca}`;
+      const medida = lamina[0]?.sizeLabel ?? "";
+      await createBotAlert({
+        conversationId: ctx.conversation.id, cycle: ciclo, type: "caso_sin_resolver", priority: "medium",
+        summary: `Pidió ${nombre}${medida ? ` en ${medida}` : ""}`, exactReason: (ctx.textoDelCliente ?? "").slice(0, 300),
+        suggestedAction: `Revisar si se consigue ${nombre}${medida ? ` ${medida}` : ""} y escribirle al cliente.`, dedupeKey,
+      }).catch(() => undefined);
+      await notifyAdvisor({
+        conversationId: ctx.conversation.id, cycle: ciclo, eventType: "caso_sin_resolver", dedupeKey,
+        title: `Pidió ${nombre}${medida ? ` en ${medida}` : ""}`,
+        reason: `La lámina salió con otras marcas (${[...new Set(lamina.map((p) => p.brand))].join(", ")}).`,
+        action: `Revisar si se consigue ${nombre} y escribirle al cliente.`,
+      }).catch(() => undefined);
+      console.log(`🏷️ Conv ${ctx.conversation.id}: pidió ${nombre} y la lámina no la trae; se nombra y se avisa al asesor.`);
+      return `La *${nombre}* en esa medida se la revisa un asesor; mientras tanto, estas son las que tengo 👇\n---\n${texto}`;
     },
   },
   {

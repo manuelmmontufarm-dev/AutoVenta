@@ -22,6 +22,9 @@
     «cliente_sin_respuesta» nace pospuesto 10 min; «dos seguimientos sin respuesta» y «visita no confirmada» no salen con
     la visita vigente o con el cliente escribiendo ese día. «Claro, quedo pendiente…» en el chat dice qué queda hecho;
     «¿Le agendo una cita?» mata la oferta de cotizar vieja.
+  - **Candados después del Guardián** (que los quitaba en el simulador): el envío al de otra ciudad se repone, la marca
+    pedida que la lámina no trae se nombra con aviso real al asesor, y la lámina de quien pidió carga solo lleva llantas
+    de carga (`preparar_opciones`, la puerta única). `agendar_visita` tampoco agenda «Estoy. De quitto».
   - **Doble botón (error de hecho, también Depot):** «la 1» + «la 2» en la misma ráfaga son un turno y manda el último toque.
 - **Por qué:** auditoría de Competimotor del 26-nov, familia F-06 (1142, 1258, 1614, 710, 1202, 720, 469, 1717, 1632,
   1652, 454, 697, 538, 859, 884, 1085, 1295, 227, 293) y la única venta del periodo (1456, $842,40) que el bot escondió.

@@ -32,7 +32,10 @@ const VEHICULO_DE_CARGA =
 
 /** ¿El cliente pide llanta de carga? Por la medida (C/LT) o por el vehículo / uso. */
 export function pideLlantaDeCarga(texto: string | null | undefined): boolean {
-  const n = normalizar(texto ?? "");
+  // «Índice de carga y velocidad: 103V (… Extra Load / XL, reforzada para mayor
+  // carga)» es la ficha de una llanta de pasajero (chat 454), no un pedido de carga.
+  const n = normalizar(texto ?? "")
+    .replace(/\bindices?\s+de\s+carga\b|\bmayor\s+carga\b|\bextra\s*load\b|\breforzad[ao]s?\b/g, " ");
   if (!n.trim()) return false;
   return MEDIDA_C_O_LT.test(n) || VEHICULO_DE_CARGA.test(n);
 }

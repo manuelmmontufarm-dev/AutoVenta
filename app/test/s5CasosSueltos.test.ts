@@ -70,6 +70,8 @@ describe("3 · llanta de carga / comercial (1717, 1632, 1652, 454)", () => {
     expect(pideLlantaDeCarga("LT285/70R17")).toBe(true);
     // No dispara: medidas de pasajero y el «XL» de la 454.
     expect(pideLlantaDeCarga("215/65 R17 103V XL")).toBe(false);
+    // 454 (simulador 27-nov, vuelta 5): la ficha de una SUV no pide carga.
+    expect(pideLlantaDeCarga("Índice de carga y velocidad: 103V (con especificación Extra Load / XL, es decir, reforzada para mayor carga)")).toBe(false);
     expect(pideLlantaDeCarga("245/70 R16")).toBe(false);
   });
   it("el catálogo: 195R15C y las LT sin sufijo en la etiqueta son de carga", async () => {

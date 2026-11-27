@@ -62,6 +62,7 @@ import {
   warrantyForBrand,
 } from "../services/quoteMessages.js";
 import { porQueNoPasaPorElLocal } from "../services/dondeEstaElCliente.js";
+import { dondeEstaElCliente } from "../domain/fueraDeCobertura.js";
 import { hayQueElegirLocal } from "../domain/storeSelection.js";
 import { cierreSinVisita } from "../domain/compraADistancia.js";
 import {
@@ -2212,8 +2213,27 @@ export function buildTools(ctx: AgentContext) {
         ...mensajesDeLaVisitaActual(inbound).map((m) => m.content).reverse(),
         ctx.currentUserText,
       ]);
+      // LA LÁMINA DE QUIEN PIDIÓ CARGA SOLO LLEVA LLANTAS DE CARGA (F-06, 1717:
+      // «195R15C» → HAIDA RUNSPIRIT 195/45R15 y TOURADOR 195/60R15 de auto). Es la
+      // puerta única de la lámina: venga de la herramienta que venga el código.
+      const pideCargaLamina = politica.casosSueltosF06 === true
+        && [ctx.currentUserText, ...mensajesDeLaVisitaActual(inbound).map((m) => m.content)].some((t) => pideLlantaDeCarga(t));
+      if (pideCargaLamina && !encontrados.some((p) => esLlantaDeCarga(p))) {
+        const deCargaEnLaMedida = encontrados[0]?.size?.rim
+          ? searchByRim(encontrados[0].size.rim).filter((p) => p.stock > 0 && esLlantaDeCarga(p)
+            && (!encontrados[0].size?.width || p.size?.width === encontrados[0].size.width))
+          : [];
+        return JSON.stringify({
+          error: "no_son_de_carga",
+          ...(deCargaEnLaMedida.length ? { de_carga_con_stock: deCargaEnLaMedida.slice(0, 3).map(toolItemDe(cantidad ?? 4)) } : {}),
+          regla: deCargaEnLaMedida.length
+            ? "El cliente pidió llanta de CARGA (C / LT) y esos códigos son de pasajero. Llama preparar_opciones con los de 'de_carga_con_stock' (son de carga y de su ancho y aro)."
+            : "El cliente pidió llanta de CARGA (C / LT) y esos códigos son de pasajero: PROHIBIDO mostrárselos. Dígale que un asesor le revisa la de carga y llama notificar_vendedor (caso_sin_resolver).",
+        });
+      }
       const encontradosPermitidos = encontrados.filter(
-        (product) => !violaRestriccionesDeLlanta(product.sizeLabel, restricciones),
+        (product) => !violaRestriccionesDeLlanta(product.sizeLabel, restricciones)
+          && (!pideCargaLamina || esLlantaDeCarga(product)),
       );
       if (!encontradosPermitidos.length) {
         return JSON.stringify({
@@ -4552,6 +4572,14 @@ export function buildTools(ctx: AgentContext) {
       // DÓNDE VA A ESTAR NO ES CUÁNDO VIENE (simulador, 12-sep). A «Yo el lunes
       // voy a estar en quito» el modelo llamó esta herramienta, se anotó una
       // visita sin llanta ni cotización y el asesor recibió el aviso.
+      // «ESTOY. DE QUITTO» (F-06, 1142): contestando el día, dice que está en otra
+      // ciudad. No es una visita: lo mismo que la puerta del pipeline. Solo Competimotor.
+      if (politica.casosSueltosF06 && dondeEstaElCliente(ctx.currentUserText)?.estado === "fuera") {
+        return JSON.stringify({
+          error: "no_es_visita",
+          regla: `El cliente dijo que está en OTRA CIUDAD, no que viene al local: NO registres visita ni digas que le esperas. Explícale el envío: ${politica.envioAlClienteDeOtraCiudad ?? "un asesor le coordina pago y envío"}`,
+        });
+      }
       if (esSoloPresenciaEnLaCiudad(ctx.currentUserText)) {
         return JSON.stringify({
           error: "no_es_visita",
