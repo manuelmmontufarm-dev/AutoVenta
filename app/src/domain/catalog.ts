@@ -2,6 +2,7 @@ import { MARCAS_DE_LLANTA_CONOCIDAS } from "./marcasDeLlanta.js";
 import { extractFlotationSizes, extractTireSizes, formatFlotationSize, medidaCanonica, type TireSize } from "./tireSize.js";
 import { resolveCatalogMedia } from "./catalogMedia.js";
 import { extractLoadSpeed, type TireLoadSpeed } from "./tireSpecs.js";
+import { stockCortoSeVende } from "./stockCorto.js";
 
 export type CatalogAvailability = "available" | "check" | "out";
 export type PriceTier = "pvp1" | "pvp2" | "pvp3" | "pvp4";
@@ -135,6 +136,9 @@ export function extractCatalogSizeLabel(text: string): {
 
 export function availabilityFromStock(stock: number): CatalogAvailability {
   if (stock <= 0) return "out";
+  // Stock único entre locales (Competimotor, F-01 26-nov): con una ya está
+  // disponible; el chip «Consultar disponibilidad» le nombraba el stock al cliente.
+  if (stockCortoSeVende()) return "available";
   if (stock < 4) return "check";
   return "available";
 }

@@ -31,6 +31,7 @@ import { cantidadValidaDeLaFicha } from "../domain/cantidadGrande.js";
 import { listaVigenteDeLaPieza } from "./listaVigente.js";
 import { opcionEnDigitos } from "../domain/opcionEnLetras.js";
 import { asesoresActivos, notifyAdvisor } from "./advisorNotifications.js";
+import { minimoParaMostrar } from "../domain/stockCorto.js";
 
 export type FollowUpJobStatus =
   | "scheduled"
@@ -269,7 +270,8 @@ export function juegoEnLaMedida(tireSize: string | null | undefined, cantidad: n
   const medida = tireSize ? parseTireSize(tireSize) : null;
   if (!medida || catalogStatus().items === 0) return null;
   const necesarias = cantidad && cantidad > 0 ? cantidad : 4;
-  return searchBySize(medida).some((item) => item.stock >= necesarias);
+  // Con stock único (Competimotor) una alcanza: ver `minimoParaMostrar`.
+  return searchBySize(medida).some((item) => item.stock >= minimoParaMostrar(necesarias));
 }
 
 /** Los locales, para preguntar a cuál va quien todavía no eligió. */

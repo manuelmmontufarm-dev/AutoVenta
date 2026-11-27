@@ -160,6 +160,26 @@ export interface PoliticaComercial {
    * `domain/preciosEspeciales.ts`. Sin el campo, o vencido, no existe.
    */
   preciosEspeciales?: PreciosEspeciales | null;
+  // Sprint 1 — familia F-01 de la auditoría de Competimotor del 26-nov-2026.
+  /**
+   * OPCIONAL: el stock es UNO SOLO entre locales y los asesores consiguen las
+   * que faltan, así que una llanta con stock ≥ 1 SE MUESTRA y SE COTIZA por la
+   * cantidad pedida aunque no alcance para el juego (Competimotor: los chats
+   * 1331, 1344, 1555, 1588 y 469 recibieron «no hay» y el asesor vendió esas
+   * mismas llantas minutos después). Al cliente no se le nombra el stock; al
+   * asesor sí (alerta `stock_insuficiente`). Las cuentas viven en
+   * `domain/stockCorto.ts`. Sin el campo (Depot): la vitrina solo enseña lo que
+   * alcanza para el juego y la caja avisa o no firma, como siempre.
+   */
+  stockCortoSeVende?: boolean;
+  /**
+   * OPCIONAL: cuando el cliente dijo el USO con sus palabras («pantaneras»,
+   * «para lodo») y no escribió un tipo, el tipo que elige el modelo (M/T) no
+   * achica la búsqueda: entran todos los tipos de ese uso (Competimotor:
+   * «pantanera = M/T, y R/T también sirve»; chat 469, la KR601 R/T que vendió
+   * el asesor). Sin el campo (Depot): el tipo del modelo filtra como siempre.
+   */
+  usoDelClienteAmpliaElTipo?: boolean;
 }
 
 /** Una lista de precios de promoción por código, con su fin. */

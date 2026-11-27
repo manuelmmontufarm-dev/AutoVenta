@@ -132,30 +132,39 @@ describe("conv 469: «23575r15 tipo pantaneras»", () => {
     expect(codigos(salida)).not.toContain("1925");
   });
 
-  it("con la medida en la ficha, la M/T en pulgadas (30X9.5R15) entra como suya; la 31X10.5 no", async () => {
+  // Desde el 26-nov (auditoría, F-01): el cliente escribió «pantaneras», no un
+  // tipo, así que el M/T del modelo no filtra: manda el uso (lodo = M/T y R/T,
+  // `politica.usoDelClienteAmpliaElTipo`). El menú de tres sale de su medida
+  // (KR29 M/T, KR601 R/T, MT802 M/T); la 30X9.5 sigue contando como suya
+  // (ver «sin M/T en la métrica…»), solo que ya no entra en el tope de tres.
+  it("con la medida en la ficha: M/T y R/T de su medida; la 31X10.5 no", async () => {
     medidaDeLaFicha = "235/75R15";
     const salida = await buscarPorAro(TEXTO, { tipo: "M/T", ancho: 235 });
 
     expect(salida.encontrado).toBe(true);
-    expect(codigos(salida)).toEqual(expect.arrayContaining(["A0272", "A0092"]));
+    expect(codigos(salida)).toEqual(expect.arrayContaining(["A0272", "A0273"]));
     expect(codigos(salida)).not.toContain("A0320"); // 31X10.5R15: otra llanta
     expect(codigos(salida)).not.toContain("A0318"); // KR628 es A/T
   });
 
-  it("si el modelo pasa «pantanera» como tipo, es M/T", async () => {
+  // 26-nov (F-01): «pantanera» del cliente es un USO; el tipo del modelo no
+  // achica la búsqueda y entran la M/T y la R/T (la KR601 que vendió el asesor).
+  it("si el modelo pasa «pantanera» como tipo, busca por el uso: M/T y R/T", async () => {
     medidaDeLaFicha = "235/75R15";
     const salida = await buscarPorAro(TEXTO, { tipo: "pantanera" });
 
-    expect(salida.tipo_pedido).toBe("M/T");
+    expect(salida.tipo_pedido).toBeNull();
     expect(codigos(salida)).toContain("A0272");
+    expect(codigos(salida)).toContain("A0273");
   });
 
-  it("sin M/T en la métrica, las de pulgadas son la respuesta (no «no hay stock»)", async () => {
+  // 26-nov (F-01): y la R/T de su medida también, que es la que se vendió en 469.
+  it("sin M/T en la métrica, la de pulgadas y la R/T de su medida son la respuesta (no «no hay stock»)", async () => {
     catalogo = catalogo.filter((i) => i !== KR29 && i !== MT802);
     medidaDeLaFicha = "235/75R15";
     const salida = await buscarPorAro(TEXTO, { tipo: "M/T", ancho: 235 });
 
     expect(salida.encontrado).toBe(true);
-    expect(codigos(salida)).toEqual(["A0092"]);
+    expect([...codigos(salida)].sort()).toEqual(["A0092", "A0273"]);
   });
 });

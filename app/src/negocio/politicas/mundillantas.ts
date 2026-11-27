@@ -110,4 +110,11 @@ export const POLITICA_MUNDILLANTAS: PoliticaComercial = {
   // Lo que venden pero el bot NO cotiza: avisa al asesor del local (§3.3 punto 4).
   productosQueDerivaAlAsesor: ["lubricantes", "baterías", "aceites", "taller"],
   asesorEnReglas: "el asesor",
+  // Sprint 1 — F-01 (auditoría 26-nov-2026): un solo stock entre locales y los
+  // asesores consiguen las que faltan («Sí tenemos», 1331/1344/469). Con stock
+  // ≥ 1 se muestra y se cotiza lo pedido; al cliente no se le nombra el stock.
+  stockCortoSeVende: true,
+  // «Pantanera» = M/T, y R/T también sirve (Carlos y Jenny): el M/T que pone el
+  // modelo no deja fuera a la R/T cuando el cliente solo dijo el uso (469).
+  usoDelClienteAmpliaElTipo: true,
 };

@@ -11,7 +11,7 @@
  */
 import { sql } from "../db/client.js";
 import { findByCode } from "./catalog.js";
-import { recordatorioQueFalta } from "../domain/stockCorto.js";
+import { nombraElStockAlCliente, recordatorioQueFalta } from "../domain/stockCorto.js";
 import { createBotAlert } from "./followUps.js";
 
 export interface FaltanteVigente {
@@ -55,6 +55,10 @@ export function faltanteDeCotizacion(cotizacion: FilaCotizacion | null): Faltant
   const codigo = línea?.code;
   const cantidad = línea?.quantity;
   if (!cotizacion || !codigo || !cantidad) return null;
+  // Stock único entre locales (Competimotor): el faltante NO es algo que se le
+  // diga al cliente —ni el reenvío, ni la ruta directa, ni el candado de salida,
+  // ni el Guardián lo repiten—; el asesor lo recibió como alerta al cotizar.
+  if (!nombraElStockAlCliente()) return null;
 
   const producto = findByCode(codigo);
   if (!producto) return null;
