@@ -110,4 +110,7 @@ export const POLITICA_MUNDILLANTAS: PoliticaComercial = {
   // Lo que venden pero el bot NO cotiza: avisa al asesor del local (§3.3 punto 4).
   productosQueDerivaAlAsesor: ["lubricantes", "baterías", "aceites", "taller"],
   asesorEnReglas: "el asesor",
+  // Sprint 3 — auditoría 26-nov-2026 (F-04): la apertura larga (guía + «sin ese
+  // dato no le puedo asegurar…») dio medida en 58 % de los chats; la corta, 73 %.
+  aperturaCorta: true,
 };
