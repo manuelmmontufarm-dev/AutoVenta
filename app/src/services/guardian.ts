@@ -49,7 +49,7 @@ import { mencionaVehiculo } from "../domain/vehiculoEnTexto.js";
 import { z } from "zod";
 import { business, config } from "../config.js";
 import { modeloCanary, rutaCanary } from "../agent/canary.js";
-import { completarChat, modeloQueAtendio, tokensEscritosEnCache } from "../agent/chat.js";
+import { completarChat, marcaDelRespaldo, modeloQueAtendio, tokensEscritosEnCache } from "../agent/chat.js";
 import { sql } from "../db/client.js";
 import type { Stage } from "../domain/pipeline.js";
 import { ahorroDeLaCotizacion } from "../domain/ahorro.js";
@@ -113,6 +113,15 @@ const openai = new OpenAI({ apiKey: config.openai.apiKey });
  * indefinidamente la venta.
  */
 export const GUARDIAN_TIMEOUT_MS = 20_000;
+
+/**
+ * El intento con Claude dentro de esos 20 s (27-nov-2026). Con los 45 s de
+ * siempre, un Anthropic colgado se comía todo el tiempo del Guardián y el
+ * borrador salía sin revisar aunque gpt-5.5 estuviera listo para hacerlo.
+ * Haiku 5.5 tardó p99 10,9 s en 1.184 revisiones de producción (24–27 nov):
+ * 12 s deja pasar casi todas y le quedan 8 s al respaldo.
+ */
+export const GUARDIAN_TIEMPO_CLAUDE_MS = 12_000;
 
 /** Mensajes de contexto que ve el revisor. Más historia ≈ más tokens del cliente. */
 const MENSAJES_DE_CONTEXTO = 16;
@@ -1219,7 +1228,7 @@ export async function revisarConGuardian(
         max_completion_tokens: 2000,
         ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
         stream: false,
-      }, { esfuerzo: config.anthropic.effortGuardian }));
+      }, { esfuerzo: config.anthropic.effortGuardian, tiempoClaudeMs: GUARDIAN_TIEMPO_CLAUDE_MS }));
     const respuesta = await conTiempoMaximo(completar(), timeoutMs);
     const ms = Date.now() - inicio;
     const texto = respuesta.choices[0]?.message?.content ?? "";
@@ -1238,7 +1247,7 @@ export async function revisarConGuardian(
       cacheWriteTokens: tokensEscritosEnCache(respuesta),
       route: rutaCanary(opciones.tipo === "seguimiento" ? "guardian_seguimiento" : "guardian", conversation.phone),
       callType: "guardian",
-      tools: [],
+      tools: [marcaDelRespaldo(respuesta)].filter((marca): marca is string => marca !== null),
     }).catch(() => undefined);
 
     await sql`

@@ -31,14 +31,24 @@
  * Sin saldo anotado no hay aviso: no se sabe cuánto queda, y decir un número
  * sería inventarlo. El otro aviso (`avisosASoporte.ts`) cubre el caso de todos
  * modos: si el crédito se acaba, el primer turno que falle avisa con la causa.
+ *
+ * Y EL DE ANTHROPIC (27-nov-2026). Desde el 24-nov el vendedor y el Guardián de
+ * Depot corren en Claude, y Depot, Competimotor y el simulador comparten la
+ * clave. Mismo método: soporte anota el saldo que ve en console.anthropic.com y
+ * se le resta lo que este bot registró con modelos `claude-` en `ai_runs`, a la
+ * tarifa de la factura (con el recargo de lo escrito al caché). Siempre es una
+ * ESTIMACIÓN: no hay clave de administrador de Anthropic en el servicio, y no
+ * ve lo que gastan los otros servicios ni el simulador. Se guarda en `settings`
+ * (`saldo_de_anthropic`) para no tocar la tabla de OpenAI. Si se acaba igual,
+ * el bot no se calla: contesta el respaldo y `agent/chat.ts` avisa a soporte.
  */
 import { z } from "zod";
 import { config } from "../config.js";
 import { sql } from "../db/client.js";
-import { textoDeSaldoBajo } from "../domain/falloDelBot.js";
+import { textoDeSaldoBajo, type ProveedorDeIA } from "../domain/falloDelBot.js";
 import { negocio } from "../negocio/index.js";
 import { avisarASoporte } from "./avisosASoporte.js";
-import { costoDeTokens } from "./billing.js";
+import { costoDeTokens, costoEnUsd } from "./billing.js";
 
 export const UMBRAL_POR_DEFECTO_USD = 3;
 
@@ -67,7 +77,15 @@ export interface EstadoDelSaldo {
 const EntradaSchema = z.object({
   saldoUsd: z.coerce.number().min(0, "El saldo no puede ser negativo").max(100_000),
   umbralUsd: z.coerce.number().min(0).max(10_000).default(UMBRAL_POR_DEFECTO_USD),
+  proveedor: z.enum(["openai", "anthropic"]).default("openai"),
 });
+
+/** Dónde vive el saldo anotado de Anthropic (ver arriba). */
+const CLAVE_ANTHROPIC = "saldo_de_anthropic";
+
+/** La causa del incidente `saldo_bajo`: la de OpenAI queda como estaba. */
+const causaDeSaldoBajo = (proveedor: ProveedorDeIA): string =>
+  proveedor === "anthropic" ? "saldo_bajo_anthropic" : "saldo_bajo";
 
 const centavos = (n: number): number => Math.round(n * 100) / 100;
 
@@ -134,9 +152,40 @@ async function costoRegistradoPorElBot(desde: Date): Promise<number> {
   );
 }
 
+/**
+ * Lo que este bot gastó en Claude desde `desde`, a la tarifa de la factura.
+ * Claude cobra aparte lo que ESCRIBE al caché (más caro que la entrada).
+ */
+async function costoClaudeRegistradoPorElBot(desde: Date): Promise<number> {
+  const filas = await sql<{ model: string; inp: string | null; cached: string | null; escritos: string | null; outp: string | null }[]>`
+    select model, sum(input_tokens) as inp, sum(cached_input_tokens) as cached,
+           sum(cache_write_tokens) as escritos, sum(output_tokens) as outp
+    from ai_runs where created_at >= ${desde} and model like 'claude-%' group by model
+  `;
+  return filas.reduce((total, f) => total + costoEnUsd(f.model, {
+    input: Number(f.inp ?? 0), cached: Number(f.cached ?? 0),
+    cacheWrite: Number(f.escritos ?? 0), output: Number(f.outp ?? 0),
+  }), 0);
+}
+
 // ── El saldo anotado ─────────────────────────────────────────────────────────
 
-export async function leerSaldoAnotado(): Promise<SaldoAnotado | null> {
+async function leerSaldoDeAnthropic(): Promise<SaldoAnotado | null> {
+  const [fila] = await sql<{ value: { saldoUsd: number; umbralUsd: number; anotadoAt: string; anotadoPor: string | null } }[]>`
+    select value from settings where key = ${CLAVE_ANTHROPIC}
+  `;
+  if (!fila) return null;
+  return {
+    saldoUsd: Number(fila.value.saldoUsd),
+    umbralUsd: Number(fila.value.umbralUsd),
+    anotadoAt: new Date(fila.value.anotadoAt),
+    anotadoPor: fila.value.anotadoPor ?? null,
+    costoDelDiaAlAnotar: null,
+  };
+}
+
+export async function leerSaldoAnotado(proveedor: ProveedorDeIA = "openai"): Promise<SaldoAnotado | null> {
+  if (proveedor === "anthropic") return leerSaldoDeAnthropic();
   const [fila] = await sql<{
     saldo_usd: string; umbral_usd: string; anotado_at: Date; anotado_por: string | null;
     costo_del_dia_al_anotar: string | null;
@@ -162,7 +211,21 @@ export async function leerSaldoAnotado(): Promise<SaldoAnotado | null> {
  * Deja el aviso listo para el próximo cruce: cierra el incidente `saldo_bajo`.
  */
 export async function anotarSaldo(input: unknown, quien: string | null, ahora = new Date()): Promise<EstadoDelSaldo> {
-  const { saldoUsd, umbralUsd } = EntradaSchema.parse(input ?? {});
+  const { saldoUsd, umbralUsd, proveedor } = EntradaSchema.parse(input ?? {});
+  if (proveedor === "anthropic") {
+    await sql`
+      insert into settings (key, value, updated_at)
+      values (${CLAVE_ANTHROPIC}, ${sql.json({ saldoUsd, umbralUsd, anotadoAt: ahora.toISOString(), anotadoPor: quien })}, ${ahora})
+      on conflict (key) do update set value = excluded.value, updated_at = excluded.updated_at
+    `;
+    await sql`
+      update incidentes_del_bot set estado = 'cerrado', cerrado_at = ${ahora}
+      where tipo = 'saldo_bajo' and causa = ${causaDeSaldoBajo("anthropic")} and estado = 'abierto'
+    `;
+    const estado = await estadoDelSaldo("anthropic");
+    if (!estado) throw new Error("El saldo no quedó guardado");
+    return estado;
+  }
   let costoDelDia: number | null = null;
   if (hayLecturaDeOpenAI()) {
     try {
@@ -184,7 +247,7 @@ export async function anotarSaldo(input: unknown, quien: string | null, ahora = 
   `;
   await sql`
     update incidentes_del_bot set estado = 'cerrado', cerrado_at = ${ahora}
-    where tipo = 'saldo_bajo' and estado = 'abierto'
+    where tipo = 'saldo_bajo' and causa = ${causaDeSaldoBajo("openai")} and estado = 'abierto'
   `;
   const estado = await estadoDelSaldo();
   if (!estado) throw new Error("El saldo no quedó guardado");
@@ -192,9 +255,17 @@ export async function anotarSaldo(input: unknown, quien: string | null, ahora = 
 }
 
 /** Cuánto queda, con la mejor fuente disponible. null = nadie anotó un saldo todavía. */
-export async function estadoDelSaldo(): Promise<EstadoDelSaldo | null> {
-  const anotado = await leerSaldoAnotado();
+export async function estadoDelSaldo(proveedor: ProveedorDeIA = "openai"): Promise<EstadoDelSaldo | null> {
+  const anotado = await leerSaldoAnotado(proveedor);
   if (!anotado) return null;
+  if (proveedor === "anthropic") {
+    const gastado = await costoClaudeRegistradoPorElBot(anotado.anotadoAt);
+    const restante = anotado.saldoUsd - gastado;
+    return {
+      anotado, gastadoUsd: centavos(gastado), restanteUsd: centavos(restante),
+      fuente: "bot", aproximado: true, bajo: restante < anotado.umbralUsd,
+    };
+  }
   // Se anotó con la foto del día → se resta con la misma fuente. Si la clave de
   // administrador se quitó después, o se anotó sin ella, se estima con el bot.
   const conOpenAI = hayLecturaDeOpenAI() && anotado.costoDelDiaAlAnotar !== null;
@@ -219,16 +290,17 @@ export type ResultadoDeLaRevision = "sin_anotar" | "ok" | "avisado" | "ya_avisad
  * Si no se puede saber el saldo (OpenAI no contesta), no avisa: se reintenta
  * en la próxima vuelta. Nunca lanza.
  */
-export async function revisarSaldo(ahora = new Date()): Promise<ResultadoDeLaRevision> {
+export async function revisarSaldo(ahora = new Date(), proveedor: ProveedorDeIA = "openai"): Promise<ResultadoDeLaRevision> {
+  const causa = causaDeSaldoBajo(proveedor);
   try {
-    const estado = await estadoDelSaldo();
+    const estado = await estadoDelSaldo(proveedor);
     if (!estado) return "sin_anotar";
     if (!estado.bajo) {
       // Volvió a estar por encima (se subió el saldo o se bajó el umbral): el
       // aviso queda listo para el próximo cruce.
       await sql`
         update incidentes_del_bot set estado = 'cerrado', cerrado_at = ${ahora}
-        where tipo = 'saldo_bajo' and estado = 'abierto'
+        where tipo = 'saldo_bajo' and causa = ${causa} and estado = 'abierto'
       `;
       return "ok";
     }
@@ -237,8 +309,8 @@ export async function revisarSaldo(ahora = new Date()): Promise<ResultadoDeLaRev
     const abierto = await sql<{ id: number }[]>`
       insert into incidentes_del_bot (tipo, causa, detalle, abierto_at, ultimo_fallo_at, ultimo_aviso_at)
       values (
-        'saldo_bajo', 'saldo_bajo',
-        ${`Quedan $${estado.restanteUsd.toFixed(2)} (umbral $${estado.anotado.umbralUsd.toFixed(2)}, fuente ${estado.fuente})`},
+        'saldo_bajo', ${causa},
+        ${`Quedan $${estado.restanteUsd.toFixed(2)} (umbral $${estado.anotado.umbralUsd.toFixed(2)}, fuente ${estado.fuente}, ${proveedor})`},
         ${ahora}, ${ahora}, ${ahora}
       )
       on conflict (tipo, causa) where estado = 'abierto' do nothing
@@ -249,13 +321,13 @@ export async function revisarSaldo(ahora = new Date()): Promise<ResultadoDeLaRev
       clase: "saldo_bajo",
       texto: textoDeSaldoBajo({
         cliente: negocio.nombre, restanteUsd: estado.restanteUsd,
-        umbralUsd: estado.anotado.umbralUsd, aproximado: estado.aproximado,
+        umbralUsd: estado.anotado.umbralUsd, aproximado: estado.aproximado, proveedor,
       }),
       incidenteId: Number(abierto[0].id),
     });
     return "avisado";
   } catch (error) {
-    console.warn("⚠️ No se pudo revisar el saldo de OpenAI:", error instanceof Error ? error.message : error);
+    console.warn(`⚠️ No se pudo revisar el saldo de ${proveedor}:`, error instanceof Error ? error.message : error);
     return "sin_dato";
   }
 }
@@ -268,6 +340,9 @@ export function iniciarVigilanciaDelSaldo(): void {
   const vuelta = (): void => {
     void revisarSaldo().then((resultado) => {
       if (resultado === "avisado") console.log("🟠 Saldo de OpenAI bajo: aviso enviado a soporte");
+    });
+    void revisarSaldo(new Date(), "anthropic").then((resultado) => {
+      if (resultado === "avisado") console.log("🟠 Saldo de Anthropic bajo: aviso enviado a soporte");
     });
   };
   setTimeout(vuelta, 45_000).unref();

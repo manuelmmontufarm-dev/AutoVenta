@@ -14,7 +14,7 @@ import { politica } from "../negocio/politica.js";
 import { anuncioDeLaConversacion } from "../services/anuncio.js";
 import OpenAI from "openai";
 import { nuevoClienteOpenAI } from "./openaiCliente.js";
-import { completarChat, modeloQueAtendio, tokensEscritosEnCache } from "./chat.js";
+import { completarChat, marcaDelRespaldo, modeloQueAtendio, tokensEscritosEnCache } from "./chat.js";
 import { esModeloClaude } from "./claudeCliente.js";
 import { aroDadoPorElCliente, aroRespondido, medidaConfirmadaPorCliente } from "../domain/medidaConfirmada.js";
 import { avisoRegistradoEnElCiclo } from "../services/avisoAlAsesor.js";
@@ -879,8 +879,11 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
       );
       break;
     }
-    // Si Claude falló y contestó el respaldo, el turno se cobra a quien contestó.
+    // Si Claude falló y contestó el respaldo, el turno se cobra a quien contestó
+    // y `ai_runs.tools` dice por qué (`respaldo_claude:<motivo>`).
     modeloUsado = modeloQueAtendio(response, modeloUsado);
+    const respaldoDeLaRonda = marcaDelRespaldo(response);
+    if (respaldoDeLaRonda && !usedTools.includes(respaldoDeLaRonda)) usedTools.push(respaldoDeLaRonda);
     inputTokens += response.usage?.prompt_tokens ?? 0;
     outputTokens += response.usage?.completion_tokens ?? 0;
     cachedInputTokens += response.usage?.prompt_tokens_details?.cached_tokens ?? 0;
@@ -1089,6 +1092,8 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
       } : {}),
     }, { esfuerzo: config.anthropic.effortVendedor });
     modeloUsado = modeloQueAtendio(rescate, modeloUsado);
+    const respaldoDelRescate = marcaDelRespaldo(rescate);
+    if (respaldoDelRescate && !usedTools.includes(respaldoDelRescate)) usedTools.push(respaldoDelRescate);
     inputTokens += rescate.usage?.prompt_tokens ?? 0;
     outputTokens += rescate.usage?.completion_tokens ?? 0;
     cachedInputTokens += rescate.usage?.prompt_tokens_details?.cached_tokens ?? 0;

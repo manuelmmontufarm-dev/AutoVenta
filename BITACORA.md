@@ -1,3 +1,19 @@
+## 27-nov-2026 · Bot · Si Claude falla: gpt-5.5 contesta rápido y soporte se entera (PR, sin merge)
+
+- **Qué:** `agent/chat.ts` pone a Claude en pausa tras un fallo del proveedor (5 min la cuenta si es saldo o clave,
+  1 min el modelo si está caído o colgado, `retry-after` si es 429) y avisa a soporte una vez cuando hace falta una
+  persona (saldo, clave, modelo mal escrito) con un incidente propio `claude_con_respaldo`; «Claude volvió» al
+  cerrar. Sin reintento del SDK cuando hay respaldo. Guardián: 12 s para Claude dentro de sus 20 s. `max_tokens`
+  cae al respaldo. `ai_runs.tools` lleva `respaldo_claude:<motivo>`. Causas y textos nombran a Anthropic.
+  Saldo de Anthropic anotable en Ajustes → Bot (`settings.saldo_de_anthropic`, estimado con `ai_runs` claude-).
+- **Por qué:** Depot, Competimotor y el simulador comparten la clave de Anthropic; con el saldo agotado el respaldo
+  contestaba pero nadie se enteraba, un 429 hacía esperar `retry-after` al cliente, un Anthropic colgado dejaba al
+  Guardián sin revisar y una respuesta cortada llegaba al cliente. Informe:
+  `docs/reportes-historicos/2026-11-27-respaldo-claude.md`.
+- **Probado:** 16 casos con el SDK real contra un Anthropic de mentira; turno entero con base local; las mismas
+  escenas contra `main` para el «antes». Una llamada real (<$0,01) para la forma de los errores.
+- **Horas:** ~1,5 (sesión de Claude).
+
 ## 27-nov-2026 · Bot · Competimotor: cierre de los cinco sprints de la auditoría del 26-nov (revisión final)
 
 - **Qué:** integración de los sprints 1 a 5 en `fix/auditoria-2026-11-26` (F-01 «Sí tenemos», F-02/F-03 precio y
