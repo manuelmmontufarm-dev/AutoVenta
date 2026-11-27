@@ -28,7 +28,8 @@
 
 - **Qué:** todo detrás de `politica.casosSueltosF06` (solo `mundillantas`), salvo el doble botón.
   - **Otra ciudad:** a quien dice que está en otra ciudad se le explica el envío en ese turno (frase del perfil
-    `envioAlClienteDeOtraCiudad`: Laar Courier / Transportes Bemaut, lo paga el cliente, el costo lo confirma un asesor)
+    `envioAlClienteDeOtraCiudad`: Laar Courier / Transportes Bemaut, lo paga el cliente; costo y forma de pago los confirma
+    un asesor —la forma de pago a distancia no está confirmada, ronda 2 de la coordinadora—)
     en vez de «no tenemos local fuera» o del relleno («Claro, le ayudo con eso»); la respuesta fija con un solo local dice
     dirección + envío; «Estoy. De quitto» ya es Quito y no agenda visita de hoy; «estoy por Manta ahorita… el próximo fin
     de semana» (845, caso sano) es `viene`; con un solo local no sale «¿cuál local le queda mejor?».

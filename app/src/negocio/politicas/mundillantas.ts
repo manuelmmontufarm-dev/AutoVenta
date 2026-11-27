@@ -63,9 +63,10 @@ export const POLITICA_MUNDILLANTAS: PoliticaComercial = {
   // Auditoría 26-nov-2026, familia F-06 (sprint 5): ver `PoliticaComercial.casosSueltosF06`.
   casosSueltosF06: true,
   // La misma regla de `ENVIO_A_OTRAS_CIUDADES` (Jenny, 18-nov), dicha al cliente.
-  // «Por transferencia»: es la forma de pago confirmada que se hace a distancia.
+  // Solo lo confirmado: courier y que el envío lo paga el cliente. Costo y forma
+  // de pago a distancia NO están confirmados: los dice el asesor (coordinadora, ronda 2).
   envioAlClienteDeOtraCiudad:
-    "Le podemos enviar las llantas a su ciudad por *Laar Courier* o *Transportes Bemaut*: el envío lo paga el cliente y el pago se hace por transferencia. El costo del envío se lo confirma un asesor.",
+    "Le podemos enviar las llantas a su ciudad por *Laar Courier* o *Transportes Bemaut*; el envío lo paga el cliente. El costo del envío y la forma de pago se los confirma un asesor.",
   descuentoEnEfectivo: null,
   // No ofrecieron beneficio por redes; si lo piden, va acá palabra por palabra.
   beneficioDeRedes: null,
