@@ -40,6 +40,23 @@
   escenas contra `main` para el «antes». Una llamada real (<$0,01) para la forma de los errores.
 - **Horas:** ~1,5 (sesión de Claude).
 
+## 27-nov-2026 · Bot · Costo: el caché del vendedor Claude se guarda 1 hora y deja de partirse por conversación
+
+- **Qué:** rama `perf/cache-vendedor`. (a) La línea «La tarjeta del Kanban sigue en X» sale del system y va con
+  los hechos del turno (`hechoDeLaTarjeta`). (b) El prefijo fijo del vendedor (herramientas + system) se cachea
+  con TTL de 1 hora (`cache: "vendedor"` en `chatClaude.ts`, punto 5). (c) Punto de caché al final del mensaje
+  del cliente, antes de los hechos. En el primer turno (historial vacío) los hechos ya no suben al system.
+  Migración 043 (`ai_runs.cache_write_1h_tokens`) y `billing.ts` cobra esa parte a 2×.
+- **Por qué:** producción 25–27-nov: el 82 % del costo del vendedor Sonnet 5.5 ($9,51 de $11,57) era escribir al
+  caché; solo 28 % de los turnos releía el prefijo (vencía a los 5 min y la línea del Kanban lo partía en hasta 5).
+- **Probado:** tráfico real repetido con cada opción (`scripts/sim/simular-ttl-cache.mjs`): prefijo de $0,0145
+  a $0,0049 por turno, ~$42/mes en Depot. Simulador con 6,5 min entre chats: vendedor $0,066 → $0,028–0,031 por
+  conversación (la primera, en frío, $0,088); mismas llantas y precios. Suite: fallan los mismos 3 archivos que
+  en `main` (hashes de Depot, unidad en la cantidad, bitácora del panel). `sim:humo` Depot y ejemplo OK.
+  Informe: `docs/reportes-historicos/2026-11-27-cache-vendedor.md`.
+- **Pendiente:** PR sin merge. Tras el deploy, medir una semana por turno (consulta en el informe, sección 6).
+  Aparte: el primer turno manda el mensaje del cliente dos veces (el saludo queda después en el historial).
+- **Horas:** ~0,6 (Claude).
 ## 27-nov-2026 · Bot · Competimotor: cierre de los cinco sprints de la auditoría del 26-nov (revisión final)
 
 - **Qué:** integración de los sprints 1 a 5 en `fix/auditoria-2026-11-26` (F-01 «Sí tenemos», F-02/F-03 precio y

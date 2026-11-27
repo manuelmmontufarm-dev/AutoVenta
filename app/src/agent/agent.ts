@@ -14,7 +14,7 @@ import { politica } from "../negocio/politica.js";
 import { anuncioDeLaConversacion } from "../services/anuncio.js";
 import OpenAI from "openai";
 import { nuevoClienteOpenAI } from "./openaiCliente.js";
-import { completarChat, marcaDelRespaldo, modeloQueAtendio, tokensEscritosEnCache } from "./chat.js";
+import { completarChat, marcaDelRespaldo, modeloQueAtendio, tokensEscritosEnCache, tokensEscritosEnCache1h } from "./chat.js";
 import { esModeloClaude } from "./claudeCliente.js";
 import { aroDadoPorElCliente, aroRespondido, medidaConfirmadaPorCliente } from "../domain/medidaConfirmada.js";
 import { avisoRegistradoEnElCiclo } from "../services/avisoAlAsesor.js";
@@ -54,7 +54,7 @@ import { hechoParaElChat } from "../domain/anuncio.js";
 import { getAnunciosVigentes } from "../services/anunciosActivos.js";
 import { getAiConfig, getPublishedStagePrompt, getStoreHours } from "../services/settings.js";
 import { getPhaseFlags, toolEnabled } from "../services/phases.js";
-import { buildSystemPrompt } from "./prompts.js";
+import { buildSystemPrompt, hechoDeLaTarjeta } from "./prompts.js";
 import { buildTools, type AgentContext } from "./tools.js";
 import { getActiveDiscountOffer } from "../services/discountOffers.js";
 import {
@@ -199,6 +199,8 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   let cachedInputTokens = 0;
   /** Solo Claude: lo que se escribió al caché se cobra aparte (ver services/billing.ts). */
   let cacheWriteTokens = 0;
+  /** De lo anterior, lo escrito con TTL de 1 hora (se cobra 2×; ver chatClaude.ts, punto 5). */
+  let cacheWrite1hTokens = 0;
   let reasoningTokens = 0;
   const usedTools: string[] = [];
   const executedCalls = new Set<string>();
@@ -345,8 +347,8 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     objective: stagePrompt.objective,
     prompt: stagePrompt.prompt,
     version: stagePrompt.version,
-    storedStage: ctx.conversation.stage,
   }, storeHours);
+  const hechoTarjeta = hechoDeLaTarjeta(stagePrompt.stage, ctx.conversation.stage);
   // ¿La vitrina que ya salió es de otra medida que la que acaba de pedir?
   // (conv 11881, 27-ago: muestra por aro 15 re-etiquetada como 225/70R15, con
   // el precio de una 185/55R15 adentro). La medida sale del mensaje de ESTE
@@ -680,6 +682,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   let recordatorioDeObligacion: string | null = null;
   const bloquesVolatiles: ChatCompletionMessageParam[] = [
     { role: "system", content: salesFactsPrompt(salesFacts, ctx.resumedFromHuman) },
+    ...(hechoTarjeta ? [{ role: "system" as const, content: hechoTarjeta }] : []),
     ...(aceptoLaOferta && !acuseTrasObjecion
       ? [{ role: "system" as const, content: ordenDeCotizarYa(userText) }] : []),
     ...(ordenDeEquivalente && !acuseTrasObjecion
@@ -866,7 +869,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
           verbosity: "low" as const,
           prompt_cache_retention: "24h" as const,
         } : {}),
-      }, { esfuerzo: config.anthropic.effortVendedor });
+      }, { esfuerzo: config.anthropic.effortVendedor, cache: "vendedor" });
     } catch (error) {
       falloEnLoop = true;
       ultimoError = error;
@@ -888,6 +891,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     outputTokens += response.usage?.completion_tokens ?? 0;
     cachedInputTokens += response.usage?.prompt_tokens_details?.cached_tokens ?? 0;
     cacheWriteTokens += tokensEscritosEnCache(response);
+    cacheWrite1hTokens += tokensEscritosEnCache1h(response);
     reasoningTokens += response.usage?.completion_tokens_details?.reasoning_tokens ?? 0;
     const message = response.choices[0]?.message;
     if (!message) {
@@ -958,6 +962,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
         outputTokens,
         cachedInputTokens,
         cacheWriteTokens,
+        cacheWrite1hTokens,
         reasoningTokens,
         iterations: iteration + 1,
         route: rutaCanary(ctx.conversation.stage === "cotizacion_enviada" || ctx.conversation.stage === "seguimiento_venta" ? "routine_stage" : "commercial", ctx.customerPhone),
@@ -1031,6 +1036,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
           outputTokens,
           cachedInputTokens,
           cacheWriteTokens,
+          cacheWrite1hTokens,
           reasoningTokens,
           iterations: iteration + 1,
           route: rutaCanary("exact_tool_reply", ctx.customerPhone),
@@ -1090,7 +1096,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
         verbosity: "low" as const,
         prompt_cache_retention: "24h" as const,
       } : {}),
-    }, { esfuerzo: config.anthropic.effortVendedor });
+    }, { esfuerzo: config.anthropic.effortVendedor, cache: "vendedor" });
     modeloUsado = modeloQueAtendio(rescate, modeloUsado);
     const respaldoDelRescate = marcaDelRespaldo(rescate);
     if (respaldoDelRescate && !usedTools.includes(respaldoDelRescate)) usedTools.push(respaldoDelRescate);
@@ -1098,6 +1104,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     outputTokens += rescate.usage?.completion_tokens ?? 0;
     cachedInputTokens += rescate.usage?.prompt_tokens_details?.cached_tokens ?? 0;
     cacheWriteTokens += tokensEscritosEnCache(rescate);
+    cacheWrite1hTokens += tokensEscritosEnCache1h(rescate);
     reasoningTokens += rescate.usage?.completion_tokens_details?.reasoning_tokens ?? 0;
     let texto = rescate.choices[0]?.message?.content?.trim();
     // Segundo intento SIN razonamiento. `finish_reason: "length"` significa que
@@ -1138,6 +1145,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
         outputTokens,
         cachedInputTokens,
         cacheWriteTokens,
+        cacheWrite1hTokens,
         reasoningTokens,
         iterations: config.openai.maxToolIterations + 1,
         route: rutaCanary(cadenaSanaFinalizada ? "tool_chain_finalized" : "rescue", ctx.customerPhone),
@@ -1164,6 +1172,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     outputTokens,
     cachedInputTokens,
     cacheWriteTokens,
+    cacheWrite1hTokens,
     reasoningTokens,
     iterations: config.openai.maxToolIterations + 1,
     route: "failed",

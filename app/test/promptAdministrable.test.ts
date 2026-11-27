@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 
 let buildSystemPrompt: typeof import("../src/agent/prompts.js").buildSystemPrompt;
+let hechoDeLaTarjeta: typeof import("../src/agent/prompts.js").hechoDeLaTarjeta;
 let AiConfigSchema: typeof import("../src/services/settings.js").AiConfigSchema;
 
 const ocurrencias = (texto: string, fragmento: string) =>
@@ -14,7 +15,7 @@ describe("el prompt administrable", () => {
     process.env.WHATSAPP_VERIFY_TOKEN = "test";
     process.env.WHATSAPP_PHONE_ID = "test";
     process.env.DATABASE_URL = "postgresql://manue@localhost/autoventa_test";
-    ({ buildSystemPrompt } = await import("../src/agent/prompts.js"));
+    ({ buildSystemPrompt, hechoDeLaTarjeta } = await import("../src/agent/prompts.js"));
     ({ AiConfigSchema } = await import("../src/services/settings.js"));
   });
 
@@ -124,10 +125,16 @@ describe("el prompt administrable", () => {
       objective: "Presentar opciones reales.",
       prompt: "",
       version: 101,
-      storedStage: "seguimiento_venta",
     });
-    expect(noLineal).toContain("La tarjeta del Kanban sigue en seguimiento_venta");
-    expect(noLineal).toContain("no borres los datos ni la cotización ya conseguida");
+    // La tarjeta del Kanban es un dato de ESTA conversación: va con los hechos
+    // del turno, no en el system que Claude cachea entre conversaciones
+    // (27-nov-2026, docs/reportes-historicos/2026-11-27-cache-vendedor.md).
+    expect(noLineal).not.toContain("La tarjeta del Kanban");
+    expect(hechoDeLaTarjeta("medida_confirmada", "seguimiento_venta")).toBe(
+      "La tarjeta del Kanban sigue en seguimiento_venta; no borres los datos ni la cotización ya conseguida.",
+    );
+    expect(hechoDeLaTarjeta("medida_confirmada", "medida_confirmada")).toBeNull();
+    expect(hechoDeLaTarjeta("medida_confirmada", null)).toBeNull();
   });
 
   it("manda solo las reglas de la fase operativa elegida", () => {

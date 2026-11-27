@@ -21,7 +21,7 @@ import type { ChatCompletion } from "openai/resources/chat/completions";
 import { config, type EsfuerzoClaude } from "../config.js";
 import { causaDelFallo, type CausaDeFallo } from "../domain/falloDelBot.js";
 import { chatReasoningEffort } from "./aiRequestPolicy.js";
-import { completarConClaude, RechazoDeClaude, type PeticionChat } from "./chatClaude.js";
+import { completarConClaude, RechazoDeClaude, type CacheDeClaude, type PeticionChat } from "./chatClaude.js";
 import { CLAUDE_MAX_RETRIES, CLAUDE_TIMEOUT_MS, esModeloClaude } from "./claudeCliente.js";
 
 /** Respuestas que NO vinieron del modelo pedido, y de cuál vinieron. */
@@ -154,6 +154,8 @@ function marcarDeAnthropic(error: unknown): unknown {
 
 export interface OpcionesDeChat {
   esfuerzo?: EsfuerzoClaude;
+  /** Qué caché pide la llamada (el vendedor usa el de 1 hora). Ver `chatClaude.ts`. */
+  cache?: CacheDeClaude;
   /**
    * Tope de espera del intento con Claude. El Guardián tiene 20 s en total: si
    * Claude se lleva los 45 s de siempre, el respaldo nunca alcanza a revisar.
@@ -181,6 +183,7 @@ export async function completarChat(
   try {
     const respuesta = await completarConClaude(peticion, {
       esfuerzo: opciones.esfuerzo ?? "low",
+      cache: opciones.cache,
       http: {
         timeout: opciones.tiempoClaudeMs ?? CLAUDE_TIMEOUT_MS,
         // Con respaldo, reintentar es hacer esperar al cliente por algo que
@@ -239,4 +242,12 @@ export function marcaDelRespaldo(respuesta: ChatCompletion): string | null {
  */
 export function tokensEscritosEnCache(respuesta: ChatCompletion): number {
   return (respuesta.usage as { cache_write_tokens?: number } | undefined)?.cache_write_tokens ?? 0;
+}
+
+/**
+ * De lo escrito al caché, la parte con TTL de 1 hora (se cobra 2× la entrada en
+ * vez de 1,25×). Va DENTRO de `tokensEscritosEnCache`. Solo el vendedor en Claude.
+ */
+export function tokensEscritosEnCache1h(respuesta: ChatCompletion): number {
+  return (respuesta.usage as { cache_write_1h_tokens?: number } | undefined)?.cache_write_1h_tokens ?? 0;
 }
