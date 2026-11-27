@@ -220,6 +220,9 @@ describe("el orden de los candados en el turno", () => {
       // 30 seguimientos idénticos en 27 chats). Solo corre en `seguimiento`:
       // va sobre el texto definitivo, después de todo lo que reescribe.
       "sin_calco_del_hilo",
+      // El seguimiento que solo dice «quedo pendiente» no sale (Sprint 4,
+      // Competimotor 1273, todos los clientes). Sobre el texto definitivo.
+      "sin_seguimiento_vacio",
       // El «¿Cuál le cotizo…?» del menú sin elegir, después del Guardián y antes
       // de separar la pregunta (revisión final del sprint 1, 21-oct).
       "menu_sin_elegir_pregunta_cual",
@@ -340,7 +343,7 @@ describe("el orden de los candados en el turno", () => {
     // reciente ya lo cubre `sin_calco_reciente`, bloque a bloque.
     expect(pasosPara("respuesta").map((p) => p.nombre))
       .toEqual(nombres.filter((n) => ![
-        "sin_calco_del_hilo", "el_cliente_tomo_el_turno",
+        "sin_calco_del_hilo", "sin_seguimiento_vacio", "el_cliente_tomo_el_turno",
         "sin_precio_viejo_de_la_cotizacion", "seguimiento_en_un_solo_mensaje",
       ].includes(n)));
   });
