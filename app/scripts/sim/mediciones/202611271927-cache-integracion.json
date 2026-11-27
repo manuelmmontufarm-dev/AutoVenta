@@ -1,0 +1,96 @@
+{
+  "etiqueta": "integracion",
+  "marca": "I27",
+  "pausaMin": 1,
+  "conversaciones": [
+    {
+      "n": 1,
+      "conversacion": 1,
+      "turnosOk": 3,
+      "vendedor": [
+        {
+          "fase": "medida_confirmada",
+          "rondas": 2,
+          "entrada": 11852,
+          "leido": 5376,
+          "escrito": 0,
+          "escrito1h": 0,
+          "salida": 104,
+          "usd": 0.00573,
+          "modelo": "gpt-5.4-mini"
+        },
+        {
+          "fase": "medida_confirmada",
+          "rondas": 2,
+          "entrada": 28839,
+          "leido": 13890,
+          "escrito": 11587,
+          "escrito1h": 7527,
+          "salida": 347,
+          "usd": 0.05184,
+          "modelo": "claude-sonnet-5-5"
+        }
+      ],
+      "usdVendedor": 0.0575692,
+      "usdTotal": 0.059931019999999995,
+      "transcripcion": [
+        "CLIENTE: ¡Hola! Quiero más información sobre el costo de un juego completo de llantas 225/70 R15 para camioneta 🛻🛻 MAZDA BT 50...buena tarde... gracias",
+        "BOT: ¡Hola! 👋 Soy Martín, de Depot Tire. Le cotizo al instante con stock y precios reales, comparo modelos y le armo su cotización para tienda.",
+        "BOT: 🖤 *PROMOCIÓN BLACK FRIDAY* 🖤\nEl Black Friday se vive TODO NOVIEMBRE\n\n🛞 *−60 % en cada 2.ª llanta* Falken y Kenda\n🛞 *−25 %* en Winrun\n🔧 *−50 %* en alineación, balanceo, ABC de frenos y enllantaje\n🛢️ *−40 %* en cambio de aceite\n✅ Revisión de 7 puntos GRATIS\n\nVálido hasta el 30 de noviembre.",
+        "BOT: [image] Opciones enviadas: KENDA KR15 · KENDA KR33A · KENDA KR100",
+        "BOT: 1 · KENDA KR15 — 2 × $132.94 + 2 × $53.18 = $372.24 (−60 % en la 2.ª llanta)\n2 · KENDA KR33A — 2 × $177.12 + 2 × $70.85 = $495.94 (−60 % en la 2.ª llanta)\n3 · KENDA KR100 — 2 × $198.13 + 2 × $79.25 = $554.76 (−60 % en la 2.ª llanta)",
+        "BOT: ¿Le cotizo la 1, la 2 o la 3?",
+        "CLIENTE: 2...o 3...por favor... gracias",
+        "BOT: Con gusto. La KR33A (opción 2) es la equilibrada, con 8 lonas. La KR100 (opción 3) es la premium y tiene el precio más alto.",
+        "BOT: ¿Cuál le cotizo, la 1, la 2 o la 3?",
+        "CLIENTE: El día de mañana le confirmo...por favor...pero más seguro la 2",
+        "BOT: Claro, quedo pendiente de su confirmación 👍"
+      ]
+    },
+    {
+      "n": 2,
+      "conversacion": 7,
+      "turnosOk": 3,
+      "vendedor": [
+        {
+          "fase": "medida_confirmada",
+          "rondas": 2,
+          "entrada": 11852,
+          "leido": 10752,
+          "escrito": 0,
+          "escrito1h": 0,
+          "salida": 104,
+          "usd": 0.0021,
+          "modelo": "gpt-5.4-mini"
+        },
+        {
+          "fase": "medida_confirmada",
+          "rondas": 2,
+          "entrada": 28833,
+          "leido": 28292,
+          "escrito": 379,
+          "escrito1h": 0,
+          "salida": 350,
+          "usd": 0.0076,
+          "modelo": "claude-sonnet-5-5"
+        }
+      ],
+      "usdVendedor": 0.009700100000000001,
+      "usdTotal": 0.01207337,
+      "transcripcion": [
+        "CLIENTE: ¡Hola! Quiero más información sobre el costo de un juego completo de llantas 225/70 R15 para camioneta 🛻🛻 MAZDA BT 50...buena tarde... gracias",
+        "BOT: ¡Hola! 👋 Soy Martín, de Depot Tire. Le cotizo al instante con stock y precios reales, comparo modelos y le armo su cotización para tienda.",
+        "BOT: 🖤 *PROMOCIÓN BLACK FRIDAY* 🖤\nEl Black Friday se vive TODO NOVIEMBRE\n\n🛞 *−60 % en cada 2.ª llanta* Falken y Kenda\n🛞 *−25 %* en Winrun\n🔧 *−50 %* en alineación, balanceo, ABC de frenos y enllantaje\n🛢️ *−40 %* en cambio de aceite\n✅ Revisión de 7 puntos GRATIS\n\nVálido hasta el 30 de noviembre.",
+        "BOT: [image] Opciones enviadas: KENDA KR15 · KENDA KR33A · KENDA KR100",
+        "BOT: 1 · KENDA KR15 — 2 × $132.94 + 2 × $53.18 = $372.24 (−60 % en la 2.ª llanta)\n2 · KENDA KR33A — 2 × $177.12 + 2 × $70.85 = $495.94 (−60 % en la 2.ª llanta)\n3 · KENDA KR100 — 2 × $198.13 + 2 × $79.25 = $554.76 (−60 % en la 2.ª llanta)",
+        "BOT: ¿Le cotizo la 1, la 2 o la 3?",
+        "CLIENTE: 2...o 3...por favor... gracias",
+        "BOT: Entre las dos, la KR33A (opción 2) es la de equilibrio y la KR100 (opción 3) es la premium. Ambas incluyen instalación, alineación y balanceo sin costo.",
+        "BOT: ¿Cuál le cotizo, la 1, la 2 o la 3?",
+        "CLIENTE: El día de mañana le confirmo...por favor...pero más seguro la 2",
+        "BOT: Claro, quedo pendiente de su confirmación 👍"
+      ]
+    }
+  ],
+  "gastoBase": 0.07200439
+}

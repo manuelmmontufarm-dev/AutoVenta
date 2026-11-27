@@ -1,3 +1,15 @@
+## 27-nov-2026 · Integración · Cuatro PRs del día juntos a producción (integracion-2026-11-27)
+
+- **Qué:** se juntaron #127 (respaldo cuando Claude falla), #128 (caché de 1 h del vendedor y la línea del Kanban
+  fuera del system), #129 (visión con Claude no escribe medidas dudosas + informe Haiku) y #130 (Competimotor:
+  negar una promo no es «no hay»; con un solo local el Guardián no borra la pregunta del día). El único choque de
+  código fue `chat.ts`/`chatClaude.ts` (#127 agregó opciones `http`, #128 la opción `cache`): quedaron las dos.
+- **Por qué:** Manuel pidió publicar todo lo que conviene y medir en producción (27-nov, /power-through).
+- **Probado:** `tsc` ok; suite 5078 pasan y fallan las mismas 2 pruebas / 4 archivos que en `main`; fidelidad 12/12;
+  `sim:humo` Depot, mundillantas y ejemplo ok. Claude real en la rama combinada (2 conversaciones, 1 min entre
+  ellas): conv 2 leyó 28.292 de 28.833 tokens del caché; vendedor $0,0576 → $0,0097.
+- **Horas:** 0,5.
+
 ## 27-nov-2026 · Bot · Competimotor con Claude: prueba en el simulador y dos candados (exp/competimotor-claude)
 
 - **Qué:** Competimotor pasó a Claude (Sonnet 5.5 + Guardián Haiku 5.5) a las 16:52Z sin probarse con su perfil.
