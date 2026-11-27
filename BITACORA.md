@@ -23,7 +23,7 @@
     la visita vigente o con el cliente escribiendo ese día. «Claro, quedo pendiente…» en el chat dice qué queda hecho;
     «¿Le agendo una cita?» mata la oferta de cotizar vieja.
   - **Candados después del Guardián** (que los quitaba en el simulador): el envío al de otra ciudad se repone, la marca
-    pedida que la lámina no trae se nombra con aviso real al asesor, y la lámina de quien pidió carga solo lleva llantas
+    pedida que la lámina no trae se nombra con aviso real al asesor (también si el texto ya la nombraba: sin aviso, `sin_aviso_inventado` la cambiaba por «Se lo consulto…», chat 884), y la lámina de quien pidió carga solo lleva llantas
     de carga (`preparar_opciones`, la puerta única). `agendar_visita` tampoco agenda «Estoy. De quitto».
   - **Doble botón (error de hecho, también Depot):** «la 1» + «la 2» en la misma ráfaga son un turno y manda el último toque.
 - **Por qué:** auditoría de Competimotor del 26-nov, familia F-06 (1142, 1258, 1614, 710, 1202, 720, 469, 1717, 1632,

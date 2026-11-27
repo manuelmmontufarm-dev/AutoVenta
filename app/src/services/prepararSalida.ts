@@ -693,7 +693,6 @@ export const PASOS: readonly PasoDeSalida[] = [
       }
       const lamina = codigos.map((c) => findByCode(c)).filter((p): p is NonNullable<typeof p> => Boolean(p));
       if (!lamina.length || lamina.some((p) => normalizeCatalogText(p.brand ?? "") === marca)) return texto;
-      if (new RegExp(`\\b${marca.replace(/(.)\1/g, "$1+")}`, "i").test(texto.normalize("NFD").replace(/[\u0300-\u036f]/g, ""))) return texto;
       const nombre = marca.toUpperCase();
       // La frase dice que la revisa un asesor: el aviso existe de verdad (si no,
       // `sin_aviso_inventado` la cambiaba por «Se lo consulto y le confirmo.»).
@@ -712,6 +711,8 @@ export const PASOS: readonly PasoDeSalida[] = [
         action: `Revisar si se consigue ${nombre} y escribirle al cliente.`,
       }).catch(() => undefined);
       console.log(`🏷️ Conv ${ctx.conversation.id}: pidió ${nombre} y la lámina no la trae; se nombra y se avisa al asesor.`);
+      const yaLaNombra = new RegExp(`\\b${marca.replace(/(.)\1/g, "$1+")}`, "i").test(texto.normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
+      if (yaLaNombra) return texto;
       return `La *${nombre}* en esa medida se la revisa un asesor; mientras tanto, estas son las que tengo 👇\n---\n${texto}`;
     },
   },
