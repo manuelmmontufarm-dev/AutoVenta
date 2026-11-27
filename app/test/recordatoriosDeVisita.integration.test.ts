@@ -54,13 +54,20 @@ const DIA_DESPUES = new Date("2026-11-21T16:00:00.000Z");
 const VISITA = new Date("2026-11-20T15:00:00.000Z");
 
 let telefono = 593990000000;
-async function conversacion(opts: { ultimoCliente?: Date; stage?: string; visita?: Date } = {}): Promise<number> {
+async function conversacion(opts: { ultimoCliente?: Date; stage?: string; visita?: Date; sinCotizacion?: boolean } = {}): Promise<number> {
   telefono += 1;
   const [fila] = await sql<{ id: number }[]>`
     insert into conversations (phone, name, stage, status, current_cycle, visit_date, nearest_store, tire_size, last_customer_message_at)
     values (${String(telefono)}, 'maría josé', ${opts.stage ?? "seguimiento_venta"}, 'open', 1,
       ${opts.visita ?? VISITA}, 'Depot Tire Cumbayá', '205/55R16', ${opts.ultimoCliente ?? new Date("2026-11-18T15:00:00Z")})
     returning id
+  `;
+  // Sprint 4: el recordatorio nombra lo COTIZADO (195/65R15), no la medida
+  // de la ficha (205/55R16) — chats 1456 y 302 de Competimotor.
+  if (!opts.sinCotizacion) await sql`
+    insert into quotes (conversation_id, cycle, items, subtotal, tax, total, quote_number)
+    values (${fila.id}, 1, ${sql.json([{ code: "X1", brand: "KENDA", design: "KR203", sizeLabel: "195/65R15", quantity: 4 }] as never)},
+      87, 13, 100, ${`COT-T${fila.id}`})
   `;
   return Number(fila.id);
 }
@@ -104,10 +111,18 @@ describe("recordatorio de la víspera", () => {
     expect(r2?.enviados).toBe(0);
     expect(plantillas).toHaveLength(1);
     // Depot tiene dos locales: el local va como variable.
-    expect(plantillas[0].variables).toEqual(["María", "viernes", "Depot Tire Cumbayá", "205/55R16"]);
+    expect(plantillas[0].variables).toEqual(["María", "viernes", "Depot Tire Cumbayá", "195/65R15"]);
     expect(plantillas[0].actor).toBe("visit_reminder");
     const [msg] = await sql<{ content: string }[]>`select content from messages where conversation_id = ${id}`;
-    expect(msg.content).toBe("Hola María, le recordamos su visita de mañana viernes en Depot Tire Cumbayá. Ya tenemos listas sus llantas 205/55R16.");
+    expect(msg.content).toBe("Hola María, le recordamos su visita de mañana viernes en Depot Tire Cumbayá. Ya tenemos listas sus llantas 195/65R15.");
+  });
+
+  it("Sprint 4 (1456): sin cotización no afirma «ya tenemos listas sus llantas»: no sale", async () => {
+    await conversacion({ sinCotizacion: true });
+    await prender("recordatorio_visita_v1");
+    const r = await barrerRecordatorios("recordatorio", VISPERA);
+    expect(r).toMatchObject({ enviados: 0, omitidos: 1 });
+    expect(plantillas).toHaveLength(0);
   });
 
   it("no sale fuera de la tarde", async () => {
@@ -147,7 +162,7 @@ describe("«no llegó» del día siguiente", () => {
     ventas = [{ ticketId: vino, dia: "2026-11-20" }];
     const r = await barrerRecordatorios("no_llego", DIA_DESPUES);
     expect(r).toMatchObject({ enviados: 1, omitidos: 1 });
-    expect(plantillas[0].variables).toEqual(["María", "Depot Tire Cumbayá", "205/55R16"]);
+    expect(plantillas[0].variables).toEqual(["María", "Depot Tire Cumbayá", "195/65R15"]);
   });
 
   it("no sale si el cliente escribió desde el día de la visita", async () => {

@@ -82,6 +82,7 @@ import {
 import { markDiscountNoticeSent } from "./services/discountOffers.js";
 import { preguntamosElDia, respondeAlDiaDeLaVisita } from "./domain/customerCommitment.js";
 import { leerVisita } from "./domain/fechaDeVisita.js";
+import { politica } from "./negocio/politica.js";
 import { avisarVisitaComprometida } from "./services/visitAlerts.js";
 import { emitirCuponDeConfirmacion, enviarTicketDeCupon } from "./services/coupons.js";
 import { authorizeConversationOutbound, OutboundPolicyError } from "./services/whatsappPolicy.js";
@@ -487,6 +488,8 @@ async function atenderTurno(
     : tipoDeCierreDelTurno(
         textoConLinks,
         await previousInboundText(conversation.id),
+        // Sprint 4 (Competimotor, 538): «Ok» tras «yo le aviso» es el acuse del plazo.
+        { plazoCierraElAcuse: Boolean(politica.seguimientos?.respetarPlazoDelCliente) },
       );
   // «No gracias» a secas tras una lámina o una cotización es «esa no», no una
   // despedida (Manuel, 20-nov): con `politica.noGraciasPideOtraOpcion`

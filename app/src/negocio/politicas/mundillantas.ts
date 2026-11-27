@@ -110,4 +110,14 @@ export const POLITICA_MUNDILLANTAS: PoliticaComercial = {
   // Lo que venden pero el bot NO cotiza: avisa al asesor del local (§3.3 punto 4).
   productosQueDerivaAlAsesor: ["lubricantes", "baterías", "aceites", "taller"],
   asesorEnReglas: "el asesor",
+  // Sprint 4 — familia F-05, auditoría 26-nov-2026. «Lo incluido» es lo que
+  // confirmaron Jenny y Carlos (incluido comprando 2 o 4; alineación solo con
+  // 4), dicho para el juego de 4 que es el que se cotiza por defecto.
+  seguimientos: {
+    respetarPlazoDelCliente: true,
+    diasHastaRetomar: 3,
+    incluidoEnLaCompra:
+      "Comprando las 4 le incluye sin costo enllantaje, balanceo, nitrógeno y alineación, y el mantenimiento cada 10.000 km (rotación, revisión mecánica y nitrógeno)",
+    retomadaSinSeparador: true,
+  },
 };

@@ -50,3 +50,42 @@ export function pideQueLeAvisen(mensajeDelCliente: string | null | undefined): b
   if (!n || n.length > 200 || /\?/.test(n)) return false;
   return AVISEME_CUANDO.test(n);
 }
+
+/**
+ * «AHÍ YO LE ESCRIBO… CUANDO REÚNA LOS BILLETES» (Sprint 4, auditoría
+ * Competimotor 26-nov, familia F-05 A). El cliente PIDIÓ TIEMPO: él avisa, por
+ * ahora no puede o junta la plata. Es un hecho de la conversación, no un
+ * «escríbame en tres horas»:
+ *
+ *   1273  audio «Ahí yo le escribo mi pana, porque cuando ya… reúno los
+ *         billetes yo ahí le escribo…» → al otro día dos «quedo pendiente de su
+ *         mensaje cuando pueda retomarlo» (el audio pasa de los 140 caracteres
+ *         de `elClienteDijoQueAvisa` y llega envuelto en «[El cliente mandó un
+ *         audio. Dice: …]»).
+ *   1011  «la próxima semana voy por qué me quedé ahora sin fondos» → esa
+ *         tarde «¿Qué día de la próxima semana…?».
+ *   538   «Yo le aviso por a ora estoy ocupado».
+ *   1247  «Por ahora no gracias» al asesor → el bot retomó «¿Le puedo ayudar
+ *         con alguna otra consulta?».
+ *
+ * Más amplio que `elClienteDijoQueAvisa` (que sigue igual para Depot): lee lo
+ * DICHO en un audio, acepta audios largos y suma la falta de plata y el «por
+ * ahora». Una pregunta o un pedido concreto sigue siendo venta viva.
+ */
+const AUDIO_DEL_CLIENTE = /\[El cliente mandó un audio\. Dice: ([^\]]*)\]/g;
+const SIN_PLATA =
+  /\b(?:sin\s+(?:fondos|plata|dinero|presupuesto|billete)|no\s+tengo\s+(?:la\s+)?(?:plata|dinero|presupuesto)|(?:reuno|reunir|reuna|junto|juntar|junte|consigo|consiga)\s+(?:los\s+billetes|la\s+plata|el\s+dinero|la\s+platita|el\s+presupuesto)|cuando\s+(?:cobre|me\s+paguen|tenga\s+(?:la\s+plata|el\s+dinero|los\s+billetes|presupuesto)))\b/;
+const POR_AHORA =
+  /\bpor\s+(?:ahora|a\s*h?ora|el\s+momento)\s*,?\s*(?:no\b|estoy\s+(?:ocupad|complicad|sin\b)|ando\s+(?:ocupad|complicad)|no\s+puedo)/;
+
+export function pidioTiempo(mensajeDelCliente: string | null | undefined): boolean {
+  const crudo = mensajeDelCliente ?? "";
+  const dicho = crudo.replace(AUDIO_DEL_CLIENTE, " $1 ");
+  const n = normalizar(dicho);
+  if (!n || n.length > 400) return false;
+  // Pregunta o pedido concreto: la venta sigue («le aviso, ¿abren el sábado?»).
+  if (/\?/.test(n) || /\b\d{3}\s*[/ ]\s*\d{2}\b/.test(n)) return false;
+  // Solo el PEDIDO: «para ver si están al mismo precio» (1273) no pide nada.
+  if (/\b(?:cotice\w*|cotizame|cotizeme|cuanto\s+(?:cuesta|vale|es|sale|seria)|(?:me\s+)?(?:da|pasa|dice)\s+(?:el\s+)?precio)\b/.test(n)) return false;
+  return YO_ESCRIBO.test(n) || SIN_PLATA.test(n) || POR_AHORA.test(n);
+}

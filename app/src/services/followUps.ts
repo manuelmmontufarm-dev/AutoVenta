@@ -31,6 +31,11 @@ import { cantidadValidaDeLaFicha } from "../domain/cantidadGrande.js";
 import { listaVigenteDeLaPieza } from "./listaVigente.js";
 import { opcionEnDigitos } from "../domain/opcionEnLetras.js";
 import { asesoresActivos, notifyAdvisor } from "./advisorNotifications.js";
+import { politica } from "../negocio/politica.js";
+import { negocio } from "../negocio/index.js";
+import { conElLocalUnico } from "../domain/followUpMessages.js";
+import { loQueDijoElCliente } from "../domain/fechaDeVisita.js";
+import { nextBusinessInstant } from "../domain/followUps.js";
 
 export type FollowUpJobStatus =
   | "scheduled"
@@ -212,7 +217,7 @@ function conMapasPegados(
   context: FollowUpMessageContext,
   kind: FollowUpMessageKind,
 ): string {
-  if (!followUpNeedsStoreLinks(context, kind)) return text;
+  if (!followUpNeedsStoreLinks(conElLocalUnico(context), kind)) return text;
   // El modelo no recibe los links (ver `ensureFollowUpJobCopy`), pero puede
   // copiarlos del historial — y un maps.app.goo.gl reproducido a mano por un
   // LLM sale mutilado con facilidad. Cualquier URL que haya escrito se quita
@@ -256,6 +261,10 @@ export interface ContextoDeOpciones {
   juegoEnSuMedida?: boolean | null;
   /** La última lámina era de medidas equivalentes. */
   optionsEquivalentes?: boolean;
+  /** Sprint 4: los dos seguimientos distintos de `politica.seguimientos` (Competimotor). */
+  seguimientoConPregunta?: FollowUpMessageContext["seguimientoConPregunta"];
+  /** Sprint 4: la llanta que recuerda el 1.º seguimiento y su precio en efectivo. */
+  recomendada?: FollowUpMessageContext["recomendada"];
 }
 
 /**
@@ -348,7 +357,80 @@ async function contextoDeOpciones(
     preferenceAnswered, customerHasNoTireSize,
     customerAskedPrice, sinVisita, juegoEnSuMedida: pieza ? null : juegoEnLaMedida(ficha.tireSize, ficha.cantidad),
     optionsEquivalentes: Array.isArray(pieza?.metadata?.equivalentes) && pieza.metadata.equivalentes.length > 0,
+    ...(politica.seguimientos
+      ? {
+        seguimientoConPregunta: {
+          incluido: politica.seguimientos.incluidoEnLaCompra,
+          direccion: direccionDelLocal(),
+        },
+        recomendada: await llantaDelSeguimiento(conversationId, cycle, pieza ?? null, ficha.cantidad ?? null),
+      }
+      : {}),
   };
+}
+
+/** «Vía Quevedo km 1½ y Juan León Mera»: dónde queda, con un solo local. Con varios, vacío. */
+function direccionDelLocal(): string {
+  if (negocio.locales.length !== 1) return "";
+  const local = negocio.locales[0];
+  return local.referencia?.trim() || local.direccion.trim();
+}
+
+/**
+ * EL PRECIO EN EFECTIVO O TRANSFERENCIA DE UNA LLANTA, de hoy (Sprint 4).
+ *
+ * La misma regla que `services/preciosPorPago.ts` (Competimotor cotiza con
+ * tarjeta: el efectivo es el Precio C, nunca más caro que el de tarjeta, y el de
+ * tarjeta nunca más caro que el de hoy). Ese archivo es del Sprint 2 y no
+ * exporta el precio de UNA llanta: cuando lo exporte, esto pasa a llamarlo.
+ * Null si la llanta no trae precio por forma de pago: no se dice ninguno.
+ */
+function precioEnEfectivoDeHoy(codigo: string | null | undefined): number | null {
+  if (!codigo || politica.precioDeCotizacion !== "tarjeta") return null;
+  const item = findByCode(codigo);
+  const precios = item?.preciosPorPago;
+  if (!item || !precios) return null;
+  const tarjeta = Math.min(precios.tarjetaConIva, item.minimumPriceWithTax);
+  const efectivo = Math.min(precios.efectivoConIva, tarjeta);
+  return efectivo > 0 ? Math.round(efectivo * 100) / 100 : null;
+}
+
+/**
+ * La llanta que nombra el 1.º seguimiento de Competimotor: la de la cotización
+ * vigente si es lo último que vio, si no la RECOMENDADA de la lámina
+ * (`metadata.recomendado`, hecho guardado con la pieza), si no la elegida en la
+ * ficha. Nunca se lee del texto del bot.
+ */
+async function llantaDelSeguimiento(
+  conversationId: number,
+  cycle: number,
+  pieza: { created_at: Date; metadata: Record<string, unknown> | null } | null,
+  cantidadDeLaFicha: number | null,
+): Promise<FollowUpMessageContext["recomendada"]> {
+  const [cotizacion] = await sql<{ items: Array<{ code?: string; brand?: string; design?: string; quantity?: number; segundaLlanta?: unknown }> | null; created_at: Date }[]>`
+    select items, created_at from quotes where conversation_id = ${conversationId} and cycle = ${cycle}
+    order by created_at desc limit 1
+  `;
+  const linea = cotizacion?.items?.[0];
+  if (linea?.code && (!pieza || new Date(cotizacion.created_at) >= new Date(pieza.created_at))) {
+    const nombre = [linea.brand, linea.design].filter(Boolean).join(" ").trim() || etiquetaDelProducto(linea.code);
+    if (nombre) {
+      return {
+        nombre,
+        efectivo: linea.segundaLlanta ? null : precioEnEfectivoDeHoy(linea.code),
+        cantidad: Math.max(1, Math.round(Number(linea.quantity) || cantidadDeLaFicha || 4)),
+      };
+    }
+  }
+  const recomendado = typeof pieza?.metadata?.recomendado === "string" ? pieza.metadata.recomendado : null;
+  const [ficha] = await sql<{ selected_product_code: string | null }[]>`
+    select selected_product_code from conversations where id = ${conversationId}
+  `;
+  const codigo = ficha?.selected_product_code ?? recomendado;
+  const nombre = etiquetaDelProducto(codigo);
+  if (!codigo || !nombre) return null;
+  const cantidad = Number(pieza?.metadata?.cantidad) || cantidadDeLaFicha || politica.juegoCompleto;
+  return { nombre, efectivo: precioEnEfectivoDeHoy(codigo), cantidad };
 }
 
 /**
@@ -425,7 +507,71 @@ export async function porQueNoQuiereSeguimiento(
     rachaDelCliente: vigentes.map((m) => m.content),
     sinVisita: await porQueNoPasaPorElLocal(conversationId, cycle, null),
     hayCotizacion: await hayCotizacionEnElCiclo(conversationId, cycle),
+    // Sprint 4: solo con la política del negocio (Competimotor). Depot, igual.
+    respetarPlazo: Boolean(politica.seguimientos?.respetarPlazoDelCliente),
   });
+}
+
+/**
+ * EL CLIENTE PIDIÓ TIEMPO: SE ANOTA Y SE ESPERA (Sprint 4, familia F-05 A).
+ *
+ * 1273 dijo «Ahí yo le escribo… cuando reúna los billetes» y al otro día le
+ * llegaron dos «quedo pendiente de su mensaje cuando pueda retomarlo»; 1011
+ * avisó «la próxima semana… me quedé sin fondos» y esa tarde le preguntaron
+ * «¿Qué día de la próxima semana…?». Lo que dijo queda como HECHO de la
+ * conversación (`follow_up_reason` del ciclo, que ven el panel y el reporte),
+ * los seguimientos automáticos de ese ciclo ya los canceló quien llama, y
+ * queda UNA revisión del asesor —la ventana de WhatsApp ya estará cerrada—
+ * días después o en la fecha que dio el cliente, con lo útil a mano: la
+ * cotización vigente y que pregunte con algo concreto, nunca «quedo pendiente».
+ */
+async function registrarPlazoDelCliente(
+  conversation: ConversationForFollowUp,
+  policy: FollowUpPolicy,
+  now: Date,
+): Promise<void> {
+  const reglas = politica.seguimientos;
+  if (!reglas?.respetarPlazoDelCliente) return;
+  const [ultimo] = await sql<{ content: string | null; created_at: Date }[]>`
+    select content, created_at from messages
+    where conversation_id = ${conversation.id} and cycle = ${conversation.current_cycle} and direction = 'inbound'
+    order by created_at desc, id desc limit 1
+  `;
+  const frase = loQueDijoElCliente(ultimo?.content ?? "").slice(0, 160);
+  const razon = `El cliente pidió tiempo: «${frase}»`;
+  await sql`
+    update conversations set follow_up_reason = ${razon}, follow_up_reason_cycle = current_cycle, updated_at = now()
+    where id = ${conversation.id}
+  `;
+  // La fecha que dio él, si dijo «la próxima semana»; si no, unos días.
+  const desde = ultimo?.created_at ?? now;
+  const proximaSemana = /\b(?:la\s+)?(?:pr[oó]xima|otra|siguiente)\s+semana\b/i.test(frase);
+  const objetivo = proximaSemana
+    ? lunesSiguiente(desde)
+    : new Date(desde.getTime() + reglas.diasHastaRetomar * 86_400_000);
+  const dueAt = nextBusinessInstant(objetivo, { ...policy, neverOutsideHours: true }) ?? objetivo;
+  const cotizacion = conversation.quote_number
+    ? ` Tiene la cotización ${conversation.quote_number}${conversation.quote_total ? ` por $${Number(conversation.quote_total).toFixed(2)}` : ""}: escríbale con ese dato y el precio en efectivo o transferencia, y una pregunta concreta (¿se la separo?).`
+    : " Escríbale con algo concreto (la llanta y su precio en efectivo) y una pregunta de sí o no.";
+  await insertJob({
+    conversationId: conversation.id, cycle: conversation.current_cycle, type: "advisor_review", channel: "advisor",
+    dueAt, windowClosesAt: null,
+    idempotencyKey: `plazo:${conversation.id}:${conversation.current_cycle}:${desde.toISOString()}`,
+    payload: {
+      plazoDelCliente: true,
+      preview: `Revisar personalmente: ${razon}.${cotizacion} Nunca «quedo pendiente de su mensaje».`,
+      reason: `${razon}. Pasó el plazo sin noticias: toca un solo contacto útil.`,
+    },
+  });
+  console.log(`⏳ Conv ${conversation.id}: el cliente pidió tiempo; sin seguimientos automáticos, revisión del asesor el ${dueAt.toISOString()}.`);
+}
+
+/** El lunes de la semana que viene, 09:00 en Ecuador. */
+function lunesSiguiente(desde: Date): Date {
+  const local = new Date(desde.getTime() - 5 * 3_600_000);
+  const dia = local.getUTCDay();
+  const hasta = ((8 - dia) % 7) || 7;
+  return new Date(Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate() + hasta, 14, 0, 0));
 }
 
 async function hayCotizacionEnElCiclo(conversationId: number, cycle: number): Promise<boolean> {
@@ -449,6 +595,8 @@ export function buildFollowUpPreview(
     sinVisita: opciones.sinVisita ?? null,
     juegoEnSuMedida: opciones.juegoEnSuMedida ?? null,
     optionsEquivalentes: opciones.optionsEquivalentes ?? false,
+    seguimientoConPregunta: opciones.seguimientoConPregunta ?? null,
+    recomendada: opciones.recomendada ?? null,
     storeNames: nombresDeLocales(),
     selectedQuantity: cantidadValidaDeLaFicha(conversation.selected_quantity),
     name: conversation.name,
@@ -579,6 +727,22 @@ export async function scheduleConversationFollowUps(
   // quien está fuera de Quito, que antes llegaban al Guardián.
   const sinSeguimiento = await porQueNoQuiereSeguimiento(conversationId, conversation.current_cycle);
   if (sinSeguimiento) {
+    // Sprint 4: el plazo que pidió el cliente se cancela con todo lo demás
+    // menos su propia revisión del asesor (si no, cada vuelta la mataría).
+    const plazo = politica.seguimientos?.respetarPlazoDelCliente
+      && (sinSeguimiento === "pidio_tiempo" || sinSeguimiento === "el_cliente_avisa");
+    if (plazo) {
+      await sql`
+        update follow_up_jobs set status = 'cancelled', cancel_reason = ${`no_quiere_seguimiento:${sinSeguimiento}`},
+          executed_at = now(), locked_at = null, locked_by = null
+        where conversation_id = ${conversationId} and cycle = ${conversation.current_cycle}
+          and status in ('scheduled', 'processing', 'blocked')
+          and coalesce(payload->>'plazoDelCliente', '') = ''
+      `;
+      await registrarPlazoDelCliente(conversation, policy, now);
+      emitLiveEvent("follow_up", conversationId);
+      return;
+    }
     await cancelPendingFollowUps(conversationId, `no_quiere_seguimiento:${sinSeguimiento}`, conversation.current_cycle);
     return;
   }
@@ -1196,6 +1360,11 @@ export async function ensureFollowUpJobCopy(input: {
   // envío con el asesor). Redactarlo con IA era invitarla a hablar de la visita.
   const copy = copyContext.sinVisita === "compra_a_distancia"
     ? { text: buildContextualFollowUpMessage(copyContext, kind, now), source: "determinista_compra_a_distancia" }
+    // Sprint 4: los dos seguimientos distintos de Competimotor son texto fijo
+    // con precio y pregunta de sí/no; la redacción con IA no puede llevar
+    // precios (`isSafeCopy`) y volvía a la lista o al «quedo pendiente».
+    : copyContext.seguimientoConPregunta
+      ? { text: buildContextualFollowUpMessage(copyContext, kind, now), source: "fallback" as const }
     : await generateFollowUpCopy(
       { ...copyContext, storeLinks: undefined },
       kind,

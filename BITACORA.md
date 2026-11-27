@@ -1,3 +1,32 @@
+## 26-nov-2026 · Bot · Sprint 4 (F-05): seguimientos y datos falsos de la auditoría de Competimotor
+
+- **Qué:**
+  - **Pidió tiempo = hecho.** `domain/clientePosterga.pidioTiempo` («yo le escribo», «por ahora no», «sin fondos»,
+    «reúno los billetes», también dentro de un audio largo). Con `politica.seguimientos` (solo Competimotor) el único
+    dueño que agenda (`scheduleConversationFollowUps`) cancela los seguimientos automáticos del ciclo, guarda
+    `follow_up_reason` = «El cliente pidió tiempo: «…»» y deja UNA revisión del asesor a los 3 días (o el lunes si dijo
+    «la próxima semana»). El «Ok» que sigue cierra el turno, el rescate de 12 h no lo despierta, el candado
+    `insistir_con_lo_que_falta` y el Guardián (hecho nuevo «EL CLIENTE PIDIÓ TIEMPO») no le pegan «¿Qué día…?».
+  - **Seguimiento vacío no sale, para todos** (`sin_seguimiento_vacio`, al final de la cadena, después del Guardián).
+  - **Visita inventada, para todos** (`domain/fechaDeVisita`, lector único): «viernes negro / black friday» no es día;
+    un día dentro de una pregunta («el sábado atienden») no agenda ni por el pipeline ni por `agendar_visita`;
+    «la próxima semana» no toma el día del modelo; «me quedé AHORA sin fondos» ya no es «hoy» (`customerCommitment`).
+  - **Recordatorio de visita, para todos:** nombra la medida COTIZADA; sin cotización no sale.
+  - **Un solo local = local elegido** (seguimiento y procesador): con visita registrada confirma, no repregunta el día.
+  - **Competimotor:** los dos seguimientos ya no repiten la lista: 1.º la recomendada/cotizada con precio en efectivo y
+    «¿se la cotizo?» / «¿Se la separo?»; 2.º lo incluido + la dirección + «¿Le agendo una cita?». La retomada sale
+    partida en mensajes (sin «---» escrito).
+- **Por qué:** auditoría del 26-nov (165 chats): 1273 recibió dos «quedo pendiente de su mensaje cuando pueda
+  retomarlo» (era la corrección del Guardián a un «le esperamos hoy» con la visita cancelada); 1790 «X viernes negro
+  hay más descuento» quedó como visita del viernes; 1011 quedó con visita «hoy» por el «ahora»; 1456/302 «ya tenemos
+  listas sus llantas» con la medida pedida; 1375 «¿qué día le quedaría más cómodo?» con visita registrada; 138 chats con
+  la lista calcada dos veces (31 respondieron). El seguimiento de 1273 salió a las 08:00 EC, no a las 06:00 (las horas
+  de la auditoría venían corridas 2 h).
+- **Probado:** `test/s4F05Seguimientos.test.ts` (47, en rojo antes: 31 fallaban). Simulador Competimotor con los chats
+  reales ×3: 1273, 1011, 1790, 1375, 463, 1415, 1522, sanos 302 y 1273-miércoles; Depot: seguimientos con la lista de
+  siempre y el candado vacío cancelando un job. Suite: los mismos 3 fallos que el commit base.
+- **Horas:** 4.
+
 ## 25-nov-2026 · Bot · Entiende y explica cada promoción del panel (y si se suma con el 25 %)
 
 - **Qué:** `domain/promocionesComoHecho.ts`: la lista de promociones del panel vigentes (regla en palabras, marcas,
@@ -6741,6 +6770,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-11-26 | _(este mismo)_ | Sprint 4 F-05 Competimotor: seguimientos tras pedir tiempo, visita inventada, recordatorio con lo cotizado, dos seguimientos distintos | 4 |
 | 2026-11-24 | _(este mismo)_ | Tema de la cotización (Black Friday, Navidad… o personalizado) y el ahorro doble del Black Friday en la pieza | 3 |
 | 2026-11-24 | _(este mismo)_ | Depot: el Black Friday (2.ª llanta) pasa a la pestaña Promociones con interruptor y fechas | 1,5 |
 | 2026-11-24 | _(este mismo)_ | Depot: precios desde Contífico (Interbot de respaldo) y el −25 % como promoción con interruptor | 3,5 |

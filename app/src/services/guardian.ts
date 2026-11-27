@@ -1,3 +1,5 @@
+import { pidioTiempo } from "../domain/clientePosterga.js";
+import { loQueDijoElCliente } from "../domain/fechaDeVisita.js";
 /**
  * EL ÁNGEL GUARDIÁN — revisión con IA de cada respuesta ANTES de enviarla.
  *
@@ -708,6 +710,8 @@ export async function armarContexto(
   // Los dos últimos turnos, sueltos: son la materia prima de los hechos de
   // despedida y de oferta aceptada. `mensajes` viene del más nuevo al más viejo.
   const ultimoDelCliente = mensajes.find((m) => m.direction === "inbound")?.content ?? "";
+  // Sprint 4: el cliente pidió tiempo (solo con `politica.seguimientos`, Competimotor).
+  const clientePidioTiempo = Boolean(politica.seguimientos?.respetarPlazoDelCliente) && pidioTiempo(ultimoDelCliente);
   // ¿Puede pasar por el local? La misma fuente que `sin_visita_si_no_puede_venir`
   // (auditoría 9-nov, 40082 y 39845): sin este hecho el revisor le agregaba el
   // día, el local y los mapas a quien está en Pedernales o en el Oriente, el
@@ -923,7 +927,15 @@ export async function armarContexto(
         "PROHIBIDO agregarle la pregunta del local, la del día o los mapas: esas piezas se quitan después de ti y el turno quedaría vacío. " +
         "Un borrador que no las trae NO es cierre_sin_pregunta_dia ni le falta un siguiente paso por eso."
       : null,
-    !compraADistancia && !fueraDeCobertura && visitaPendiente(hechos ?? {}) && !despedidaQueCorresponde(ultimoDelCliente)
+    // Sprint 4 (Competimotor, 1011 y 1273): quien acaba de pedir tiempo no
+    // recibe la pregunta del día. Sin la política (Depot), nada cambia.
+    clientePidioTiempo
+      ? `EL CLIENTE PIDIÓ TIEMPO (fuente determinística): su último mensaje fue «${loQueDijoElCliente(ultimoDelCliente).slice(0, 140)}». ` +
+        "Él retoma cuando pueda (no tiene la plata, está ocupado o avisa él). PROHIBIDO preguntarle el día, el local o «¿le agendo?», " +
+        "y PROHIBIDO cerrar con «quedo pendiente de su mensaje» a secas: si hay cotización, recuérdele que queda guardada con su total. " +
+        "Un borrador sin pregunta NO es cierre_sin_pregunta_dia."
+      : null,
+    !compraADistancia && !fueraDeCobertura && !clientePidioTiempo && visitaPendiente(hechos ?? {}) && !despedidaQueCorresponde(ultimoDelCliente)
       ? `DÍA DE VISITA PENDIENTE: el local ya es ${hechos?.nearest_store} pero el cliente NO registró qué día viene. ` +
         "«Gracias», «ok» o repetir el local NO cierran la visita: si el borrador no pregunta el día, corrígelo " +
         "agregando «¿Qué día cree que puede pasar por …?» en bloque aparte (---). PROHIBIDO cerrar con " +
@@ -1075,6 +1087,13 @@ export async function armarContexto(
     // la marcaba como pregunta_de_mas y la reescribía.
     opciones.tipo === "seguimiento" && /¿se la cotizo\?/i.test(borrador)
       ? "SEGUIMIENTO DE OPCIÓN ÚNICA: «¿se la cotizo?» es la pregunta legítima de este recordatorio (una sola llanta, sin elección todavía). Se conserva: NO es pregunta_de_mas."
+      : null,
+    // Sprint 4 (auditoría Competimotor 26-nov, F-05 D): los dos seguimientos de
+    // Competimotor dicen cosas distintas y cierran con sí/no. Sin este hecho el
+    // revisor los «completaba» pegando otra vez la lista de opciones (el calco
+    // que se quería quitar) o los cambiaba por «quedo pendiente de su mensaje».
+    opciones.tipo === "seguimiento" && politica.seguimientos && /¿(?:Se la separo|Le agendo una cita|se la cotizo)\?/i.test(borrador)
+      ? "SEGUIMIENTO CON PREGUNTA DE SÍ/NO: este recordatorio aporta UN dato nuevo (la llanta con su precio en efectivo, o lo incluido y la dirección) y cierra con «¿Se la separo?», «¿se la cotizo?» o «¿Le agendo una cita?». Esa pregunta es la legítima y se conserva TAL CUAL: NO es pregunta_de_mas. PROHIBIDO agregarle la lista de opciones (el cliente ya la vio) y PROHIBIDO cambiarlo por «quedo pendiente de su mensaje» o «quedo atento»: un seguimiento sin dato ni pregunta no se envía."
       : null,
     // HECHO DURO (auditoría 25-27 sep, convs 23356 ×5 y 23561): la herramienta
     // rechazó cotizar por falta de autorización, el candado

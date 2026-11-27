@@ -32,9 +32,56 @@
  * seguimiento ya decía «no alcanzó a pasar» (6145).
  */
 import { extractCustomerCommitment, fechaDelDia, tieneVerboDeVisita, type CustomerCommitment } from "./customerCommitment.js";
-import { normalizarTexto } from "./diasEnEspanol.js";
+import { diaEnTexto, normalizarTexto, relativoEnTexto } from "./diasEnEspanol.js";
 
-export type NoEsVisita = "texto_de_una_foto" | "envia_informacion" | "pide_otro_dia";
+export type NoEsVisita = "texto_de_una_foto" | "envia_informacion" | "pide_otro_dia" | "pregunta";
+
+/**
+ * «VIERNES NEGRO» ES UNA PROMOCIÓN, NO UN DÍA (Sprint 4, auditoría Competimotor
+ * 26-nov, chat 1790). El bot acababa de preguntar «¿Qué día cree que puede ir?»
+ * y el cliente escribió «X viernes  negro  hay más descuento»: una PREGUNTA por
+ * el Black Friday. Se leyó «viernes», la ruta directa contestó «Perfecto,
+ * registré su visita para viernes 27 de noviembre» y el asesor recibió
+ * «CONFIRMÓ VISITA». El nombre de la promoción se quita antes de buscar el día.
+ */
+const NOMBRE_DE_PROMOCION =
+  /\b(?:viernes\s+negro|black\s*friday|blackfriday|viernes\s+de\s+(?:descuentos?|ofertas?|promos?|promociones?)|cyber\s*monday)\b/g;
+
+/**
+ * UN DÍA DENTRO DE UNA PREGUNTA NO ES UN COMPROMISO, aunque no lleve «?» (1790).
+ * «el viernes hay más descuento», «el sábado atienden», «black friday hay
+ * descuento»: preguntan algo del día. Solo cuenta sin verbo de visita: «el
+ * viernes voy, ¿hay parqueadero?» sigue siendo la visita del viernes.
+ */
+const PREGUNTA_SOBRE_EL_DIA =
+  /[?¿]|\b(?:hay|habra|habria|tienen|tendran|hacen|dan)\s+(?:mas\s+|algun\s+|otro\s+)?(?:descuentos?|promos?|promociones?|ofertas?|rebajas?|precios?\s+especial(?:es)?)\b|\b(?:atienden|abren|trabajan|atiende|abre|trabaja|estan\s+abiertos)\b|\bque\s+(?:descuentos?|promos?|precio)\b|\bcuanto\b/;
+
+/**
+ * ¿El texto pregunta por un día o por la promoción, sin decir que viene?
+ *
+ * Se mira la ORACIÓN que nombra el día, no el mensaje entero: el audio de 1273
+ * «yo creo que para el día miércoles. … ¿qué viene? ¿Llantas, alineación…?»
+ * da el día en una oración y pregunta otra cosa en la siguiente: esa visita
+ * vale (simulador, 26-nov).
+ */
+function esPreguntaSobreElDia(texto: string): boolean {
+  const n = normalizarTexto(texto).replace(/\s+/g, " ");
+  const promo = NOMBRE_DE_PROMOCION.test(n);
+  NOMBRE_DE_PROMOCION.lastIndex = 0;
+  if (tieneVerboDeVisita(n.replace(NOMBRE_DE_PROMOCION, " "))) return false;
+  if (promo) return true;
+  const oraciones = n.split(/(?<=[.!?\n])\s*|(?=¿)/).map((o) => o.trim()).filter(Boolean);
+  const conDia = oraciones.filter((o) => diaEnTexto(o) != null || relativoEnTexto(o) != null);
+  return conDia.length > 0 && conDia.every((o) => PREGUNTA_SOBRE_EL_DIA.test(o));
+}
+
+/** El texto sin el nombre de la promoción («viernes negro», «black friday»). */
+function sinNombreDePromocion(texto: string): string {
+  return texto.replace(/\s+/g, " ").replace(
+    /\b(?:viernes\s+negro|black\s*friday|blackfriday|viernes\s+de\s+(?:descuentos?|ofertas?|promos?|promociones?)|cyber\s*monday)\b/gi,
+    " ",
+  ).replace(/\s+/g, " ").trim();
+}
 
 /**
  * «Quiero cambiar el día», «agendar otro día», «no voy a poder ir»: pedir un
@@ -65,6 +112,9 @@ export function porQueNoEsVisita(texto: string | null | undefined): NoEsVisita |
   // el verbo que queda FUERA del «le paso».
   const sinElEnvio = n.replace(ENVIA_INFORMACION, " ");
   if (sinElEnvio !== n && !tieneVerboDeVisita(sinElEnvio)) return "envia_informacion";
+  // Sprint 4 (1790): una pregunta sobre el día o la promoción no agenda nada,
+  // ni por el pipeline ni por `agendar_visita` con el día que pase el modelo.
+  if (esPreguntaSobreElDia(dicho)) return "pregunta";
   return null;
 }
 
@@ -75,7 +125,9 @@ export function leerVisita(
   opciones: { respondiendoAlDia?: boolean } = {},
 ): CustomerCommitment | null {
   if (porQueNoEsVisita(texto)) return null;
-  const dicho = loQueDijoElCliente(texto);
+  // «el viernes negro paso» trae verbo de visita pero el «viernes» es de la
+  // promoción: el día se busca en el texto sin su nombre.
+  const dicho = sinNombreDePromocion(loQueDijoElCliente(texto));
   if (!dicho) return null;
   return extractCustomerCommitment(dicho, ahora, opciones);
 }
@@ -99,6 +151,13 @@ export function fechaParaAgendar(input: {
   const delCliente = leerVisita(input.textoDelCliente, ahora, { respondiendoAlDia: input.respondiendoAlDia ?? false });
   if (delCliente?.visitDate) {
     return { fecha: delCliente.visitDate, texto: delCliente.text, franja: delCliente.visitTimeLabel };
+  }
+  // «LA PRÓXIMA SEMANA» NO ES UN DÍA (Sprint 4, chat 1011, y en el simulador 2
+  // de 3): el cliente dio un tramo sin día y el modelo pasó «jueves» (hoy); se
+  // registraba «su visita para jueves 26 de noviembre». Si lo que dijo el
+  // cliente es un tramo, el día del modelo no vale: la herramienta no agenda.
+  if (delCliente?.tipo === "tramo" && !delCliente.visitTimeLabel) {
+    return { fecha: null, texto: delCliente.text };
   }
   if (PIDE_OTRO_DIA.test(normalizarTexto(loQueDijoElCliente(input.textoDelCliente)))) {
     return { fecha: null, texto: frase, noEsVisita: "pide_otro_dia" };

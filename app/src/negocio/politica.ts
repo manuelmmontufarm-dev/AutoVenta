@@ -160,6 +160,34 @@ export interface PoliticaComercial {
    * `domain/preciosEspeciales.ts`. Sin el campo, o vencido, no existe.
    */
   preciosEspeciales?: PreciosEspeciales | null;
+  // Sprint 4 — familia F-05 (seguimientos), auditoría Competimotor 26-nov-2026.
+  /**
+   * OPCIONAL: cómo hace seguimiento este negocio. Sin el campo (Depot) los
+   * seguimientos salen como siempre. Ver `PoliticaDeSeguimientos`.
+   */
+  seguimientos?: PoliticaDeSeguimientos;
+}
+
+// Sprint 4 — familia F-05 (seguimientos).
+/** Lo que cambia en los seguimientos de un negocio (Competimotor, 26-nov-2026). */
+export interface PoliticaDeSeguimientos {
+  /**
+   * El cliente pidió tiempo («yo le escribo», «por ahora no puedo», «reúno los
+   * billetes»): se anota como hecho (`follow_up_reason`), se cancelan los
+   * seguimientos automáticos del ciclo y queda UNA revisión del asesor días
+   * después, con la cotización vigente a mano (chats 1273, 1011, 538, 1247).
+   */
+  respetarPlazoDelCliente: boolean;
+  /** Cuántos días después del plazo pedido revisa el asesor (si el cliente no dio fecha). */
+  diasHastaRetomar: number;
+  /**
+   * Los dos seguimientos dicen cosas distintas y cierran con sí/no: el 1.º la
+   * recomendada con su precio en efectivo, el 2.º lo incluido + la dirección +
+   * «¿Le agendo una cita?». Este es el texto de lo incluido, palabra por palabra.
+   */
+  incluidoEnLaCompra: string;
+  /** La retomada tras humano sale partida en mensajes: el «---» nunca le llega al cliente (1331, 1344). */
+  retomadaSinSeparador: boolean;
 }
 
 /** Una lista de precios de promoción por código, con su fin. */
