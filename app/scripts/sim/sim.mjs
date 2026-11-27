@@ -849,6 +849,9 @@ function aplicarForzadosDeCanary(base) {
   let salida = base;
   const forzadoExacto = valor("exact-tool-model", null);
   if (forzadoExacto) salida = { ...salida, OPENAI_EXACT_TOOL_MODEL: forzadoExacto, AI_EXACT_TOOL_ROLLOUT: valor("rollout", "100") };
+  // Modelo de las etapas rutinarias (cotizacion_enviada / seguimiento_venta) a la fuerza: para medir otro.
+  const forzadoRutina = valor("routine-model", null);
+  if (forzadoRutina) salida = { ...salida, OPENAI_ROUTINE_MODEL: forzadoRutina };
   // Canary de modelo barato por cliente (src/agent/canary.ts). Por defecto
   // entran TODOS los dígitos: en el simulador se prueba el modelo, no el reparto.
   const canary = valor("canary-model", null);

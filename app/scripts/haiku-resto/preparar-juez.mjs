@@ -1,0 +1,11 @@
+import "./env.mjs";
+import fs from "node:fs";
+const [archCasos, dir] = process.argv.slice(2);
+const g = await import("../../dist/services/guardian.js");
+fs.writeFileSync(`${dir}/rubrica.txt`, g.INSTRUCCIONES);
+const c = JSON.parse(fs.readFileSync(archCasos, "utf8"));
+const ciegos = c.map((x) => ({ id: x.id, tipo: x.tipo, contexto: x.contexto })).sort((a, b) => ((a.id * 7919) % 97) - ((b.id * 7919) % 97));
+fs.writeFileSync(`${dir}/casos-A.json`, JSON.stringify(ciegos.slice(0, 20), null, 1));
+fs.writeFileSync(`${dir}/casos-B.json`, JSON.stringify(ciegos.slice(20), null, 1));
+console.log("ok", ciegos.length);
+process.exit(0);

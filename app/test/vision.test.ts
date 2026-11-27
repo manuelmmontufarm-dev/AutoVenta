@@ -17,7 +17,7 @@ vi.mock("openai", () => ({
   },
 }));
 
-const { describirFotoDeLlanta } = await import("../src/services/vision.js");
+const { describirFotoDeLlanta, instruccionesDeVision } = await import("../src/services/vision.js");
 
 const respuesta = (content: string | null) => ({ choices: [{ message: { content } }] });
 const FOTO = Buffer.from("bytes-de-la-foto");
@@ -103,5 +103,16 @@ describe("Visión — las fotos del cliente se vuelven texto vendible", () => {
       throw new Error("429 rate limit");
     });
     expect(await describirFotoDeLlanta(FOTO, "image/jpeg")).toBeNull();
+  });
+
+  // 27-nov-2026: con Claude la lectura dudosa («medida probable 215/70R16»)
+  // se convertía en la medida del cliente. La regla va solo a Claude.
+  it("con Claude pide no escribir una medida dudosa; con gpt-5.5 el prompt no cambia", () => {
+    const conClaude = instruccionesDeVision("claude-haiku-5-5");
+    const conGpt = instruccionesDeVision("gpt-5.5");
+    expect(conClaude).toContain("SOLO si se lee completa y sin dudas");
+    expect(conClaude).toContain("sin convertirla");
+    expect(conGpt).not.toContain("SOLO si se lee completa");
+    expect(conClaude.startsWith(conGpt)).toBe(true);
   });
 });

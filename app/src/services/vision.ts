@@ -25,6 +25,7 @@
  */
 import OpenAI from "openai";
 import { completarChat } from "../agent/chat.js";
+import { esModeloClaude } from "../agent/claudeCliente.js";
 import { config } from "../config.js";
 import { logAiRun } from "./conversations.js";
 import type { Stage } from "../domain/pipeline.js";
@@ -36,6 +37,27 @@ const SIN_DATOS = "FOTO_SIN_DATOS";
 
 const SYSTEM =
   "Eres el lector de fotos de una llantera ecuatoriana. Describe SOLO lo que se lee en la imagen, en una línea, priorizando: medida de llanta (formato 225/65R17 o 31x10.5R15), marca, modelo, índice carga/velocidad, DOT, y si es la etiqueta de la puerta, la medida recomendada. Si no se lee nada útil di exactamente: FOTO_SIN_DATOS";
+
+/**
+ * CON CLAUDE, LA MEDIDA DUDOSA NO SE ESCRIBE (27-nov-2026).
+ *
+ * Medido sobre las 63 fotos reales guardadas en `message_media` contra una
+ * lectura a ciegas (docs/reportes-historicos/2026-11-27-haiku-resto.md): Haiku
+ * y Sonnet leen bien, pero escriben con dudas («medida probable 215/70R16»,
+ * «posible 265/70R16») y convierten «33x12.50R20» a una métrica que no está en
+ * la foto. `extractTireSizes` toma esa medida como si el cliente la hubiera
+ * dado y el bot cotiza otra llanta. Con esta regla, Haiku 5.5 pasó de 2
+ * medidas equivocadas + 4 inventadas a 0 + 0 (5 de 35 quedan sin leer: ahí el
+ * bot pide la medida por escrito, que es el fallo barato).
+ *
+ * Solo para Claude: con gpt-5.5 (hoy en producción) no se midió y no cambia.
+ */
+const REGLA_CLAUDE =
+  "Escribe una medida SOLO si se lee completa y sin dudas; si falta un dígito o dudas de alguno, no la escribas ni la adivines (nada de «probable» o «posible»). Si la medida está en pulgadas (33x12.50R20) escríbela así, sin convertirla. Máximo una línea corta.";
+
+export function instruccionesDeVision(modelo: string): string {
+  return esModeloClaude(modelo) ? `${SYSTEM} ${REGLA_CLAUDE}` : SYSTEM;
+}
 
 /**
  * Devuelve una línea con lo que se lee en la foto, o null si la API falla o la
@@ -64,7 +86,7 @@ export async function describirFotoDeLlanta(
     const response = await completarChat(openai, {
       model: config.openai.visionModel,
       messages: [
-        { role: "system", content: SYSTEM },
+        { role: "system", content: instruccionesDeVision(config.openai.visionModel) },
         { role: "user", content: contenido },
       ],
       // GPT-5 usa este presupuesto para razonamiento Y salida. 150 dejaba fotos
