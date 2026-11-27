@@ -59,7 +59,8 @@ describe.sequential("insistir con lo que falta · un solo local", () => {
     const id = await conversacionCotizada("593980007001");
     const r = await insistirConLoQueFalta(id, 1, "Listo, le cotizo la *HAIDA AT HD818 LN* 👍");
     expect(r.agregado).toBe("dia");
-    expect(r.texto).toContain("¿Qué día cree que puede ir?");
+    // Sprint 2 (auditoría 26-nov): con cotización, la pregunta con dos salidas («hoy» según la hora).
+    expect(r.texto).toMatch(/¿(?:Puede acercarse hoy o qué día le agendo la cita|Qué día le agendo la cita)\? 📅/);
     expect(r.texto).not.toMatch(/a cu[aá]l local/i);
     // El mapa ya salió con la cotización: acá no se repite.
     expect(r.texto).not.toContain("maps.app.goo.gl");

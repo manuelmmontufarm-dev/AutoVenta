@@ -160,6 +160,28 @@ export interface PoliticaComercial {
    * `domain/preciosEspeciales.ts`. Sin el campo, o vencido, no existe.
    */
   preciosEspeciales?: PreciosEspeciales | null;
+  // Sprint 2 (auditoría Competimotor 26-nov-2026, familias F-02 y F-03). Los
+  // tres campos van juntos: sin ellos (Depot) la lista, la objeción de precio y
+  // el cierre de la cotización salen idénticos a como salían.
+  /**
+   * OPCIONAL (Sprint 2): la venta se hace con los DOS precios a la vista. Con
+   * true: (1) cada opción de la lista dice el total con tarjeta Y en efectivo o
+   * transferencia desde la primera lista, y cierra con una pregunta que invita
+   * («¿Con cuál se queda, la 1 o la 2?»); (2) «está caro» se contesta con el
+   * precio en efectivo de lo que vio, la más barata de su medida y lo
+   * incluido (`domain/objecionDePrecio.ts`); (3) tras la cotización la pregunta
+   * es «¿Puede acercarse hoy o qué día le agendo la cita?», sin «N % de
+   * descuento ya aplicado». Requiere `precioDeCotizacion: "tarjeta"` (el
+   * catálogo trae Precio B y C). Sin el campo (Depot): todo como siempre.
+   */
+  ventaConDosPrecios?: boolean;
+  /**
+   * OPCIONAL (Sprint 2): la cola del encabezado del bloque *INCLUYE* que va
+   * pegado a la primera lista («sin costo, comprando 2 o 4 llantas»). Las
+   * líneas salen de la tabla `benefits`, nunca de acá. Sin el campo el bloque
+   * sale como siempre: solo si la lámina no se pudo mandar.
+   */
+  encabezadoDelIncluye?: string;
 }
 
 /** Una lista de precios de promoción por código, con su fin. */

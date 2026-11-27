@@ -21,6 +21,7 @@
  */
 import { opcionEnDigitos } from "./opcionEnLetras.js";
 import { cuentaConRotulo, type SegundaLlanta } from "./promocionDeTemporada.js";
+import { politica } from "../negocio/politica.js";
 
 export interface OpcionConPrecio {
   /** «KENDA KR20» — marca y modelo, tal como sale en la lámina. */
@@ -34,6 +35,14 @@ export interface OpcionConPrecio {
    * con la MISMA cantidad de la lista. Con ella, el total es el de la promo.
    */
   segundaLlanta?: SegundaLlanta | null;
+  /**
+   * Sprint 2 (Competimotor, `politica.ventaConDosPrecios`): el precio por llanta
+   * en efectivo o transferencia (Precio C, nunca más caro que `precio`). Null o
+   * ausente: la línea sale como siempre, con un solo precio (Depot).
+   */
+  efectivo?: number | null;
+  /** «Black Friday hasta el sábado 5-dic» si la llanta está en una promoción vigente de la tabla `promociones`. */
+  promocion?: string | null;
 }
 
 export interface LineaDeLista {
@@ -43,6 +52,10 @@ export interface LineaDeLista {
   precio: number;
   total: number;
   segundaLlanta?: SegundaLlanta | null;
+  /** Sprint 2: efectivo o transferencia por llanta y por la cantidad (ver `OpcionConPrecio.efectivo`). */
+  efectivo?: number | null;
+  totalEfectivo?: number | null;
+  promocion?: string | null;
 }
 
 const dinero = (v: number) => `$${v.toFixed(2)}`;
@@ -94,6 +107,12 @@ export function armarLista(
       precio: centavos(o.precio),
       total: o.segundaLlanta ? o.segundaLlanta.totalConIva : centavos(o.precio * c),
       ...(o.segundaLlanta ? { segundaLlanta: o.segundaLlanta } : {}),
+      // El efectivo solo con un precio por llanta (sin la cuenta de la 2.ª llanta)
+      // y nunca más caro que con tarjeta: si no, la línea queda con un precio.
+      ...(!o.segundaLlanta && Number.isFinite(o.efectivo) && o.efectivo! > 0
+        ? { efectivo: centavos(Math.min(o.efectivo!, o.precio)), totalEfectivo: centavos(Math.min(o.efectivo!, o.precio) * c) }
+        : {}),
+      ...(o.promocion ? { promocion: o.promocion } : {}),
     }));
 }
 
@@ -113,24 +132,69 @@ export function ordenDeLaLista<T extends { minimumPriceWithTax?: number | null }
  */
 export function lineaDeLista(l: LineaDeLista, cantidad: number, numerada = true): string {
   const cabeza = numerada ? `${l.n} ·` : "•";
+  if (l.efectivo != null && l.totalEfectivo != null && !l.segundaLlanta) return lineaConDosPrecios(l, cantidad, cabeza);
   if (l.segundaLlanta) {
     return `${cabeza} ${l.nombre} — ${cuentaConRotulo(cantidad, l.segundaLlanta)}`;
   }
   return `${cabeza} ${l.nombre} — ${dinero(l.precio)} c/u · ${cantidad} = ${dinero(l.total)}`;
 }
 
-/** «¿Le cotizo la 1, la 2 o la 3?» — o «la 1 o la 2» con dos; con más de 3, «¿Cuál le cotizo?». */
-export function preguntaDeLaLista(cuantas: number): string {
-  if (cuantas > MAX_NUMERADA) return "¿Cuál le cotizo?";
-  const numeros = Array.from({ length: cuantas }, (_, i) => `la ${i + 1}`);
-  const cola = numeros.pop();
-  return `¿Le cotizo ${numeros.length ? `${numeros.join(", ")} o ` : ""}${cola}?`;
+/**
+ * LOS DOS PRECIOS EN DOS LÍNEAS (Sprint 2, Competimotor, auditoría 26-nov):
+ * `1 · MAXXIS AT771 — 4 llantas: *$743.96* con tarjeta ($185.99 c/u)`
+ * `     💵 *$680.00* en efectivo o transferencia ($170.00 c/u)`
+ * Primero el total por la cantidad del cliente (lo que paga) y el c/u entre
+ * paréntesis: «¿dice 436 o cómo es?» (chat 639) era «$109.00 c/u · 4 = $436.00».
+ * La segunda línea es corta A PROPÓSITO (menos de 6 palabras con sustancia):
+ * con más, `estructurarTurno` toma la del efectivo de la 2.ª opción por la misma
+ * idea que la de la 1.ª y la borra (ya pasó con el bloque de precios, 19-nov).
+ */
+function lineaConDosPrecios(l: LineaDeLista, cantidad: number, cabeza: string): string {
+  const cuantas = `${cantidad} ${cantidad === 1 ? "llanta" : "llantas"}`;
+  const cu = (unitario: number) => (cantidad > 1 ? ` (${dinero(unitario)} c/u)` : "");
+  const promo = l.promocion ? " 🖤" : "";
+  if (l.efectivo === l.precio) {
+    // Black Friday más barato que el efectivo: un solo precio, dicho una vez.
+    return `${cabeza} ${l.nombre}${promo} — ${cuantas}: *${dinero(l.total)}* con tarjeta, efectivo o transferencia${cu(l.precio)}`;
+  }
+  return [
+    `${cabeza} ${l.nombre}${promo} — ${cuantas}: *${dinero(l.total)}* con tarjeta${cu(l.precio)}`,
+    `     💵 *${dinero(l.totalEfectivo!)}* en efectivo o transferencia${cu(l.efectivo!)}`,
+  ].join("\n");
 }
 
-/** El bloque completo: una línea por opción y UNA pregunta al final. */
-export function textoDeLaLista(lista: readonly LineaDeLista[], cantidad: number): string {
+/**
+ * La pregunta que invita, con las mismas posiciones (Sprint 2, Competimotor):
+ * «¿Con cuál se queda, la 1 o la 2?». No es «¿Cuál le separo?» a propósito: el
+ * bot no puede prometer reservas (playbook), y «separar» es una. La reconocen
+ * `esLaListaNumerada` y `traeMarcaDelMenu` (`MARCA_DE_LA_LISTA_QUE_INVITA`).
+ */
+const preguntaQueInvita = () => politica.ventaConDosPrecios === true;
+
+/** «¿Le cotizo la 1, la 2 o la 3?» — o «la 1 o la 2» con dos; con más de 3, «¿Cuál le cotizo?». */
+export function preguntaDeLaLista(cuantas: number): string {
+  if (cuantas > MAX_NUMERADA) return preguntaQueInvita() ? "¿Con cuál se queda?" : "¿Cuál le cotizo?";
+  const numeros = Array.from({ length: cuantas }, (_, i) => `la ${i + 1}`);
+  const cola = numeros.pop();
+  const posiciones = `${numeros.length ? `${numeros.join(", ")} o ` : ""}${cola}`;
+  return preguntaQueInvita() ? `¿Con cuál se queda, ${posiciones}?` : `¿Le cotizo ${posiciones}?`;
+}
+
+/** «🖤 Black Friday hasta el sábado 5-dic», una vez, si alguna opción la lleva. */
+function pieDePromocion(lista: readonly LineaDeLista[]): string[] {
+  return [...new Set(lista.map((l) => l.promocion).filter((p): p is string => Boolean(p)))].map((p) => `🖤 ${p}`);
+}
+
+/**
+ * El bloque completo: una línea por opción y UNA pregunta al final. `incluye`
+ * (Sprint 2): el bloque *INCLUYE* de la tabla `benefits`, pegado entre la
+ * lista y la pregunta (una vez por conversación: lo decide quien lo arma).
+ */
+export function textoDeLaLista(lista: readonly LineaDeLista[], cantidad: number, incluye?: string | null): string {
   return [
     ...lista.map((l) => lineaDeLista(l, cantidad, lista.length <= MAX_NUMERADA)),
+    ...pieDePromocion(lista),
+    ...(incluye?.trim() ? ["", incluye.trim()] : []),
     "",
     preguntaDeLaLista(lista.length),
   ].join("\n");
@@ -140,7 +204,11 @@ export function textoDeLaLista(lista: readonly LineaDeLista[], cantidad: number)
 export function listaDeLaPieza(
   metadata: { escalones?: unknown; cantidad?: unknown; lista?: unknown } | null | undefined,
 ): { lista: LineaDeLista[]; cantidad: number } | null {
-  type Guardada = { codigo?: string; nombre?: string; precio_con_iva?: number; segunda_llanta?: SegundaLlanta | null };
+  type Guardada = {
+    codigo?: string; nombre?: string; precio_con_iva?: number; segunda_llanta?: SegundaLlanta | null;
+    /** Sprint 2: el efectivo y la promo que el cliente VIO con la lámina (ausentes en Depot). */
+    efectivo_con_iva?: number | null; promocion?: string | null;
+  };
   const esc = metadata?.escalones as Record<string, Guardada | null> | null | undefined;
   // Con más de 3 opciones (Competimotor) la lámina guarda TODA su lista en
   // `metadata.lista`: los tres escalones solo nombran a tres de ellas.
@@ -153,6 +221,8 @@ export function listaDeLaPieza(
     .map((o) => ({
       nombre: o.nombre!, precio: Number(o.precio_con_iva), codigo: o.codigo ?? null,
       ...(o.segunda_llanta ? { segundaLlanta: o.segunda_llanta } : {}),
+      ...(Number(o.efectivo_con_iva) > 0 ? { efectivo: Number(o.efectivo_con_iva) } : {}),
+      ...(o.promocion ? { promocion: o.promocion } : {}),
     }));
   const cantidad = Number.isInteger(metadata?.cantidad) && Number(metadata?.cantidad) >= 1
     ? Number(metadata?.cantidad)
@@ -173,8 +243,28 @@ export function hechoDeLaLista(lista: readonly LineaDeLista[], cantidad: number,
   return `LISTA DE OPCIONES CON PRECIOS EN PANTALLA (fuente determinística, ${origen}): ${
     lista.map((l) => lineaDeLista(l, cantidad, lista.length <= MAX_NUMERADA)).join(" | ")
   }. Cada total es unitario × ${cantidad} (o, con Black Friday, la cuenta de la 2.ª llanta escrita en la línea), ya calculado: son datos duros, el bot PUEDE decirlos y NO se corrigen. `
+    + (lista.some((l) => l.efectivo != null)
+      ? "Cada opción trae DOS precios del catálogo: con tarjeta (Precio B) y en efectivo o transferencia (Precio C, más bajo). Los dos son datos duros: NO se borran, NO se juntan en uno y NO son un descuento inventado. "
+      : "")
     + `Cerrar con «${preguntaDeLaLista(lista.length)}» es la pregunta correcta de ese turno (elegir entre las opciones, NO pedir permiso por la cantidad): `
     + "se conserva y NO es pregunta_de_mas. Lo que sí está prohibido es volver a preguntar qué prioriza el cliente.";
+}
+
+/**
+ * Sprint 2 (Competimotor, F-03): el revisor tiene que saber qué opciones están
+ * en una promoción vigente y cuáles NO. 1790 («ya queda con el precio
+ * promocional vigente de Black Friday» sobre una TOWNHALL 185/65R14) y 463 («ya
+ * están con valor promocional») afirmaban una promo que la tabla `promociones`
+ * no tiene para esa llanta.
+ */
+export function hechoDePromocionesEnPantalla(lista: readonly LineaDeLista[]): string {
+  const con = lista.filter((l) => l.promocion);
+  const sin = lista.filter((l) => !l.promocion);
+  return "PROMOCIONES DE LAS OPCIONES EN PANTALLA (fuente determinística: tabla de promociones del negocio): "
+    + (con.length ? `${con.map((l) => `${l.nombre} SÍ está en «${l.promocion}»`).join("; ")}. ` : "")
+    + (sin.length
+      ? `${sin.map((l) => l.nombre).join(", ")} NO ${sin.length === 1 ? "está" : "están"} en ninguna promoción vigente: decir que ${sin.length === 1 ? "tiene" : "tienen"} «precio promocional», «valor promocional», «Black Friday» o «viernes negro» es FALSO (hecho_comercial_inventado, ALTA). Su único precio más bajo es el de efectivo o transferencia (la línea 💵), y decirlo NO es error.`
+      : "");
 }
 
 /** «2», «la 3», «opción 1»: el número pelado con que se contesta la lista. */

@@ -96,7 +96,7 @@ import { productosDelCatalogoMencionados } from "./catalog.js";
 import { frenarHechosNuevosDelGuardian, podarHechosNuevosDelGuardian } from "../domain/guardianNoVendeSolo.js";
 import { sinBloquesCalcados } from "../domain/calcoReciente.js";
 import { conMapasCanonicos, quitarMenuDePreferencia, sinTelefonoPropio } from "../domain/candadosDeTexto.js";
-import { MARCA_DE_LA_LISTA, MARCA_DEL_MENU, respuestaDePreferencia } from "../domain/salesIntent.js";
+import { MARCA_DE_LA_LISTA, MARCA_DE_LA_LISTA_QUE_INVITA, MARCA_DEL_MENU, respuestaDePreferencia } from "../domain/salesIntent.js";
 import { sinPreguntaRepetidaEnElTurno } from "../domain/preguntaRepetidaEnElTurno.js";
 import { estructurarTurno } from "../domain/estructuraDelTurno.js";
 import {
@@ -108,6 +108,8 @@ import {
 import { catalogoConPreciosPorPago, findByCode } from "./catalog.js";
 import { preciosPorPagoDeLaConversacion } from "./preciosPorPago.js";
 import { preguntaPorPrecioSegunPago } from "../domain/preciosPorPago.js";
+import { afirmaUnaPromocion, esObjecionDePrecio, preguntaPorDescuentoOPromocion } from "../domain/objecionDePrecio.js";
+import { respuestaAObjecionDeLaConversacion } from "./objecionDePrecio.js";
 import { contextoDeEquivalencias } from "./medidasDelPedido.js";
 import { sinEquivalenciasFalsas } from "../domain/equivalenciaEnTexto.js";
 import { equivalentesDevueltos } from "../domain/equivalentesPorMostrar.js";
@@ -209,6 +211,8 @@ export interface ContextoDeSalida {
    * hecho que el candado (simulador Competimotor 18-nov, CM26).
    */
   medidaSinConfirmar?: boolean;
+  /** Sprint 2: este turno ya contestó con el bloque de precios por forma de pago (Competimotor). */
+  preciosPorPagoRespondidos?: boolean;
 }
 
 export interface PasoDeSalida {
@@ -1043,16 +1047,23 @@ export const PASOS: readonly PasoDeSalida[] = [
       // pago o de descuento se contesta con los tres precios en UN mensaje, y
       // las frases del modelo sobre pago o descuento salen. Sin esos datos (Depot,
       // o un catálogo subido antes) no se toca nada: sigue lo de siempre.
+      // Sprint 2: «está caro» lo contesta `la_objecion_de_precio_se_responde` (efectivo + la más barata + lo incluido).
+      if (politica.ventaConDosPrecios && esObjecionDePrecio(ctx.textoDelCliente)) return texto;
       if (catalogoConPreciosPorPago() && preguntaPorPrecioSegunPago(ctx.textoDelCliente)) {
-        const precios = await preciosPorPagoDeLaConversacion(ctx.conversation.id, ctx.conversation.current_cycle, ctx.textoDelCliente);
+        // Sprint 2 (Competimotor, F-02/F-03): si preguntó por descuento o promoción,
+        // el bloque cierra con la línea de la promo VERDADERA (o «el descuento es en
+        // efectivo o transferencia») y salen las frases del modelo que afirman una.
+        const conPromo = politica.ventaConDosPrecios === true && preguntaPorDescuentoOPromocion(ctx.textoDelCliente);
+        const precios = await preciosPorPagoDeLaConversacion(ctx.conversation.id, ctx.conversation.current_cycle, ctx.textoDelCliente, { conLineaDePromocion: conPromo });
         if (precios) {
+          if (politica.ventaConDosPrecios) ctx.preciosPorPagoRespondidos = true;
           const cuotas = /\bcuotas?\b|\bdiferi\w*|\bmeses\b/.test((ctx.textoDelCliente ?? "").toLowerCase()) && politica.cuotasSinIntereses
             ? `\nCon tarjeta de crédito: ${politica.cuotasSinIntereses}.`
             : "";
           // Sale también cualquier otro monto del modelo: debajo de los tres
           // precios, un «Total: $559.96» suelto se lee como un cuarto (sim, 18-nov).
           const resto = sinFrasesDelTema(texto, (f) =>
-            preguntaPorPrecioSegunPago(f) || /\bdescuent\w*|\brebaj\w*/i.test(f) || /\$\s?\d/.test(f)).texto
+            preguntaPorPrecioSegunPago(f) || /\bdescuent\w*|\brebaj\w*/i.test(f) || /\$\s?\d/.test(f) || (conPromo && afirmaUnaPromocion(f))).texto
             // Lo que sobra de una frase quitada (un «🤝» suelto) no va solo.
             .split(/\n\s*-{3,}\s*\n/).filter((bloque) => /\p{L}/u.test(bloque)).join("\n---\n")
             .split("\n").filter((linea) => !linea.trim() || /\p{L}|\d/u.test(linea)).join("\n").replace(/\n{3,}/g, "\n\n");
@@ -1118,6 +1129,9 @@ export const PASOS: readonly PasoDeSalida[] = [
     async aplicar(texto, ctx) {
       // Si pregunta por el pago («¿cuánto de descuento en efectivo?»), lo contesta la política.
       if (!hablaDelDescuento(ctx.textoDelCliente) || preguntaPorElPago(ctx.textoDelCliente)) return texto;
+      // Sprint 2 (chat 639): el bloque de precios ya contestó (con su línea de la
+      // promo); quitar «sus frases del descuento» le borraba las líneas de precio.
+      if (ctx.preciosPorPagoRespondidos) return texto;
       const ahorro = await ahorroVigente(ctx.conversation.id, ctx.conversation.current_cycle);
       if (!ahorro) return texto;
       // La respuesta REEMPLAZA lo que el modelo dijo del descuento (21:42: «Sí,
@@ -1182,6 +1196,30 @@ export const PASOS: readonly PasoDeSalida[] = [
       const { texto: limpio, quitadas } = sinFrasesDelTema(texto, esFraseDeBeneficios);
       console.log(`🎁 Beneficio de redes contestado en la conv ${ctx.conversation.id}${quitadas.length ? `; salen ${quitadas.length} frases del modelo sobre lo mismo` : ""}.`);
       return limpio.trim() ? `${BENEFICIO_DE_REDES}\n---\n${limpio}` : BENEFICIO_DE_REDES;
+    },
+  },
+  {
+    // «ESTÁ CARO» SE CONTESTA (Sprint 2, Competimotor, auditoría 26-nov, F-02).
+    //
+    //   1303: «Disculpe están muy caras» → repetía la opción 1 y «¿Cuál le cotizo…?».
+    //   1762: «El precio esta elevado» → la más económica y otra vez la lista.
+    //
+    // En un turno: el precio en efectivo o transferencia de lo que vio, la más
+    // barata de su medida que alcance y lo incluido (`domain/objecionDePrecio.ts`).
+    // Va DESPUÉS del Guardián y de las respuestas de pago/descuento: el texto del
+    // modelo se reemplaza entero, así que no depende de que no calque la lista.
+    // Sin la perilla `ventaConDosPrecios` (Depot) no hace nada.
+    nombre: "la_objecion_de_precio_se_responde",
+    corre: ["respuesta", "retomada"],
+    async aplicar(texto, ctx) {
+      if (politica.ventaConDosPrecios !== true || !esObjecionDePrecio(ctx.textoDelCliente)) return texto;
+      const respuesta = await respuestaAObjecionDeLaConversacion(ctx.conversation.id, ctx.conversation.current_cycle).catch((error) => {
+        console.error("⚠️ No se pudo armar la respuesta al «está caro»:", error);
+        return null;
+      });
+      if (!respuesta) return texto;
+      console.log(`💸 Conv ${ctx.conversation.id}: objeción de precio; va el efectivo, la más barata de la medida y lo incluido.`);
+      return respuesta;
     },
   },
   {
@@ -1251,7 +1289,7 @@ export const PASOS: readonly PasoDeSalida[] = [
             select id from messages
             where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
               and direction='outbound' and created_at > ${pieza.created_at}
-              and (content ilike ${`%${MARCA_DEL_MENU}%`} or content ilike ${`%${MARCA_DE_LA_LISTA}%`})
+              and (content ilike ${`%${MARCA_DEL_MENU}%`} or content ilike ${`%${MARCA_DE_LA_LISTA}%`} or content ilike ${`%${MARCA_DE_LA_LISTA_QUE_INVITA}%`})
             limit 1
           `
         : [];

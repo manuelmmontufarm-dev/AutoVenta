@@ -203,6 +203,7 @@ describe("el orden de los candados en el turno", () => {
       "el_descuento_se_responde",
       "la_promocion_de_temporada_se_responde",
       "el_beneficio_se_responde",
+      "la_objecion_de_precio_se_responde",
       "sin_telefono_propio",
       "sin_mapas_escritos_a_mano",
       "sin_menu_repetido",

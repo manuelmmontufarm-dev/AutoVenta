@@ -157,7 +157,8 @@ describe("preparar_opciones arma la lámina con la regla, mande lo que mande el 
     expect(new Set(marcasDe(enPantalla))).toEqual(new Set(["FALKEN", "WINRUN", "KENDA", "TOWNHALL"]));
     expect(enPantalla).toHaveLength(4);
     // La lista escrita trae las cuatro con su precio y una sola pregunta.
-    expect(salida.mensaje_para_enviar).toContain("¿Cuál le cotizo?");
+    // Sprint 2 (Competimotor): la pregunta de la lista invita, con las mismas viñetas.
+    expect(salida.mensaje_para_enviar).toContain("¿Con cuál se queda?");
     expect(salida.mensaje_para_enviar).not.toContain("¿Le cotizo la 1, la 2 o la 3?");
   });
 

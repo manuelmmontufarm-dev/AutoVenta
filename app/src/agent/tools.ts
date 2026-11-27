@@ -100,6 +100,7 @@ import { CAMPO_EQUIVALENTES, equivalentesAMostrar, reglaDeMostrarEquivalentes } 
 import { CAMPO_SIN_STOCK, REGLA_SIN_NO_HAY_VENDEDOR, type PedidoSinStock } from "../domain/sinNoHay.js";
 import { extractFlotationSizes, extractTireSizes, formatFlotationSize, formatTireSize, parseTireSize, type TireSize, type FlotationSize, flotacionIncompleta, medidaGuardable } from "../domain/tireSize.js";
 import { marcaPreguntada, pidioCotizacionExplicita, ultimaMarcaPedida } from "../domain/consultaConRespaldo.js";
+import { efectivoDeLaLlanta, extrasDeLaOpcionGuardada, promocionDeLaLlanta } from "../domain/preciosPorPago.js";
 import { armarLista, ordenDeLaLista, confirmacionDeLaOpcion, opcionPorPosicion, posicionElegida, preguntaDeLaLista, MAX_NUMERADA } from "../domain/listaDeOpciones.js";
 import { escalonesDelConjunto, marcaNombradaEnLaMedida, marcasRechazadas, recomendacionDeLaMedida, type ModoDeRecomendacion } from "../domain/recomendacionPorMarca.js";
 import { cotizarLaUnicaDeUnaVez, laNombradaConCantidad, ultimoTurnoDelBot } from "../domain/cotizarLaUnica.js";
@@ -2552,6 +2553,7 @@ export function buildTools(ctx: AgentContext) {
           nombre: `${p.brand} ${p.design}`,
           precio_con_iva: p.minimumPriceWithTax,
           ...(segundaDeOpcion(p) ? { segunda_llanta: segundaDeOpcion(p) } : {}),
+          ...extrasDeLaOpcionGuardada(p), // Sprint 2: efectivo y promo que vio (solo Competimotor)
           // Las lonas viajan con la opción para poder contestarlas en un turno
           // POSTERIOR sin volver a buscar. Tres clientes las preguntaron en la
           // semana del 8 al 11-sep (convs 16974, 18294, 18880) y las tres veces
@@ -2733,6 +2735,7 @@ export function buildTools(ctx: AgentContext) {
                     nombre: `${p.brand} ${p.design}`,
                     precio_con_iva: p.minimumPriceWithTax,
                     ...(segundaDeOpcion(p) ? { segunda_llanta: segundaDeOpcion(p) } : {}),
+                    ...extrasDeLaOpcionGuardada(p), // Sprint 2
                   })),
                 }
               : {}),
@@ -2807,7 +2810,8 @@ export function buildTools(ctx: AgentContext) {
           ? `De *${marcaPedida}* no tengo disponibilidad en esta medida por ahora; estas son las alternativas que sí le puedo entregar:`
           : null;
       const clientePidioIncluye = requestsBenefitsAgain(ctx.currentUserText);
-      const beneficios = debeLlevarIncluyeEnTexto(visual.ok, clientePidioIncluye)
+      // Sprint 2 (Competimotor): lo incluido va escrito, pegado a la primera lista, una vez.
+      const beneficios = debeLlevarIncluyeEnTexto(visual.ok, clientePidioIncluye) || Boolean(politica.encabezadoDelIncluye)
         ? await buildBenefitsBlockOnce(
             ctx.conversation.id,
             ctx.conversation.current_cycle,
@@ -2852,6 +2856,7 @@ export function buildTools(ctx: AgentContext) {
           precio: p.minimumPriceWithTax ?? 0,
           codigo: p.code,
           segundaLlanta: segundaDeOpcion(p),
+          efectivo: efectivoDeLaLlanta(p), promocion: promocionDeLaLlanta(p), // Sprint 2
         })),
         cantidadResuelta.cantidad,
         // Con la regla por marca la lista lleva TODAS las de la lámina (hasta 6).
@@ -2864,6 +2869,7 @@ export function buildTools(ctx: AgentContext) {
           }. ¿Se la cotizo? 😊`
         : buildCierreOpciones({
         lista: listaEscrita ? { lista: listaEscrita, cantidad: cantidadResuelta.cantidad } : null,
+        incluye: politica.encabezadoDelIncluye ? beneficios : null, // Sprint 2: el INCLUYE va dentro de la lista
         entregarRecomendacion,
         ofrecerCotizar: entregarRecomendacion && !autorizaCotizar,
         pedirMedida: Boolean(ctx.medidaSinConfirmar),
@@ -3002,7 +3008,9 @@ export function buildTools(ctx: AgentContext) {
           // El aviso de tipo va HORNEADO: el modelo lo omitía y el guardián
           // tenía que agregarlo (una pasada más de IA por turno).
           porUso.avisoAlCliente,
-          beneficios,
+          // Sprint 2: con lista escrita el INCLUYE ya va dentro de ella (entre las opciones y la pregunta);
+          // con una sola opción no se fuerza: sale con la lista o la cotización que siga.
+          politica.encabezadoDelIncluye && (cierreDeOpciones.includes("INCLUYE") || !debeLlevarIncluyeEnTexto(visual.ok, clientePidioIncluye)) ? null : beneficios,
           cierreDeOpciones,
         ),
         regla: [
@@ -3017,7 +3025,7 @@ export function buildTools(ctx: AgentContext) {
             ? "El cliente pidió recomendación o contó su uso: el texto ya le entrega la recomendación y le ofrece cotizarla. NO llames generar_cotizacion todavía: la cotización sale cuando el cliente diga que sí, la pida, dé cantidad o elija del menú."
             : listaEscrita && listaEscrita.length > MAX_NUMERADA
             ? `NO adelantes la recomendación en este turno: el texto ya trae cada opción con su precio escrito (con viñetas, sin número) y cierra con «${preguntaDeLaLista(listaEscrita.length)}». PROHIBIDO preguntarle qué prioriza y PROHIBIDO numerarlas. Si el cliente nombra una marca o un modelo de la lista, o dice «la más barata» / «la más cara», llama generar_cotizacion en ese mismo turno con el código de ESA opción y 4 llantas (o la cantidad que haya dicho). Si pide más opciones, otra marca o algo más barato, llama buscar_llanta y preparar_opciones otra vez: salen las que no vio. Si responde un sí genérico, dile en UNA frase que irías por \`recomendacion\` porque \`motivo_recomendacion\`.`
-            : "NO adelantes la recomendación en este turno: el texto ya trae cada opción con su precio escrito y cierra con «¿Le cotizo la 1, la 2 o la 3?» (1 = la más barata / Costo, 2 = Equilibrio, 3 = Premium; con dos opciones, 1 = la más barata y 2 = la premium). PROHIBIDO preguntarle qué prioriza. Si el cliente responde «1», «2», «3», «costo», «equilibrio», «premium» (o «la más barata», «la del medio», «la mejor»), entrega la opción de ESE escalón de `escalones` — nombre y precio con IVA — y en ese mismo turno llama generar_cotizacion con su código y 4 llantas: contestar el menú ES pedir la cotización, no se ofrece ni se pide permiso. Si responde un sí genérico, dile en UNA frase que irías por `recomendacion` porque `motivo_recomendacion`.",
+            : `NO adelantes la recomendación en este turno: el texto ya trae cada opción con su precio escrito y cierra con «${politica.ventaConDosPrecios ? preguntaDeLaLista(Math.min(listaEscrita?.length ?? 3, 3)) : "¿Le cotizo la 1, la 2 o la 3?"}» (1 = la más barata / Costo, 2 = Equilibrio, 3 = Premium; con dos opciones, 1 = la más barata y 2 = la premium). PROHIBIDO preguntarle qué prioriza. Si el cliente responde «1», «2», «3», «costo», «equilibrio», «premium» (o «la más barata», «la del medio», «la mejor»), entrega la opción de ESE escalón de \`escalones\` — nombre y precio con IVA — y en ese mismo turno llama generar_cotizacion con su código y 4 llantas: contestar el menú ES pedir la cotización, no se ofrece ni se pide permiso. Si responde un sí genérico, dile en UNA frase que irías por \`recomendacion\` porque \`motivo_recomendacion\`.`,
           // La única excepción a «no agregues texto»: avisar que la medida no
           // es la suya. Callarlo es lo que terminó en una cotización firmada
           // por otra medida (5499).

@@ -12,6 +12,13 @@ import { REGLA_SIN_NO_HAY_VENDEDOR } from "../domain/sinNoHay.js";
  * cuando esa es la necesidad del turno. `COMPACT_PLAYBOOK` reúne todo para el
  * Manual y para las pruebas de cobertura; producción usa `playbookParaFase`.
  */
+// Sprint 2 (Competimotor, auditoría 26-nov, F-02): la objeción de precio y la
+// pregunta de descuento. Solo con `politica.ventaConDosPrecios`; Depot no la ve.
+// El respaldo determinístico es `la_objecion_de_precio_se_responde` y la línea
+// de la promo del bloque de precios (`services/prepararSalida.ts`).
+const REGLA_OBJECION_Y_DESCUENTO = "«Está caro», «muy caras», «elevado», «carito», «algo más accesible»: NUNCA repitas la lista ni la misma opción. Contesta en UN turno con el precio en efectivo o transferencia de lo que vio, la opción más barata de su medida que alcance (con su precio) y lo incluido. "
+  + "Si pregunta por descuento o promoción: dale los dos precios (tarjeta y efectivo o transferencia) y, SOLO si tus datos marcan esa llanta en una promoción vigente, nómbrala; si no, dile claro que el descuento es pagando en efectivo o transferencia. PROHIBIDO decir «precio promocional», «valor promocional» o «Black Friday» de una llanta que tus datos no marcan en promoción.";
+
 // La frase de presentación nombra TODAS las marcas comerciales («Mundillantas
 // y Competimotor»); para Depot es su nombre y el texto no cambia (R-45).
 export const CORE_PLAYBOOK = `# Contrato comercial ${fraseDePresentacion(negocio)}
@@ -20,7 +27,7 @@ export const CORE_PLAYBOOK = `# Contrato comercial ${fraseDePresentacion(negocio
 - Si hay una pregunta directa, la primera parte de la respuesta la contesta. Después avanza la venta. Nunca vuelvas a preguntar un dato confirmado.
 - **Si no es un NO, es un SÍ.** Ante una propuesta pendiente, cualquier respuesta que no sea una negativa clara permite avanzar. Respeta «no», «no gracias», «todavía no» y «déjeme pensarlo».
 - Si el cliente pide una pieza, ENTREGA primero esa pieza con la herramienta adecuada; no la sustituyas por otra pregunta. Pedir recomendación o describir el uso (carretera, agarre, pavimento…) pide la pieza: preparar_opciones con la recomendada, y el texto agrega UNA línea de criterio, nunca precio ni beneficios.
-- Precio, stock, medida, promoción, beneficio y desempeño técnico solo se afirman con datos de herramientas o hechos confirmados. Si falta respaldo, dilo en una línea y ofrece el siguiente paso útil.${politica.nuncaDecirNoHay ? `\n- ${REGLA_SIN_NO_HAY_VENDEDOR}` : ""}
+- Precio, stock, medida, promoción, beneficio y desempeño técnico solo se afirman con datos de herramientas o hechos confirmados. Si falta respaldo, dilo en una línea y ofrece el siguiente paso útil.${politica.nuncaDecirNoHay ? `\n- ${REGLA_SIN_NO_HAY_VENDEDOR}` : ""}${politica.ventaConDosPrecios ? `\n- ${REGLA_OBJECION_Y_DESCUENTO}` : ""}
 - Si una herramienta devuelve mensaje_para_enviar, úsalo exactamente. La pieza visual lleva el detalle; el texto no lo repite.
 - No cobres, no confirmes pagos ni prometas reservas, despachos, costos o plazos que debe confirmar una persona.
 - Cierra cada respuesta con una pregunta útil. La pregunta final va sola en el último mensaje para que no se pierda.

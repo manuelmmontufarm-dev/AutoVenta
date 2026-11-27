@@ -1,3 +1,27 @@
+## 26-nov-2026 · Bot · Competimotor: dos precios desde la lista, respuesta al «está caro» y cierre «hoy o cita» (Sprint 2, F-02/F-03)
+
+- **Qué:** detrás de `politica.ventaConDosPrecios` (solo `mundillantas`): la lista de opciones dice el total con
+  tarjeta (P2) y en efectivo o transferencia (P3) por la cantidad del cliente, con el c/u entre paréntesis
+  (`domain/listaDeOpciones.ts`); el bloque *INCLUYE* de la tabla `benefits` va pegado a la primera lista
+  (`encabezadoDelIncluye`); la pregunta invita («¿Con cuál se queda, la 1 o la 2?», nueva marca del menú). «Está
+  caro» lo contesta el paso `la_objecion_de_precio_se_responde` con el efectivo de lo que vio, la más barata de su
+  medida que alcance y lo incluido (`domain/objecionDePrecio.ts`, `services/objecionDePrecio.ts`), más una regla en el
+  playbook. Preguntar por descuento o promoción agrega al bloque de precios la promo VERDADERA o «el descuento es
+  pagando en efectivo o transferencia», y quita las frases del modelo que afirman una promo; el Guardián recibe qué
+  opciones NO están en promoción. Tras cotizar: «¿Puede acercarse hoy o qué día le agendo la cita?» (sin «hoy» si el
+  local no alcanza a atenderlo) con botón «Hoy», sin «N % de descuento ya aplicado».
+- **Por qué:** auditoría del 26-nov: 128 chats vieron opciones y 36 pidieron cotización; ~35 callaron en «¿Le cotizo
+  la 1, la 2 o la 3?». El asesor que cierra da el precio en efectivo (1321: $164.50 = el P3) y lo incluido. F-03,
+  comprobado en la base: las cifras de «13 %, $67.96 menos» (1403) y «24 %, $69.50» (639) SÍ cierran (lista = P2,
+  venta = Black Friday de ese día); lo falso era decirlo sin que el cliente hubiera visto el precio de antes ni el
+  nombre de la promo. Lo de 639 sin precios era `el_descuento_se_responde` borrando las líneas del bloque de precios.
+  1790 y 463 afirmaban «precio promocional» de llantas que no están en la tabla `promociones`.
+- **Probado:** `test/competimotorPrecioYCierre.test.ts` (47; 32 en rojo contra `HEAD`) y `test/sprint2DepotNoCambia.test.ts`
+  (7). Simulador (perfil mundillantas, gpt-5.5 de producción, inventario del 20-nov): los 9 chats y los sanos 302 y
+  1734, 3 vueltas. `verificar-precios`: 444/444 y el efectivo de la lista = el del bloque. Suite: solo los fallos que
+  ya tenía `HEAD` (bitácora del panel, hashes de Depot —idénticos a `HEAD`—, unidad en la cantidad).
+- **Horas:** 3.
+
 ## 25-nov-2026 · Bot · Entiende y explica cada promoción del panel (y si se suma con el 25 %)
 
 - **Qué:** `domain/promocionesComoHecho.ts`: la lista de promociones del panel vigentes (regla en palabras, marcas,

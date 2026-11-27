@@ -149,6 +149,15 @@ export async function getStoreHours(): Promise<StoreHours> {
   return value;
 }
 
+/**
+ * El horario sin ir a la base (Sprint 2): el último leído por `getStoreHours`
+ * (cada turno lo lee), o el de por defecto si todavía no se leyó. Para textos
+ * que se arman en un camino síncrono, como el cierre de la cotización.
+ */
+export function storeHoursEnMemoria(): StoreHours {
+  return storeHoursCache?.value ?? conLocalesDelNegocio(DEFAULT_STORE_HOURS);
+}
+
 export async function saveStoreHours(input: unknown): Promise<StoreHours> {
   const value = podarExcepciones(conLocalesDelNegocio(StoreHoursSchema.parse(input)));
   await sql`insert into settings (key, value) values ('store_hours', ${sql.json(value)}) on conflict (key) do update set value=excluded.value, updated_at=now()`;

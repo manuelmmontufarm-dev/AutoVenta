@@ -53,7 +53,7 @@ import { cantidadParaLaCuenta, cuentaConRotulo, marcaConSegundaLlanta, promocion
 import { cantidadDelCliente } from "./lineasConPromo.js";
 import { lineaDeLaCotizacionVigente, type ItemDeCotizacion } from "../domain/hechoDeCotizacionVigente.js";
 import { medidaEstaPedida, mensajesDeLaVisitaActual } from "../domain/medidaPedida.js";
-import { hechoDeLaLista, listaDeLaPieza } from "../domain/listaDeOpciones.js";
+import { hechoDeLaLista, hechoDePromocionesEnPantalla, listaDeLaPieza } from "../domain/listaDeOpciones.js";
 import { listaVigenteDeLaPieza } from "./listaVigente.js";
 import { hechosDeRestricciones, restriccionesDeLlanta } from "../domain/restriccionesLlanta.js";
 import { comproADistanciaSegunLoDicho } from "../domain/compraADistancia.js";
@@ -1026,6 +1026,8 @@ export async function armarContexto(
       ? `Servicios y beneficios respaldados (lo ÚNICO que el bot puede prometer como incluido): ${respaldados.join(" · ")}`
       : "Servicios y beneficios respaldados: ninguno cargado — el borrador no puede prometer nada como incluido",
     listaEnPantalla ? hechoDeLaLista(listaEnPantalla.lista, listaEnPantalla.cantidad, opciones.tipo === "seguimiento") : null,
+    // Sprint 2 (Competimotor, F-03): qué opciones en pantalla están en una promoción vigente y cuáles NO.
+    listaEnPantalla && politica.ventaConDosPrecios ? hechoDePromocionesEnPantalla(listaEnPantalla.lista) : null,
     opciones.avisoRegistrado === undefined ? null : hechoDelAvisoAlAsesor(opciones.avisoRegistrado),
     ...(catalogoHoy.length ? ["", ...catalogoHoy] : []),
     "",
