@@ -80,6 +80,7 @@ beforeEach(async () => {
   await sql`delete from avisos_a_soporte`;
   await sql`delete from incidentes_del_bot`;
   await sql`delete from saldo_de_ia`;
+  await sql`delete from settings where key = 'saldo_de_anthropic'`;
   await sql`delete from ai_runs`;
 });
 
@@ -197,5 +198,49 @@ describe("con la clave de administrador: lo que OpenAI dice que gastó la organi
     saldo._usarLectorDeCostos(async () => { throw new Error("OpenAI contestó 500 al pedir los costos"); });
     await expect(saldo.anotarSaldo({ saldoUsd: 20 }, "manuel", T0)).rejects.toThrow(/no guardé el saldo/);
     expect(await saldo.leerSaldoAnotado()).toBeNull();
+  });
+});
+
+describe("el saldo de Anthropic (27-nov-2026): mismo método, con lo que este bot gastó en Claude", () => {
+  /** Una corrida de Claude Sonnet 5.5: con caché leído y escrito, como las de producción. */
+  async function gastarClaude(cuando: Date, tokens: { input: number; cached?: number; escritos?: number; output?: number }): Promise<void> {
+    await sql`
+      insert into ai_runs (conversation_id, stage, model, latency_ms, input_tokens, cached_input_tokens, cache_write_tokens, output_tokens, tools, created_at)
+      values (${conversationId}, 'nuevo', 'claude-sonnet-5-5', 100, ${tokens.input}, ${tokens.cached ?? 0}, ${tokens.escritos ?? 0}, ${tokens.output ?? 0}, '[]'::jsonb, ${cuando})
+    `;
+  }
+
+  it("no se mezcla con el de OpenAI: cada uno resta solo lo suyo y avisa con su nombre y su página", async () => {
+    // El lector de OpenAI (clave de administrador) NO se consulta para Anthropic.
+    saldo._usarLectorDeCostos(async () => { throw new Error("no debería pedirse"); });
+    await saldo.anotarSaldo({ saldoUsd: 10, proveedor: "anthropic" }, "manuel", T0);
+    expect(await saldo.leerSaldoAnotado()).toBeNull(); // OpenAI sigue sin anotar
+
+    // gpt-5.5 no cuenta; lo de antes de anotar tampoco.
+    await gastar(50, mas(5));
+    await gastarClaude(mas(-10), { input: 5_000_000 });
+    expect(await saldo.revisarSaldo(mas(6), "anthropic")).toBe("ok");
+
+    // 3 M de entrada sin caché ($6) + 1 M escrito al caché (a la tarifa de escritura) + 100 k de salida ($1).
+    await gastarClaude(mas(10), { input: 4_000_000, escritos: 1_000_000, output: 100_000 });
+    const estado = await saldo.estadoDelSaldo("anthropic");
+    expect(estado).toMatchObject({ fuente: "bot", aproximado: true, bajo: true });
+    expect(estado!.gastadoUsd).toBeGreaterThan(7);
+    expect(await saldo.revisarSaldo(mas(11), "anthropic")).toBe("avisado");
+    expect(await saldo.revisarSaldo(mas(16), "anthropic")).toBe("ya_avisado");
+
+    const filas = await avisos();
+    expect(filas).toHaveLength(1);
+    expect(filas[0].titulo).toMatch(/saldo de Anthropic \(Claude\) bajo$/);
+    expect(filas[0].cuerpo).toMatch(/^Quedan unos \$\d+\.\d\d de crédito de Anthropic \(Claude\)/);
+    expect(filas[0].cuerpo).toContain("console.anthropic.com");
+
+    // El de OpenAI sigue independiente: anotarlo no cierra el incidente de Anthropic.
+    saldo._usarLectorDeCostos(null);
+    await saldo.anotarSaldo({ saldoUsd: 100 }, "manuel", mas(20));
+    expect(await sql`select 1 from incidentes_del_bot where causa = 'saldo_bajo_anthropic' and estado = 'abierto'`).toHaveLength(1);
+    // Anotar la recarga de Anthropic sí lo cierra.
+    await saldo.anotarSaldo({ saldoUsd: 50, proveedor: "anthropic" }, "manuel", mas(30));
+    expect(await sql`select 1 from incidentes_del_bot where estado = 'abierto'`).toHaveLength(0);
   });
 });

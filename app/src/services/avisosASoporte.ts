@@ -33,9 +33,9 @@
 import { config } from "../config.js";
 import { sql } from "../db/client.js";
 import {
-  CAUSAS_DE_IA, causaDelFallo, decidirAviso, puedeCerrarse,
-  textoDeCaida, textoDeRecordatorio, textoDeVuelta,
-  type CausaDeFallo, type TextoDeAviso,
+  CAUSAS_DE_IA, causaDelFallo, decidirAviso, proveedorDelError, puedeCerrarse,
+  textoDeCaida, textoDeClaudeConRespaldo, textoDeClaudeVuelve, textoDeRecordatorio, textoDeVuelta,
+  type CausaDeFallo, type ProveedorDeIA, type TextoDeAviso,
 } from "../domain/falloDelBot.js";
 import { negocio } from "../negocio/index.js";
 import { sendAdvisorTemplate, sendAdvisorText } from "../wa/client.js";
@@ -55,7 +55,7 @@ export const USUARIOS_DE_SOPORTE: readonly string[] = ["manuel"];
 export const esUsuarioDeSoporte = (id: string | null | undefined): boolean =>
   Boolean(id && USUARIOS_DE_SOPORTE.includes(id));
 
-export type ClaseDeAviso = "caida" | "recordatorio" | "vuelta" | "saldo_bajo" | "prueba";
+export type ClaseDeAviso = "caida" | "recordatorio" | "vuelta" | "saldo_bajo" | "prueba" | "claude_respaldo";
 
 export interface ResultadoDelAviso {
   /** A cuántos teléfonos salió por la app. */
@@ -149,6 +149,7 @@ const TIPO = "bot_no_responde";
 interface FilaIncidente {
   id: number;
   causa: CausaDeFallo;
+  detalle?: string | null;
   fallos: number;
   conversaciones: string[];
   recordatorios: number;
@@ -207,9 +208,12 @@ export async function reportarFalloDelBot(input: {
   const ahora = input.ahora ?? new Date();
   try {
     const causa = input.causa ?? causaDelFallo(input.error);
+    // El proveedor viaja en el detalle (`[anthropic] …`): el recordatorio y el
+    // «volvió» se arman con la fila y tienen que nombrar la cuenta correcta.
+    const proveedor: ProveedorDeIA = input.error === undefined || input.error === null ? "openai" : proveedorDelError(input.error);
     const detalle = input.error === undefined || input.error === null
       ? null
-      : (input.error instanceof Error ? input.error.message : String(input.error)).slice(0, 500);
+      : `${proveedor === "anthropic" ? "[anthropic] " : ""}${input.error instanceof Error ? input.error.message : String(input.error)}`.slice(0, 500);
     const conv = input.conversationId ?? null;
     const motivoDelSilencio = await calladoAProposito(conv, ahora);
     if (motivoDelSilencio) {
@@ -249,7 +253,7 @@ export async function reportarFalloDelBot(input: {
     if (decision === "abrir") {
       await avisarASoporte({
         clase: "caida",
-        texto: textoDeCaida({ cliente: negocio.nombre, causa, chat: await chatAfectado(conv) }),
+        texto: textoDeCaida({ cliente: negocio.nombre, causa, chat: await chatAfectado(conv), proveedor }),
         conversationId: conv,
         incidenteId: Number(fila.id),
       });
@@ -268,7 +272,7 @@ export async function reportarFalloDelBot(input: {
       clase: "recordatorio",
       texto: textoDeRecordatorio({
         cliente: negocio.nombre, causa, chatsAfectados: fila.conversaciones.length,
-        desde: fila.abierto_at, ahora,
+        desde: fila.abierto_at, ahora, proveedor,
       }),
       conversationId: conv,
       incidenteId: Number(fila.id),
@@ -295,7 +299,7 @@ export async function reportarBotResponde(clase: "ia" | "turno", ahora = new Dat
   try {
     if (abiertos && !abiertos.hay && Date.now() - abiertos.at < ABIERTOS_TTL_MS) return false;
     const filas = await sql<FilaIncidente[]>`
-      select id, causa, fallos, conversaciones, recordatorios, abierto_at, ultimo_fallo_at, ultimo_aviso_at
+      select id, causa, detalle, fallos, conversaciones, recordatorios, abierto_at, ultimo_fallo_at, ultimo_aviso_at
       from incidentes_del_bot where tipo = ${TIPO} and estado = 'abierto'
     `;
     abiertos = { hay: filas.length > 0, at: Date.now() };
@@ -307,7 +311,7 @@ export async function reportarBotResponde(clase: "ia" | "turno", ahora = new Dat
     const cerrados = await sql<FilaIncidente[]>`
       update incidentes_del_bot set estado = 'cerrado', cerrado_at = ${ahora}
       where id = any(${listos.map((f) => Number(f.id))}) and estado = 'abierto'
-      returning id, causa, fallos, conversaciones, recordatorios, abierto_at, ultimo_fallo_at, ultimo_aviso_at
+      returning id, causa, detalle, fallos, conversaciones, recordatorios, abierto_at, ultimo_fallo_at, ultimo_aviso_at
     `;
     if (!cerrados.length) return false;
     abiertos = null;
@@ -319,7 +323,7 @@ export async function reportarBotResponde(clase: "ia" | "turno", ahora = new Dat
       clase: "vuelta",
       texto: textoDeVuelta({
         cliente: negocio.nombre, causa: primero.causa, chatsAfectados: chats.size,
-        desde: primero.abierto_at, ahora,
+        desde: primero.abierto_at, ahora, proveedor: proveedorDelError(primero.detalle ?? ""),
       }),
       incidenteId: Number(primero.id),
     });
@@ -330,18 +334,112 @@ export async function reportarBotResponde(clase: "ia" | "turno", ahora = new Dat
   }
 }
 
+// ── Claude falla y contesta el respaldo ──────────────────────────────────────
+
+/**
+ * Otro tipo de incidente, no `bot_no_responde`: el bot SÍ respondió (con el
+ * respaldo de OpenAI), así que no cierra ni abre los incidentes de «no
+ * responde». Mismo índice único → un incidente abierto por causa, mismas reglas
+ * de recordatorio. Ver `textoDeClaudeConRespaldo`.
+ */
+export const TIPO_CLAUDE_CON_RESPALDO = "claude_con_respaldo";
+
+/** Claude falló y contestó el respaldo. Nunca lanza. */
+export async function reportarFalloDeClaude(input: {
+  error: unknown;
+  causa: CausaDeFallo;
+  respaldo: string;
+  ahora?: Date;
+}): Promise<"abrir" | "recordar" | "nada" | "error"> {
+  const ahora = input.ahora ?? new Date();
+  try {
+    const detalle = `[anthropic] ${input.error instanceof Error ? input.error.message : String(input.error)}`.slice(0, 500);
+    const [fila] = await sql<{ id: number; fallos: number; abierto_at: Date; ultimo_aviso_at: Date | null; recordatorios: number; nuevo: boolean }[]>`
+      insert into incidentes_del_bot (tipo, causa, detalle, abierto_at, ultimo_fallo_at, ultimo_aviso_at)
+      values (${TIPO_CLAUDE_CON_RESPALDO}, ${input.causa}, ${detalle}, ${ahora}, ${ahora}, ${ahora})
+      on conflict (tipo, causa) where estado = 'abierto' do update set
+        fallos = incidentes_del_bot.fallos + 1,
+        ultimo_fallo_at = excluded.ultimo_fallo_at
+      returning id, fallos, abierto_at, ultimo_aviso_at, recordatorios, (xmax = 0) as nuevo
+    `;
+    const decision = decidirAviso(
+      { nuevo: fila.nuevo, ultimoAvisoAt: fila.ultimo_aviso_at, recordatorios: Number(fila.recordatorios) },
+      ahora,
+    );
+    console.warn(
+      `🟠 Claude falló (${input.causa}) y contestó ${input.respaldo}: incidente ${fila.id}, `
+        + `fallo n.º ${fila.fallos} → ${decision === "nada" ? "sin aviso nuevo" : decision}`,
+    );
+    if (decision === "nada") return "nada";
+    if (decision === "recordar") {
+      const cobrado = await sql`
+        update incidentes_del_bot
+        set ultimo_aviso_at = ${ahora}, recordatorios = recordatorios + 1
+        where id = ${fila.id} and estado = 'abierto' and ultimo_aviso_at = ${fila.ultimo_aviso_at}
+        returning id
+      `;
+      if (!cobrado.length) return "nada";
+    }
+    await avisarASoporte({
+      clase: "claude_respaldo",
+      texto: textoDeClaudeConRespaldo({ cliente: negocio.nombre, causa: input.causa, respaldo: input.respaldo }),
+      incidenteId: Number(fila.id),
+    });
+    return decision;
+  } catch (error) {
+    console.error("⚠️ No se pudo registrar el fallo de Claude:", error instanceof Error ? error.message : error);
+    return "error";
+  }
+}
+
+/**
+ * Claude volvió a contestar. Cierra los incidentes de respaldo que ya no son
+ * frescos y avisa una vez. Devuelve si queda alguno abierto (para que quien
+ * llama sepa si tiene que volver a preguntar). Nunca lanza.
+ */
+export async function reportarClaudeResponde(input: { respaldo: string; ahora?: Date }): Promise<{ cerrados: number; quedanAbiertos: boolean }> {
+  const ahora = input.ahora ?? new Date();
+  try {
+    const filas = await sql<FilaIncidente[]>`
+      select id, causa, fallos, conversaciones, recordatorios, abierto_at, ultimo_fallo_at, ultimo_aviso_at
+      from incidentes_del_bot where tipo = ${TIPO_CLAUDE_CON_RESPALDO} and estado = 'abierto'
+    `;
+    const listos = filas.filter((f) => puedeCerrarse(f.ultimo_fallo_at, ahora));
+    if (!listos.length) return { cerrados: 0, quedanAbiertos: filas.length > 0 };
+    const cerrados = await sql<FilaIncidente[]>`
+      update incidentes_del_bot set estado = 'cerrado', cerrado_at = ${ahora}
+      where id = any(${listos.map((f) => Number(f.id))}) and estado = 'abierto'
+      returning id, causa, fallos, conversaciones, recordatorios, abierto_at, ultimo_fallo_at, ultimo_aviso_at
+    `;
+    const quedanAbiertos = filas.length > listos.length;
+    if (!cerrados.length) return { cerrados: 0, quedanAbiertos };
+    const primero = [...cerrados].sort((a, b) => a.abierto_at.getTime() - b.abierto_at.getTime())[0];
+    await avisarASoporte({
+      clase: "vuelta",
+      texto: textoDeClaudeVuelve({
+        cliente: negocio.nombre, causa: primero.causa, respaldo: input.respaldo, desde: primero.abierto_at, ahora,
+      }),
+      incidenteId: Number(primero.id),
+    });
+    return { cerrados: cerrados.length, quedanAbiertos };
+  } catch (error) {
+    console.error("⚠️ No se pudo cerrar el incidente de Claude:", error instanceof Error ? error.message : error);
+    return { cerrados: 0, quedanAbiertos: true };
+  }
+}
+
 // ── Para el panel ────────────────────────────────────────────────────────────
 
 export interface EstadoDeSoporte {
-  incidentesAbiertos: { id: number; causa: string; fallos: number; chats: number; desde: string }[];
+  incidentesAbiertos: { id: number; tipo: string; causa: string; fallos: number; chats: number; desde: string }[];
   avisos: { id: number; clase: string; titulo: string; cuerpo: string; push: number; whatsapp: string; cuando: string }[];
 }
 
 /** Los incidentes abiertos y los últimos avisos que salieron, para Ajustes → Bot. */
 export async function estadoDeSoporte(limite = 15): Promise<EstadoDeSoporte> {
   const [incidentes, avisos] = await Promise.all([
-    sql<{ id: number; causa: string; fallos: number; conversaciones: string[]; abierto_at: Date }[]>`
-      select id, causa, fallos, conversaciones, abierto_at from incidentes_del_bot
+    sql<{ id: number; tipo: string; causa: string; fallos: number; conversaciones: string[]; abierto_at: Date }[]>`
+      select id, tipo, causa, fallos, conversaciones, abierto_at from incidentes_del_bot
       where estado = 'abierto' order by abierto_at
     `,
     sql<{ id: number; clase: string; titulo: string; cuerpo: string; push_enviados: number; whatsapp: string; created_at: Date }[]>`
@@ -351,7 +449,7 @@ export async function estadoDeSoporte(limite = 15): Promise<EstadoDeSoporte> {
   ]);
   return {
     incidentesAbiertos: incidentes.map((i) => ({
-      id: Number(i.id), causa: i.causa, fallos: Number(i.fallos), chats: i.conversaciones.length,
+      id: Number(i.id), tipo: i.tipo, causa: i.causa, fallos: Number(i.fallos), chats: i.conversaciones.length,
       desde: i.abierto_at.toISOString(),
     })),
     avisos: avisos.map((a) => ({

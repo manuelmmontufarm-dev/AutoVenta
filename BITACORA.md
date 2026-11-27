@@ -8,6 +8,77 @@
   del 27-nov, 1974 textual + variante + control 3/3 cada uno (`scripts/sim/escenarios-1974-cantidad.mjs`). Suite:
   fallan los mismos 4 archivos que en `main` 019a7d5.
 - **Horas:** 0,3.
+## 27-nov-2026 · Integración · Cuatro PRs del día juntos a producción (integracion-2026-11-27)
+
+- **Qué:** se juntaron #127 (respaldo cuando Claude falla), #128 (caché de 1 h del vendedor y la línea del Kanban
+  fuera del system), #129 (visión con Claude no escribe medidas dudosas + informe Haiku) y #130 (Competimotor:
+  negar una promo no es «no hay»; con un solo local el Guardián no borra la pregunta del día). El único choque de
+  código fue `chat.ts`/`chatClaude.ts` (#127 agregó opciones `http`, #128 la opción `cache`): quedaron las dos.
+- **Por qué:** Manuel pidió publicar todo lo que conviene y medir en producción (27-nov, /power-through).
+- **Probado:** `tsc` ok; suite 5078 pasan y fallan las mismas 2 pruebas / 4 archivos que en `main`; fidelidad 12/12;
+  `sim:humo` Depot, mundillantas y ejemplo ok. Claude real en la rama combinada (2 conversaciones, 1 min entre
+  ellas): conv 2 leyó 28.292 de 28.833 tokens del caché; vendedor $0,0576 → $0,0097.
+- **Horas:** 0,5.
+
+## 27-nov-2026 · Bot · Competimotor con Claude: prueba en el simulador y dos candados (exp/competimotor-claude)
+
+- **Qué:** Competimotor pasó a Claude (Sonnet 5.5 + Guardián Haiku 5.5) a las 16:52Z sin probarse con su perfil.
+  12 casos de los chats de los sprints × 3 vueltas con Claude + 1 con gpt-5.5, jueces a ciegas: Claude cumple igual
+  (3 ganados, 2 perdidos, 7 empates) y cuesta ~3× menos. Dos arreglos, solo Competimotor:
+  - `domain/sinNoHay.diceNoHay`: negar una PROMOCIÓN («en esta llanta no tengo una promo adicional») ya no es «no hay»;
+    antes salía «Un asesor también lo está revisando para conseguírsela» + aviso «pedido sin stock» con 81 en stock.
+  - `services/guardian.ts` regla 16: con UN solo local la pregunta del día va y no se quita (Haiku la borraba por
+    «Local ya elegido: (ninguno)»). Con 2+ locales (Depot) el texto es idéntico.
+- **Probado:** pruebas nuevas rojas en `main` y verdes acá; C05 3/3 en el simulador (antes 1/3). Suite 5049 pasan,
+  2 fallan (4 archivos, igual que `origin/main`). Informe: `docs/reportes-historicos/2026-11-27-competimotor-claude.md`.
+- **Pendiente (no del modelo):** un solo precio en la recomendación por uso; «sí» a «¿hoy o qué día…?» no pregunta el
+  día; chat 1855 (Guardián Haiku detecta la re-pregunta de la medida y no la corrige).
+## 27-nov-2026 · Bot · Haiku 5.5 en las piezas que no son el vendedor (medición, sin tocar producción)
+
+- **Qué:** informe `docs/reportes-historicos/2026-11-27-haiku-resto.md` + PR. Visión: con un modelo `claude-` se
+  agrega la regla «medida solo si se lee completa; nada de probable; pulgadas sin convertir» (`vision.ts`); con
+  gpt-5.5 no cambia. Simulador: `--routine-model`. Scripts de medición en `app/scripts/haiku-resto/`.
+- **Medido:** visión (63 fotos reales, verdad a ciegas): gpt-5.5 4 medidas equivocadas + 4 inventadas; Haiku 5.5 con
+  la regla 0 + 0 (5 sin leer), $4,61 → $0,14/mes. Clasificador (50 reales): mini 90 % → Haiku 96 %, $2,50 → $1/mes.
+  Guardián Haiku (40 reales, jueces a ciegas): corrige 51 % de los borradores sanos con `low`, 26 % con `medium`
+  (+32 % costo, +3 s); gráfico p: corrige 42–45 %/día contra 34,5 % de gpt-5.5 (señal). Rutina (15 turnos reales ×2 en
+  el simulador): empate 16 vs 14 puntos, sin ahorro (escala a Sonnet) → queda mini.
+- **Para Manuel (variables, no se tocó Railway):** `OPENAI_VISION_MODEL=claude-haiku-5-5` (con el PR en main),
+  `OPENAI_CLASSIFIER_MODEL=claude-haiku-5-5`, `AI_CLAUDE_EFFORT_GUARDIAN=medium`.
+- **Gasto:** Anthropic $1,22 de $4; OpenAI ~$0,12. **Horas:** ~0,6.
+## 27-nov-2026 · Bot · Si Claude falla: gpt-5.5 contesta rápido y soporte se entera (PR, sin merge)
+
+- **Qué:** `agent/chat.ts` pone a Claude en pausa tras un fallo del proveedor (5 min la cuenta si es saldo o clave,
+  1 min el modelo si está caído o colgado, `retry-after` si es 429) y avisa a soporte una vez cuando hace falta una
+  persona (saldo, clave, modelo mal escrito) con un incidente propio `claude_con_respaldo`; «Claude volvió» al
+  cerrar. Sin reintento del SDK cuando hay respaldo. Guardián: 12 s para Claude dentro de sus 20 s. `max_tokens`
+  cae al respaldo. `ai_runs.tools` lleva `respaldo_claude:<motivo>`. Causas y textos nombran a Anthropic.
+  Saldo de Anthropic anotable en Ajustes → Bot (`settings.saldo_de_anthropic`, estimado con `ai_runs` claude-).
+- **Por qué:** Depot, Competimotor y el simulador comparten la clave de Anthropic; con el saldo agotado el respaldo
+  contestaba pero nadie se enteraba, un 429 hacía esperar `retry-after` al cliente, un Anthropic colgado dejaba al
+  Guardián sin revisar y una respuesta cortada llegaba al cliente. Informe:
+  `docs/reportes-historicos/2026-11-27-respaldo-claude.md`.
+- **Probado:** 16 casos con el SDK real contra un Anthropic de mentira; turno entero con base local; las mismas
+  escenas contra `main` para el «antes». Una llamada real (<$0,01) para la forma de los errores.
+- **Horas:** ~1,5 (sesión de Claude).
+
+## 27-nov-2026 · Bot · Costo: el caché del vendedor Claude se guarda 1 hora y deja de partirse por conversación
+
+- **Qué:** rama `perf/cache-vendedor`. (a) La línea «La tarjeta del Kanban sigue en X» sale del system y va con
+  los hechos del turno (`hechoDeLaTarjeta`). (b) El prefijo fijo del vendedor (herramientas + system) se cachea
+  con TTL de 1 hora (`cache: "vendedor"` en `chatClaude.ts`, punto 5). (c) Punto de caché al final del mensaje
+  del cliente, antes de los hechos. En el primer turno (historial vacío) los hechos ya no suben al system.
+  Migración 043 (`ai_runs.cache_write_1h_tokens`) y `billing.ts` cobra esa parte a 2×.
+- **Por qué:** producción 25–27-nov: el 82 % del costo del vendedor Sonnet 5.5 ($9,51 de $11,57) era escribir al
+  caché; solo 28 % de los turnos releía el prefijo (vencía a los 5 min y la línea del Kanban lo partía en hasta 5).
+- **Probado:** tráfico real repetido con cada opción (`scripts/sim/simular-ttl-cache.mjs`): prefijo de $0,0145
+  a $0,0049 por turno, ~$42/mes en Depot. Simulador con 6,5 min entre chats: vendedor $0,066 → $0,028–0,031 por
+  conversación (la primera, en frío, $0,088); mismas llantas y precios. Suite: fallan los mismos 3 archivos que
+  en `main` (hashes de Depot, unidad en la cantidad, bitácora del panel). `sim:humo` Depot y ejemplo OK.
+  Informe: `docs/reportes-historicos/2026-11-27-cache-vendedor.md`.
+- **Pendiente:** PR sin merge. Tras el deploy, medir una semana por turno (consulta en el informe, sección 6).
+  Aparte: el primer turno manda el mensaje del cliente dos veces (el saludo queda después en el historial).
+- **Horas:** ~0,6 (Claude).
 ## 27-nov-2026 · Bot · Competimotor: cierre de los cinco sprints de la auditoría del 26-nov (revisión final)
 
 - **Qué:** integración de los sprints 1 a 5 en `fix/auditoria-2026-11-26` (F-01 «Sí tenemos», F-02/F-03 precio y

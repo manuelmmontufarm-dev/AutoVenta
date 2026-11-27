@@ -37,11 +37,22 @@ const TEXTO_DEL_PROVEEDOR =
 const CULPA_NUESTRA =
   /\bmax_iterations\b|\bempty_response\b|\bcontext_length_exceeded\b|\binvalid_request_error\b|\binvalid schema\b|\bunsupported\b/i;
 
+/**
+ * Anthropic avisa el crédito agotado con un 400 `invalid_request_error` («Your
+ * credit balance is too low…», forma real comprobada el 27-nov-2026), y un
+ * modelo mal escrito en Railway es un 404: ninguno se arregla repitiendo.
+ */
+const SIN_CREDITO_O_SIN_MODELO = /credit balance is too low|purchase credits|not_found_error|model_not_found/i;
+
 export function esFalloDelProveedor(error: unknown): boolean {
   if (error === null || error === undefined) return false;
   const status = (error as { status?: unknown }).status;
-  if (typeof status === "number") return ESTADOS_DEL_PROVEEDOR.has(status);
   const texto = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+  if (typeof status === "number") {
+    return ESTADOS_DEL_PROVEEDOR.has(status)
+      || ((status === 400 || status === 404) && SIN_CREDITO_O_SIN_MODELO.test(texto));
+  }
+  if (/credit balance is too low/i.test(texto)) return true;
   if (CULPA_NUESTRA.test(texto)) return false;
   return TEXTO_DEL_PROVEEDOR.test(texto);
 }

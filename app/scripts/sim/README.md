@@ -136,6 +136,7 @@ bot sigue desde ahí, como si el cliente acabara de escribir.
 | `--con-clave-de-produccion` | Corre con la clave de Depot (te lo va a cobrar a él). |
 | `--debounce N` | Acorta el agrupador de mensajes (producción usa 12000 ms; avisa que diverge). |
 | `--exact-tool-model M` `--rollout N` | Fuerza el canary del turno exacto barato. |
+| `--routine-model M` | Fuerza el modelo de las etapas rutinarias (`cotizacion_enviada`, `seguimiento_venta`; `OPENAI_ROUTINE_MODEL`) para medir otro. |
 | `--canary-model M` `--canary-scope S` `--canary-digits D` | Canary de modelo barato por cliente (todos los dígitos por defecto; `S` = `vendedor,guardian`, `vendedor` o `guardian`). |
 | `--canary-model-vendedor M` `--canary-model-guardian M` | Modelo distinto por pieza dentro del canary. Con un modelo `claude-…` hace falta `ANTHROPIC_API_KEY=` en `app/.env.sim` (clave de pruebas, aparte de la de OpenAI); el simulador la verifica antes de arrancar. |
 | `--sin-build` | No recompila (útil cuando no cambiaste `src/`). |

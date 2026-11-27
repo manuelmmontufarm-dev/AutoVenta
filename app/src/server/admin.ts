@@ -2831,12 +2831,21 @@ export function createAdminRouter(): express.Router {
       ]);
       // El saldo va aparte: si OpenAI no contesta, el resto de la tarjeta se ve igual.
       let saldo: Awaited<ReturnType<typeof estadoDelSaldo>> = null;
+      let saldoAnthropic: Awaited<ReturnType<typeof estadoDelSaldo>> = null;
       let errorDelSaldo: string | null = null;
       try {
         saldo = await estadoDelSaldo();
       } catch (error) {
         errorDelSaldo = mensaje(error, "No se pudo leer el gasto de OpenAI");
       }
+      // El de Anthropic se estima con lo que registró este bot: no sale a la red.
+      saldoAnthropic = await estadoDelSaldo("anthropic").catch(() => null);
+      const paraElPanel = (x: NonNullable<typeof saldo>) => ({
+        saldoUsd: x.anotado.saldoUsd, umbralUsd: x.anotado.umbralUsd,
+        anotadoAt: x.anotado.anotadoAt.toISOString(), anotadoPor: x.anotado.anotadoPor,
+        gastadoUsd: x.gastadoUsd, restanteUsd: x.restanteUsd,
+        fuente: x.fuente, aproximado: x.aproximado, bajo: x.bajo,
+      });
       res.json({
         ok: true,
         ...incidentes,
@@ -2845,12 +2854,8 @@ export function createAdminRouter(): express.Router {
         // sin ella se estima con lo que registró este bot.
         leeElGastoDeOpenAI: Boolean(config.openai.adminKey),
         umbralPorDefecto: UMBRAL_POR_DEFECTO_USD,
-        saldo: saldo && {
-          saldoUsd: saldo.anotado.saldoUsd, umbralUsd: saldo.anotado.umbralUsd,
-          anotadoAt: saldo.anotado.anotadoAt.toISOString(), anotadoPor: saldo.anotado.anotadoPor,
-          gastadoUsd: saldo.gastadoUsd, restanteUsd: saldo.restanteUsd,
-          fuente: saldo.fuente, aproximado: saldo.aproximado, bajo: saldo.bajo,
-        },
+        saldo: saldo && paraElPanel(saldo),
+        saldoAnthropic: saldoAnthropic && paraElPanel(saldoAnthropic),
         errorDelSaldo,
       });
     } catch (error) {
@@ -2862,7 +2867,7 @@ export function createAdminRouter(): express.Router {
     try {
       const estado = await anotarSaldo(req.body, req.usuario?.id ?? null);
       // Si ya se anotó por debajo del umbral, el aviso sale ahora y no en cinco minutos.
-      void revisarSaldo();
+      void revisarSaldo(new Date(), (req.body as { proveedor?: string } | undefined)?.proveedor === "anthropic" ? "anthropic" : "openai");
       res.json({ ok: true, restanteUsd: estado.restanteUsd, bajo: estado.bajo, fuente: estado.fuente });
     } catch (error) {
       res.status(400).json({ ok: false, error: mensaje(error, "No se pudo guardar el saldo") });

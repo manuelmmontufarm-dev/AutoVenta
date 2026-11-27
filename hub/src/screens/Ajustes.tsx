@@ -348,16 +348,20 @@ function SeccionGuardian({ onError }: { onError: (v: string) => void }) {
   </Tarjeta>;
 }
 
+interface SaldoDelPanel {
+  saldoUsd: number; umbralUsd: number; anotadoAt: string; anotadoPor: string | null;
+  gastadoUsd: number; restanteUsd: number; fuente: "openai" | "bot"; aproximado: boolean; bajo: boolean;
+}
+
 interface EstadoSoporte {
-  incidentesAbiertos: { id: number; causa: string; fallos: number; chats: number; desde: string }[];
+  incidentesAbiertos: { id: number; tipo?: string; causa: string; fallos: number; chats: number; desde: string }[];
   avisos: { id: number; clase: string; titulo: string; cuerpo: string; push: number; whatsapp: string; cuando: string }[];
   aparatosConLaApp: number;
   leeElGastoDeOpenAI: boolean;
   umbralPorDefecto: number;
-  saldo: {
-    saldoUsd: number; umbralUsd: number; anotadoAt: string; anotadoPor: string | null;
-    gastadoUsd: number; restanteUsd: number; fuente: "openai" | "bot"; aproximado: boolean; bajo: boolean;
-  } | null;
+  saldo: SaldoDelPanel | null;
+  /** 27-nov-2026: el de Anthropic (Claude), estimado con lo que registró este bot. */
+  saldoAnthropic?: SaldoDelPanel | null;
   errorDelSaldo: string | null;
 }
 
@@ -370,8 +374,18 @@ const CAUSA_DEL_INCIDENTE: Record<string, string> = {
   envio_rechazado: "WhatsApp rechazó el mensaje del bot",
   turno_colgado: "El bot se quedó colgado",
   error_interno: "El bot tuvo un error interno",
+  modelo_inexistente: "OpenAI no reconoce el modelo configurado",
   saldo_bajo: "Saldo de OpenAI bajo",
+  saldo_bajo_anthropic: "Saldo de Anthropic (Claude) bajo",
 };
+
+/** Claude falló y contesta gpt-5.5: el bot SÍ responde, por eso es naranja. */
+const CAUSA_DE_CLAUDE: Record<string, string> = {
+  sin_credito: "Se acabó el crédito de Anthropic",
+  clave_invalida: "Anthropic rechazó la clave del bot",
+  modelo_inexistente: "Anthropic no reconoce el modelo configurado",
+};
+const esDeSaldo = (causa: string) => causa.startsWith("saldo_bajo");
 
 const fechaCorta = (iso: string) => new Date(iso).toLocaleString("es-EC", {
   timeZone: "America/Guayaquil", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit",
@@ -383,32 +397,74 @@ const fechaCorta = (iso: string) => new Date(iso).toLocaleString("es-EC", {
  * anota el saldo (OpenAI no deja leerlo por API), se elige el mínimo y se
  * prueba que el aviso de verdad suena en el teléfono.
  */
+/**
+ * Un saldo anotado: lo que queda y el formulario para anotar la recarga. El de
+ * OpenAI y el de Anthropic se cuentan igual (anotado menos gastado); cambia de
+ * dónde sale el gasto y en qué página se ve el saldo.
+ */
+function BloqueDeSaldo({ proveedor, s, umbralPorDefecto, nota, error, onGuardado, onError }: {
+  proveedor: "openai" | "anthropic";
+  s: SaldoDelPanel | null;
+  umbralPorDefecto: number;
+  nota: string;
+  error?: string | null;
+  onGuardado: () => Promise<void>;
+  onError: (v: string) => void;
+}) {
+  const nombre = proveedor === "anthropic" ? "Anthropic (Claude)" : "OpenAI";
+  const pagina = proveedor === "anthropic" ? "console.anthropic.com → Billing" : "platform.openai.com → Billing";
+  const [saldo, setSaldo] = useState("");
+  const [umbral, setUmbral] = useState(String(s?.umbralUsd ?? umbralPorDefecto));
+  const [ocupado, setOcupado] = useState(false);
+  const guardar = async () => {
+    setOcupado(true);
+    try {
+      await api("/api/hub/soporte/saldo", { method: "PUT", body: JSON.stringify({ saldoUsd: saldo, umbralUsd: umbral, proveedor }) });
+      setSaldo("");
+      onError("");
+      await onGuardado();
+    } catch (e) { onError(e instanceof Error ? e.message : "No se pudo guardar el saldo"); }
+    finally { setOcupado(false); }
+  };
+  return <div>
+    <p className="mb-1 font-semibold">Saldo de {nombre}</p>
+    {s
+      ? <p>
+          <span className={s.bajo ? "font-semibold text-[var(--color-danger,#e2564d)]" : "font-semibold"}>
+            Quedan {s.aproximado ? "unos " : ""}${s.restanteUsd.toFixed(2)}
+          </span>
+          <span className="text-text2"> · anotaste ${s.saldoUsd.toFixed(2)} el {fechaCorta(s.anotadoAt)} y desde entonces se gastaron ${s.gastadoUsd.toFixed(2)} · aviso por debajo de ${s.umbralUsd.toFixed(2)}</span>
+        </p>
+      : <p className="text-text2">Todavía no anotaste un saldo. {nombre} no deja leerlo por API: copia el que ves en {pagina} y desde ahí el bot le resta lo que se gasta. Sin saldo anotado no hay aviso de saldo bajo.</p>}
+    {error && <p className="mt-1 text-[var(--color-danger,#e2564d)]">{error}</p>}
+    <p className="mt-1 text-text2">{nota}</p>
+    <div className="mt-2 grid grid-cols-[1fr_1fr_auto] items-end gap-2">
+      <label>Saldo que ves ahora en {proveedor === "anthropic" ? "Anthropic" : "OpenAI"} (USD)
+        <input type="number" min="0" step="0.01" inputMode="decimal" placeholder="25.00" className={inputCls} value={saldo} onChange={(e) => setSaldo(e.target.value)} />
+      </label>
+      <label>Avisarme por debajo de (USD)
+        <input type="number" min="0" step="0.5" inputMode="decimal" className={inputCls} value={umbral} onChange={(e) => setUmbral(e.target.value)} />
+      </label>
+      <button onClick={() => void guardar()} disabled={ocupado || saldo.trim() === ""} className="rounded-full bg-bg px-3 py-2 text-[12px] font-semibold disabled:opacity-50">
+        {ocupado ? "Guardando…" : "Guardar"}
+      </button>
+    </div>
+    <p className="mt-1 text-text2">Anótalo cada vez que recargues: el aviso queda listo para la próxima vez que baje.</p>
+  </div>;
+}
+
 function SeccionAvisosASoporte({ onError }: { onError: (v: string) => void }) {
   const [estado, setEstado] = useState<EstadoSoporte | null>(null);
-  const [saldo, setSaldo] = useState("");
-  const [umbral, setUmbral] = useState("");
-  const [ocupado, setOcupado] = useState<"" | "guardar" | "probar">("");
+  const [ocupado, setOcupado] = useState<"" | "probar">("");
   const [prueba, setPrueba] = useState("");
 
   const cargar = useCallback(async () => {
     try {
       const r = await api<EstadoSoporte & { ok: boolean }>("/api/hub/soporte");
       setEstado(r);
-      setUmbral(String(r.saldo?.umbralUsd ?? r.umbralPorDefecto));
     } catch (e) { onError(e instanceof Error ? e.message : "No se pudo cargar el estado de soporte"); }
   }, [onError]);
   useEffect(() => { void cargar(); }, [cargar]);
-
-  const guardar = async () => {
-    setOcupado("guardar");
-    try {
-      await api("/api/hub/soporte/saldo", { method: "PUT", body: JSON.stringify({ saldoUsd: saldo, umbralUsd: umbral }) });
-      setSaldo("");
-      onError("");
-      await cargar();
-    } catch (e) { onError(e instanceof Error ? e.message : "No se pudo guardar el saldo"); }
-    finally { setOcupado(""); }
-  };
 
   const probar = async () => {
     setOcupado("probar");
@@ -422,10 +478,9 @@ function SeccionAvisosASoporte({ onError }: { onError: (v: string) => void }) {
     finally { setOcupado(""); }
   };
 
-  const s = estado?.saldo ?? null;
   return <Tarjeta
     titulo="Avisos a soporte"
-    sub="Si el bot no puede contestar (OpenAI sin crédito, WhatsApp rechaza el envío, un error) o el saldo de OpenAI baja del mínimo, te llega un aviso a ti, por la app y por WhatsApp. Un aviso al empezar, un recordatorio si sigue y otro cuando vuelve. El negocio no los recibe."
+    sub="Si el bot no puede contestar (OpenAI sin crédito, WhatsApp rechaza el envío, un error), si Claude falla y el bot pasa a contestar con gpt-5.5, o si el saldo de OpenAI o de Anthropic baja del mínimo, te llega un aviso a ti, por la app y por WhatsApp. Un aviso al empezar, un recordatorio si sigue y otro cuando vuelve. El negocio no los recibe."
     extra={<button onClick={() => void probar()} disabled={ocupado !== ""} className="rounded-full bg-bg px-3 py-1.5 text-[12px] font-semibold disabled:opacity-50">
       {ocupado === "probar" ? "Enviando…" : "Probar aviso"}
     </button>}
@@ -441,40 +496,27 @@ function SeccionAvisosASoporte({ onError }: { onError: (v: string) => void }) {
 
       {estado.incidentesAbiertos.length > 0 && <div className="rounded-[6px] bg-[var(--color-danger,#e2564d)]/12 px-3 py-2">
         {estado.incidentesAbiertos.map((i) => <p key={i.id}>
-          <b>🔴 {CAUSA_DEL_INCIDENTE[i.causa] ?? i.causa}</b>
-          {i.causa !== "saldo_bajo" && <> · {i.chats} {i.chats === 1 ? "chat" : "chats"} sin respuesta</>} · desde {fechaCorta(i.desde)}
+          {i.tipo === "claude_con_respaldo"
+            ? <><b>🟠 {CAUSA_DE_CLAUDE[i.causa] ?? i.causa}</b> · el bot contesta con gpt-5.5</>
+            : <><b>🔴 {CAUSA_DEL_INCIDENTE[i.causa] ?? i.causa}</b>
+                {!esDeSaldo(i.causa) && <> · {i.chats} {i.chats === 1 ? "chat" : "chats"} sin respuesta</>}</>}
+          {" "}· desde {fechaCorta(i.desde)}
         </p>)}
       </div>}
 
-      <div>
-        <p className="mb-1 font-semibold">Saldo de OpenAI</p>
-        {s
-          ? <p>
-              <span className={s.bajo ? "font-semibold text-[var(--color-danger,#e2564d)]" : "font-semibold"}>
-                Quedan {s.aproximado ? "unos " : ""}${s.restanteUsd.toFixed(2)}
-              </span>
-              <span className="text-text2"> · anotaste ${s.saldoUsd.toFixed(2)} el {fechaCorta(s.anotadoAt)} y desde entonces se gastaron ${s.gastadoUsd.toFixed(2)} · aviso por debajo de ${s.umbralUsd.toFixed(2)}</span>
-            </p>
-          : <p className="text-text2">Todavía no anotaste un saldo. OpenAI no deja leerlo por API: copia el que ves en platform.openai.com → Billing y desde ahí el bot le resta lo que se gasta. Sin saldo anotado no hay aviso de saldo bajo.</p>}
-        {estado.errorDelSaldo && <p className="mt-1 text-[var(--color-danger,#e2564d)]">{estado.errorDelSaldo}</p>}
-        <p className="mt-1 text-text2">
-          {estado.leeElGastoDeOpenAI
-            ? "El gasto es el de toda la cuenta de OpenAI (lo dice OpenAI, con unos minutos de atraso)."
-            : "Es una estimación: solo cuenta lo que gastó este bot, no los otros servicios ni las pruebas. Con OPENAI_ADMIN_KEY en Railway se cuenta toda la cuenta."}
-        </p>
-        <div className="mt-2 grid grid-cols-[1fr_1fr_auto] items-end gap-2">
-          <label>Saldo que ves ahora en OpenAI (USD)
-            <input type="number" min="0" step="0.01" inputMode="decimal" placeholder="25.00" className={inputCls} value={saldo} onChange={(e) => setSaldo(e.target.value)} />
-          </label>
-          <label>Avisarme por debajo de (USD)
-            <input type="number" min="0" step="0.5" inputMode="decimal" className={inputCls} value={umbral} onChange={(e) => setUmbral(e.target.value)} />
-          </label>
-          <button onClick={() => void guardar()} disabled={ocupado !== "" || saldo.trim() === ""} className="rounded-full bg-bg px-3 py-2 text-[12px] font-semibold disabled:opacity-50">
-            {ocupado === "guardar" ? "Guardando…" : "Guardar"}
-          </button>
-        </div>
-        <p className="mt-1 text-text2">Anótalo cada vez que recargues: el aviso queda listo para la próxima vez que baje.</p>
-      </div>
+      <BloqueDeSaldo
+        proveedor="openai" s={estado.saldo} umbralPorDefecto={estado.umbralPorDefecto} error={estado.errorDelSaldo}
+        nota={estado.leeElGastoDeOpenAI
+          ? "El gasto es el de toda la cuenta de OpenAI (lo dice OpenAI, con unos minutos de atraso)."
+          : "Es una estimación: solo cuenta lo que gastó este bot, no los otros servicios ni las pruebas. Con OPENAI_ADMIN_KEY en Railway se cuenta toda la cuenta."}
+        onGuardado={cargar} onError={onError}
+      />
+
+      <BloqueDeSaldo
+        proveedor="anthropic" s={estado.saldoAnthropic ?? null} umbralPorDefecto={estado.umbralPorDefecto}
+        nota="Es una estimación: cuenta lo que este bot gastó en Claude. La clave es la misma para Depot, Competimotor y el simulador, así que el saldo real puede ser menor. Si se acaba igual, el bot sigue contestando con gpt-5.5 y te llega un aviso."
+        onGuardado={cargar} onError={onError}
+      />
 
       {estado.avisos.length > 0 && <div>
         <p className="mb-1 font-semibold">Últimos avisos que te salieron</p>

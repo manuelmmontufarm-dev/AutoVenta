@@ -17,7 +17,7 @@ import { politica } from "../negocio/politica.js";
  */
 export function buildSystemPrompt(
   ai: AiConfig = DEFAULT_AI_CONFIG,
-  stage?: { key?: Stage; name: string; objective: string; prompt: string; version: number; storedStage?: string },
+  stage?: { key?: Stage; name: string; objective: string; prompt: string; version: number },
   storeHours?: StoreHours,
 ): string {
   const stores = business.stores.map((store) => `- ${store.name}`).join("\n");
@@ -53,8 +53,7 @@ ${styleRules(ai)}
 
 ${stage ? `# Fase operativa de este turno: ${stage.name}
 La fase puede avanzar o volver según lo que acaba de pedir el cliente. Resuelve primero esa necesidad y después haz una sola pregunta que empuje al siguiente dato comercial que falte.
-Objetivo: ${stage.objective}${stage.storedStage && stage.storedStage !== stage.name ? `
-La tarjeta del Kanban sigue en ${stage.storedStage}; no borres los datos ni la cotización ya conseguida.` : ""}${stage.prompt.trim() ? `
+Objetivo: ${stage.objective}${stage.prompt.trim() ? `
 Indicación adicional publicada: ${stage.prompt.trim()}` : ""}` : ""}`.trim();
 }
 
@@ -71,6 +70,22 @@ function queVendeYOfrece(marcas: readonly string[], servicios: readonly string[]
   if (marcas.length) return ` Vende ${lista(marcas)}.`;
   if (servicios.length) return ` Ofrece ${lista(servicios)}.`;
   return "";
+}
+
+/**
+ * LA TARJETA DEL KANBAN VA CON LOS HECHOS, NO EN EL SYSTEM (27-nov-2026).
+ *
+ * Es un dato de ESTA conversación («la tarjeta sigue en nuevo»), y el system es
+ * el prefijo que Claude cachea y comparte entre conversaciones. Adentro partía
+ * el caché de cada fase en cinco (una por etapa guardada): producción,
+ * 25–27-nov, fase `medida_confirmada` con la tarjeta en `nuevo` (146 turnos) y
+ * en `medida_confirmada` (88) eran dos prefijos distintos de ~7.500 tokens que
+ * se escribían por separado. `agent.ts` la manda detrás del historial, con los
+ * demás hechos del turno. Ver `docs/reportes-historicos/2026-11-27-cache-vendedor.md`.
+ */
+export function hechoDeLaTarjeta(faseDelTurno: string, etapaGuardada?: string | null): string | null {
+  if (!etapaGuardada || etapaGuardada === faseDelTurno) return null;
+  return `La tarjeta del Kanban sigue en ${etapaGuardada}; no borres los datos ni la cotización ya conseguida.`;
 }
 
 /** Traduce la configuración de /configuracion/ia sin redefinir reglas comerciales. */
