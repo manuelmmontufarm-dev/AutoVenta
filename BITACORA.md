@@ -1,12 +1,18 @@
-## 27-nov-2026 · Bot · Competimotor: «sí» a la cita y el día tras el precio (WIP, NO integrar)
+## 27-nov-2026 · Bot · Competimotor: «sí» a la cita y el día tras el precio (F-06, revisión final)
 
-- **Qué:** A) «sí» a «¿Le agendo una cita?» (`ofrece_cita`) → `preguntaHoyOCita()` sin lámina ni cotización.
-  B) tras contestar precios por pago a quien se le había preguntado el día, vuelve `preguntaHoyOCita()`.
-- **Por qué:** revisión final de la coordinadora (1790 y 463).
-- **Probado:** B 2 de 3 en el simulador (la 1.ª, `sin_calco_reciente` quitó la pregunta porque era idéntica a la del
-  turno anterior). A sin simulador: los seguimientos no salen de madrugada y no hubo tiempo de mover el reloj. Fuera
-  de la rama del sprint hasta probarlo.
-- **Horas:** 0,5.
+- **Qué:** parte del WIP de S5 (510dbe6), terminado. Todo con `politica.casosSueltosF06` (solo `mundillantas`).
+  - A) «sí» a secas a «¿Le agendo una cita?» (hecho `ofrece_cita` en el último turno del bot, lector de
+    `aceptaElAsesor`) → `preguntaHoyOCita()`, sin lámina ni cotización (`domain/ofertaVigente.aceptaLaCita`).
+    «Sí, mañana» al mismo turno cuenta como respuesta al día y registra la visita (`respondeALaCita`).
+  - B) `el_dia_vuelve_tras_el_precio`: si el turno cierra con otra pregunta («¿Se la cotizo?», ya cotizada) se
+    cambia por la del día (`domain/preguntaDelDia.conLaPreguntaDelDia`), y `sin_calco_reciente` no la quita: un
+    hecho del turno la exime (`sinBloquesCalcados(…, exentos)`).
+- **Por qué:** revisión final: el «sí» al 2.º seguimiento preguntaba «¿Se la cotizo?» (2 de 2); 1790 perdía la
+  pregunta del día (S5: 2 de 3, el calco se la comió; aquí además una vuelta cerró con «¿Se la cotizo?»).
+- **Probado:** `test/s4CitaYDia.test.ts` + `.depot.test.ts` (en rojo antes). Simulador Competimotor: 463 ×3 y 1415 ×1
+  «si» → «¿Qué día le agendo la cita? 📅», 0 cotizaciones; 1415 «sí, mañana» ×3 → visita sáb 28-11; 1790 ×3 cierra
+  preguntando el día, 0 calcos.
+- **Horas:** 1.
 
 ## 26-nov-2026 · Bot · Competimotor: dos precios desde la lista, respuesta al «está caro» y cierre «hoy o cita» (Sprint 2, F-02/F-03)
 
@@ -6911,6 +6917,7 @@ Ya viene activado en este equipo.
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
 | 2026-11-27 | _(este mismo)_ | Sprint 5 F-06 Competimotor: otra ciudad con envío, asesor a secas, carga C/LT, preguntas directas, doble botón; venta 1456 (equivalentes 275/55R20, foto, ubicación, alertas falsas) | 6 |
+| 2026-11-27 | _(este mismo)_ | F-06 revisión final: «sí» a la cita pregunta el día, «sí, mañana» la registra, el día cierra el turno tras el precio (1790) | 1 |
 | 2026-11-26 | _(este mismo)_ | Competimotor «Sí tenemos»: stock 1–2 se muestra y se cotiza, sin nombrar el stock; pantanera = M/T y R/T (F-01) | 2 |
 | 2026-11-26 | _(este mismo)_ | Sprint 4 ronda 1: Depot igual en visitas y recordatorio, seguimiento sin precio con promo, texto fijo solo en los dos | 1,5 |
 | 2026-11-26 | _(este mismo)_ | Sprint 4 F-05 Competimotor: seguimientos tras pedir tiempo, visita inventada, recordatorio con lo cotizado, dos seguimientos distintos | 4 |

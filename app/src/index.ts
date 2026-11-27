@@ -89,8 +89,8 @@ import { authorizeConversationOutbound, OutboundPolicyError } from "./services/w
 import { preguntaHoyOCita, splitBlocks } from "./services/quoteMessages.js";
 import { prepararSalida, type ContextoDeSalida } from "./services/prepararSalida.js";
 import { metadataDeOferta } from "./services/ofertaVigente.js";
-import { bloqueDeLaOferta } from "./domain/ofertaVigente.js";
-import { AVISO_DE_TRASPASO, aceptaElAsesor, ofreceAsesor } from "./domain/pideAsesor.js";
+import { aceptaLaCita, bloqueDeLaOferta, respondeALaCita } from "./domain/ofertaVigente.js";
+import { AVISO_DE_TRASPASO, ofreceAsesor } from "./domain/pideAsesor.js";
 import { flagRepetitiveConversation } from "./services/conversationQuality.js";
 import { notifyPendingHumanRequests } from "./services/advisorNotifications.js";
 import { startEmbeddedFollowUpWorker } from "./workers/embeddedFollowUpWorker.js";
@@ -225,6 +225,9 @@ async function atenderTurno(
   // EL «1» DEL MENÚ NO ES EL DÍA 1 (simulador, 7-sep): «1» tras el menú de
   // preferencia se leyó como «jueves 1 de octubre», la ruta de visita lo
   // registró y el cliente nunca recibió su cotización.
+  // El último turno (más nuevo primero) con el hecho `ofrece_cita`: lo leen la
+  // visita («sí, mañana») y el «sí» a secas (`aceptaLaCita`). Solo Competimotor.
+  const turnoDelBot = politica.casosSueltosF06 ? await turnoReciente(conversation.id) : [];
   const commitmentLeido = esRespuestaDelMenuDePreferencia(text, previousOutbound, mensajeCitado)
     ? null
     // El lector único de la visita (`domain/fechaDeVisita.ts`): el mismo que
@@ -232,7 +235,10 @@ async function atenderTurno(
     : leerVisita(text, receivedAt, {
         // «Voy a estar en Quito» no entra por la puerta del local (simulador, 12-sep).
         respondiendoAlDia: respondeAlDiaDeLaVisita({
-          texto: text, preguntamosElDia: preguntamosElDia(previousOutbound), preguntamosElLocal: respondiendoAlLocal,
+          texto: text,
+          // «Sí, mañana» a «¿Le agendo una cita?» (F-06): la cita ofrecida es pregunta del día.
+          preguntamosElDia: preguntamosElDia(previousOutbound) || respondeALaCita(turnoDelBot),
+          preguntamosElLocal: respondiendoAlLocal,
         }),
       });
   // UN DÍA CERRADO NO SE AGENDA (Sprint Final, 26-oct, simulador): con domingo
@@ -544,8 +550,8 @@ async function atenderTurno(
   // 2.º seguimiento de Competimotor guarda `ofrece_cita` al enviarse; el «sí» a
   // secas se contesta con la pregunta del día (hoy o cita), sin lámina ni
   // cotización. Si dio el día («sí, mañana»), lo registra el camino de siempre.
-  const citaAceptada = politica.casosSueltosF06 === true && !commitment?.visitDate
-    && aceptaElAsesor(text, await ultimoTurnoOfrecioCita(conversation.id));
+  const citaAceptada = politica.casosSueltosF06 === true
+    && aceptaLaCita(text, turnoDelBot, Boolean(commitment?.visitDate));
   if (citaAceptada) console.log(`📅 Conv ${conversation.id}: «sí» a «¿Le agendo una cita?»: se pregunta el día.`);
   const directReply = cierreAntesDeHerramientas || cierreDelTurno
     ? null
@@ -859,20 +865,13 @@ async function avisarTraspasoSiLoPidio(
   console.log(`🤝 Traspaso avisado en la conv ${conversationId}: el cliente pidió un asesor.`);
 }
 
-/**
- * ¿El último turno del bot (sus salientes desde el mensaje anterior del cliente)
- * llevó el hecho `ofrece_cita`? Se lee de la base, nunca del texto.
- */
-async function ultimoTurnoOfrecioCita(conversationId: number): Promise<boolean> {
-  const filas = await sql<{ direction: string; cita: boolean | null }[]>`
+/** Los últimos mensajes del chat (más nuevo primero) con el hecho `ofrece_cita`; lo decide `aceptaLaCita`. */
+async function turnoReciente(conversationId: number): Promise<{ direction: string; cita: boolean | null }[]> {
+  return sql<{ direction: string; cita: boolean | null }[]>`
     select direction, (metadata->>'ofrece_cita')::boolean as cita from messages
     where conversation_id=${conversationId} and type <> 'note' and (direction='inbound' or author_kind='bot')
     order by created_at desc, id desc limit 12
   `;
-  let i = 0;
-  while (i < filas.length && filas[i].direction === "inbound") i++;
-  for (; i < filas.length && filas[i].direction !== "inbound"; i++) if (filas[i].cita) return true;
-  return false;
 }
 
 /**

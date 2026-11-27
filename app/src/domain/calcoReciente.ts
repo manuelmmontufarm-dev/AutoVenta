@@ -56,6 +56,9 @@ export function sinBloquesCalcados(
   texto: string,
   salientesRecientes: readonly string[],
   preguntasVigentes: number = salientesRecientes.length,
+  // Bloques que un HECHO del turno pide conservar aunque ya hayan salido (la
+  // pregunta del día que vuelve tras el precio, F-06 / 1790). Vacío: igual que siempre.
+  exentos: readonly string[] = [],
 ): ResultadoCalco {
   const aBloques = (s: string) => s.split(SEPARADOR).map(normalizar).filter(Boolean);
   const recientes = new Set(salientesRecientes.flatMap(aBloques));
@@ -64,7 +67,8 @@ export function sinBloquesCalcados(
   );
   if (!recientes.size) return { texto, calcados: [] };
 
-  const esCalco = (b: string) =>
+  const exentosN = new Set(exentos.map(normalizar));
+  const esCalco = (b: string) => exentosN.has(normalizar(b)) ? false :
     CONTIENE_PREGUNTA.test(b) ? inmediatos.has(normalizar(b)) : recientes.has(normalizar(b));
 
   // LA LISTA REESCRITA TAMBIÉN ES CALCO (replay final del 10-nov, 39971 r1): el

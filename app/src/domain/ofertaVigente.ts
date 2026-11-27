@@ -27,6 +27,7 @@ import {
   codigoDeLoOfrecido, esMenuDeOpciones, ofreceCotizarEn, palabrasDelAcuse, respondeQueSi, seApartoDeLaOferta,
 } from "./ofertaAceptada.js";
 import { ofrecioCotizarLaUnica } from "./cotizarLaUnica.js";
+import { aceptaElAsesor } from "./pideAsesor.js";
 import { politica } from "../negocio/politica.js";
 import { eligePosicionDelMenu, pidioPrecioOCotizacion, respuestaDePreferencia } from "./salesIntent.js";
 
@@ -300,4 +301,41 @@ export function hechoDeOfertaVigente(leida: OfertaLeida, nombre?: string | null)
 export function ofreceCita(textoQueSeEnvia: string | null | undefined): boolean {
   if (!politica.casosSueltosF06) return false;
   return /¿\s*le\s+agendo\s+(?:una\s+)?cita\b|¿\s*le\s+separo\s+(?:una\s+)?cita\b|¿\s*agendamos\s+(?:una\s+)?cita\b/i.test(textoQueSeEnvia ?? "");
+}
+
+/**
+ * ¿El último turno del bot llevó el hecho `ofrece_cita`? `filas` son los
+ * mensajes del chat del más nuevo al más viejo (entrantes y del bot): se saltan
+ * los entrantes del turno actual y se mira solo el turno del bot anterior.
+ * Se lee de la metadata, nunca del texto (F-06, revisión final).
+ */
+export function turnoDelBotOfrecioCita(filas: readonly { direction: string; cita: boolean | null }[]): boolean {
+  let i = 0;
+  while (i < filas.length && filas[i].direction === "inbound") i++;
+  for (; i < filas.length && filas[i].direction !== "inbound"; i++) if (filas[i].cita) return true;
+  return false;
+}
+
+/**
+ * «SÍ» A «¿LE AGENDO UNA CITA?» (2.º seguimiento de Competimotor): un sí a
+ * secas (el mismo lector que `aceptaElAsesor`) al turno que ofreció la cita, sin
+ * visita registrada, se contesta con la pregunta del día. «Sí, mañana» no es un
+ * sí a secas: lo registra el camino de la visita. Solo con `casosSueltosF06`.
+ */
+export function aceptaLaCita(
+  mensajeDelCliente: string,
+  filas: readonly { direction: string; cita: boolean | null }[],
+  visitaRegistrada: boolean,
+): boolean {
+  if (!politica.casosSueltosF06 || visitaRegistrada) return false;
+  return aceptaElAsesor(mensajeDelCliente, turnoDelBotOfrecioCita(filas));
+}
+
+/**
+ * Tras «¿Le agendo una cita?», el mensaje del cliente responde al DÍA: «sí,
+ * mañana» registra la visita como si le hubiéramos preguntado el día. Solo
+ * con `casosSueltosF06`.
+ */
+export function respondeALaCita(filas: readonly { direction: string; cita: boolean | null }[]): boolean {
+  return politica.casosSueltosF06 === true && turnoDelBotOfrecioCita(filas);
 }

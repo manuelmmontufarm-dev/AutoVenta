@@ -95,6 +95,7 @@ import { motivoDeUbicacion, ofrecioLaUbicacion } from "../domain/ubicacionPedida
 import { pideOtroDia } from "./rutaOtroDia.js";
 import { buildStoreLinksBlock, buildVisitPlanQuestion, preguntaHoyOCita, ubicacionDelLocalUnico } from "./quoteMessages.js";
 import { preguntamosElDia } from "../domain/customerCommitment.js";
+import { conLaPreguntaDelDia } from "../domain/preguntaDelDia.js";
 import { buildStoreLinksBlockOnce } from "./storeLinks.js";
 import { business } from "../config.js";
 import { productosDelCatalogoMencionados } from "./catalog.js";
@@ -219,6 +220,8 @@ export interface ContextoDeSalida {
   medidaSinConfirmar?: boolean;
   /** Sprint 2: este turno ya contestó con el bloque de precios por forma de pago (Competimotor). */
   preciosPorPagoRespondidos?: boolean;
+  /** La pregunta del día que `el_dia_vuelve_tras_el_precio` agregó: `sin_calco_reciente` no la quita (F-06, 1790). */
+  preguntaDelDiaQueVuelve?: string;
 }
 
 export interface PasoDeSalida {
@@ -1254,12 +1257,15 @@ export const PASOS: readonly PasoDeSalida[] = [
     corre: ["respuesta"],
     async aplicar(texto, ctx) {
       if (!politica.casosSueltosF06 || !ctx.preciosPorPagoRespondidos) return texto;
-      if (/\?\s*\S{0,3}\s*$/u.test(texto.trim())) return texto;
       const [ficha] = await sql<{ visit_date: Date | null }[]>`select visit_date from conversations where id=${ctx.conversation.id}`;
       if (ficha?.visit_date) return texto;
       if (!preguntamosElDia(await lastOutboundText(ctx.conversation.id))) return texto;
       console.log(`📅 Conv ${ctx.conversation.id}: contestó el precio tras la pregunta del día; vuelve la pregunta.`);
-      return `${texto}\n---\n${preguntaHoyOCita(new Date())}`;
+      const conElDia = conLaPreguntaDelDia(texto, preguntaHoyOCita(new Date()));
+      // Si ya cerraba con la del día, no hay nada que eximir: sale como venía.
+      if (conElDia === texto) return texto;
+      ctx.preguntaDelDiaQueVuelve = conElDia.split("\n---\n").pop();
+      return conElDia;
     },
   },
   {
@@ -1831,6 +1837,9 @@ export const PASOS: readonly PasoDeSalida[] = [
         texto,
         vigentes.map((m) => m.content ?? ""),
         ultimaPieza === null ? vigentes.length : vigentes.filter((m) => new Date(m.created_at).getTime() > ultimaPieza).length,
+        // La pregunta del día que volvió tras el precio la puso un hecho de este
+        // turno (visita pendiente, contestó otra cosa): no es calco (F-06, 1790).
+        ctx.preguntaDelDiaQueVuelve ? [ctx.preguntaDelDiaQueVuelve] : [],
       );
       if (ultimaPieza !== null && sinBloquesCalcados(texto, vigentes.map((m) => m.content ?? "")).calcados.length > resultado.calcados.length) {
         console.log(`🆕 Conv ${ctx.conversation.id}: la pregunta repetida va sobre una lámina o cotización nueva; no es calco y se conserva.`);
