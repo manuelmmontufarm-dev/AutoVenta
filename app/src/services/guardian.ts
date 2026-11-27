@@ -76,7 +76,7 @@ import { leerFichaDelCicloAnterior } from "./fichaDelCicloAnterior.js";
 import { hechoDeTemporadaParaElGuardian } from "./hechosDeTemporada.js";
 import { formatStoreHours, getGuardianConfig, getPiecesConfig, getStoreHours } from "./settings.js";
 import { faltanteDeCotizacion } from "./stockCorto.js";
-import { alcanzaParaVender } from "../domain/stockCorto.js";
+import { alcanzaParaVender, nombraElStockAlCliente, REGLA_STOCK_CORTO_SE_VENDE, stockCortoSeVende } from "../domain/stockCorto.js";
 import { hayDescuentoEnEfectivo, politicaDePagos } from "../domain/datosDelNegocio.js";
 import { politica } from "../negocio/politica.js";
 import { REGLA_SIN_NO_HAY_GUARDIAN } from "../domain/sinNoHay.js";
@@ -526,7 +526,7 @@ async function catalogoParaElGuardian(pedidas: readonly string[], cantidadDelCli
       for (const p of encontrados.slice(0, 12)) {
         const estado = !vendibles.has(p.code)
           ? ` (NO VENDIBLE para el juego de ${JUEGO_COMPLETO}: no se ofrece)`
-          : p.stock < JUEGO_COMPLETO
+          : p.stock < JUEGO_COMPLETO && nombraElStockAlCliente()
             ? ` (STOCK CORTO para el juego de ${JUEGO_COMPLETO}: no ofrecer ${p.stock} unidades sueltas; el resto lo confirma el asesor)`
             : "";
         // El tipo (A/T, H/T…) viene de la base del cliente, no de Contífico.
@@ -964,6 +964,10 @@ export async function armarContexto(
     // inventa igual que lo borra; así que viaja.
     `Locales y direcciones (ficha del negocio): ${business.stores.map((s) => `${s.name}: ${s.address}`).join(" · ")}. ` +
       "PROHIBIDO nombrar sectores, barrios o direcciones distintos; la ubicación se manda con los links de Maps.",
+    // Stock único entre locales (Competimotor, F-01 26-nov): una llanta con 1 o 2
+    // se ofrece y se cotiza, y el número no se le dice al cliente. Sin este hecho
+    // el revisor leía «stock hoy: 2» y la regla del juego, y corregía en contra.
+    stockCortoSeVende() ? REGLA_STOCK_CORTO_SE_VENDE : null,
     // SIN ESTA LÍNEA EL REVISOR ES CIEGO AL STOCK.
     //
     // El 26-ago (conv 11061) el guardián corrigió un borrador y en su

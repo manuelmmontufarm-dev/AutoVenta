@@ -1,3 +1,27 @@
+## 26-nov-2026 · Bot · Competimotor: «Sí tenemos» — lo que tiene 1 o 2 se muestra y se cotiza (F-01)
+
+- **Qué:** perillas nuevas de la política (bloque «Sprint 1»): `stockCortoSeVende` y `usoDelClienteAmpliaElTipo`, las
+  dos solo en `mundillantas`. Con la primera, la vitrina (`opcionesQueAlcanzan` → `minimoParaMostrar`) enseña toda
+  llanta con stock ≥ 1, la caja (`alcanzaParaVender`) firma la cantidad pedida, la pieza no pone «Consultar
+  disponibilidad», al vendedor no le viaja el número de stock y el recordatorio «hoy hay 2» no sale por ninguna puerta
+  (`faltanteDeCotizacion`, `recordatorioQueFalta`); el asesor recibe `stock_insuficiente` al cotizar y el Guardián un
+  hecho duro (`REGLA_STOCK_CORTO_SE_VENDE`) y filas sin «STOCK CORTO». Con la segunda, «pantaneras» sin tipo escrito
+  busca por uso (M/T y R/T) aunque el modelo pase M/T (`tipoQueFiltraLaBusqueda`). Sin ninguna en la medida,
+  `preparar_opciones` y `buscar_por_aro_y_tipo` devuelven lo más cercano con stock y la orden de mostrarlo en el mismo
+  turno (`reglaDeLasMasCercanas`). «Ya le estoy revisando el valor promocional…» se quita solo cuando el turno trae la
+  cotización o el precio de ESA llanta (1538); con lámina de alternativas sigue la regla del 24-nov. El candado de
+  salida no le nombra el faltante al cliente pero sí deja la alerta `stock_insuficiente` al asesor.
+- **Por qué:** auditoría de Competimotor del 26-nov (F-01): 1331, 1344, 1555, 1588, 560 y 469 recibieron «no me sale en
+  stock» / «un asesor ya se la está revisando» con KR28 = 2, WR9001 = 1, R380 = 2, KR601 = 2 en catálogo, y el asesor
+  las vendió minutos después; la única venta del periodo (469, $437) fue una de esas. La regla de Depot (Joaquín,
+  26-ago: no enseñar menos de 4) se aplicaba a un negocio con un solo stock entre locales. Depot no cambia.
+- **Probado:** `test/siTenemosStockCorto.test.ts`, `test/siTenemosDepotIgual.test.ts` y
+  `test/siTenemosAlAsesor.integration.test.ts` (rojo sin el arreglo). Simulador
+  `--perfil mundillantas` con el catálogo vivo del 26-nov (KR29 en 0 como el 20-nov): 1331, 1344, 1588, 1555, 560, 469,
+  1011 y una medida sin A/T, 3 vueltas cada uno (ver el cuadro del sprint). Se actualizaron tres pruebas que fijaban la
+  conducta vieja de Competimotor (`recomendacionPorMarca.herramientas`, `competimotorPantaneras`).
+- **Horas:** 2.
+
 ## 26-nov-2026 · Bot · Sprint 4 ronda 1 (revisión): Depot igual en visitas y recordatorios
 
 - **Qué:** la regla ancha «un día dentro de una pregunta no agenda» queda solo con
@@ -6804,6 +6828,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-11-26 | _(este mismo)_ | Competimotor «Sí tenemos»: stock 1–2 se muestra y se cotiza, sin nombrar el stock; pantanera = M/T y R/T (F-01) | 2 |
 | 2026-11-26 | _(este mismo)_ | Sprint 4 ronda 1: Depot igual en visitas y recordatorio, seguimiento sin precio con promo, texto fijo solo en los dos | 1,5 |
 | 2026-11-26 | _(este mismo)_ | Sprint 4 F-05 Competimotor: seguimientos tras pedir tiempo, visita inventada, recordatorio con lo cotizado, dos seguimientos distintos | 4 |
 | 2026-11-26 | _(este mismo)_ | Competimotor: apertura corta (sin guía ni auto-respuesta delante), aro solo → pregunta, «su vehículo» solo con vehículo (Sprint 3, F-04) | 3 |
