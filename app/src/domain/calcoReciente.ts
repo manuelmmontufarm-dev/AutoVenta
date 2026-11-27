@@ -109,7 +109,8 @@ export function sinBloquesCalcados(
 }
 
 const ES_LINEA_DE_LISTA = /^\s*\*?\d+\s*[·.)-]\s*\S/;
-const PREGUNTA_DEL_MENU = /¿\s*(?:le\s+cotizo\s+la\s+\d|cu[aá]l\s+le\s+cotizo)/i;
+// Sprint 2: «¿Con cuál se queda, la 1…?» es la misma pregunta del menú (Competimotor).
+const PREGUNTA_DEL_MENU = /¿\s*(?:le\s+cotizo\s+la\s+\d|cu[aá]l\s+le\s+cotizo|con\s+cu[aá]l\s+se\s+queda)/i;
 /** Una línea para comparar: sin negritas, sin lo que va entre paréntesis, sin espacios de más. */
 function lineaComparable(linea: string): string {
   return normalizar(linea.replace(/\*/g, "").replace(/\s*\([^)]*\)/g, ""));

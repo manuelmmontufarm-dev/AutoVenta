@@ -419,16 +419,24 @@ export const MARCA_DE_LA_LISTA = "¿le cotizo la 1";
  */
 export const MARCA_DE_LA_REPREGUNTA = "¿cuál le cotizo, la 1";
 
+/**
+ * Sprint 2 (Competimotor, `politica.ventaConDosPrecios`): la misma lista, con la
+ * pregunta que invita en vez del paso burocrático — «¿Con cuál se queda, la 1 o
+ * la 2?» (`preguntaDeLaLista`). Es el mismo menú: «2» es la posición 2.
+ */
+export const MARCA_DE_LA_LISTA_QUE_INVITA = "¿con cuál se queda, la 1";
+
 /** ¿Este texto nuestro dejó al cliente elegir por número (menú o lista con precios)? */
 export function traeMarcaDelMenu(texto: string | null | undefined): boolean {
   const t = (texto ?? "").toLowerCase();
-  return t.includes(MARCA_DEL_MENU) || t.includes(MARCA_DE_LA_LISTA) || t.includes(MARCA_DE_LA_REPREGUNTA);
+  return t.includes(MARCA_DEL_MENU) || t.includes(MARCA_DE_LA_LISTA) || t.includes(MARCA_DE_LA_REPREGUNTA)
+    || t.includes(MARCA_DE_LA_LISTA_QUE_INVITA);
 }
 
 /** ¿Este texto es la lista numerada con precios (o su repregunta)? Ahí «2» es la posición 2. */
 export function esLaListaNumerada(texto: string | null | undefined): boolean {
   const t = (texto ?? "").toLowerCase();
-  return t.includes(MARCA_DE_LA_LISTA) || t.includes(MARCA_DE_LA_REPREGUNTA);
+  return t.includes(MARCA_DE_LA_LISTA) || t.includes(MARCA_DE_LA_REPREGUNTA) || t.includes(MARCA_DE_LA_LISTA_QUE_INVITA);
 }
 
 const PEDIDO_PLURAL_DE_OPCIONES =

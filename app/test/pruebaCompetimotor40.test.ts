@@ -67,6 +67,7 @@ describe("Competimotor no promete un descuento que no tiene", () => {
       enlaces: false,
     });
     expect(texto).not.toMatch(/descuento/i);
-    expect(texto).toContain("le tienen lista su cotización");
+    // Sprint 2 (auditoría 26-nov): tras cotizar, «¿Puede acercarse hoy o qué día le agendo la cita?» (sin motivo de descuento).
+    expect(texto).toMatch(/le agendo la cita\? 📅$/);
   });
 });

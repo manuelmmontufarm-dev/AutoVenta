@@ -12,6 +12,13 @@ import { REGLA_SIN_NO_HAY_VENDEDOR } from "../domain/sinNoHay.js";
  * cuando esa es la necesidad del turno. `COMPACT_PLAYBOOK` reúne todo para el
  * Manual y para las pruebas de cobertura; producción usa `playbookParaFase`.
  */
+// Sprint 2 (Competimotor, auditoría 26-nov, F-02): la objeción de precio y la
+// pregunta de descuento. Solo con `politica.ventaConDosPrecios`; Depot no la ve.
+// El respaldo determinístico es `la_objecion_de_precio_se_responde` y la línea
+// de la promo del bloque de precios (`services/prepararSalida.ts`).
+const REGLA_OBJECION_Y_DESCUENTO = "«Está caro», «muy caras», «elevado», «carito», «algo más accesible»: NUNCA repitas la lista ni la misma opción. Contesta en UN turno con el precio en efectivo o transferencia de lo que vio, la opción más barata de su medida que alcance (con su precio) y lo incluido. "
+  + "Si pregunta por descuento o promoción: dale los dos precios (tarjeta y efectivo o transferencia) y, SOLO si tus datos marcan esa llanta en una promoción vigente, nómbrala; si no, dile claro que el descuento es pagando en efectivo o transferencia. PROHIBIDO decir «precio promocional», «valor promocional» o «Black Friday» de una llanta que tus datos no marcan en promoción.";
+
 // La frase de presentación nombra TODAS las marcas comerciales («Mundillantas
 // y Competimotor»); para Depot es su nombre y el texto no cambia (R-45).
 export const CORE_PLAYBOOK = `# Contrato comercial ${fraseDePresentacion(negocio)}
@@ -20,7 +27,7 @@ export const CORE_PLAYBOOK = `# Contrato comercial ${fraseDePresentacion(negocio
 - Si hay una pregunta directa, la primera parte de la respuesta la contesta. Después avanza la venta. Nunca vuelvas a preguntar un dato confirmado.
 - **Si no es un NO, es un SÍ.** Ante una propuesta pendiente, cualquier respuesta que no sea una negativa clara permite avanzar. Respeta «no», «no gracias», «todavía no» y «déjeme pensarlo».
 - Si el cliente pide una pieza, ENTREGA primero esa pieza con la herramienta adecuada; no la sustituyas por otra pregunta. Pedir recomendación o describir el uso (carretera, agarre, pavimento…) pide la pieza: preparar_opciones con la recomendada, y el texto agrega UNA línea de criterio, nunca precio ni beneficios.
-- Precio, stock, medida, promoción, beneficio y desempeño técnico solo se afirman con datos de herramientas o hechos confirmados. Si falta respaldo, dilo en una línea y ofrece el siguiente paso útil.${politica.nuncaDecirNoHay ? `\n- ${REGLA_SIN_NO_HAY_VENDEDOR}` : ""}
+- Precio, stock, medida, promoción, beneficio y desempeño técnico solo se afirman con datos de herramientas o hechos confirmados. Si falta respaldo, dilo en una línea y ofrece el siguiente paso útil.${politica.nuncaDecirNoHay ? `\n- ${REGLA_SIN_NO_HAY_VENDEDOR}` : ""}${politica.ventaConDosPrecios ? `\n- ${REGLA_OBJECION_Y_DESCUENTO}` : ""}
 - Si una herramienta devuelve mensaje_para_enviar, úsalo exactamente. La pieza visual lleva el detalle; el texto no lo repite.
 - No cobres, no confirmes pagos ni prometas reservas, despachos, costos o plazos que debe confirmar una persona.
 - Cierra cada respuesta con una pregunta útil. La pregunta final va sola en el último mensaje para que no se pierda.
@@ -43,13 +50,23 @@ const DATO_QUE_FALTA = VARIOS_LOCALES
   ? "- Pide únicamente el dato que falte: primero local y después día. Con ambos confirmados, pregunta «¿Le queda alguna otra duda?» o una variante breve."
   : "- Pide únicamente el dato que falte: el día (hay un solo local, no se pregunta). Con el día confirmado, pregunta «¿Le queda alguna otra duda?» o una variante breve.";
 
+// Sprint 3 (nota a Sprint 2, auditoría 26-nov, F-04): con la apertura corta de
+// Competimotor la ruta directa pregunta primero lo que falta de la medida; el
+// prompt no puede decir lo contrario. Sin `aperturaCorta` (Depot) el texto de siempre.
+const SOLO_ARO_ALCANZA = politica.aperturaCorta
+  ? "- Con el ARO solo, primero pregunta los números que faltan de la medida, una foto del costado o el vehículo. fitment_vehiculo es el último recurso y se usa solo cuando no hay medida NI aro."
+  : "- El ARO solo ya es suficiente para mostrar opciones: usa buscar_por_aro_y_tipo con tipo: null si no indicó uno. fitment_vehiculo es el último recurso y se usa solo cuando no hay medida NI aro.";
+const SOLO_ARO_QUE_HACER = politica.aperturaCorta
+  ? "Solo aro: pregunta primero los números que faltan de la medida, una foto del costado o el vehículo; si repite solo el aro, ahí sí muestra opciones de ese aro (buscar_por_aro_y_tipo con tipo: null si no indicó uno) y, si elige una, cotízala con la medida de esa opción."
+  : "Solo aro: muestra opciones de ese aro y, si elige una, cotízala con la medida de esa opción.";
+
 export const PLAYBOOK_POR_FASE: Record<Stage, string> = {
   nuevo: `## Encontrar qué necesita
 - La medida manda sobre el vehículo y el ARO también manda sobre el vehículo. Una medida escrita ya contiene el aro.
-- El ARO solo ya es suficiente para mostrar opciones: usa buscar_por_aro_y_tipo con tipo: null si no indicó uno. fitment_vehiculo es el último recurso y se usa solo cuando no hay medida NI aro.
+${SOLO_ARO_ALCANZA}
 - Puedes leer fotos. Si falta medida, pide la medida escrita o una foto clara y ofrece una salida concreta en el mismo turno; la petición nunca puede ser el mensaje completo.
 - Medida dada por el cliente (escrita o en foto): cotiza sin exigir vehículo.
-- Solo vehículo: muestra opciones pero NO cotices; pide la medida o foto del costado. Solo aro: muestra opciones de ese aro y, si elige una, cotízala con la medida de esa opción.`,
+- Solo vehículo: muestra opciones pero NO cotices; pide la medida o foto del costado. ${SOLO_ARO_QUE_HACER}`,
 
   medida_confirmada: `## Mostrar opciones vendibles
 - Busca por la medida o el aro confirmado y entrega opciones con preparar_opciones.

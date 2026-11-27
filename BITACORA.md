@@ -1,3 +1,29 @@
+## 26-nov-2026 · Bot · Competimotor: dos precios desde la lista, respuesta al «está caro» y cierre «hoy o cita» (Sprint 2, F-02/F-03)
+
+- **Qué:** detrás de `politica.ventaConDosPrecios` (solo `mundillantas`): la lista de opciones dice el total con
+  tarjeta (P2) y en efectivo o transferencia (P3) por la cantidad del cliente, con el c/u entre paréntesis
+  (`domain/listaDeOpciones.ts`); el bloque *INCLUYE* de la tabla `benefits` va pegado a la primera lista
+  (`encabezadoDelIncluye`); la pregunta invita («¿Con cuál se queda, la 1 o la 2?», nueva marca del menú). «Está
+  caro» lo contesta el paso `la_objecion_de_precio_se_responde` con el efectivo de lo que vio, la más barata de su
+  medida que alcance y lo incluido (`domain/objecionDePrecio.ts`, `services/objecionDePrecio.ts`), más una regla en el
+  playbook. Preguntar por descuento o promoción agrega al bloque de precios la promo VERDADERA o «el descuento es
+  pagando en efectivo o transferencia», y quita las frases del modelo que afirman una promo; el Guardián recibe qué
+  opciones NO están en promoción. Tras cotizar: «¿Puede acercarse hoy o qué día le agendo la cita?» (sin «hoy» si el
+  local no alcanza a atenderlo) con botón «Hoy», sin «N % de descuento ya aplicado».
+- **Por qué:** auditoría del 26-nov: 128 chats vieron opciones y 36 pidieron cotización; ~35 callaron en «¿Le cotizo
+  la 1, la 2 o la 3?». El asesor que cierra da el precio en efectivo (1321: $164.50 = el P3) y lo incluido. F-03,
+  comprobado en la base: las cifras de «13 %, $67.96 menos» (1403) y «24 %, $69.50» (639) SÍ cierran (lista = P2,
+  venta = Black Friday de ese día); lo falso era decirlo sin que el cliente hubiera visto el precio de antes ni el
+  nombre de la promo. Lo de 639 sin precios era `el_descuento_se_responde` borrando las líneas del bloque de precios.
+  1790 y 463 afirmaban «precio promocional» de llantas que no están en la tabla `promociones`.
+- **Probado:** `test/competimotorPrecioYCierre.test.ts` (47; 32 en rojo contra `HEAD`) y `test/sprint2DepotNoCambia.test.ts`
+  (7). Simulador (perfil mundillantas, gpt-5.5 de producción, inventario del 20-nov): los 9 chats y los sanos 302 y
+  1734, 3 vueltas válidas cada uno (las corridas que cortó el sueño de la Mac o un error del script de prueba se
+  repitieron). 1321 tras el merge: 3/3 con las 2 llantas que pidió. Pendiente: 302 leyó «1» como «1 llanta» una vez
+  de 5, no se repitió. `verificar-precios`: 444/444 y el efectivo de la lista = el del bloque. Suite: solo los 3
+  fallos que ya tiene `HEAD` (bitácora del panel, hashes de Depot —idénticos a `HEAD`—, unidad en la cantidad).
+  `sim:humo` Depot 8/8; `--perfil ejemplo --humo` inestable con la máquina cargada (pasa 2/2 en la rama y falla 2/2 en
+  `HEAD` en la misma tanda).
 ## 27-nov-2026 · Bot · Competimotor: casos sueltos (F-06) y la venta de 1456 (sprint 5)
 
 - **Qué:** todo detrás de `politica.casosSueltosF06` (solo `mundillantas`), salvo el doble botón.
@@ -117,6 +143,15 @@
   (989, 290, 1125, 659, 999, 902, 1063, 1112, 1051, 1437, 794 y los sanos 1331, 1011), con el ANTES reproducido sin el
   arreglo. `test/aperturaCorta*.test.ts` (36, 9 en rojo sin el arreglo), Depot idéntico (`aperturaCorta.depot.test.ts`).
   Suite: los mismos 4 archivos que fallan en main.
+- **Merge con la integración (27-nov):** se mergeó `fix/auditoria-2026-11-26` (Sprints 1, 3, 4). Para el Sprint 4:
+  `precioEnEfectivoDeUnaLlanta(item)` en `domain/preciosPorPago.ts` (el mismo efectivo que imprime la lámina, con la
+  promo incluida) reemplaza la copia de `followUps.ts`. Del Sprint 3: las dos líneas de «solo aro» del playbook
+  siguen la apertura corta (solo con `aperturaCorta`). La cantidad del «está caro» ahora es la que el cliente dijo
+  después de la lámina, antes que la ficha (que trae el juego de 4 por defecto: por eso 1321 decía 4).
+- **Revisión de la coordinadora (27-nov):** «presupuesto» a secas ya no es objeción (en Ecuador es pedir la cotización;
+  cuenta solo como tope: «se me sale del presupuesto», «mi presupuesto es…»), ni «¿cuál es la más cara?» ni «no está
+  caro». «Lo más económico que tengo» usa `minimoParaMostrar` del Sprint 1 (stock ≥ 1 en Competimotor). 1303 repetido
+  en el simulador: igual que antes.
 - **Horas:** 3.
 
 ## 25-nov-2026 · Bot · Entiende y explica cada promoción del panel (y si se suma con el 25 %)

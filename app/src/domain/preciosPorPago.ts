@@ -11,6 +11,7 @@
  * se calcula ningún precio, solo se multiplican por la cantidad cotizada.
  */
 import { preguntaPorElPago } from "./datosDelNegocio.js";
+import { politica } from "../negocio/politica.js";
 
 const normal = (t: string) => t.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 
@@ -151,4 +152,58 @@ export function mensajeDeUnPago(lineas: readonly LineaPorPago[], pago: "tarjeta"
   };
   if (lineas.length === 1 && lineas[0].efectivo !== null && lineas[0].tarjeta !== null) return `${cabeza} ${una(lineas[0])}.`;
   return [`${cabeza}:`, ...lineas.map((l) => `• ${l.numero ? `${l.numero} · ` : ""}${l.nombre}: ${una(l)}`)].join("\n");
+}
+
+/**
+ * EL EFECTIVO DE UNA LLANTA, PARA LA LISTA (Sprint 2, Competimotor). Lo mismo
+ * que dice `services/preciosPorPago.ts` cuando preguntan cómo pagar: con tarjeta
+ * es el precio de hoy (Precio B, o el de la promoción si es menor) y en
+ * efectivo o transferencia el C, nunca más caro que con tarjeta. Null sin la
+ * perilla `ventaConDosPrecios` (Depot) o sin Precio B/C en el catálogo: la
+ * línea sale con un solo precio, como siempre.
+ */
+export function efectivoDeLaLlanta(
+  item: {
+    minimumPriceWithTax?: number | null;
+    preciosPorPago?: { tarjetaConIva: number; efectivoConIva: number } | null;
+    /** Promo por cantidad: el precio depende de cuántas lleve; la línea queda con un solo precio. */
+    promocionPorCantidad?: unknown;
+  },
+  ventaConDosPrecios: boolean | undefined = politica.ventaConDosPrecios,
+): number | null {
+  if (ventaConDosPrecios !== true) return null;
+  if (item.promocionPorCantidad) return null;
+  const hoy = Number(item.minimumPriceWithTax);
+  const efectivo = Number(item.preciosPorPago?.efectivoConIva);
+  if (!(hoy > 0) || !(efectivo > 0)) return null;
+  return Math.round(Math.min(efectivo, hoy) * 100) / 100;
+}
+
+/** «Black Friday hasta el sábado 5-dic» si la llanta trae una promoción vigente (tabla `promociones` o la lista del negocio). */
+export function promocionDeLaLlanta(
+  item: { promocionDePrecio?: { nombre: string; vigenciaCorta?: string | null } | null },
+  ventaConDosPrecios: boolean | undefined = politica.ventaConDosPrecios,
+): string | null {
+  if (ventaConDosPrecios !== true || !item.promocionDePrecio) return null;
+  return [item.promocionDePrecio.nombre, item.promocionDePrecio.vigenciaCorta].filter(Boolean).join(" ");
+}
+
+/** Lo que la lámina guarda de cada opción para que la lista se pueda rearmar igual (seguimientos, Guardián). */
+export function extrasDeLaOpcionGuardada(
+  item: Parameters<typeof efectivoDeLaLlanta>[0] & Parameters<typeof promocionDeLaLlanta>[0],
+): { efectivo_con_iva?: number; promocion?: string } {
+  const efectivo = efectivoDeLaLlanta(item);
+  const promocion = promocionDeLaLlanta(item);
+  return { ...(efectivo !== null ? { efectivo_con_iva: efectivo } : {}), ...(promocion ? { promocion } : {}) };
+}
+
+/**
+ * EL PRECIO EN EFECTIVO O TRANSFERENCIA DE UNA LLANTA, por llanta, para quien
+ * lo diga fuera de la lista (el 1.º seguimiento del Sprint 4). Es EXACTAMENTE el
+ * que imprime la lámina (`efectivoDeLaLlanta`): el Precio C, nunca más caro que
+ * el precio de hoy, así que con Black Friday (cuadro rojo) ya trae la promo.
+ * Null en Depot, sin Precio B/C o con promo por cantidad.
+ */
+export function precioEnEfectivoDeUnaLlanta(item: Parameters<typeof efectivoDeLaLlanta>[0]): number | null {
+  return efectivoDeLaLlanta(item);
 }

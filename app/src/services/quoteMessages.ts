@@ -6,8 +6,8 @@ import { fraseDeAhorro, type AhorroDeLaCotizacion } from "../domain/ahorro.js";
 import { etiquetaDePromocion, paresEnPalabras, type ModoPromocion } from "../domain/promocion.js";
 import { cuentaDeSegundaLlanta, precioDeLaLinea, precioDeLaOpcionGuardada, segundaGuardadaVigente, type SegundaLlanta } from "../domain/promocionDeTemporada.js";
 import { politica } from "../negocio/politica.js";
+import { localAtiendeALaHora, piecesConfigEnMemoria, storeHoursEnMemoria } from "./settings.js";
 import { CIERRE_PIDE_MEDIDA_SIN_VEHICULO } from "../domain/aperturaCorta.js";
-import { piecesConfigEnMemoria } from "./settings.js";
 import { ETIQUETA_DEL_ESCALON } from "../domain/salesIntent.js";
 import { preguntaDeEquivalente } from "../domain/equivalentePendiente.js";
 import { PREGUNTA_DE_LOCAL, hayQueElegirLocal } from "../domain/storeSelection.js";
@@ -255,6 +255,8 @@ export function buildCierreOpciones(input: {
    * precio escrito», ~25 chats, caso +593 99 571 0785).
    */
   lista?: { lista: readonly LineaDeLista[]; cantidad: number } | null;
+  /** Sprint 2 (Competimotor): el bloque *INCLUYE*, que va dentro de la lista, antes de la pregunta. */
+  incluye?: string | null;
 }): string {
   if (input.pedirMedida) {
     const cierre = politica.aperturaCorta && input.vehiculoDicho === false
@@ -273,7 +275,7 @@ export function buildCierreOpciones(input: {
       const precio = precioDicho(input);
       return `Es la única que tengo para lo que me pidió: *${input.recomendacion}*${precio}. ¿Se la cotizo? 😊`;
     }
-    if (input.lista) return textoDeLaLista(input.lista.lista, input.lista.cantidad);
+    if (input.lista) return textoDeLaLista(input.lista.lista, input.lista.cantidad, input.incluye);
     const cierre = input.hayEquivalentes
       ? "Con eso le digo cuál de estas le conviene más."
       : "Con eso le dejo la opción exacta para su medida.";
@@ -398,6 +400,8 @@ export function buildVisitPlanQuestion(input: {
    * plata es lo que hace que contesten. Ver `domain/ahorro.ts`.
    */
   ahorro?: AhorroDeLaCotizacion | null;
+  /** «Ahora», para las pruebas del horario (Sprint 2). Por defecto, el reloj. */
+  ahora?: Date;
 }): string {
   const motivo = input.conDescuentoAutorizado
     ? " Con ese dato le aviso al asesor y le dejo anotado su descuento extra para que se lo respeten apenas llegue."
@@ -408,6 +412,18 @@ export function buildVisitPlanQuestion(input: {
         : politica.cotizacionConDescuento
           ? " Con ese dato le aviso al asesor y le aplican el descuento de su cotización apenas llegue."
           : " Con ese dato le aviso al asesor y le tienen lista su cotización apenas llegue.";
+  // Sprint 2 (Competimotor, auditoría 26-nov, F-02/F-03): la pregunta con dos
+  // salidas del asesor que sí cerró (chat 469: «Desea que le agende una cita o el
+  // día de hoy puede acercarse?»), con la ubicación en el mismo turno y SIN «N %
+  // de descuento ya aplicado, $X menos»: el cliente nunca vio el precio de antes
+  // (1403) y lo leyó como un descuento más por venir (639, «haciendo todo
+  // descuento, en cuánto me llega?»). La promo, si la hay, ya va en la pieza.
+  if (!hayQueElegirLocal && politica.ventaConDosPrecios === true && !input.conDescuentoAutorizado && input.conCotizacion !== false) {
+    return composeBlocks(
+      input.enlaces === false ? null : ubicacionDelLocalUnico(),
+      preguntaHoyOCita(input.ahora ?? new Date()),
+    );
+  }
   // UN SOLO LOCAL: no hay a cuál ir. Se muestra el local y se pregunta el día
   // (Manuel, 18-nov, Competimotor). Regla del perfil, no del nombre del negocio.
   if (!hayQueElegirLocal) {
@@ -440,6 +456,21 @@ export function buildVisitPlanQuestion(input: {
  * conteste queda registrado como su visita.
  */
 export const PREGUNTA_DEL_DIA_LOCAL_UNICO = "¿Qué día cree que puede ir?";
+
+/** Minutos que tienen que quedar antes del cierre para ofrecer «hoy»: la instalación demora hora y media. */
+const MARGEN_PARA_HOY_MIN = 90;
+
+/**
+ * Sprint 2 (Competimotor): «¿Puede acercarse hoy o qué día le agendo la cita?»,
+ * y sin «hoy» cuando el local ya no alcanza a atenderlo hoy (cerrado, domingo,
+ * o a menos de hora y media del cierre). Las dos dicen «qué día», que es lo que
+ * `preguntaElDia` reconoce: lo que conteste se registra como su visita.
+ */
+export function preguntaHoyOCita(ahora: Date, hours = storeHoursEnMemoria()): string {
+  const alcanzaHoy = localAtiendeALaHora(hours, null, new Date(ahora.getTime() + MARGEN_PARA_HOY_MIN * 60_000))
+    && localAtiendeALaHora(hours, null, ahora);
+  return alcanzaHoy ? "¿Puede acercarse hoy o qué día le agendo la cita? 📅" : "¿Qué día le agendo la cita? 📅";
+}
 
 /**
  * «Aquí queda nuestro local» y su mapa, en un mismo bloque: el bloque de la
@@ -486,7 +517,8 @@ export function buildStoreChoiceBlocks(): { ubicaciones: string; pregunta: strin
   if (!hayQueElegirLocal) {
     return {
       ubicaciones: ubicacionDelLocalUnico("puede pasar sin compromiso a verlas y probarlas en su vehículo"),
-      pregunta: `${PREGUNTA_DEL_DIA_LOCAL_UNICO} 📅`,
+      // Sprint 2 (Competimotor): la pregunta con dos salidas («hoy» solo si alcanza a atenderlo).
+      pregunta: politica.ventaConDosPrecios === true ? preguntaHoyOCita(new Date()) : `${PREGUNTA_DEL_DIA_LOCAL_UNICO} 📅`,
     };
   }
   const mapas = buildStoreLinksBlock();

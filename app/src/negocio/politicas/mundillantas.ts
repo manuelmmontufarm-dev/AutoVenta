@@ -116,6 +116,14 @@ export const POLITICA_MUNDILLANTAS: PoliticaComercial = {
   // Lo que venden pero el bot NO cotiza: avisa al asesor del local (§3.3 punto 4).
   productosQueDerivaAlAsesor: ["lubricantes", "baterías", "aceites", "taller"],
   asesorEnReglas: "el asesor",
+  // Sprint 2 (auditoría 26-nov-2026, F-02/F-03): 128 chats vieron la lista y
+  // solo 36 pidieron cotización. Los asesores cierran con el precio en efectivo
+  // (C), el bloque de lo incluido y «¿le agendo una cita o puede acercarse
+  // hoy?» (chat 469); el bot mostraba solo el de tarjeta (B).
+  ventaConDosPrecios: true,
+  // Carlos y los asesores: «Promoción por la compra de 2 o 4 llantas… Incluye
+  // sin costo». Las líneas son las de la tabla `benefits` del panel.
+  encabezadoDelIncluye: "sin costo, comprando 2 o 4 llantas",
   // Sprint 1 — F-01 (auditoría 26-nov-2026): un solo stock entre locales y los
   // asesores consiguen las que faltan («Sí tenemos», 1331/1344/469). Con stock
   // ≥ 1 se muestra y se cotiza lo pedido; al cliente no se le nombra el stock.

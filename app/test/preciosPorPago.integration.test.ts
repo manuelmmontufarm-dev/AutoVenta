@@ -221,7 +221,9 @@ describe.sequential("precios por forma de pago tras una cotización", () => {
       values (${id}, 1, 'assistant', 'outbound', 'bot', 'text', ${primera.split("\n---\n")[0]})
     `;
     const efectivo = await paso.aplicar("Claro.", ctx(id, "hay descuento en efectivo?"));
-    expect(efectivo.split("\n---\n")[0]).toBe("Pagando en efectivo o por transferencia le queda en *$118.00* c/u · *$472.00* las 4 llantas.");
+    // Sprint 2 (auditoría 26-nov, 40/463): preguntó por DESCUENTO → la línea de la promo verdadera (aquí ninguna).
+    expect(efectivo.split("\n---\n")[0]).toBe("Pagando en efectivo o por transferencia le queda en *$118.00* c/u · *$472.00* las 4 llantas.\n\n"
+      + "Por ahora en *235/75R15* no hay una promoción vigente: el descuento es pagando en *efectivo o transferencia* 💵.");
     const tarjeta = await paso.aplicar("Claro.", ctx(id, "y con tarjeta?"));
     expect(tarjeta.split("\n---\n")[0]).toBe("Con tarjeta de crédito le queda en *$125.00* c/u · *$500.00* las 4 llantas.");
   });

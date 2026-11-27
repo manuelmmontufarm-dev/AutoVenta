@@ -164,7 +164,8 @@ describe("Competimotor · un solo local: no hay «a cuál local»", () => {
     const todo = `${ubicaciones}\n${pregunta}`;
     expect(ubicaciones).toMatch(/^Aquí queda nuestro local/);
     expect(todo.split(MAPS_COMPETIMOTOR).length - 1).toBe(1);
-    expect(pregunta).toMatch(/^¿Qué día cree que puede ir\?/);
+    // Sprint 2 (auditoría 26-nov): la pregunta con dos salidas; «hoy» depende de la hora.
+    expect(pregunta).toMatch(/^¿(?:Puede acercarse hoy o qué día le agendo la cita|Qué día le agendo la cita)\? 📅$/);
     expect(todo).not.toMatch(/a cu[aá]l local|mundi/i);
   });
 
@@ -175,7 +176,8 @@ describe("Competimotor · un solo local: no hay «a cuál local»", () => {
       conCotizacion: true,
     });
     expect(texto).toMatch(/^Aquí queda nuestro local/);
-    expect(texto).toContain("¿Qué día cree que puede ir?");
+    // Sprint 2 (auditoría 26-nov): la pregunta con dos salidas; «hoy» depende de la hora.
+    expect(texto).toMatch(/¿(?:Puede acercarse hoy o qué día le agendo la cita|Qué día le agendo la cita)\? 📅$/);
     expect(texto.split(MAPS_COMPETIMOTOR).length - 1).toBe(1);
     expect(texto).not.toMatch(/a cu[aá]l local|mundi/i);
   });

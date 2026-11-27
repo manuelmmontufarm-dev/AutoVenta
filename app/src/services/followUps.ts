@@ -27,6 +27,7 @@ import { parseTireSize } from "../domain/tireSize.js";
 import { generateFollowUpCopy } from "./followUpCopy.js";
 import { catalogStatus, findByCode, searchBySize } from "./catalog.js";
 import { lineaDeLista, listaDeLaPieza } from "../domain/listaDeOpciones.js";
+import { precioEnEfectivoDeUnaLlanta } from "../domain/preciosPorPago.js";
 import { cantidadValidaDeLaFicha } from "../domain/cantidadGrande.js";
 import { listaVigenteDeLaPieza } from "./listaVigente.js";
 import { opcionEnDigitos } from "../domain/opcionEnLetras.js";
@@ -379,33 +380,13 @@ function direccionDelLocal(): string {
 }
 
 /**
- * EL PRECIO EN EFECTIVO O TRANSFERENCIA DE UNA LLANTA, de hoy (Sprint 4).
- *
- * La misma regla que `services/preciosPorPago.ts` (Competimotor cotiza con
- * tarjeta: el efectivo es el Precio C, nunca más caro que el de tarjeta, y el de
- * tarjeta nunca más caro que el de hoy). Null si la llanta no trae precio por
- * forma de pago: no se dice ninguno.
- *
- * CON UNA PROMOCIÓN SOBRE LA LLANTA, SIN PRECIO. El «cuadro rojo» del Black
- * Friday (tabla `promociones`, aro 18–20, hasta el 5-dic) y cualquier promo del
- * panel cambian el precio que vio el cliente en la lámina y la cotización; esta
- * copia de la regla no puede garantizar la MISMA cifra desde la misma fuente, y
- * un precio distinto al cotizado es la familia F-03. Sale sin precio.
- *
- * TODO(Sprint 2, al integrar): `domain/preciosPorPago.ts` tiene que exportar
- * `precioEnEfectivoDeUnaLlanta(item: CatalogItem): number | null` —el mismo
- * número que la lámina y `mensajeDePreciosPorPago`, con la promoción aplicada—
- * y esta función pasa a llamarlo (y se borra la copia de la regla).
+ * EL PRECIO EN EFECTIVO O TRANSFERENCIA DE UNA LLANTA, de hoy: el MISMO que
+ * imprime la lámina (`precioEnEfectivoDeUnaLlanta`, Sprint 2), con la promoción
+ * incluida (Black Friday del cuadro rojo). Null sin Precio B/C o en Depot.
  */
 function precioEnEfectivoDeHoy(codigo: string | null | undefined): number | null {
-  if (!codigo || politica.precioDeCotizacion !== "tarjeta") return null;
-  const item = findByCode(codigo);
-  const precios = item?.preciosPorPago;
-  if (!item || !precios) return null;
-  if (item.promocionDePrecio || item.promocionPorCantidad) return null;
-  const tarjeta = Math.min(precios.tarjetaConIva, item.minimumPriceWithTax);
-  const efectivo = Math.min(precios.efectivoConIva, tarjeta);
-  return efectivo > 0 ? Math.round(efectivo * 100) / 100 : null;
+  const item = codigo ? findByCode(codigo) : undefined;
+  return item ? precioEnEfectivoDeUnaLlanta(item) : null;
 }
 
 /**

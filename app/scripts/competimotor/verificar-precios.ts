@@ -15,7 +15,7 @@ import { readFileSync } from "node:fs";
 import { filasDelArchivo, normalizarCatalogoSubido, MAPEO_CATALOGO_DEFECTO } from "../../src/services/fuentes/archivo.js";
 import { normalizarFilaDeCatalogo } from "../../src/services/fuentes/sheets.js";
 import { aplicarPreciosEspeciales } from "../../src/domain/preciosEspeciales.js";
-import { mensajeDePreciosPorPago, mensajeDeUnPago, type LineaPorPago } from "../../src/domain/preciosPorPago.js";
+import { efectivoDeLaLlanta, mensajeDePreciosPorPago, mensajeDeUnPago, type LineaPorPago } from "../../src/domain/preciosPorPago.js";
 import { buildQuote } from "../../src/services/quotePdf.js";
 import { business } from "../../src/config.js";
 import { politica } from "../../src/negocio/politica.js";
@@ -65,9 +65,15 @@ const salida = items.map((p) => {
     cuota6De4: Math.round((quote.total / 6) * 100) / 100,
     promocion: p.promocionDePrecio?.nombre ?? null,
     efectivoPorLlanta: linea.efectivo,
+    // Sprint 2: el efectivo que imprime la LISTA de opciones (`efectivoDeLaLlanta`) tiene que ser este mismo.
+    efectivoEnLaLista: efectivoDeLaLlanta(p),
     textoPagos: mensajeDePreciosPorPago([linea]),
     textoEfectivo: mensajeDeUnPago([linea], "efectivo"),
   };
 });
+// Sprint 2: la lista de opciones y el bloque de precios por pago dicen el mismo efectivo, al centavo.
+const distintas = salida.filter((x) => politica.ventaConDosPrecios && x.efectivoEnLaLista !== x.efectivoPorLlanta);
+console.error(`Lista con dos precios: ${salida.length - distintas.length}/${salida.length} llantas con el mismo efectivo que el bloque de precios.`);
+for (const x of distintas.slice(0, 10)) console.error(`  ✗ ${x.codigo}: lista ${x.efectivoEnLaLista} · bloque ${x.efectivoPorLlanta}`);
 console.log(JSON.stringify({ instante: ahora.toISOString(), aplicadasBlackFriday: promo.aplicadas, omitidasBlackFriday: promo.omitidas, descartadas, items: salida }, null, 1));
 process.exit(0);

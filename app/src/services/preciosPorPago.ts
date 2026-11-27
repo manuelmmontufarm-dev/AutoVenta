@@ -19,6 +19,7 @@ import {
 import { findByCode } from "./catalog.js";
 import { listaDeLaPieza } from "../domain/listaDeOpciones.js";
 import { politica } from "../negocio/politica.js";
+import { lineaDeDescuentoOPromocion } from "../domain/objecionDePrecio.js";
 
 interface LineaGuardada {
   code?: string | null;
@@ -34,6 +35,13 @@ export async function preciosPorPagoDeLaConversacion(
   conversationId: number,
   cycle: number,
   textoDelCliente?: string | null,
+  /**
+   * Sprint 2 (Competimotor): preguntó por descuento o promoción. El bloque
+   * cierra con `lineaDeDescuentoOPromocion`: la promo VIGENTE de sus llantas
+   * (del catálogo de hoy, que la toma de la tabla `promociones`) o, si no hay
+   * ninguna, que el descuento es pagando en efectivo o transferencia.
+   */
+  opciones: { conLineaDePromocion?: boolean } = {},
 ): Promise<string | null> {
   const [cotizacion] = await sql<{ items: LineaGuardada[] | null; created_at: Date }[]>`
     select items, created_at from quotes
@@ -126,7 +134,14 @@ export async function preciosPorPagoDeLaConversacion(
         and content like ${`${TITULO_PRECIOS_POR_PAGO.replace(/:$/, "")}%`}
       limit 1
     `;
-    if (yaSalio) return mensajeDeUnPago(porPago, pago);
+    if (yaSalio) return conLaPromocion(mensajeDeUnPago(porPago, pago));
   }
-  return mensajeDePreciosPorPago(porPago);
+  return conLaPromocion(mensajeDePreciosPorPago(porPago));
+
+  function conLaPromocion(bloque: string): string {
+    if (!opciones.conLineaDePromocion) return bloque;
+    const medidas = new Set(lineas.map((l) => (l.code ? findByCode(l.code)?.sizeLabel : null) ?? l.sizeLabel ?? null).filter(Boolean));
+    const medida = medidas.size === 1 ? [...medidas][0]! : null;
+    return `${bloque}\n\n${lineaDeDescuentoOPromocion(porPago.map((l) => l.promocion), medida)}`;
+  }
 }
