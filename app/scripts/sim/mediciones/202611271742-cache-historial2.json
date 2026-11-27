@@ -1,0 +1,78 @@
+{
+  "etiqueta": "historial2",
+  "marca": "C",
+  "pausaMin": 6.5,
+  "conversaciones": [
+    {
+      "n": 1,
+      "conversacion": 8,
+      "turnosOk": 4,
+      "vendedor": [
+        {
+          "fase": "medida_confirmada",
+          "rondas": 2,
+          "entrada": 22095,
+          "leido": 22091,
+          "escrito": 0,
+          "escrito1h": 0,
+          "salida": 318,
+          "usd": 0.0054,
+          "modelo": "claude-sonnet-5-5"
+        },
+        {
+          "fase": "seleccionando",
+          "rondas": 1,
+          "entrada": 12792,
+          "leido": 8188,
+          "escrito": 4602,
+          "escrito1h": 0,
+          "salida": 321,
+          "usd": 0.01554,
+          "modelo": "claude-sonnet-5-5"
+        },
+        {
+          "fase": "seleccionando",
+          "rondas": 1,
+          "entrada": 11951,
+          "leido": 8786,
+          "escrito": 3163,
+          "escrito1h": 0,
+          "salida": 126,
+          "usd": 0.01005,
+          "modelo": "claude-sonnet-5-5"
+        },
+        {
+          "fase": "seleccionando",
+          "rondas": 1,
+          "entrada": 14938,
+          "leido": 8964,
+          "escrito": 5972,
+          "escrito1h": 0,
+          "salida": 292,
+          "usd": 0.01875,
+          "modelo": "claude-sonnet-5-5"
+        }
+      ],
+      "usdVendedor": 0.0497354,
+      "usdTotal": 0.055199540000000005,
+      "transcripcion": [
+        "CLIENTE: Hola, necesito llantas 225/70R15 para mi Mazda BT-50",
+        "BOT: ¡Hola, Mario! 👋 Soy Martín, de Depot Tire. Le cotizo al instante con stock y precios reales, comparo modelos y le armo su cotización para tienda.",
+        "BOT: 🖤 *PROMOCIÓN BLACK FRIDAY* 🖤\nEl Black Friday se vive TODO NOVIEMBRE\n\n🛞 *−60 % en cada 2.ª llanta* Falken y Kenda\n🛞 *−25 %* en Winrun\n🔧 *−50 %* en alineación, balanceo, ABC de frenos y enllantaje\n🛢️ *−40 %* en cambio de aceite\n✅ Revisión de 7 puntos GRATIS\n\nVálido hasta el 30 de noviembre.",
+        "BOT: [image] Opciones enviadas: KENDA KR15 · KENDA KR100 · KENDA KR33A",
+        "BOT: 1 · KENDA KR15 — 2 × $132.94 + 2 × $53.18 = $372.24 (−60 % en la 2.ª llanta)\n2 · KENDA KR33A — 2 × $177.12 + 2 × $70.85 = $495.94 (−60 % en la 2.ª llanta)\n3 · KENDA KR100 — 2 × $198.13 + 2 × $79.25 = $554.76 (−60 % en la 2.ª llanta)",
+        "BOT: ¿Le cotizo la 1, la 2 o la 3?",
+        "CLIENTE: ¿Qué diferencia hay entre esas marcas?",
+        "BOT: Las tres son Kenda, una marca taiwanesa fundada en 1962, y cambia el tipo de llanta. La KR15 es H/T de carretera: cómoda, silenciosa y con tracción A en mojado. La KR33A (8 lonas) y la KR100 son comerciales para van con más carga. La KR100 tiene perfil plano y hombros grandes para un desgaste más parejo.",
+        "BOT: Para su BT-50, ¿la usa más en carretera o con carga?",
+        "CLIENTE: ¿Tienen alguna más barata?",
+        "BOT: La opción más económica de las tres es la Kenda KR15: 2 × $132.94 + 2 × $53.18 = $372.24 con el Black Friday. Es H/T de carretera, ideal si no lleva mucha carga.\n\nIncluye instalación, alineación, balanceo y seguro contra golpes, cortes o daños.",
+        "BOT: ¿Le cotizo la 1, la 2 o la 3?",
+        "CLIENTE: ¿Cuál dura más kilómetros?",
+        "BOT: Las tres son Kenda, así que el rendimiento promedio es parecido. Cada modelo rinde unos km distintos: la KR15 unos 68.500 km, la KR33A y la KR100 son comerciales para más carga. Son cifras aproximadas: dependen del uso, la presión y el mantenimiento (incluido cada 10.000 km), y en carga pesada rinden menos.\n\nIncluimos rotación gratis cada 10.000 km para que le rinda lo que debe.",
+        "BOT: ¿Le cotizo la 1, la 2 o la 3?"
+      ]
+    }
+  ],
+  "gastoBase": 0.17437617
+}

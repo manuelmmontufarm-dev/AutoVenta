@@ -36,6 +36,18 @@
  *     conversación solo en el loop con herramientas, donde la ronda siguiente
  *     la vuelve a leer. En una llamada suelta (Guardián) marcar la cola sería
  *     pagar el recargo de escritura por algo que nadie relee.
+ *
+ *  5. EL VENDEDOR CACHEA UNA HORA (27-nov-2026). Producción 25–27-nov: el 82 %
+ *     de lo que costaba el vendedor era ESCRIBIR al caché, porque el prefijo
+ *     fijo (herramientas + system, ~7.500 tokens) vencía a los 5 minutos y el
+ *     siguiente chat de la misma fase llegaba, en la mitad de los casos, entre
+ *     5 y 60 minutos después: se volvía a escribir entero. Con `cache:
+ *     "vendedor"` ese prefijo se marca con TTL de 1 hora (escribir cuesta 2× en
+ *     vez de 1,25×, leer igual 0,05×), y se agrega un punto más al final del
+ *     mensaje del cliente, ANTES de los hechos del turno: el turno siguiente de
+ *     la misma conversación trae ese mismo historial y lo lee del caché. Ese
+ *     punto no cuesta nada extra: la cola ya se escribía hasta el final.
+ *     Cuentas y medición: `docs/reportes-historicos/2026-11-27-cache-vendedor.md`.
  */
 import Anthropic from "@anthropic-ai/sdk";
 import type {
@@ -158,12 +170,24 @@ function bloquesDelAsistente(
  * determinística a propósito: la misma entrada da los mismos bytes, que es lo
  * que mantiene vivo el caché y válidos los bloques de razonamiento entre rondas.
  */
+export type CacheDeClaude = "vendedor";
+
+/** Punto de caché de 5 minutos (el de siempre) y el de una hora (punto 5 de arriba). */
+const CACHE_5M = { type: "ephemeral" as const };
+const CACHE_1H = { type: "ephemeral" as const, ttl: "1h" as const };
+
 export function aPeticionClaude(
   peticion: PeticionChat,
-  opciones: { esfuerzo: EsfuerzoClaude; conCrudo?: boolean },
+  opciones: { esfuerzo: EsfuerzoClaude; conCrudo?: boolean; cache?: CacheDeClaude },
 ): { cuerpo: CuerpoClaude; usoCrudo: boolean } {
   const model = peticion.model;
   const conCrudo = opciones.conCrudo ?? true;
+  const conHerramientas = (peticion.tools?.length ?? 0) > 0;
+  // El punto antes de los hechos solo sirve si alguien escribe hasta el final
+  // (la cola automática, que va solo con herramientas). Sin ella, marcarlo
+  // sería pagar escritura por un historial que quizá nadie relea.
+  const marcarAntesDeLosHechos = opciones.cache === "vendedor" && conHerramientas;
+  let marcado = false;
   const systemEnMedio = admiteSystemEnMedio(model);
   const sistema: string[] = [];
   const mensajes: MensajeClaude[] = [];
@@ -180,6 +204,16 @@ export function aPeticionClaude(
     if (!pendientes.length) return;
     const texto = pendientes.join("\n\n");
     pendientes = [];
+    // Los primeros hechos del turno van detrás del mensaje del cliente: hasta
+    // ahí la petición es igual a la del turno siguiente (punto 5 de arriba).
+    const ultimo = mensajes.at(-1);
+    if (marcarAntesDeLosHechos && !marcado && ultimo?.role === "user" && Array.isArray(ultimo.content)) {
+      const bloque = ultimo.content.at(-1);
+      if (bloque && (bloque.type === "text" || bloque.type === "tool_result" || bloque.type === "image")) {
+        bloque.cache_control = CACHE_5M;
+        marcado = true;
+      }
+    }
     if (systemEnMedio && mensajes.at(-1)?.role === "user") mensajes.push({ role: "system", content: texto });
     else agregarAlUsuario([recordatorio(texto)]);
   };
@@ -188,7 +222,12 @@ export function aPeticionClaude(
     if (mensaje.role === "system" || mensaje.role === "developer") {
       const texto = textoDe(mensaje.content);
       if (!texto.trim()) continue;
-      if (empezo) pendientes.push(texto);
+      // EL PRIMER TURNO DE UNA CONVERSACIÓN (historial vacío) trae los hechos
+      // pegados al system, sin nada en medio: arriba habrían hecho único el
+      // prefijo de cada conversación justo en el bloque que se cachea una hora.
+      // En el vendedor solo el primero es el system; los demás van como en
+      // cualquier otro turno, detrás del mensaje del cliente (punto 5).
+      if (empezo || (opciones.cache === "vendedor" && sistema.length > 0)) pendientes.push(texto);
       else sistema.push(texto);
       continue;
     }
@@ -243,10 +282,10 @@ export function aPeticionClaude(
     model,
     max_tokens: Math.max(peticion.max_completion_tokens ?? peticion.max_tokens ?? 0, PISO_MAX_TOKENS),
     ...(textoDelSistema
-      ? { system: [{ type: "text" as const, text: textoDelSistema, cache_control: { type: "ephemeral" as const } }] }
+      ? { system: [{ type: "text" as const, text: textoDelSistema, cache_control: opciones.cache === "vendedor" ? CACHE_1H : CACHE_5M }] }
       : {}),
     messages: mensajes,
-    ...(herramientas.length ? { tools: herramientas, tool_choice: eleccion, cache_control: { type: "ephemeral" as const } } : {}),
+    ...(herramientas.length ? { tools: herramientas, tool_choice: eleccion, cache_control: CACHE_5M } : {}),
     output_config: { effort: opciones.esfuerzo, ...(formato ? { format: formato } : {}) },
     ...(tieneRespaldoDelServidor(model) ? { betas: [BETA_RESPALDO], fallbacks: "default" as const } : {}),
   };
@@ -289,6 +328,8 @@ export function aRespuestaOpenAI(respuesta: RespuestaClaude, peticion: PeticionC
   const uso = respuesta.usage;
   const leidos = uso.cache_read_input_tokens ?? 0;
   const escritos = uso.cache_creation_input_tokens ?? 0;
+  // La parte escrita con TTL de 1 hora se cobra 2× (la de 5 minutos, 1,25×).
+  const escritos1h = Math.min(uso.cache_creation?.ephemeral_1h_input_tokens ?? 0, escritos);
   // Messages reporta `input_tokens` SIN lo que pasó por el caché; el bot (y la
   // factura) esperan el total, como lo da OpenAI. Lo escrito al caché viaja
   // aparte porque se cobra más caro que el resto: ver `tokensEscritosEnCache`.
@@ -311,6 +352,7 @@ export function aRespuestaOpenAI(respuesta: RespuestaClaude, peticion: PeticionC
       prompt_tokens_details: { cached_tokens: leidos },
       completion_tokens_details: { reasoning_tokens: uso.output_tokens_details?.thinking_tokens ?? 0 },
       cache_write_tokens: escritos,
+      cache_write_1h_tokens: escritos1h,
     } as ChatCompletion["usage"],
   };
 }
@@ -322,7 +364,7 @@ export interface DependenciasClaude {
 
 export async function completarConClaude(
   peticion: PeticionChat,
-  opciones: { esfuerzo: EsfuerzoClaude },
+  opciones: { esfuerzo: EsfuerzoClaude; cache?: CacheDeClaude },
   dependencias: DependenciasClaude = {},
 ): Promise<ChatCompletion> {
   const crear = dependencias.crear ?? ((cuerpo: CuerpoClaude) => clienteClaude().beta.messages.create(cuerpo));

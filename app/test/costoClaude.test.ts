@@ -36,6 +36,15 @@ describe("costoEnUsd", () => {
     expect(b.tarifaDe("modelo-raro")).toEqual(b.tarifaDe("gpt-5.5"));
   });
 
+  it("Sonnet 5.5: lo escrito por UNA HORA cuesta 2× la entrada ($4), lo de 5 minutos 1,25× ($2,50)", () => {
+    // 27-nov-2026: el prefijo del vendedor se escribe por 1 hora (chatClaude.ts, punto 5).
+    const usd = b.costoEnUsd("claude-sonnet-5-5", { input: M, cached: 200_000, cacheWrite: 500_000, cacheWrite1h: 300_000, output: 0 });
+    expect(usd).toBeCloseTo(0.3 * 2 + 0.2 * 0.1 + 0.2 * 2.5 + 0.3 * 4, 6);
+    // La parte de 1 hora nunca pasa de lo escrito.
+    expect(b.costoEnUsd("claude-sonnet-5-5", { input: M, cached: 0, cacheWrite: 100_000, cacheWrite1h: 900_000, output: 0 }))
+      .toBeCloseTo(0.9 * 2 + 0.1 * 4, 6);
+  });
+
   it("los contadores nunca cobran más tokens de los que entraron", () => {
     const usd = b.costoEnUsd("claude-fable-5-2", { input: 1000, cached: 900, cacheWrite: 500, output: 0 });
     expect(usd).toBeCloseTo((900 * 0.2 + 100 * 10) / M, 9);

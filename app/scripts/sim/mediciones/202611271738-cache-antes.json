@@ -1,0 +1,139 @@
+{
+  "etiqueta": "antes",
+  "marca": "A",
+  "pausaMin": 6.5,
+  "conversaciones": [
+    {
+      "n": 1,
+      "conversacion": 1,
+      "turnosOk": 3,
+      "vendedor": [
+        {
+          "fase": "medida_confirmada",
+          "rondas": 2,
+          "entrada": 22255,
+          "leido": 10577,
+          "escrito": 11674,
+          "escrito1h": 0,
+          "salida": 320,
+          "usd": 0.03345,
+          "modelo": "claude-sonnet-5-5"
+        },
+        {
+          "fase": "medida_confirmada",
+          "rondas": 2,
+          "entrada": 22808,
+          "leido": 11206,
+          "escrito": 11598,
+          "escrito1h": 0,
+          "salida": 359,
+          "usd": 0.03371,
+          "modelo": "claude-sonnet-5-5"
+        }
+      ],
+      "usdVendedor": 0.0671643,
+      "usdTotal": 0.06985647,
+      "transcripcion": [
+        "CLIENTE: ¡Hola! Quiero más información sobre el costo de un juego completo de llantas 225/70 R15 para camioneta 🛻🛻 MAZDA BT 50...buena tarde... gracias",
+        "BOT: ¡Hola, Mario! 👋 Soy Martín, de Depot Tire. Le cotizo al instante con stock y precios reales, comparo modelos y le armo su cotización para tienda.",
+        "BOT: 🖤 *PROMOCIÓN BLACK FRIDAY* 🖤\nEl Black Friday se vive TODO NOVIEMBRE\n\n🛞 *−60 % en cada 2.ª llanta* Falken y Kenda\n🛞 *−25 %* en Winrun\n🔧 *−50 %* en alineación, balanceo, ABC de frenos y enllantaje\n🛢️ *−40 %* en cambio de aceite\n✅ Revisión de 7 puntos GRATIS\n\nVálido hasta el 30 de noviembre.",
+        "BOT: [image] Opciones enviadas: KENDA KR15 · KENDA KR100 · KENDA KR33A",
+        "BOT: 1 · KENDA KR15 — 2 × $132.94 + 2 × $53.18 = $372.24 (−60 % en la 2.ª llanta)\n2 · KENDA KR33A — 2 × $177.12 + 2 × $70.85 = $495.94 (−60 % en la 2.ª llanta)\n3 · KENDA KR100 — 2 × $198.13 + 2 × $79.25 = $554.76 (−60 % en la 2.ª llanta)",
+        "BOT: ¿Le cotizo la 1, la 2 o la 3?",
+        "CLIENTE: 2...o 3...por favor... gracias",
+        "BOT: Con la 2 (KR33A, 8 lonas) o la 3 (KR100), las dos le sirven para su BT-50 en 225/70R15. La 3 es la de gama más alta y la 2 es la intermedia.\n\nCon la compra va incluida la instalación, con alineación y balanceo.",
+        "BOT: ¿Cuál le cotizo, la 1, la 2 o la 3?",
+        "CLIENTE: El día de mañana le confirmo...por favor...pero más seguro la 2",
+        "BOT: Claro, quedo pendiente de su confirmación 👍"
+      ]
+    },
+    {
+      "n": 2,
+      "conversacion": 7,
+      "turnosOk": 3,
+      "vendedor": [
+        {
+          "fase": "medida_confirmada",
+          "rondas": 2,
+          "entrada": 22255,
+          "leido": 10577,
+          "escrito": 11674,
+          "escrito1h": 0,
+          "salida": 314,
+          "usd": 0.03339,
+          "modelo": "claude-sonnet-5-5"
+        },
+        {
+          "fase": "medida_confirmada",
+          "rondas": 2,
+          "entrada": 22776,
+          "leido": 11206,
+          "escrito": 11566,
+          "escrito1h": 0,
+          "salida": 314,
+          "usd": 0.03318,
+          "modelo": "claude-sonnet-5-5"
+        }
+      ],
+      "usdVendedor": 0.0665743,
+      "usdTotal": 0.06918231999999999,
+      "transcripcion": [
+        "CLIENTE: ¡Hola! Quiero más información sobre el costo de un juego completo de llantas 225/70 R15 para camioneta 🛻🛻 MAZDA BT 50...buena tarde... gracias",
+        "BOT: ¡Hola, Mario! 👋 Soy Martín, de Depot Tire. Le cotizo al instante con stock y precios reales, comparo modelos y le armo su cotización para tienda.",
+        "BOT: 🖤 *PROMOCIÓN BLACK FRIDAY* 🖤\nEl Black Friday se vive TODO NOVIEMBRE\n\n🛞 *−60 % en cada 2.ª llanta* Falken y Kenda\n🛞 *−25 %* en Winrun\n🔧 *−50 %* en alineación, balanceo, ABC de frenos y enllantaje\n🛢️ *−40 %* en cambio de aceite\n✅ Revisión de 7 puntos GRATIS\n\nVálido hasta el 30 de noviembre.",
+        "BOT: [image] Opciones enviadas: KENDA KR15 · KENDA KR100 · KENDA KR33A",
+        "BOT: 1 · KENDA KR15 — 2 × $132.94 + 2 × $53.18 = $372.24 (−60 % en la 2.ª llanta)\n2 · KENDA KR33A — 2 × $177.12 + 2 × $70.85 = $495.94 (−60 % en la 2.ª llanta)\n3 · KENDA KR100 — 2 × $198.13 + 2 × $79.25 = $554.76 (−60 % en la 2.ª llanta)",
+        "BOT: ¿Le cotizo la 1, la 2 o la 3?",
+        "CLIENTE: 2...o 3...por favor... gracias",
+        "BOT: Entre la 2 y la 3 hay una diferencia de precio. La KR33A (opción 2) tiene 8 lonas y cuesta $495.94 por las 4 llantas. La KR100 (opción 3) es la premium y cuesta $554.76.",
+        "BOT: ¿Cuál le cotizo, la 1, la 2 o la 3?",
+        "CLIENTE: El día de mañana le confirmo...por favor...pero más seguro la 2",
+        "BOT: Claro, quedo pendiente de su confirmación 👍"
+      ]
+    },
+    {
+      "n": 3,
+      "conversacion": 13,
+      "turnosOk": 3,
+      "vendedor": [
+        {
+          "fase": "medida_confirmada",
+          "rondas": 2,
+          "entrada": 22255,
+          "leido": 10577,
+          "escrito": 11674,
+          "escrito1h": 0,
+          "salida": 324,
+          "usd": 0.03349,
+          "modelo": "claude-sonnet-5-5"
+        },
+        {
+          "fase": "seleccionando",
+          "rondas": 1,
+          "entrada": 11870,
+          "leido": 0,
+          "escrito": 11868,
+          "escrito1h": 0,
+          "salida": 196,
+          "usd": 0.03163,
+          "modelo": "claude-sonnet-5-5"
+        }
+      ],
+      "usdVendedor": 0.06512470000000001,
+      "usdTotal": 0.06826571999999999,
+      "transcripcion": [
+        "CLIENTE: ¡Hola! Quiero más información sobre el costo de un juego completo de llantas 225/70 R15 para camioneta 🛻🛻 MAZDA BT 50...buena tarde... gracias",
+        "BOT: ¡Hola, Mario! 👋 Soy Martín, de Depot Tire. Le cotizo al instante con stock y precios reales, comparo modelos y le armo su cotización para tienda.",
+        "BOT: 🖤 *PROMOCIÓN BLACK FRIDAY* 🖤\nEl Black Friday se vive TODO NOVIEMBRE\n\n🛞 *−60 % en cada 2.ª llanta* Falken y Kenda\n🛞 *−25 %* en Winrun\n🔧 *−50 %* en alineación, balanceo, ABC de frenos y enllantaje\n🛢️ *−40 %* en cambio de aceite\n✅ Revisión de 7 puntos GRATIS\n\nVálido hasta el 30 de noviembre.",
+        "BOT: [image] Opciones enviadas: KENDA KR15 · KENDA KR100 · KENDA KR33A",
+        "BOT: 1 · KENDA KR15 — 2 × $132.94 + 2 × $53.18 = $372.24 (−60 % en la 2.ª llanta)\n2 · KENDA KR33A — 2 × $177.12 + 2 × $70.85 = $495.94 (−60 % en la 2.ª llanta)\n3 · KENDA KR100 — 2 × $198.13 + 2 × $79.25 = $554.76 (−60 % en la 2.ª llanta)",
+        "BOT: ¿Le cotizo la 1, la 2 o la 3?",
+        "CLIENTE: 2...o 3...por favor... gracias",
+        "BOT: [image] Comparativa enviada: KENDA KR33A · KENDA KR100",
+        "CLIENTE: El día de mañana le confirmo...por favor...pero más seguro la 2",
+        "BOT: Le dejo la comparativa 👆\n\n🔴 *KENDA KR33A* — ver ficha · 2 × $177.12 + 2 × $70.85 = $495.94\n🔴 *KENDA KR100* — ver ficha · 2 × $198.13 + 2 × $79.25 = $554.76\n\n🧭 *¿Cuál conviene más?*\n• *KENDA KR33A:* Comercial C (más carga). Van y furgoneta con más carga.\n• *KENDA KR100:* Comercial C (van). Furgoneta y van, ciudad y autopista."
+      ]
+    }
+  ],
+  "gastoBase": 0.20730451
+}

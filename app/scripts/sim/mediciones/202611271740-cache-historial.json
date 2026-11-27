@@ -1,0 +1,65 @@
+{
+  "etiqueta": "historial",
+  "marca": "C",
+  "pausaMin": 6.5,
+  "conversaciones": [
+    {
+      "n": 1,
+      "conversacion": 1,
+      "turnosOk": 4,
+      "vendedor": [
+        {
+          "fase": "medida_confirmada",
+          "rondas": 2,
+          "entrada": 22095,
+          "leido": 10497,
+          "escrito": 11594,
+          "escrito1h": 7526,
+          "salida": 321,
+          "usd": 0.04454,
+          "modelo": "claude-sonnet-5-5"
+        },
+        {
+          "fase": "medida_confirmada",
+          "rondas": 1,
+          "entrada": 12091,
+          "leido": 7526,
+          "escrito": 4563,
+          "escrito1h": 0,
+          "salida": 451,
+          "usd": 0.01667,
+          "modelo": "claude-sonnet-5-5"
+        },
+        {
+          "fase": "seleccionando",
+          "rondas": 1,
+          "entrada": 15328,
+          "leido": 0,
+          "escrito": 15326,
+          "escrito1h": 8188,
+          "salida": 205,
+          "usd": 0.05265,
+          "modelo": "claude-sonnet-5-5"
+        }
+      ],
+      "usdVendedor": 0.11386679999999999,
+      "usdTotal": 0.11917662999999999,
+      "transcripcion": [
+        "CLIENTE: Hola, necesito llantas 225/70R15 para mi Mazda BT-50",
+        "BOT: ¡Hola, Mario! 👋 Soy Martín, de Depot Tire. Le cotizo al instante con stock y precios reales, comparo modelos y le armo su cotización para tienda.",
+        "BOT: 🖤 *PROMOCIÓN BLACK FRIDAY* 🖤\nEl Black Friday se vive TODO NOVIEMBRE\n\n🛞 *−60 % en cada 2.ª llanta* Falken y Kenda\n🛞 *−25 %* en Winrun\n🔧 *−50 %* en alineación, balanceo, ABC de frenos y enllantaje\n🛢️ *−40 %* en cambio de aceite\n✅ Revisión de 7 puntos GRATIS\n\nVálido hasta el 30 de noviembre.",
+        "BOT: [image] Opciones enviadas: KENDA KR15 · KENDA KR100 · KENDA KR33A",
+        "BOT: 1 · KENDA KR15 — 2 × $132.94 + 2 × $53.18 = $372.24 (−60 % en la 2.ª llanta)\n2 · KENDA KR33A — 2 × $177.12 + 2 × $70.85 = $495.94 (−60 % en la 2.ª llanta)\n3 · KENDA KR100 — 2 × $198.13 + 2 × $79.25 = $554.76 (−60 % en la 2.ª llanta)",
+        "BOT: ¿Le cotizo la 1, la 2 o la 3?",
+        "CLIENTE: ¿Cuál me recomienda si manejo mucho en carretera?",
+        "BOT: [image] Opciones enviadas: KENDA KR15 · KENDA KR33A · KENDA KR100",
+        "CLIENTE: ¿Y cuánto dura la garantía de esa?",
+        "BOT: Para su medida 225/70R15 sí tengo H/T: la *KENDA KR15* es la de carretera que le conviene, y de ese tipo me quedan pocas unidades, así que es la opción que le recomiendo.\n\nYo iría por la *KENDA KR15* — 2 × $132.94 + 2 × $53.18 = $372.24 (−60 % en la 2.ª llanta): Es la Kenda de carretera: cómoda, silenciosa y con tracción A en mojado.",
+        "CLIENTE: ¿La instalación tiene costo?",
+        "BOT: La instalación no tiene costo: con su compra va incluida la instalación completa, con alineación y balanceo, además de la revisión de su vehículo.\n\nLa KENDA KR15 es la Kenda de carretera: cómoda, silenciosa y con tracción A en mojado. Incluye seguro contra golpes, cortes o daños de la llanta, y el mantenimiento con rotación cada 10.000 km sin costo.",
+        "BOT: ¿Le cotizo la KENDA KR15 para su Mazda BT-50?"
+      ]
+    }
+  ],
+  "gastoBase": 0.11917662999999999
+}

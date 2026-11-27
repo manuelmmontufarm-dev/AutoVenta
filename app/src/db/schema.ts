@@ -46,7 +46,8 @@ import { HISTORIAL_DEL_PANEL_MIGRATION_ID, runHistorialDelPanelMigration } from 
 import { AVISOS_EN_LA_APP_MIGRATION_ID, runAvisosEnLaAppMigration } from "./migrations/038_avisos_en_la_app.js";
 import { runMediosDelChatMigration } from "./migrations/039_medios_del_chat.js";
 import { runPromocionesMigration } from "./migrations/040_promociones.js";
-import { TOKENS_ESCRITOS_EN_CACHE_MIGRATION_ID, runTokensEscritosEnCacheMigration } from "./migrations/041_tokens_escritos_en_cache.js";
+import { runTokensEscritosEnCacheMigration } from "./migrations/041_tokens_escritos_en_cache.js";
+import { ESCRITURA_CACHE_1H_MIGRATION_ID, runEscrituraCache1hMigration } from "./migrations/043_escritura_cache_1h.js";
 import { runAvisosASoporteMigration } from "./migrations/042_avisos_a_soporte.js";
 
 export const SCHEMA = /* sql */ `
@@ -468,6 +469,8 @@ async function aplicarEsquema(db: Sql): Promise<void> {
   // última, o el atajo del candado daría el esquema por aplicado sin la columna
   // `ai_runs.cache_write_tokens`.
   await runTokensEscritosEnCacheMigration(db);
+  // La 043 va última: es la que `ULTIMA_MIGRACION_REGISTRADA` mira ahora.
+  await runEscrituraCache1hMigration(db);
   // 030 NO va acá: crea índices con CONCURRENTLY y corre después de abrir el
   // puerto (`crearIndicesEnSegundoPlano`), para que un deploy con la base
   // cargada no se quede sin contestar /health (26-oct, deploy FAILED).
@@ -478,7 +481,7 @@ async function aplicarEsquema(db: Sql): Promise<void> {
  * `schema_migrations`, todo lo de arriba ya se aplicó alguna vez. Al agregar una
  * migración nueva a la lista, actualizar esta constante.
  */
-const ULTIMA_MIGRACION_REGISTRADA = TOKENS_ESCRITOS_EN_CACHE_MIGRATION_ID;
+const ULTIMA_MIGRACION_REGISTRADA = ESCRITURA_CACHE_1H_MIGRATION_ID;
 
 /**
  * Aplica el esquema (idempotente). Se llama al arrancar el bot.

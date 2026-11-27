@@ -226,6 +226,111 @@ describe("el loop de herramientas, ronda por ronda", () => {
   });
 });
 
+describe("el caché del vendedor (27-nov-2026, chatClaude.ts punto 5)", () => {
+  const SONNET = "claude-sonnet-5-5";
+  const vendedor = (messages: ChatCompletionMessageParam[]) =>
+    ({ model: SONNET, messages, tools: [HERRAMIENTA], tool_choice: "auto" as const, parallel_tool_calls: false });
+  type Bloque = { type: string; text?: string; cache_control?: unknown };
+  const marcados = (cuerpo: { messages: { content: unknown }[] }) => cuerpo.messages.flatMap((msg, i) =>
+    (Array.isArray(msg.content) ? (msg.content as Bloque[]) : [])
+      .filter((b) => b.cache_control)
+      .map((b) => ({ i, texto: b.text, cache_control: b.cache_control })));
+
+  it("el prefijo fijo (herramientas + system) se cachea UNA HORA; la cola sigue en 5 minutos", () => {
+    const { cuerpo } = m.aPeticionClaude(vendedor(turno()), { esfuerzo: "low", cache: "vendedor" });
+    expect((cuerpo.system as Bloque[])[0].cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
+    expect(cuerpo.cache_control).toEqual({ type: "ephemeral" });
+  });
+
+  it("marca el final del mensaje del cliente, ANTES de los hechos: el turno siguiente trae ese mismo historial", () => {
+    const { cuerpo } = m.aPeticionClaude(vendedor(turno()), { esfuerzo: "low", cache: "vendedor" });
+    expect(cuerpo.messages.map((x) => x.role)).toEqual(["user", "assistant", "user", "system"]);
+    expect(marcados(cuerpo)).toEqual([{ i: 2, texto: "205/55R16", cache_control: { type: "ephemeral" } }]);
+    // Puntos de caché: system + este + la cola automática = 3 (el tope es 4).
+  });
+
+  it("el turno siguiente repite byte a byte la petición anterior hasta ese punto", () => {
+    const antes = m.aPeticionClaude(vendedor(turno()), { esfuerzo: "low", cache: "vendedor" }).cuerpo;
+    // Lo que agent.ts manda en el turno siguiente: el historial ya trae la
+    // respuesta del bot, y los hechos son otros.
+    const despues = m.aPeticionClaude(vendedor([
+      { role: "system", content: "Eres el vendedor de Depot Tire." },
+      { role: "assistant", content: "¿Qué medida necesita?" },
+      { role: "user", content: "hola" },
+      { role: "user", content: "205/55R16" },
+      { role: "assistant", content: "Tengo 3 opciones." },
+      { role: "system", content: "HECHO: ya vio opciones." },
+      { role: "user", content: "la segunda" },
+    ]), { esfuerzo: "low", cache: "vendedor" }).cuerpo;
+    const sinMarcas = (x: unknown) => JSON.stringify(x, (k, v) => (k === "cache_control" ? undefined : v));
+    expect(sinMarcas(despues.tools)).toBe(sinMarcas(antes.tools));
+    expect(sinMarcas(despues.system)).toBe(sinMarcas(antes.system));
+    // Hasta el mensaje marcado (índice 2), igual; desde ahí, lo nuevo.
+    expect(sinMarcas(despues.messages.slice(0, 3))).toBe(sinMarcas(antes.messages.slice(0, 3)));
+    expect(marcados(despues)).toEqual([{ i: 4, texto: "la segunda", cache_control: { type: "ephemeral" } }]);
+  });
+
+  it("primer turno (historial vacío): los hechos NO suben al system; van detrás del cliente, como siempre", () => {
+    // agent.ts arma [system, ...historial, ...hechos, cliente]; sin historial,
+    // los hechos quedan pegados al system. Arriba habrían hecho único el prefijo
+    // de cada conversación (simulador, 27-nov: el turno 1 no reusaba nada).
+    const primerTurno = (hecho: string): ChatCompletionMessageParam[] => [
+      { role: "system", content: "Eres el vendedor de Depot Tire." },
+      { role: "system", content: hecho },
+      { role: "user", content: "hola, 205/55R16" },
+    ];
+    const a = m.aPeticionClaude(vendedor(primerTurno("HECHO: se llama Ana.")), { esfuerzo: "low", cache: "vendedor" }).cuerpo;
+    const b = m.aPeticionClaude(vendedor(primerTurno("HECHO: se llama Luis.")), { esfuerzo: "low", cache: "vendedor" }).cuerpo;
+    expect(JSON.stringify(a.system)).toBe(JSON.stringify(b.system));
+    expect(JSON.stringify(a.system)).not.toContain("se llama");
+    expect(a.messages).toEqual([
+      { role: "user", content: [{ type: "text", text: "hola, 205/55R16", cache_control: { type: "ephemeral" } }] },
+      { role: "system", content: "HECHO: se llama Ana." },
+    ]);
+    // Fuera del vendedor no cambia nada: el resto de llamadas sigue igual.
+    const otro = m.aPeticionClaude(vendedor(primerTurno("HECHO: se llama Ana.")), { esfuerzo: "low" }).cuerpo;
+    expect(JSON.stringify(otro.system)).toContain("se llama Ana");
+  });
+
+  it("en la segunda ronda el punto queda en el MISMO bloque y no se marca nada más", () => {
+    const base = turno();
+    const mensaje = m.aRespuestaOpenAI(respuestaDeClaude([
+      { type: "tool_use", id: "toolu_1", name: "buscar_llanta", input: { medida: "205/55R16" } },
+    ], { stop_reason: "tool_use" }), vendedor(base)).choices[0].message;
+    const segunda = m.aPeticionClaude(vendedor([
+      ...base,
+      mensaje,
+      { role: "tool", tool_call_id: "toolu_1", content: '{"opciones":3}' },
+      { role: "system", content: "OBLIGACIÓN PENDIENTE: cotiza." },
+    ]), { esfuerzo: "low", cache: "vendedor" }).cuerpo;
+    expect(marcados(segunda)).toEqual([{ i: 2, texto: "205/55R16", cache_control: { type: "ephemeral" } }]);
+  });
+
+  it("sin herramientas no marca la cola ni el historial: nadie escribiría hasta el final", () => {
+    const { cuerpo } = m.aPeticionClaude({ model: SONNET, messages: turno() }, { esfuerzo: "low", cache: "vendedor" });
+    expect((cuerpo.system as Bloque[])[0].cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
+    expect(cuerpo.cache_control).toBeUndefined();
+    expect(marcados(cuerpo)).toEqual([]);
+  });
+
+  it("el Guardián y el resto siguen como antes: system de 5 minutos y nada en el historial", () => {
+    const { cuerpo } = m.aPeticionClaude(vendedor(turno()), { esfuerzo: "low" });
+    expect((cuerpo.system as Bloque[])[0].cache_control).toEqual({ type: "ephemeral" });
+    expect(marcados(cuerpo)).toEqual([]);
+  });
+
+  it("lo escrito por una hora vuelve aparte, DENTRO de lo escrito", () => {
+    const r = m.aRespuestaOpenAI(respuestaDeClaude([{ type: "text", text: "ok" }], {
+      usage: {
+        input_tokens: 100, output_tokens: 10, cache_read_input_tokens: 0, cache_creation_input_tokens: 9000,
+        cache_creation: { ephemeral_1h_input_tokens: 7400, ephemeral_5m_input_tokens: 1600 },
+      },
+    }), vendedor(turno()));
+    expect(chat.tokensEscritosEnCache(r)).toBe(9000);
+    expect(chat.tokensEscritosEnCache1h(r)).toBe(7400);
+  });
+});
+
 describe("lo que el bot lee de vuelta", () => {
   const peticion = { model: FABLE, messages: [{ role: "user" as const, content: "x" }] };
 

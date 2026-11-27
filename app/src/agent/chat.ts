@@ -20,7 +20,7 @@ import type OpenAI from "openai";
 import type { ChatCompletion } from "openai/resources/chat/completions";
 import { config, type EsfuerzoClaude } from "../config.js";
 import { chatReasoningEffort } from "./aiRequestPolicy.js";
-import { completarConClaude, type PeticionChat } from "./chatClaude.js";
+import { completarConClaude, type CacheDeClaude, type PeticionChat } from "./chatClaude.js";
 import { esModeloClaude } from "./claudeCliente.js";
 
 /** Respuestas que NO vinieron del modelo pedido, y de cuál vinieron. */
@@ -40,11 +40,11 @@ export function peticionDeRespaldo(peticion: PeticionChat, model: string): Petic
 export async function completarChat(
   openai: OpenAI,
   peticion: PeticionChat,
-  opciones: { esfuerzo?: EsfuerzoClaude } = {},
+  opciones: { esfuerzo?: EsfuerzoClaude; cache?: CacheDeClaude } = {},
 ): Promise<ChatCompletion> {
   if (!esModeloClaude(peticion.model)) return openai.chat.completions.create(peticion);
   try {
-    return await completarConClaude(peticion, { esfuerzo: opciones.esfuerzo ?? "low" });
+    return await completarConClaude(peticion, { esfuerzo: opciones.esfuerzo ?? "low", cache: opciones.cache });
   } catch (error) {
     const respaldo = config.anthropic.respaldoOpenAI;
     if (!respaldo) throw error;
@@ -68,4 +68,12 @@ export function modeloQueAtendio(respuesta: ChatCompletion, pedido: string): str
  */
 export function tokensEscritosEnCache(respuesta: ChatCompletion): number {
   return (respuesta.usage as { cache_write_tokens?: number } | undefined)?.cache_write_tokens ?? 0;
+}
+
+/**
+ * De lo escrito al caché, la parte con TTL de 1 hora (se cobra 2× la entrada en
+ * vez de 1,25×). Va DENTRO de `tokensEscritosEnCache`. Solo el vendedor en Claude.
+ */
+export function tokensEscritosEnCache1h(respuesta: ChatCompletion): number {
+  return (respuesta.usage as { cache_write_1h_tokens?: number } | undefined)?.cache_write_1h_tokens ?? 0;
 }

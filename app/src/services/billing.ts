@@ -23,7 +23,8 @@ export const BILLING_START = process.env.BILLING_START ?? "2026-08-12";
  *
  * `cacheWrite` es lo que cuesta ESCRIBIR al caché (5 minutos): solo Claude lo
  * cobra, 1,25× la entrada. Sin ese renglón la cuenta de un modelo Claude sale
- * más barata de lo que llega en la factura de Anthropic.
+ * más barata de lo que llega en la factura de Anthropic. Lo escrito con TTL de
+ * 1 hora (el prefijo del vendedor desde el 27-nov) cuesta 2× la entrada.
  */
 type Tarifa = { input: number; cachedInput: number; output: number; cacheWrite?: number };
 const TARIFAS: Record<string, Tarifa> = {
@@ -59,15 +60,18 @@ export function tarifaDe(model: string): Tarifa {
  */
 export function costoEnUsd(
   model: string,
-  tokens: { input: number; cached: number; cacheWrite?: number; output: number },
+  tokens: { input: number; cached: number; cacheWrite?: number; cacheWrite1h?: number; output: number },
 ): number {
   const t = tarifaDe(model);
   const cached = Math.min(tokens.cached, tokens.input);
   const escritos = Math.min(tokens.cacheWrite ?? 0, tokens.input - cached);
+  // `cacheWrite1h` va DENTRO de `cacheWrite`: es la parte escrita por una hora.
+  const escritos1h = Math.min(tokens.cacheWrite1h ?? 0, escritos);
   return (
     (tokens.input - cached - escritos) * t.input
     + cached * t.cachedInput
-    + escritos * (t.cacheWrite ?? t.input)
+    + (escritos - escritos1h) * (t.cacheWrite ?? t.input)
+    + escritos1h * (t.cacheWrite ? t.input * 2 : t.input)
     + tokens.output * t.output
   ) / 1_000_000;
 }
@@ -87,6 +91,7 @@ interface FilaUso {
   inp: string | null;
   cached: string | null;
   escritos: string | null;
+  escritos1h: string | null;
   outp: string | null;
 }
 
@@ -98,6 +103,7 @@ async function usoEntre(desde: string, hastaExcl: string): Promise<UsoPeriodo> {
            sum(input_tokens)               as inp,
            sum(cached_input_tokens)        as cached,
            sum(cache_write_tokens)         as escritos,
+           sum(cache_write_1h_tokens)      as escritos1h,
            sum(output_tokens)              as outp
     from ai_runs
     where (created_at at time zone ${TZ})::date >= ${desde}::date
@@ -112,7 +118,7 @@ async function usoEntre(desde: string, hastaExcl: string): Promise<UsoPeriodo> {
     // La entrada se guarda INCLUYENDO lo cacheado (así la reporta OpenAI, y a
     // eso se normaliza Claude): se descuenta del precio pleno y se cobra a
     // tarifa de caché; lo escrito al caché, a la suya.
-    uso.usd += costoEnUsd(row.model, { input: inp, cached, cacheWrite: Number(row.escritos ?? 0), output: outp });
+    uso.usd += costoEnUsd(row.model, { input: inp, cached, cacheWrite: Number(row.escritos ?? 0), cacheWrite1h: Number(row.escritos1h ?? 0), output: outp });
     uso.inputTokens += inp;
     uso.cachedInputTokens += cached;
     uso.outputTokens += outp;
