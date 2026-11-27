@@ -35,7 +35,9 @@ import { aroDeMedida, enLaMedidaConfirmada, medidasEnPulgadasCercanas, normalize
 import { anchoYAro } from "../domain/anchoYAro.js";
 import { arosDelCatalogo } from "../domain/aroProducto.js";
 import { herramientasDeAros } from "./herramientasAros.js";
-import { alcanzaParaVender, avisoStockCorto, recordatorioStockCorto } from "../domain/stockCorto.js";
+import {
+  alcanzaParaVender, avisoStockCorto, minimoParaMostrar, nombraElStockAlCliente, recordatorioStockCorto, stockCortoParaElVendedor,
+} from "../domain/stockCorto.js";
 import { faltanteDeLaCotizacionVigente } from "../services/stockCorto.js";
 import { confirmarPrecioDeMedida, precioDeVenta } from "../services/precioDeVenta.js";
 import {
@@ -97,7 +99,7 @@ import { hechoDePromocionPorCantidad, productoParaCantidad, textosDeRegalos, typ
 import { nombreConVigencia } from "../domain/preciosEspeciales.js";
 import { avisoDeMedidaEnOpciones, LINEA_SIN_STOCK_EXACTO, siguientePasoPorMedidaDistinta } from "../domain/equivalenciaEnTexto.js";
 import { CAMPO_EQUIVALENTES, equivalentesAMostrar, reglaDeMostrarEquivalentes } from "../domain/equivalentesPorMostrar.js";
-import { CAMPO_SIN_STOCK, REGLA_SIN_NO_HAY_VENDEDOR, type PedidoSinStock } from "../domain/sinNoHay.js";
+import { CAMPO_SIN_STOCK, REGLA_SIN_NO_HAY_VENDEDOR, reglaDeLasMasCercanas, type PedidoSinStock } from "../domain/sinNoHay.js";
 import { extractFlotationSizes, extractTireSizes, formatFlotationSize, formatTireSize, parseTireSize, type TireSize, type FlotationSize, flotacionIncompleta, medidaGuardable } from "../domain/tireSize.js";
 import { marcaPreguntada, pidioCotizacionExplicita, ultimaMarcaPedida } from "../domain/consultaConRespaldo.js";
 import { armarLista, ordenDeLaLista, confirmacionDeLaOpcion, opcionPorPosicion, posicionElegida, preguntaDeLaLista, MAX_NUMERADA } from "../domain/listaDeOpciones.js";
@@ -118,9 +120,11 @@ import { ejemplosDeLaEscalera, nivelDeLinea, ordenDeNivel, reglasEscalera } from
 import { separarPorUso, tiposCompatibles, usoDeLosTextos, usoDeclarado, type UsoDeclarado } from "../domain/usoYTipo.js";
 import { condicionesDelRespaldo, costoPorKm, respaldoCompleto, respaldoDeMarca } from "../domain/respaldoMarcas.js";
 import { politica } from "../negocio/politica.js";
+import { pedidoDeMedidaSinDatos } from "../services/aperturaCorta.js";
+import { ERROR_GUIA_SIN_PEDIRLA } from "../domain/aperturaCorta.js";
 import { fichaDeModelo, lonasPorCodigo } from "../domain/conocimientoProducto.js";
 import {
-  debeBloquearReenvio, JUEGO_COMPLETO, medidaDesdeContenido, opcionesQueAlcanzan, tipoSolicitadoEn,
+  debeBloquearReenvio, JUEGO_COMPLETO, medidaDesdeContenido, opcionesQueAlcanzan, tipoQueFiltraLaBusqueda, tipoSolicitadoEn,
 } from "../domain/opcionesCandados.js";
 import {
   medidaEstaPedida, medidasDeProductos, medidasPermitidas, mensajesDeLaVisitaActual,
@@ -195,6 +199,12 @@ export interface AgentContext {
    * Lo calcula `agent.ts` con `medidaConfirmadaPorCliente`.
    */
   medidaSinConfirmar?: boolean;
+  /**
+   * Sprint 3 (F-04): la ficha tiene el vehículo que dijo el cliente. Sin él, la
+   * lámina no puede cerrar con «Estas son las que más se usan en su vehículo»
+   * (solo con `politica.aperturaCorta`). Lo calcula `agent.ts`.
+   */
+  vehiculoEnFicha?: boolean;
   /** La intención activa es un servicio fuera del catálogo de llantas. */
   consultaFueraDeCatalogo?: boolean;
   /**
@@ -524,15 +534,17 @@ function recorteConEscalera<T extends { code: string; brand: string; design: str
   // presente en la lista COMPLETA entra su mejor representante (el más
   // barato entre los que alcanzan para el juego).
   const tipoDe = (p: T) => normalizarTipo(tipoDeProducto(p.code, p.design, p.name) ?? "");
+  // «Stock para el juego» = `minimoParaMostrar` (con stock único, una basta).
+  const alcanza = (p: T) => p.stock >= minimoParaMostrar(JUEGO_COMPLETO);
   const cubiertos = new Set(
-    elegidos.filter((p) => p.stock >= JUEGO_COMPLETO).map(tipoDe).filter(Boolean),
+    elegidos.filter(alcanza).map(tipoDe).filter(Boolean),
   );
   for (const p of productos) {
-    if (p.stock < JUEGO_COMPLETO) continue;
+    if (!alcanza(p)) continue;
     const tipo = tipoDe(p);
     if (!tipo || cubiertos.has(tipo)) continue;
     const mejor = productos
-      .filter((q) => q.stock >= JUEGO_COMPLETO && tipoDe(q) === tipo)
+      .filter((q) => alcanza(q) && tipoDe(q) === tipo)
       .sort((a, b) => a.minimumPriceWithTax - b.minimumPriceWithTax)[0];
     if (mejor && !elegidos.includes(mejor)) elegidos.push(mejor);
     cubiertos.add(tipo);
@@ -697,6 +709,35 @@ export function conSinNoHay(json: string, pedido: PedidoSinStock | null): string
   } catch {
     return json;
   }
+}
+
+/**
+ * Competimotor: lo más cercano de SU medida (otro tipo con stock) y la orden de
+ * mostrarlo ya, que reemplaza la `regla` del «díselo y pregunta». Depot: nada.
+ */
+function cercanasDeSuMedida(suMedida: string | null | undefined): Record<string, unknown> {
+  if (!politica.nuncaDecirNoHay || !suMedida) return {};
+  const cercanas = lasMasCercanasConStock(parseTireSize(suMedida), new Set());
+  if (!cercanas.length) return {};
+  return { opciones_cercanas: cercanas, regla: reglaDeLasMasCercanas(cercanas) };
+}
+
+/**
+ * LO MÁS CERCANO QUE SÍ HAY, para mostrarlo en el mismo turno (Competimotor,
+ * F-01): primero la misma medida con stock (otro tipo o marca), después sus
+ * equivalentes reales (`equivalentesAMostrar`: mismo aro, diámetro ±3 %).
+ */
+function lasMasCercanasConStock(
+  size: TireSize | null,
+  excluir: ReadonlySet<string>,
+): Array<{ code: string; marca: string; diseno: string; medida: string }> {
+  if (!size) return [];
+  const misma = conStock(searchBySize(size)).filter((p) => !excluir.has(p.code));
+  if (misma.length) {
+    return tresOpciones(misma).map((p) => ({ code: p.code, marca: p.brand, diseno: p.design, medida: p.sizeLabel ?? "" }));
+  }
+  return equivalentesAMostrar(searchAlternatives(size), formatTireSize(size), false)
+    .filter((e) => !excluir.has(e.code));
 }
 
 /**
@@ -1443,8 +1484,12 @@ export function buildTools(ctx: AgentContext) {
       // el respaldo. Un tipo pedido explícito ignora el uso.
       const usoDelCliente = usoDeLosTextos([ctx.currentUserText, ...dichoEnLaVisita.map((m) => m.content)])
         ?? (uso ? usoDeclarado(uso) : null);
+      // «Pantaneras» sin tipo escrito: el M/T del modelo no deja fuera a la R/T (469, Competimotor).
+      const tipoQueFiltra = tipoQueFiltraLaBusqueda(
+        tipo, usoDelCliente, [ctx.currentUserText ?? "", ...dichoEnLaVisita.map((m) => m.content)],
+      );
       const { pedido, enElAro, delTipo, seleccion, avisoTipo, suMedida, sinTipoEnSuMedida, sinEquivalenteQueCalce } =
-        opcionesEnAro(aro, tipo, ficha?.tire_size, esDeCamioneta, usoDelCliente, anchoPedido);
+        opcionesEnAro(aro, tipoQueFiltra, ficha?.tire_size, esDeCamioneta, usoDelCliente, anchoPedido);
       // Del ancho pedido no hay NADA en el aro: se dice, con los anchos
       // cercanos que sí hay — nunca se sustituye el ancho en silencio (la
       // demo del 4-nov: «235 rin 15» salió como 205/65, 185/65 y 195/55).
@@ -1551,6 +1596,7 @@ export function buildTools(ctx: AgentContext) {
             + "PROHIBIDO ofrecerlas como «equivalentes» ni mandar la pieza con ellas. Dile la verdad —«de ese tipo "
             + "no tengo ninguna que le calce a su medida»— y ofrece las dos salidas reales: otro tipo en su medida "
             + "exacta, o que el asesor le confirme en el local si le entra alguna.",
+          ...cercanasDeSuMedida(suMedida),
         }), suMedida);
       }
 
@@ -1565,6 +1611,7 @@ export function buildTools(ctx: AgentContext) {
           ],
           regla:
             "No hay stock de ese tipo en ese aro. Dile qué tipos SÍ hay en ese aro y pregunta el uso; no inventes que llegará ni ofrezcas otro tipo como si fuera el pedido.",
+          ...cercanasDeSuMedida(suMedida),
         }), suMedida ?? null);
       }
 
@@ -1740,6 +1787,13 @@ export function buildTools(ctx: AgentContext) {
         .describe("true SOLO si el cliente acaba de decir que no sabe la medida, que no la encuentra o que no sabe dónde mirar. false cuando la mandas tú por iniciativa propia al pedir la medida."),
     }),
     run: async ({ aro, lo_pidio_el_cliente }) => {
+      // Sprint 3 (F-04, Competimotor): con la apertura corta la guía sale SOLO
+      // si el cliente dice con sus palabras que no la sabe o no la encuentra.
+      // Mandada de entrada (989, 1091, 290) o en cada ciclo a quien ya la dio
+      // (432) frenaba la conversación; `lo_pidio_el_cliente` del modelo no basta.
+      if (politica.aperturaCorta && !pideLaGuiaDeMedida(ctx.currentUserText)) {
+        return JSON.stringify({ error: ERROR_GUIA_SIN_PEDIRLA });
+      }
       // Mismo criterio que el candado de opciones: la pieza se manda una vez por
       // ciclo. Repetir una infografía que el cliente ya tiene en pantalla se lee
       // como que el bot no lo escuchó.
@@ -1879,6 +1933,16 @@ export function buildTools(ctx: AgentContext) {
       "Úsala cuando el cliente pide opciones, precio o cotización y NO tienes medida, ni aro, ni vehículo. Ese pedido NUNCA se contesta solo con una pregunta: esta herramienta te dice qué toca según cuántas veces ya se lo pediste. La primera vez te devuelve los aros que sí hay en stock para que pidas el aro ofreciendo algo concreto; si el cliente ya lo pidió otra vez sin darlo, te devuelve una muestra real del stock para que la mandes con preparar_opciones y le expliques por qué el aro decide. Si el cliente SÍ dio un aro va buscar_por_aro_y_tipo, y si dio vehículo va fitment_vehiculo — esta es solo para cuando no hay nada.",
     schema: z.object({}),
     run: async () => {
+      // Sprint 3 (F-04): con la apertura corta, una pregunta de las tres vías
+      // en vez de la guía de entrada y de la muestra de medidas mezcladas.
+      const pedidoCorto = await pedidoDeMedidaSinDatos(ctx.conversation.id);
+      if (pedidoCorto) {
+        return JSON.stringify({
+          paso: "pedir_la_medida",
+          mensaje_para_enviar: pedidoCorto,
+          regla: "Responde exactamente con mensaje_para_enviar. Si el cliente contesta con la medida, una foto o su vehículo, sigue de una hacia las opciones.",
+        });
+      }
       await ensureCatalogReady();
       const aros = arosConStock();
       const rango = rangoDeAros(aros);
@@ -2215,6 +2279,16 @@ export function buildTools(ctx: AgentContext) {
       // —la red de emergencia devolvía todo— y por eso salían llantas
       // rotuladas «Sin stock» en la vitrina (conv 11302, 27-ago). Decirlo en
       // una línea y ofrecer al asesor vende más que una imagen de lo que no hay.
+      if (!vendibles.length && politica.nuncaDecirNoHay) {
+        // Competimotor (F-01, 560): lo más cercano que SÍ hay va con la orden,
+        // y el pedido queda marcado para el aviso al asesor.
+        const pedida = medidaUnica?.size ?? candidatos[0]?.size ?? null;
+        const cercanas = lasMasCercanasConStock(pedida, new Set(candidatos.map((p) => p.code)));
+        return conSinNoHay(JSON.stringify({
+          error: "sin_stock_en_la_medida",
+          regla: reglaDeLasMasCercanas(cercanas),
+        }), { medida: pedida ? formatTireSize(pedida) : null, tipo: tipoPedido || null, marca: null, aro: pedida?.rim ?? null });
+      }
       if (!vendibles.length) {
         return JSON.stringify({
           error: "sin_stock_en_la_medida",
@@ -2867,6 +2941,7 @@ export function buildTools(ctx: AgentContext) {
         entregarRecomendacion,
         ofrecerCotizar: entregarRecomendacion && !autorizaCotizar,
         pedirMedida: Boolean(ctx.medidaSinConfirmar),
+        vehiculoDicho: Boolean(ctx.vehiculoEnFicha) || (ctx.toolTrace ?? []).some((t) => t.herramienta === "fitment_vehiculo"),
         recomendacion,
         motivo: motivo.trim().replace(/\.$/, ""),
         precioConIva: entregada.minimumPriceWithTax ?? null,
@@ -4007,7 +4082,7 @@ export function buildTools(ctx: AgentContext) {
       // (misma lección que el aviso de equivalentes, 20-ago). Y pegado a la
       // cotización, no como bloque aparte: el tope son 4 bloques y el último
       // —el que pide día y local— es el objetivo del turno.
-      const avisoStock = stockCorto
+      const avisoStock = stockCorto && nombraElStockAlCliente()
         ? avisoStockCorto(stockCorto.stock_hoy, stockCorto.solicitadas)
         : null;
       const avisoCantidad = !avisoJuego && esCantidadInusual(items[0].cantidad)
@@ -4031,7 +4106,7 @@ export function buildTools(ctx: AgentContext) {
         iva: quote.tax,
         total_con_iva: quote.total,
         numero_venta: saleNumber,
-        ...(stockCorto ? { stock_insuficiente: stockCorto } : {}),
+        ...(stockCorto ? stockCortoParaElVendedor(stockCorto) : {}),
         mensaje_para_enviar: composeBlocks(
           [
             // Con la foto enviada, aquí no va NADA de la cotización: la pieza ya
@@ -4845,7 +4920,10 @@ export function toolItem(item: {
     ...(politica.precioDeCotizacion === "tarjeta" && item.preciosPorPago && item.minimumPriceWithTax
       ? { precio_efectivo_o_transferencia_con_iva: Math.min(item.preciosPorPago.efectivoConIva, item.minimumPriceWithTax) }
       : {}),
-    stock: item.stock,
+    // Con stock único (Competimotor, F-01) el número no viaja: con «stock: 2» y
+    // un juego de 4 el vendedor decía «no me sale en stock» (1331, simulador
+    // 26-nov). «disponibilidad» ya dice si hay (con 1 basta) o no.
+    ...(nombraElStockAlCliente() ? { stock: item.stock } : {}),
     disponibilidad: item.availability,
     // Las lonas viven en el nombre del fabricante («KR29 10PR TL») y se
     // preguntan seguido: tres clientes en la semana del 8 al 11-sep (convs

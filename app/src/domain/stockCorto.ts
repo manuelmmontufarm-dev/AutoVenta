@@ -1,4 +1,5 @@
 import { MAXIMO_NORMAL } from "./cantidadGrande.js";
+import { politica } from "../negocio/politica.js";
 
 /**
  * EL AVISO DE STOCK CORTO, Y POR QUÉ TIENE QUE VIAJAR PEGADO A LA COTIZACIÓN.
@@ -69,6 +70,58 @@ import { MAXIMO_NORMAL } from "./cantidadGrande.js";
 export const PISO_DE_DESFASE = 0.5;
 
 /**
+ * UN SOLO STOCK ENTRE LOCALES (Competimotor, `politica.stockCortoSeVende`;
+ * auditoría del 26-nov-2026, familia F-01).
+ *
+ * En Depot el stock de Contífico es por bodega y la raya de arriba tiene
+ * sentido. En Competimotor el stock es uno solo y los locales se pasan
+ * llantas: con KENDA KR28 235/60R16 en 2, el bot dijo «No me sale en stock…»
+ * (chat 1331, 23-nov 16:25) y 13 minutos después el asesor escribió «Si
+ * tenemos en la medida 235/60R16» y la cotizó. La única venta del periodo
+ * (chat 469, $437) fue de una KR601 con 2 en catálogo que el bot había negado.
+ *
+ * Con la perilla: lo que tiene ≥ 1 se muestra y se cotiza por lo que pidió,
+ * al cliente no se le nombra el stock (regla del negocio: ni «tengo 2», ni
+ * «stock bajo») y al asesor sí, con la alerta `stock_insuficiente`, para que
+ * consiga las que faltan. Sin la perilla (Depot) nada de esto cambia.
+ */
+export function stockCortoSeVende(): boolean {
+  return politica.stockCortoSeVende === true;
+}
+
+/** ¿Al cliente se le dice cuántas hay cuando no alcanzan? Depot sí; Competimotor no. */
+export function nombraElStockAlCliente(): boolean {
+  return !stockCortoSeVende();
+}
+
+/**
+ * Cuántas unidades tiene que tener una llanta para ENSEÑARLA en la vitrina.
+ * Depot: las que pidió (el juego). Con stock único: una.
+ */
+export function minimoParaMostrar(pedidas: number): number {
+  return stockCortoSeVende() ? 1 : Math.max(1, Math.round(pedidas));
+}
+
+/**
+ * Lo que el vendedor recibe de la cotización con stock corto. Depot: el número
+ * (lo dice el aviso). Con stock único: la orden de NO nombrarlo, sin el número
+ * —si el número viaja, el modelo lo escribe—.
+ */
+export function stockCortoParaElVendedor(corto: { stock_hoy: number; solicitadas: number }): Record<string, unknown> {
+  if (nombraElStockAlCliente()) return { stock_insuficiente: corto };
+  return { stock_corto_interno: REGLA_STOCK_CORTO_SE_VENDE };
+}
+
+/** El hecho duro que reciben el vendedor y el Guardián cuando el negocio vende con stock corto. */
+export const REGLA_STOCK_CORTO_SE_VENDE =
+  "STOCK ÚNICO ENTRE LOCALES (regla del negocio): toda llanta del catálogo con stock de 1 o más SE OFRECE y SE COTIZA "
+  + "por la cantidad que pide el cliente, aunque el número no alcance para el juego: los locales se pasan llantas y el "
+  + "asesor consigue las que faltan (ya recibe la alerta). Ofrecerla o cotizarla así NO es error. "
+  + "PROHIBIDO decirle al cliente cuántas hay, «stock bajo», «stock corto», «no hay stock suficiente», «no me alcanza "
+  + "para el juego» o «consultar disponibilidad», y PROHIBIDO quitar, negar o cambiar una opción por tener pocas unidades. "
+  + "«No hay» solo vale para una llanta con stock 0, y ni así se dice así: se ofrece lo más cercano que sí hay.";
+
+/**
  * ARRIBA DEL JUEGO GRANDE ESTA RAYA NO APLICA.
  *
  * «Quiero 20 llantas» con 8 en bodega no es una promesa falsa: es un pedido de
@@ -91,6 +144,8 @@ export function minimoParaVender(pedidas: number): number {
 export function alcanzaParaVender(stockHoy: number, pedidas: number): boolean {
   const hay = Number(stockHoy ?? 0);
   if (hay <= 0) return false;
+  // Stock único (Competimotor): con una sola se firma lo pedido; el asesor consigue el resto.
+  if (stockCortoSeVende()) return true;
   if (hay >= pedidas) return true;
   if (pedidas > PEDIDO_DE_FLOTA) return true;
   return hay >= minimoParaVender(pedidas);
@@ -196,6 +251,8 @@ export function recordatorioQueFalta(
   texto: string,
   cotizacion: { numero?: string | null; cantidad: number; total?: number | null; stockHoy: number },
 ): string | null {
+  // Con stock único al cliente no se le nombra el stock: el asesor ya tiene la alerta.
+  if (!nombraElStockAlCliente()) return null;
   if (cotizacion.cantidad <= cotizacion.stockHoy) return null;
   // El agotado no es «stock corto»: tiene su propio candado en la cotización y
   // decirle «hoy hay 0» a alguien que ya tiene un número firmado es otra

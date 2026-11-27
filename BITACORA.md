@@ -1,3 +1,90 @@
+## 26-nov-2026 · Bot · Competimotor: «Sí tenemos» — lo que tiene 1 o 2 se muestra y se cotiza (F-01)
+
+- **Qué:** perillas nuevas de la política (bloque «Sprint 1»): `stockCortoSeVende` y `usoDelClienteAmpliaElTipo`, las
+  dos solo en `mundillantas`. Con la primera, la vitrina (`opcionesQueAlcanzan` → `minimoParaMostrar`) enseña toda
+  llanta con stock ≥ 1, la caja (`alcanzaParaVender`) firma la cantidad pedida, la pieza no pone «Consultar
+  disponibilidad», al vendedor no le viaja el número de stock y el recordatorio «hoy hay 2» no sale por ninguna puerta
+  (`faltanteDeCotizacion`, `recordatorioQueFalta`); el asesor recibe `stock_insuficiente` al cotizar y el Guardián un
+  hecho duro (`REGLA_STOCK_CORTO_SE_VENDE`) y filas sin «STOCK CORTO». Con la segunda, «pantaneras» sin tipo escrito
+  busca por uso (M/T y R/T) aunque el modelo pase M/T (`tipoQueFiltraLaBusqueda`). Sin ninguna en la medida,
+  `preparar_opciones` y `buscar_por_aro_y_tipo` devuelven lo más cercano con stock y la orden de mostrarlo en el mismo
+  turno (`reglaDeLasMasCercanas`). «Ya le estoy revisando el valor promocional…» se quita solo cuando el turno trae la
+  cotización o el precio de ESA llanta (1538); con lámina de alternativas sigue la regla del 24-nov. El candado de
+  salida no le nombra el faltante al cliente pero sí deja la alerta `stock_insuficiente` al asesor.
+- **Por qué:** auditoría de Competimotor del 26-nov (F-01): 1331, 1344, 1555, 1588, 560 y 469 recibieron «no me sale en
+  stock» / «un asesor ya se la está revisando» con KR28 = 2, WR9001 = 1, R380 = 2, KR601 = 2 en catálogo, y el asesor
+  las vendió minutos después; la única venta del periodo (469, $437) fue una de esas. La regla de Depot (Joaquín,
+  26-ago: no enseñar menos de 4) se aplicaba a un negocio con un solo stock entre locales. Depot no cambia.
+- **Probado:** `test/siTenemosStockCorto.test.ts`, `test/siTenemosDepotIgual.test.ts` y
+  `test/siTenemosAlAsesor.integration.test.ts` (rojo sin el arreglo). Simulador
+  `--perfil mundillantas` con el catálogo vivo del 26-nov (KR29 en 0 como el 20-nov): 1331, 1344, 1588, 1555, 560, 469,
+  1011 y una medida sin A/T, 3 vueltas cada uno (ver el cuadro del sprint). Se actualizaron tres pruebas que fijaban la
+  conducta vieja de Competimotor (`recomendacionPorMarca.herramientas`, `competimotorPantaneras`).
+- **Horas:** 2.
+
+## 26-nov-2026 · Bot · Sprint 4 ronda 1 (revisión): Depot igual en visitas y recordatorios
+
+- **Qué:** la regla ancha «un día dentro de una pregunta no agenda» queda solo con
+  `politica.seguimientos.preguntaConDiaNoAgenda` (Competimotor); para todos, solo el nombre de la promoción. El
+  «recordatorio sin cotización no sale» queda solo con `recordatorioSoloConCotizacion`. Un rango con días («miércoles
+  o jueves») vuelve a usar el día del modelo. El 1.º seguimiento sale sin precio si la llanta tiene promoción (no se
+  puede garantizar la cifra de la lámina; TODO Sprint 2). El texto fijo solo cuando la rama armó uno de los dos
+  seguimientos con pregunta, con fuente `determinista_pregunta_si_no`.
+- **Por qué:** revisión de la coordinadora. Medido contra Depot (175 visitas registradas en 30 días, solo lectura):
+  la regla ancha borraba 8 visitas reales («Lunes 01 diciembre / Hasta que hora atienden»); ahora 0.
+- **Horas:** 1,5.
+
+## 26-nov-2026 · Bot · Sprint 4 (F-05): seguimientos y datos falsos de la auditoría de Competimotor
+
+- **Qué:**
+  - **Pidió tiempo = hecho.** `domain/clientePosterga.pidioTiempo` («yo le escribo», «por ahora no», «sin fondos»,
+    «reúno los billetes», también dentro de un audio largo). Con `politica.seguimientos` (solo Competimotor) el único
+    dueño que agenda (`scheduleConversationFollowUps`) cancela los seguimientos automáticos del ciclo, guarda
+    `follow_up_reason` = «El cliente pidió tiempo: «…»» y deja UNA revisión del asesor a los 3 días (o el lunes si dijo
+    «la próxima semana»). El «Ok» que sigue cierra el turno, el rescate de 12 h no lo despierta, el candado
+    `insistir_con_lo_que_falta` y el Guardián (hecho nuevo «EL CLIENTE PIDIÓ TIEMPO») no le pegan «¿Qué día…?».
+  - **Seguimiento vacío no sale, para todos** (`sin_seguimiento_vacio`, al final de la cadena, después del Guardián).
+  - **Visita inventada, para todos** (`domain/fechaDeVisita`, lector único): «viernes negro / black friday» no es día;
+    un día dentro de una pregunta («el sábado atienden») no agenda ni por el pipeline ni por `agendar_visita`;
+    «la próxima semana» no toma el día del modelo; «me quedé AHORA sin fondos» ya no es «hoy» (`customerCommitment`).
+  - **Recordatorio de visita, para todos:** nombra la medida COTIZADA; sin cotización no sale.
+  - **Un solo local = local elegido** (seguimiento y procesador): con visita registrada confirma, no repregunta el día.
+  - **Competimotor:** los dos seguimientos ya no repiten la lista: 1.º la recomendada/cotizada con precio en efectivo y
+    «¿se la cotizo?» / «¿Se la separo?»; 2.º lo incluido + la dirección + «¿Le agendo una cita?». La retomada sale
+    partida en mensajes (sin «---» escrito).
+- **Por qué:** auditoría del 26-nov (165 chats): 1273 recibió dos «quedo pendiente de su mensaje cuando pueda
+  retomarlo» (era la corrección del Guardián a un «le esperamos hoy» con la visita cancelada); 1790 «X viernes negro
+  hay más descuento» quedó como visita del viernes; 1011 quedó con visita «hoy» por el «ahora»; 1456/302 «ya tenemos
+  listas sus llantas» con la medida pedida; 1375 «¿qué día le quedaría más cómodo?» con visita registrada; 138 chats con
+  la lista calcada dos veces (31 respondieron). El seguimiento de 1273 salió a las 08:00 EC, no a las 06:00 (las horas
+  de la auditoría venían corridas 2 h).
+- **Probado:** `test/s4F05Seguimientos.test.ts` (47, en rojo antes: 31 fallaban). Simulador Competimotor con los chats
+  reales ×3: 1273, 1011, 1790, 1375, 463, 1415, 1522, sanos 302 y 1273-miércoles; Depot: seguimientos con la lista de
+  siempre y el candado vacío cancelando un job. Suite: los mismos 3 fallos que el commit base.
+- **Horas:** 4.
+
+## 26-nov-2026 · Bot · Competimotor: apertura corta y nada de lámina a ciegas (Sprint 3, F-04)
+
+- **Qué:** `politica.aperturaCorta` (solo `mundillantas`) con la lógica en `domain/aperturaCorta.ts` y
+  `services/aperturaCorta.ts`. (1) La auto-respuesta de WhatsApp Business (`metadata.automatica`) ya no cuenta como
+  saliente en la decisión del primer contacto, y las dos frases de anuncio de Meta que el detector no conocía («Hola.
+  ¿Puedes darme más información sobre esto?», «¡Hola! Me gustaría conseguir más información sobre esto.») son saludo
+  pelado: sale la apertura corta de siempre (2 mensajes). (2) `guia_medida` se niega si el cliente no dijo con sus
+  palabras que no sabe/no encuentra la medida. (3) `opciones_sin_medida`: las dos primeras veces del ciclo, una pregunta
+  de las tres vías (medida, foto, vehículo) en vez de guía + muestra de tres medidas; desde la tercera, lo de siempre.
+  (4) Solo el aro («rin 16») → una pregunta por lo que falta de la medida, una vez por ciclo, en vez de la lámina
+  mezclada (`mostrarPorAro`). (5) «Dónde las consigo» de entrada → local y después la pregunta. (6) «Estas son las que
+  más se usan en su vehículo» solo con vehículo en la ficha (cierre de la lámina y hecho del vendedor).
+- **Por qué:** auditoría del 26-nov. Medido en la base de Competimotor (17–26-nov, primer mensaje del bot, cliente sin
+  medida): apertura corta 73 chats → 53 dieron medida o foto (73 %); apertura larga 38 → 22 (58 %). La larga salía en
+  40 de 40 casos con la auto-respuesta del celular delante, o con las otras dos frases del anuncio. La lámina sin medida
+  mostraba tres KR601 de tres medidas con «¿Le cotizo la 1, la 2 o la 3?» y «su vehículo» sin vehículo.
+- **Probado:** simulador `--perfil mundillantas` (modelos de producción, inventario de nov), 13 chats reales × 3 vueltas
+  (989, 290, 1125, 659, 999, 902, 1063, 1112, 1051, 1437, 794 y los sanos 1331, 1011), con el ANTES reproducido sin el
+  arreglo. `test/aperturaCorta*.test.ts` (36, 9 en rojo sin el arreglo), Depot idéntico (`aperturaCorta.depot.test.ts`).
+  Suite: los mismos 4 archivos que fallan en main.
+- **Horas:** 3.
+
 ## 25-nov-2026 · Bot · Entiende y explica cada promoción del panel (y si se suma con el 25 %)
 
 - **Qué:** `domain/promocionesComoHecho.ts`: la lista de promociones del panel vigentes (regla en palabras, marcas,
@@ -6741,6 +6828,10 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-11-26 | _(este mismo)_ | Competimotor «Sí tenemos»: stock 1–2 se muestra y se cotiza, sin nombrar el stock; pantanera = M/T y R/T (F-01) | 2 |
+| 2026-11-26 | _(este mismo)_ | Sprint 4 ronda 1: Depot igual en visitas y recordatorio, seguimiento sin precio con promo, texto fijo solo en los dos | 1,5 |
+| 2026-11-26 | _(este mismo)_ | Sprint 4 F-05 Competimotor: seguimientos tras pedir tiempo, visita inventada, recordatorio con lo cotizado, dos seguimientos distintos | 4 |
+| 2026-11-26 | _(este mismo)_ | Competimotor: apertura corta (sin guía ni auto-respuesta delante), aro solo → pregunta, «su vehículo» solo con vehículo (Sprint 3, F-04) | 3 |
 | 2026-11-24 | _(este mismo)_ | Tema de la cotización (Black Friday, Navidad… o personalizado) y el ahorro doble del Black Friday en la pieza | 3 |
 | 2026-11-24 | _(este mismo)_ | Depot: el Black Friday (2.ª llanta) pasa a la pestaña Promociones con interruptor y fechas | 1,5 |
 | 2026-11-24 | _(este mismo)_ | Depot: precios desde Contífico (Interbot de respaldo) y el −25 % como promoción con interruptor | 3,5 |

@@ -117,6 +117,19 @@ export interface FollowUpMessageContext {
    * («¿le ayudo a dejar lista la visita?» se corrigió 49 de 49 veces).
    */
   storeNames?: readonly string[] | null;
+  /**
+   * Sprint 4 (Competimotor, `politica.seguimientos`): los dos seguimientos
+   * dicen cosas DISTINTAS y terminan en una pregunta de sí/no. El 1.º recuerda
+   * la recomendada con su precio en efectivo; el 2.º, lo incluido en la compra
+   * y dónde queda el local. Sin el campo (Depot), los de siempre.
+   */
+  seguimientoConPregunta?: { incluido: string; direccion: string } | null;
+  /**
+   * La llanta que el 1.º seguimiento recuerda (la cotizada, la elegida o la
+   * recomendada de la lámina) y su precio en efectivo o transferencia por
+   * llanta. `efectivo: null` = no hay un precio fiable: no se dice ninguno.
+   */
+  recomendada?: { nombre: string; efectivo: number | null; cantidad: number } | null;
 }
 
 /** Seguimiento de la única opción cuando el precio ya se pidió: sin «¿se la cotizo?». */
@@ -204,13 +217,96 @@ function cuandoVisita(fecha: Date, franja?: string | null): string {
   return franja?.trim() ? `${dia} ${franja.trim()}` : dia;
 }
 
+/**
+ * CON UN SOLO LOCAL, EL LOCAL YA ESTÁ ELEGIDO (Sprint 4, auditoría Competimotor
+ * 26-nov, chat 1375). `nearest_store` queda vacío cuando el cliente nunca tuvo
+ * que elegir —Competimotor tiene uno—, y con el local vacío el seguimiento caía
+ * en «Me quedé pendiente de lo que me comentó: "Para el viernes". ¿Qué día le
+ * quedaría más cómodo?» aunque la visita del viernes estaba registrada. Con dos
+ * o más locales (Depot) no cambia nada.
+ */
+export function conElLocalUnico(context: FollowUpMessageContext): FollowUpMessageContext {
+  const locales = (context.storeNames ?? []).filter(Boolean);
+  if (context.nearestStore || locales.length !== 1) return context;
+  return { ...context, nearestStore: locales[0] };
+}
+
+/**
+ * ¿Este seguimiento no dice NADA? (Sprint 4, chat 1273, para todos los clientes.)
+ *
+ * «Claro, quedo pendiente de su mensaje cuando pueda retomarlo 👍» salió dos
+ * veces al día siguiente de que el cliente dijo que él escribía: era lo que el
+ * Guardián dejaba al «corregir» un recordatorio que ya no correspondía. Un
+ * mensaje que solo dice «quedo pendiente / atento» no le da al cliente ni un
+ * dato ni una pregunta: no es un seguimiento, es ruido. No se manda jamás.
+ */
+export function seguimientoSinContenido(texto: string | null | undefined): boolean {
+  const n = (texto ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  if (!n) return true;
+  if (/[?¿\d$]/.test(n) || n.length > 140) return false;
+  const limpio = n.replace(/[^a-z\s,.]/g, " ").replace(/\s+/g, " ").trim();
+  return /^(?:(?:claro|listo|perfecto|ok|bueno|entendido|de acuerdo|con gusto)[\s,.]+)*(?:quedo|quedamos|sigo|seguimos|estare|estaremos)\s+(?:muy\s+)?(?:pendientes?|atent[oa]s?)\b[^.]*\.?$/.test(limpio);
+}
+
+const dinero = (v: number) => `$${v.toFixed(2)}`;
+
+/**
+ * Los dos seguimientos de Competimotor (Sprint 4, familia F-05 D). En la
+ * auditoría 138 chats recibieron dos seguimientos con la lista entera repetida
+ * («Estas son las opciones…» y «Sigo pendiente de las opciones…») y respondieron
+ * 31. Lo que sí revivió chats fue una pregunta de sí/no (605, 636). Cada uno
+ * aporta algo distinto:
+ *  1.º la llanta (cotizada, elegida o recomendada) con su precio en efectivo
+ *      o transferencia y una pregunta de sí/no;
+ *  2.º lo incluido en la compra + dónde queda + «¿Le agendo una cita?».
+ * Con cotización el 1.º pregunta «¿Se la separo?»; sin cotización, «¿se la
+ * cotizo?», que es la oferta que el «sí» del cliente sabe abrir
+ * (`ofertaVigente`). Devuelve null si no hay llanta que nombrar.
+ */
+function seguimientoConPreguntaDeSiNo(
+  context: FollowUpMessageContext,
+  kind: FollowUpMessageKind,
+  datos: { incluido: string; direccion: string },
+): string | null {
+  if (kind === "in_window_second") {
+    const incluido = datos.incluido.trim().replace(/[.\s]+$/, "");
+    const donde = datos.direccion.trim() ? ` Estamos en ${datos.direccion.trim()}.` : "";
+    return `😊 ${incluido}.${donde} ¿Le agendo una cita?`;
+  }
+  const llanta = context.recomendada?.nombre?.trim() || context.selectedProductLabel?.trim() || null;
+  if (!llanta) return null;
+  const size = context.tireSize ? ` ${context.tireSize}` : "";
+  const cantidad = context.recomendada?.cantidad ?? context.selectedQuantity ?? null;
+  const efectivo = context.recomendada?.efectivo ?? null;
+  const precio = efectivo !== null && efectivo > 0
+    ? ` Pagando en efectivo o transferencia le queda en *${dinero(efectivo)}* c/u${cantidad && cantidad > 1 ? ` (*${dinero(Math.round(efectivo * cantidad * 100) / 100)}* las ${cantidad})` : ""}.`
+    : "";
+  if (context.quoteNumber) {
+    const juego = cantidad ? `${cantidad} llantas ` : "";
+    return `🛞 Su cotización de *${juego}${llanta}${size}* sigue vigente.${precio} ¿Se la separo?`;
+  }
+  return `🛞 Le recuerdo la que le recomendé: *${llanta}${size}*.${precio} Si le sirve, ¿se la cotizo?`;
+}
+
+/**
+ * Lo que el constructor anota sobre la rama que usó (el hecho que se guarda al
+ * enviar, nunca leído del texto).
+ */
+export interface SalidaDelSeguimiento {
+  /** El texto llevó la lista CON PRECIOS. */
+  conLista?: boolean;
+  /** Sprint 4: el texto es uno de los dos seguimientos con pregunta de sí/no (Competimotor). */
+  conPreguntaDeSiNo?: boolean;
+}
+
 export function buildContextualFollowUpMessage(
   context: FollowUpMessageContext,
   kind: FollowUpMessageKind,
   now = new Date(),
   /** Si se pasa, el constructor anota aquí si el texto llevó la lista CON PRECIOS (el hecho que se guarda al enviar). */
-  salida?: { conLista?: boolean },
+  salida?: SalidaDelSeguimiento,
 ): string {
+  context = conElLocalUnico(context);
   const texto = redactarSeguimiento(context, kind, now, salida);
   return followUpNeedsStoreLinks(context, kind)
     ? `${texto}\n${context.storeLinks!.trim()}`
@@ -221,7 +317,7 @@ function redactarSeguimiento(
   context: FollowUpMessageContext,
   kind: FollowUpMessageKind,
   now: Date,
-  salida?: { conLista?: boolean },
+  salida?: SalidaDelSeguimiento,
 ): string {
   const prefix = questionPrefix(context, kind);
   const size = context.tireSize ? ` ${context.tireSize}` : "";
@@ -343,6 +439,21 @@ function redactarSeguimiento(
     return kind === "in_window_second"
       ? `🚗 Me quedé pendiente de${commitment}. ¿Qué día le quedaría más cómodo para coordinar${store}? 😊`
       : `${prefix}😊 Sobre${commitment}, ¿le ayudo a dejar lista la visita${store}?`;
+  }
+
+  // Sprint 4: Competimotor, con lámina o cotización a la vista y sin visita
+  // registrada (esa rama va arriba y confirma). Lo demás —pedir la medida— queda igual.
+  if (
+    context.seguimientoConPregunta && !context.sinVisita
+    && (kind === "in_window_first" || kind === "in_window_second")
+    && (context.stage === "cotizacion_enviada" || Boolean(context.quoteNumber)
+      || (context.optionsCount ?? 0) > 0 || Boolean(context.selectedProductCode))
+  ) {
+    const distinto = seguimientoConPreguntaDeSiNo(context, kind, context.seguimientoConPregunta);
+    if (distinto) {
+      if (salida) salida.conPreguntaDeSiNo = true;
+      return distinto;
+    }
   }
 
   if (context.stage === "cotizacion_enviada") {

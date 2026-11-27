@@ -13,6 +13,8 @@
  */
 import { normalizarTipo } from "./tireTypes.js";
 import { politica } from "../negocio/politica.js";
+import { minimoParaMostrar } from "./stockCorto.js";
+import { tiposCompatibles, type UsoDeclarado } from "./usoYTipo.js";
 
 /**
  * Techo de seguridad: la consulta de tools.ts ya se limita a las piezas que
@@ -167,6 +169,34 @@ export function opcionesQueAlcanzan<T extends { stock?: number | null }>(
   productos: readonly T[],
   cantidadPedida: number = JUEGO_COMPLETO,
 ): T[] {
-  const minimo = Math.max(1, Math.round(cantidadPedida));
+  // Con stock único entre locales (Competimotor, `politica.stockCortoSeVende`)
+  // el mínimo es una: el asesor consigue las que faltan. Ver `domain/stockCorto.ts`.
+  const minimo = minimoParaMostrar(cantidadPedida);
   return productos.filter((p) => Number(p.stock ?? 0) >= minimo);
+}
+
+/**
+ * EL TIPO QUE FILTRA LA BÚSQUEDA POR ARO (Competimotor, `politica.usoDelClienteAmpliaElTipo`).
+ *
+ * Chat 469 (20-nov): «Llantas 23575r15 / Tipo pantaneras / Que precio tiene ?».
+ * El modelo buscó con tipo M/T, la única M/T de la medida estaba en 0 y la
+ * KENDA KR601 R/T (2 en catálogo) quedó fuera: «no me aparece stock». Un
+ * asesor le vendió 4 KR601 esa misma mañana. «Pantanera» es un USO, y al lodo
+ * le sirven M/T y R/T (`domain/usoYTipo.ts`).
+ *
+ * Si el cliente NO escribió un tipo (A/T, M/T, «todo terreno»…) y sus palabras
+ * dan un uso con varios tipos que incluye el que eligió el modelo, la búsqueda
+ * va sin tipo y manda el uso. Si lo escribió, su tipo manda como siempre.
+ * Sin la perilla (Depot) devuelve el tipo del modelo tal cual.
+ */
+export function tipoQueFiltraLaBusqueda(
+  tipoDelModelo: string | null,
+  usoDelCliente: UsoDeclarado | null,
+  textosDelCliente: readonly string[],
+): string | null {
+  if (!tipoDelModelo || !politica.usoDelClienteAmpliaElTipo || !usoDelCliente) return tipoDelModelo;
+  if (tipoSolicitadoEn(textosDelCliente)) return tipoDelModelo;
+  const delUso = tiposCompatibles(usoDelCliente) ?? [];
+  const delModelo = tipoDeToken(tipoDelModelo);
+  return delUso.length > 1 && delModelo && delUso.includes(delModelo) ? null : tipoDelModelo;
 }
