@@ -281,10 +281,15 @@ export function botonesParaBloque(
     if (pidioOtroDia(mensajeDelCliente)) return null;
     const dias = diasSugeridos(ahora, estaAbierto);
     if (!dias.length) return null;
+    // Sprint 2 (Competimotor): si la pregunta OFRECE hoy («¿Puede acercarse hoy
+    // o qué día le agendo la cita?» — solo sale con el local abierto y tiempo
+    // para atenderlo), el primer botón es «Hoy». Sin esa frase nunca hay «Hoy».
+    const ofreceHoy = /\bacercarse hoy\b/i.test(bloque);
     return {
       cuerpo: bloque,
       botones: [
-        ...dias.map((d) => ({ id: `dia:${iso(d.fecha)}${sufijo}`, titulo: d.titulo })),
+        ...(ofreceHoy ? [{ id: `dia:${iso(diaCivilEcuador(ahora))}${sufijo}`, titulo: "Hoy" }] : []),
+        ...(ofreceHoy ? dias.slice(0, 1) : dias).map((d) => ({ id: `dia:${iso(d.fecha)}${sufijo}`, titulo: d.titulo })),
         { id: `dia:otro${sufijo}`, titulo: "Otro día" },
       ].slice(0, MAX_BOTONES),
     };
@@ -354,6 +359,7 @@ export function textoDeBoton(id: string, titulo: string, ciclo: number, ahora = 
     const fecha = new Date(`${valor}T12:00:00Z`);
     if (Number.isNaN(fecha.getTime())) return titulo;
     const manana = new Date(diaCivilEcuador(ahora).getTime() + 86_400_000);
+    if (iso(fecha) === iso(diaCivilEcuador(ahora))) return "voy hoy";
     if (iso(fecha) === iso(manana)) return "voy mañana";
     return `voy el ${DIAS[fecha.getUTCDay()]}`;
   }

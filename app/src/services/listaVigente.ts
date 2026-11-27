@@ -24,6 +24,7 @@
 import { listaDeLaPieza, type LineaDeLista } from "../domain/listaDeOpciones.js";
 import { precioDelProducto } from "../domain/promocionDeTemporada.js";
 import { politica } from "../negocio/politica.js";
+import { efectivoDeLaLlanta } from "../domain/preciosPorPago.js";
 import { catalogStatus, findByCode } from "./catalog.js";
 
 export interface ListaVigente {
@@ -60,6 +61,10 @@ export function listaVigenteDeLaPieza(
       precio: centavos(precio),
       total: segunda ? segunda.totalConIva : centavos(precio * cantidad),
       ...(segunda ? { segundaLlanta: segunda } : {}),
+      // Sprint 2 (Competimotor): el efectivo de HOY, igual que la lista del turno (Depot: null, no se agrega).
+      ...(!segunda && efectivoDeLaLlanta(producto) !== null
+        ? { efectivo: efectivoDeLaLlanta(producto)!, totalEfectivo: centavos(efectivoDeLaLlanta(producto)! * cantidad) }
+        : {}),
     });
   }
   return { lista: vigente, nombres, cantidad };

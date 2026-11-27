@@ -11,6 +11,7 @@ import { sql } from "../db/client.js";
 import { lineaDePromocionVigente } from "../domain/promocion.js";
 import { hechoDeTemporadaParaElVendedor } from "./hechosDeTemporada.js";
 import { DEFAULT_PIECES_CONFIG, getPiecesConfig } from "./settings.js";
+import { politica } from "../negocio/politica.js";
 
 export interface Benefit {
   id: number;
@@ -104,7 +105,16 @@ export function formatBenefitsBlock(benefits: readonly Benefit[]): string {
 export async function buildBenefitsBlock(ctx: BenefitContext = {}): Promise<string> {
   const textos = await applicableBenefitTexts(ctx);
   if (!textos.length) return "";
-  return ["*INCLUYE*", ...textos.map((texto) => `- ${texto}`)].join("\n");
+  return [encabezadoDelIncluye(), ...textos.map((texto) => `- ${texto}`)].join("\n");
+}
+
+/**
+ * «*INCLUYE*», o con la cola del negocio (Sprint 2, Competimotor): «*INCLUYE*
+ * sin costo, comprando 2 o 4 llantas:». Empieza igual a propósito: es lo que
+ * `buildBenefitsBlockOnce` busca para no mandarlo dos veces.
+ */
+export function encabezadoDelIncluye(cola: string | undefined = politica.encabezadoDelIncluye): string {
+  return cola ? `*INCLUYE* ${cola}:` : "*INCLUYE*";
 }
 
 /**
