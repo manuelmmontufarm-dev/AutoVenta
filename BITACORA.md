@@ -11,6 +11,20 @@
   2 fallan (4 archivos, igual que `origin/main`). Informe: `docs/reportes-historicos/2026-11-27-competimotor-claude.md`.
 - **Pendiente (no del modelo):** un solo precio en la recomendación por uso; «sí» a «¿hoy o qué día…?» no pregunta el
   día; chat 1855 (Guardián Haiku detecta la re-pregunta de la medida y no la corrige).
+## 27-nov-2026 · Bot · Haiku 5.5 en las piezas que no son el vendedor (medición, sin tocar producción)
+
+- **Qué:** informe `docs/reportes-historicos/2026-11-27-haiku-resto.md` + PR. Visión: con un modelo `claude-` se
+  agrega la regla «medida solo si se lee completa; nada de probable; pulgadas sin convertir» (`vision.ts`); con
+  gpt-5.5 no cambia. Simulador: `--routine-model`. Scripts de medición en `app/scripts/haiku-resto/`.
+- **Medido:** visión (63 fotos reales, verdad a ciegas): gpt-5.5 4 medidas equivocadas + 4 inventadas; Haiku 5.5 con
+  la regla 0 + 0 (5 sin leer), $4,61 → $0,14/mes. Clasificador (50 reales): mini 90 % → Haiku 96 %, $2,50 → $1/mes.
+  Guardián Haiku (40 reales, jueces a ciegas): corrige 51 % de los borradores sanos con `low`, 26 % con `medium`
+  (+32 % costo, +3 s); gráfico p: corrige 42–45 %/día contra 34,5 % de gpt-5.5 (señal). Rutina (15 turnos reales ×2 en
+  el simulador): empate 16 vs 14 puntos, sin ahorro (escala a Sonnet) → queda mini.
+- **Para Manuel (variables, no se tocó Railway):** `OPENAI_VISION_MODEL=claude-haiku-5-5` (con el PR en main),
+  `OPENAI_CLASSIFIER_MODEL=claude-haiku-5-5`, `AI_CLAUDE_EFFORT_GUARDIAN=medium`.
+- **Gasto:** Anthropic $1,22 de $4; OpenAI ~$0,12. **Horas:** ~0,6.
+
 ## 27-nov-2026 · Bot · Competimotor: cierre de los cinco sprints de la auditoría del 26-nov (revisión final)
 
 - **Qué:** integración de los sprints 1 a 5 en `fix/auditoria-2026-11-26` (F-01 «Sí tenemos», F-02/F-03 precio y
