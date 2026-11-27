@@ -93,7 +93,8 @@ import { conPreguntaEnSuPropioMensaje } from "../domain/preguntaSola.js";
 import { despedidaQueCorresponde } from "../domain/cierrePerdido.js";
 import { motivoDeUbicacion, ofrecioLaUbicacion } from "../domain/ubicacionPedida.js";
 import { pideOtroDia } from "./rutaOtroDia.js";
-import { buildStoreLinksBlock, buildVisitPlanQuestion, ubicacionDelLocalUnico } from "./quoteMessages.js";
+import { buildStoreLinksBlock, buildVisitPlanQuestion, preguntaHoyOCita, ubicacionDelLocalUnico } from "./quoteMessages.js";
+import { preguntamosElDia } from "../domain/customerCommitment.js";
 import { buildStoreLinksBlockOnce } from "./storeLinks.js";
 import { business } from "../config.js";
 import { productosDelCatalogoMencionados } from "./catalog.js";
@@ -1239,6 +1240,26 @@ export const PASOS: readonly PasoDeSalida[] = [
       // otras frases de pago salen para que la política no se lea repetida.
       const sinOtrasFrases = sinPagoSinRespuesta(limpio, { estricto: true });
       return sinOtrasFrases.trim() ? `${politicaDePagos()}\n---\n${sinOtrasFrases}` : politicaDePagos();
+    },
+  },
+  {
+    // LA PREGUNTA DEL DÍA VUELVE DESPUÉS DE CONTESTAR EL PRECIO (F-06, revisión
+    // final; chat 1790): a «¿Qué día cree que puede ir?» el cliente preguntó
+    // «X viernes negro hay más descuento»; el bloque de precios por pago (S2)
+    // reemplazó el turno y la pregunta del día no volvió. Si el bot había
+    // preguntado el día (`preguntamosElDia` sobre el último saliente, el mismo
+    // lector del pipeline), el turno contestó precios y no hay visita
+    // registrada, cierra con «¿Puede acercarse hoy o qué día le agendo la cita?».
+    nombre: "el_dia_vuelve_tras_el_precio",
+    corre: ["respuesta"],
+    async aplicar(texto, ctx) {
+      if (!politica.casosSueltosF06 || !ctx.preciosPorPagoRespondidos) return texto;
+      if (/\?\s*\S{0,3}\s*$/u.test(texto.trim())) return texto;
+      const [ficha] = await sql<{ visit_date: Date | null }[]>`select visit_date from conversations where id=${ctx.conversation.id}`;
+      if (ficha?.visit_date) return texto;
+      if (!preguntamosElDia(await lastOutboundText(ctx.conversation.id))) return texto;
+      console.log(`📅 Conv ${ctx.conversation.id}: contestó el precio tras la pregunta del día; vuelve la pregunta.`);
+      return `${texto}\n---\n${preguntaHoyOCita(new Date())}`;
     },
   },
   {

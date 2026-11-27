@@ -1,3 +1,13 @@
+## 27-nov-2026 · Bot · Competimotor: «sí» a la cita y el día tras el precio (WIP, NO integrar)
+
+- **Qué:** A) «sí» a «¿Le agendo una cita?» (`ofrece_cita`) → `preguntaHoyOCita()` sin lámina ni cotización.
+  B) tras contestar precios por pago a quien se le había preguntado el día, vuelve `preguntaHoyOCita()`.
+- **Por qué:** revisión final de la coordinadora (1790 y 463).
+- **Probado:** B 2 de 3 en el simulador (la 1.ª, `sin_calco_reciente` quitó la pregunta porque era idéntica a la del
+  turno anterior). A sin simulador: los seguimientos no salen de madrugada y no hubo tiempo de mover el reloj. Fuera
+  de la rama del sprint hasta probarlo.
+- **Horas:** 0,5.
+
 ## 26-nov-2026 · Bot · Competimotor: dos precios desde la lista, respuesta al «está caro» y cierre «hoy o cita» (Sprint 2, F-02/F-03)
 
 - **Qué:** detrás de `politica.ventaConDosPrecios` (solo `mundillantas`): la lista de opciones dice el total con

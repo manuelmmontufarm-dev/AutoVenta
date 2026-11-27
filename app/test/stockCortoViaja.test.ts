@@ -212,6 +212,9 @@ describe("el orden de los candados en el turno", () => {
       // antes que el pago porque, si hace falta, agrega la política.
       "sin_descuento_negado",
       "el_pago_se_responde",
+      // F-06 (revisión final, 1790): tras contestar el precio a quien se le había
+      // preguntado el día, vuelve la pregunta del día.
+      "el_dia_vuelve_tras_el_precio",
       "el_descuento_se_responde",
       "la_promocion_de_temporada_se_responde",
       "el_beneficio_se_responde",

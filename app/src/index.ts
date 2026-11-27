@@ -86,11 +86,11 @@ import { politica } from "./negocio/politica.js";
 import { avisarVisitaComprometida } from "./services/visitAlerts.js";
 import { emitirCuponDeConfirmacion, enviarTicketDeCupon } from "./services/coupons.js";
 import { authorizeConversationOutbound, OutboundPolicyError } from "./services/whatsappPolicy.js";
-import { splitBlocks } from "./services/quoteMessages.js";
+import { preguntaHoyOCita, splitBlocks } from "./services/quoteMessages.js";
 import { prepararSalida, type ContextoDeSalida } from "./services/prepararSalida.js";
 import { metadataDeOferta } from "./services/ofertaVigente.js";
 import { bloqueDeLaOferta } from "./domain/ofertaVigente.js";
-import { AVISO_DE_TRASPASO, ofreceAsesor } from "./domain/pideAsesor.js";
+import { AVISO_DE_TRASPASO, aceptaElAsesor, ofreceAsesor } from "./domain/pideAsesor.js";
 import { flagRepetitiveConversation } from "./services/conversationQuality.js";
 import { notifyPendingHumanRequests } from "./services/advisorNotifications.js";
 import { startEmbeddedFollowUpWorker } from "./workers/embeddedFollowUpWorker.js";
@@ -540,8 +540,17 @@ async function atenderTurno(
   // llamar una sola herramienta, y el cliente nunca supo cuánto costaban 3
   // llantas. Va ANTES de la ruta de visita porque «deme solo 3» no es una
   // respuesta sobre el local ni sobre el día. Ver services/recotizar.ts.
+  // «SÍ» A «¿LE AGENDO UNA CITA?» ES SÍ A LA VISITA (F-06, revisión final): el
+  // 2.º seguimiento de Competimotor guarda `ofrece_cita` al enviarse; el «sí» a
+  // secas se contesta con la pregunta del día (hoy o cita), sin lámina ni
+  // cotización. Si dio el día («sí, mañana»), lo registra el camino de siempre.
+  const citaAceptada = politica.casosSueltosF06 === true && !commitment?.visitDate
+    && aceptaElAsesor(text, await ultimoTurnoOfrecioCita(conversation.id));
+  if (citaAceptada) console.log(`📅 Conv ${conversation.id}: «sí» a «¿Le agendo una cita?»: se pregunta el día.`);
   const directReply = cierreAntesDeHerramientas || cierreDelTurno
     ? null
+    : citaAceptada
+      ? preguntaHoyOCita(receivedAt)
     : otraOpcionTrasNoGracias
       ? otraOpcionTrasNoGracias
     : plazoDeDecision
@@ -628,7 +637,8 @@ async function atenderTurno(
       cierreAntesDeHerramientas || cierreDelTurno || plazoDeDecision || ubicacionFueraDeCobertura
         || ubicacionDeEntrada || isFirstGenericMessage
         // La pregunta de qué busca tras el «no gracias» también es una constante.
-        || otraOpcionTrasNoGracias === PREGUNTA_TRAS_NO_GRACIAS,
+        || otraOpcionTrasNoGracias === PREGUNTA_TRAS_NO_GRACIAS
+        || citaAceptada,
     ),
     consultaFueraDeCatalogo: agentContext.consultaFueraDeCatalogo,
     // Lo que la puerta ya sabe que ofreció (la equivalente, el menú, «¿Cuál…?»).
@@ -847,6 +857,22 @@ async function avisarTraspasoSiLoPidio(
     authorKind: "bot", status: providerId ? "sent" : "failed", metadata: { oferta: null },
   }).catch(() => undefined);
   console.log(`🤝 Traspaso avisado en la conv ${conversationId}: el cliente pidió un asesor.`);
+}
+
+/**
+ * ¿El último turno del bot (sus salientes desde el mensaje anterior del cliente)
+ * llevó el hecho `ofrece_cita`? Se lee de la base, nunca del texto.
+ */
+async function ultimoTurnoOfrecioCita(conversationId: number): Promise<boolean> {
+  const filas = await sql<{ direction: string; cita: boolean | null }[]>`
+    select direction, (metadata->>'ofrece_cita')::boolean as cita from messages
+    where conversation_id=${conversationId} and type <> 'note' and (direction='inbound' or author_kind='bot')
+    order by created_at desc, id desc limit 12
+  `;
+  let i = 0;
+  while (i < filas.length && filas[i].direction === "inbound") i++;
+  for (; i < filas.length && filas[i].direction !== "inbound"; i++) if (filas[i].cita) return true;
+  return false;
 }
 
 /**
