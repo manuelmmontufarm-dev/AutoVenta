@@ -50,13 +50,23 @@ const DATO_QUE_FALTA = VARIOS_LOCALES
   ? "- Pide únicamente el dato que falte: primero local y después día. Con ambos confirmados, pregunta «¿Le queda alguna otra duda?» o una variante breve."
   : "- Pide únicamente el dato que falte: el día (hay un solo local, no se pregunta). Con el día confirmado, pregunta «¿Le queda alguna otra duda?» o una variante breve.";
 
+// Sprint 3 (nota a Sprint 2, auditoría 26-nov, F-04): con la apertura corta de
+// Competimotor la ruta directa pregunta primero lo que falta de la medida; el
+// prompt no puede decir lo contrario. Sin `aperturaCorta` (Depot) el texto de siempre.
+const SOLO_ARO_ALCANZA = politica.aperturaCorta
+  ? "- Con el ARO solo, primero pregunta los números que faltan de la medida, una foto del costado o el vehículo. fitment_vehiculo es el último recurso y se usa solo cuando no hay medida NI aro."
+  : "- El ARO solo ya es suficiente para mostrar opciones: usa buscar_por_aro_y_tipo con tipo: null si no indicó uno. fitment_vehiculo es el último recurso y se usa solo cuando no hay medida NI aro.";
+const SOLO_ARO_QUE_HACER = politica.aperturaCorta
+  ? "Solo aro: pregunta primero los números que faltan de la medida, una foto del costado o el vehículo; si repite solo el aro, ahí sí muestra opciones de ese aro (buscar_por_aro_y_tipo con tipo: null si no indicó uno) y, si elige una, cotízala con la medida de esa opción."
+  : "Solo aro: muestra opciones de ese aro y, si elige una, cotízala con la medida de esa opción.";
+
 export const PLAYBOOK_POR_FASE: Record<Stage, string> = {
   nuevo: `## Encontrar qué necesita
 - La medida manda sobre el vehículo y el ARO también manda sobre el vehículo. Una medida escrita ya contiene el aro.
-- El ARO solo ya es suficiente para mostrar opciones: usa buscar_por_aro_y_tipo con tipo: null si no indicó uno. fitment_vehiculo es el último recurso y se usa solo cuando no hay medida NI aro.
+${SOLO_ARO_ALCANZA}
 - Puedes leer fotos. Si falta medida, pide la medida escrita o una foto clara y ofrece una salida concreta en el mismo turno; la petición nunca puede ser el mensaje completo.
 - Medida dada por el cliente (escrita o en foto): cotiza sin exigir vehículo.
-- Solo vehículo: muestra opciones pero NO cotices; pide la medida o foto del costado. Solo aro: muestra opciones de ese aro y, si elige una, cotízala con la medida de esa opción.`,
+- Solo vehículo: muestra opciones pero NO cotices; pide la medida o foto del costado. ${SOLO_ARO_QUE_HACER}`,
 
   medida_confirmada: `## Mostrar opciones vendibles
 - Busca por la medida o el aro confirmado y entrega opciones con preparar_opciones.

@@ -20,7 +20,7 @@ process.env.DATABASE_URL ||= "postgresql://nadie@localhost/no_se_usa";
 
 const { armarLista, textoDeLaLista, preguntaDeLaLista, listaDeLaPieza, hechoDeLaLista, hechoDePromocionesEnPantalla } = await import("../src/domain/listaDeOpciones.js");
 const { esLaListaNumerada, traeMarcaDelMenu } = await import("../src/domain/salesIntent.js");
-const { efectivoDeLaLlanta, promocionDeLaLlanta } = await import("../src/domain/preciosPorPago.js");
+const { efectivoDeLaLlanta, promocionDeLaLlanta, precioEnEfectivoDeUnaLlanta } = await import("../src/domain/preciosPorPago.js");
 const objecion = await import("../src/domain/objecionDePrecio.js");
 const { botonesParaBloque, textoDeBoton } = await import("../src/domain/botones.js");
 const { preguntaHoyOCita, buildVisitPlanQuestion } = await import("../src/services/quoteMessages.js");
@@ -292,5 +292,17 @@ describe("la cantidad del «está caro» es la que dijo el cliente (1321)", () =
   });
   it.each(["No gracias están muy caras", "paso en dos días", "225/60 rin 17", "la 2"])("«%s» → sin cantidad", (texto) => {
     expect(objecion.cantidadDichaConTolerancia(texto)).toBeNull();
+  });
+});
+
+describe("precioEnEfectivoDeUnaLlanta (para el 1.er seguimiento del Sprint 4) = el efectivo de la lámina", () => {
+  it("cuadro rojo: WINRUN WAXCLAW 235/65R18, Black Friday $119 < Precio C $129 → $119", () => {
+    const item = { minimumPriceWithTax: 119, preciosPorPago: { tarjetaConIva: 142.6, efectivoConIva: 129.95 }, promocionDePrecio: { nombre: "Black Friday", vigenciaCorta: "hasta el sábado 5-dic" } };
+    expect(precioEnEfectivoDeUnaLlanta(item)).toBe(119);
+    expect(precioEnEfectivoDeUnaLlanta(item)).toBe(efectivoDeLaLlanta(item));
+  });
+  it("sin promo: el Precio C; con promo por cantidad: null (depende de cuántas)", () => {
+    expect(precioEnEfectivoDeUnaLlanta({ minimumPriceWithTax: 180.55, preciosPorPago: { tarjetaConIva: 180.55, efectivoConIva: 164.45 } })).toBe(164.45);
+    expect(precioEnEfectivoDeUnaLlanta({ minimumPriceWithTax: 100, preciosPorPago: { tarjetaConIva: 100, efectivoConIva: 90 }, promocionPorCantidad: { x: 1 } })).toBeNull();
   });
 });

@@ -163,10 +163,16 @@ export function mensajeDeUnPago(lineas: readonly LineaPorPago[], pago: "tarjeta"
  * línea sale con un solo precio, como siempre.
  */
 export function efectivoDeLaLlanta(
-  item: { minimumPriceWithTax?: number | null; preciosPorPago?: { tarjetaConIva: number; efectivoConIva: number } | null },
+  item: {
+    minimumPriceWithTax?: number | null;
+    preciosPorPago?: { tarjetaConIva: number; efectivoConIva: number } | null;
+    /** Promo por cantidad: el precio depende de cuántas lleve; la línea queda con un solo precio. */
+    promocionPorCantidad?: unknown;
+  },
   ventaConDosPrecios: boolean | undefined = politica.ventaConDosPrecios,
 ): number | null {
   if (ventaConDosPrecios !== true) return null;
+  if (item.promocionPorCantidad) return null;
   const hoy = Number(item.minimumPriceWithTax);
   const efectivo = Number(item.preciosPorPago?.efectivoConIva);
   if (!(hoy > 0) || !(efectivo > 0)) return null;
@@ -189,4 +195,15 @@ export function extrasDeLaOpcionGuardada(
   const efectivo = efectivoDeLaLlanta(item);
   const promocion = promocionDeLaLlanta(item);
   return { ...(efectivo !== null ? { efectivo_con_iva: efectivo } : {}), ...(promocion ? { promocion } : {}) };
+}
+
+/**
+ * EL PRECIO EN EFECTIVO O TRANSFERENCIA DE UNA LLANTA, por llanta, para quien
+ * lo diga fuera de la lista (el 1.º seguimiento del Sprint 4). Es EXACTAMENTE el
+ * que imprime la lámina (`efectivoDeLaLlanta`): el Precio C, nunca más caro que
+ * el precio de hoy, así que con Black Friday (cuadro rojo) ya trae la promo.
+ * Null en Depot, sin Precio B/C o con promo por cantidad.
+ */
+export function precioEnEfectivoDeUnaLlanta(item: Parameters<typeof efectivoDeLaLlanta>[0]): number | null {
+  return efectivoDeLaLlanta(item);
 }

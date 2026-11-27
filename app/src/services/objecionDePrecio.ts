@@ -37,7 +37,7 @@ export async function loQueVioElCliente(conversationId: number, cycle: number): 
     select selected_quantity from conversations where id=${conversationId}
   `;
   // La cantidad que el cliente DIJO después de ver la lámina («Nesecito dos cuanto es
-  // el valor», 1321): de SUS mensajes, nunca del texto del bot. La ficha manda si ya la tiene.
+  // el valor», 1321): de SUS mensajes, nunca del texto del bot.
   const dichos = lamina
     ? await sql<{ content: string | null }[]>`
         select content from messages
@@ -98,7 +98,9 @@ export async function loQueVioElCliente(conversationId: number, cycle: number): 
       tarjeta: Number(o.precio_con_iva),
       efectivo: efectivoDe(o.codigo ?? null, o.efectivo_con_iva),
     })),
-    cantidad: ficha?.selected_quantity && ficha.selected_quantity >= 1 ? ficha.selected_quantity : dicha ?? cantidadDeLaPieza,
+    // Lo que el cliente DIJO después de la lámina manda sobre la ficha: la ficha trae el
+    // juego de 4 que se asume por defecto (1321: ficha 4, cliente «Nesecito dos»).
+    cantidad: dicha ?? (ficha?.selected_quantity && ficha.selected_quantity >= 1 ? ficha.selected_quantity : cantidadDeLaPieza),
     medida: medidaDeLaPieza ?? (unicas.length === 1 && unicas[0].codigo ? findByCode(unicas[0].codigo)?.sizeLabel ?? null : null),
   };
 }

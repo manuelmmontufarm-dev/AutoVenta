@@ -7,6 +7,7 @@ import { etiquetaDePromocion, paresEnPalabras, type ModoPromocion } from "../dom
 import { cuentaDeSegundaLlanta, precioDeLaLinea, precioDeLaOpcionGuardada, segundaGuardadaVigente, type SegundaLlanta } from "../domain/promocionDeTemporada.js";
 import { politica } from "../negocio/politica.js";
 import { localAtiendeALaHora, piecesConfigEnMemoria, storeHoursEnMemoria } from "./settings.js";
+import { CIERRE_PIDE_MEDIDA_SIN_VEHICULO } from "../domain/aperturaCorta.js";
 import { ETIQUETA_DEL_ESCALON } from "../domain/salesIntent.js";
 import { preguntaDeEquivalente } from "../domain/equivalentePendiente.js";
 import { PREGUNTA_DE_LOCAL, hayQueElegirLocal } from "../domain/storeSelection.js";
@@ -234,6 +235,12 @@ export function buildCierreOpciones(input: {
    */
   pedirMedida?: boolean;
   /**
+   * Sprint 3 (F-04): ¿el cliente dijo su vehículo? Con `politica.aperturaCorta`
+   * y `false`, el cierre que pide la medida no dice «Estas son las que más se
+   * usan en su vehículo» (1063, 1112, 1283, 1437). Sin la política, nada cambia.
+   */
+  vehiculoDicho?: boolean;
+  /**
    * El cliente pidió recomendación o contó su uso, pero no pidió la cotización
    * ni eligió del menú: se le entrega la recomendación y se le OFRECE cotizar
    * (Manuel, 1-sep). Un «sí» a esa oferta es lo que la autoriza al turno
@@ -252,10 +259,13 @@ export function buildCierreOpciones(input: {
   incluye?: string | null;
 }): string {
   if (input.pedirMedida) {
-    if (!input.entregarRecomendacion) return CIERRE_PIDE_MEDIDA;
+    const cierre = politica.aperturaCorta && input.vehiculoDicho === false
+      ? CIERRE_PIDE_MEDIDA_SIN_VEHICULO
+      : CIERRE_PIDE_MEDIDA;
+    if (!input.entregarRecomendacion) return cierre;
     const motivo = input.motivo.trim().replace(/[.\s]+$/, "");
     const precio = precioDicho(input);
-    return `Yo iría por la *${input.recomendacion}*${precio}: ${motivo}.\n${CIERRE_PIDE_MEDIDA}`;
+    return `Yo iría por la *${input.recomendacion}*${precio}: ${motivo}.\n${cierre}`;
   }
   if (!input.entregarRecomendacion) {
     const hay = input.escalonesDisponibles ?? ["precio", "equilibrada", "premium"];

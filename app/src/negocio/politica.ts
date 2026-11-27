@@ -182,6 +182,79 @@ export interface PoliticaComercial {
    * sale como siempre: solo si la lámina no se pudo mandar.
    */
   encabezadoDelIncluye?: string;
+  // Sprint 1 — familia F-01 de la auditoría de Competimotor del 26-nov-2026.
+  /**
+   * OPCIONAL: el stock es UNO SOLO entre locales y los asesores consiguen las
+   * que faltan, así que una llanta con stock ≥ 1 SE MUESTRA y SE COTIZA por la
+   * cantidad pedida aunque no alcance para el juego (Competimotor: los chats
+   * 1331, 1344, 1555, 1588 y 469 recibieron «no hay» y el asesor vendió esas
+   * mismas llantas minutos después). Al cliente no se le nombra el stock; al
+   * asesor sí (alerta `stock_insuficiente`). Las cuentas viven en
+   * `domain/stockCorto.ts`. Sin el campo (Depot): la vitrina solo enseña lo que
+   * alcanza para el juego y la caja avisa o no firma, como siempre.
+   */
+  stockCortoSeVende?: boolean;
+  /**
+   * OPCIONAL: cuando el cliente dijo el USO con sus palabras («pantaneras»,
+   * «para lodo») y no escribió un tipo, el tipo que elige el modelo (M/T) no
+   * achica la búsqueda: entran todos los tipos de ese uso (Competimotor:
+   * «pantanera = M/T, y R/T también sirve»; chat 469, la KR601 R/T que vendió
+   * el asesor). Sin el campo (Depot): el tipo del modelo filtra como siempre.
+   */
+  usoDelClienteAmpliaElTipo?: boolean;
+  // Sprint 4 — familia F-05 (seguimientos), auditoría Competimotor 26-nov-2026.
+  /**
+   * OPCIONAL: cómo hace seguimiento este negocio. Sin el campo (Depot) los
+   * seguimientos salen como siempre. Ver `PoliticaDeSeguimientos`.
+   */
+  seguimientos?: PoliticaDeSeguimientos;
+  // Sprint 3
+  /**
+   * OPCIONAL: la apertura corta y sin lámina a ciegas (Competimotor, auditoría
+   * del 26-nov-2026, familia F-04). Con true: la auto-respuesta de WhatsApp
+   * Business y las frases de anuncio de Meta («¿Puedes darme más información
+   * sobre esto?») no apagan el saludo corto; la guía de medida sale solo si el
+   * cliente dice que no la encuentra; «dónde las consigo» de entrada recibe el
+   * local y después la pregunta; con solo el aro o «precio» se pregunta lo que
+   * falta en vez de mandar tres medidas distintas; y «Estas son las que más se
+   * usan en su vehículo» solo si dijo su vehículo. Ver `domain/aperturaCorta.ts`.
+   * Sin el campo (Depot): nada cambia.
+   */
+  aperturaCorta?: boolean;
+}
+
+// Sprint 4 — familia F-05 (seguimientos).
+/** Lo que cambia en los seguimientos de un negocio (Competimotor, 26-nov-2026). */
+export interface PoliticaDeSeguimientos {
+  /**
+   * El cliente pidió tiempo («yo le escribo», «por ahora no puedo», «reúno los
+   * billetes»): se anota como hecho (`follow_up_reason`), se cancelan los
+   * seguimientos automáticos del ciclo y queda UNA revisión del asesor días
+   * después, con la cotización vigente a mano (chats 1273, 1011, 538, 1247).
+   */
+  respetarPlazoDelCliente: boolean;
+  /** Cuántos días después del plazo pedido revisa el asesor (si el cliente no dio fecha). */
+  diasHastaRetomar: number;
+  /**
+   * Los dos seguimientos dicen cosas distintas y cierran con sí/no: el 1.º la
+   * recomendada con su precio en efectivo, el 2.º lo incluido + la dirección +
+   * «¿Le agendo una cita?». Este es el texto de lo incluido, palabra por palabra.
+   */
+  incluidoEnLaCompra: string;
+  /** La retomada tras humano sale partida en mensajes: el «---» nunca le llega al cliente (1331, 1344). */
+  retomadaSinSeparador: boolean;
+  /**
+   * Un día dentro de una pregunta («el sábado atienden?», «el viernes hay más
+   * descuento») no registra visita (1790). Sin el campo (Depot) solo el nombre
+   * de la promoción («viernes negro») deja de ser un día. Ver `domain/fechaDeVisita.ts`.
+   */
+  preguntaConDiaNoAgenda: boolean;
+  /**
+   * Sin cotización no sale el recordatorio de la víspera (1456: «ya tenemos
+   * listas sus llantas» con la medida que pidió, no la cotizada). Sin el campo
+   * (Depot) sale como siempre, con la medida de la ficha.
+   */
+  recordatorioSoloConCotizacion: boolean;
 }
 
 /** Una lista de precios de promoción por código, con su fin. */

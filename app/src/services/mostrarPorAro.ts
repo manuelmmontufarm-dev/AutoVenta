@@ -27,6 +27,7 @@ import { tipoSolicitadoEn } from "../domain/opcionesCandados.js";
 import { mencionaVehiculo } from "../domain/vehiculoEnTexto.js";
 import { logFunnelEvent } from "./conversations.js";
 import { soloLoDelTurno } from "../pipeline/corteDelTurno.js";
+import { preguntaPorAroSiCorresponde } from "./aperturaCorta.js";
 
 export interface MostrarPorAroContext {
   conversation: AgentContext["conversation"];
@@ -81,6 +82,13 @@ export async function tryMostrarPorAro(ctx: MostrarPorAroContext, texto: string)
   const medidaDeEsteAro = estado.tire_size && new RegExp(`R${aro}\\b`, "i").test(estado.tire_size)
     && medidaConfirmadaPorCliente(estado.tire_size, [...estado.entrantes, texto]);
   if (medidaDeEsteAro) return null;
+  // Sprint 3 (F-04, Competimotor): con la apertura corta, la primera vez se
+  // pregunta lo que falta de la medida en vez de mandar tres medidas mezcladas.
+  const pregunta = await preguntaPorAroSiCorresponde(ctx.conversation.id, aro);
+  if (pregunta) {
+    console.log(`🛞 Aro ${aro} sin medida en la conv ${ctx.conversation.id}: se pregunta lo que falta (apertura corta).`);
+    return pregunta;
+  }
 
   const tools = buildTools({
     conversation: ctx.conversation,

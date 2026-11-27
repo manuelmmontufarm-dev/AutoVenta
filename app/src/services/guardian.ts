@@ -1,3 +1,5 @@
+import { pidioTiempo } from "../domain/clientePosterga.js";
+import { loQueDijoElCliente } from "../domain/fechaDeVisita.js";
 /**
  * EL ÁNGEL GUARDIÁN — revisión con IA de cada respuesta ANTES de enviarla.
  *
@@ -74,7 +76,7 @@ import { leerFichaDelCicloAnterior } from "./fichaDelCicloAnterior.js";
 import { hechoDeTemporadaParaElGuardian } from "./hechosDeTemporada.js";
 import { formatStoreHours, getGuardianConfig, getPiecesConfig, getStoreHours } from "./settings.js";
 import { faltanteDeCotizacion } from "./stockCorto.js";
-import { alcanzaParaVender } from "../domain/stockCorto.js";
+import { alcanzaParaVender, nombraElStockAlCliente, REGLA_STOCK_CORTO_SE_VENDE, stockCortoSeVende } from "../domain/stockCorto.js";
 import { hayDescuentoEnEfectivo, politicaDePagos } from "../domain/datosDelNegocio.js";
 import { politica } from "../negocio/politica.js";
 import { REGLA_SIN_NO_HAY_GUARDIAN } from "../domain/sinNoHay.js";
@@ -524,7 +526,7 @@ async function catalogoParaElGuardian(pedidas: readonly string[], cantidadDelCli
       for (const p of encontrados.slice(0, 12)) {
         const estado = !vendibles.has(p.code)
           ? ` (NO VENDIBLE para el juego de ${JUEGO_COMPLETO}: no se ofrece)`
-          : p.stock < JUEGO_COMPLETO
+          : p.stock < JUEGO_COMPLETO && nombraElStockAlCliente()
             ? ` (STOCK CORTO para el juego de ${JUEGO_COMPLETO}: no ofrecer ${p.stock} unidades sueltas; el resto lo confirma el asesor)`
             : "";
         // El tipo (A/T, H/T…) viene de la base del cliente, no de Contífico.
@@ -708,6 +710,8 @@ export async function armarContexto(
   // Los dos últimos turnos, sueltos: son la materia prima de los hechos de
   // despedida y de oferta aceptada. `mensajes` viene del más nuevo al más viejo.
   const ultimoDelCliente = mensajes.find((m) => m.direction === "inbound")?.content ?? "";
+  // Sprint 4: el cliente pidió tiempo (solo con `politica.seguimientos`, Competimotor).
+  const clientePidioTiempo = Boolean(politica.seguimientos?.respetarPlazoDelCliente) && pidioTiempo(ultimoDelCliente);
   // ¿Puede pasar por el local? La misma fuente que `sin_visita_si_no_puede_venir`
   // (auditoría 9-nov, 40082 y 39845): sin este hecho el revisor le agregaba el
   // día, el local y los mapas a quien está en Pedernales o en el Oriente, el
@@ -923,7 +927,15 @@ export async function armarContexto(
         "PROHIBIDO agregarle la pregunta del local, la del día o los mapas: esas piezas se quitan después de ti y el turno quedaría vacío. " +
         "Un borrador que no las trae NO es cierre_sin_pregunta_dia ni le falta un siguiente paso por eso."
       : null,
-    !compraADistancia && !fueraDeCobertura && visitaPendiente(hechos ?? {}) && !despedidaQueCorresponde(ultimoDelCliente)
+    // Sprint 4 (Competimotor, 1011 y 1273): quien acaba de pedir tiempo no
+    // recibe la pregunta del día. Sin la política (Depot), nada cambia.
+    clientePidioTiempo
+      ? `EL CLIENTE PIDIÓ TIEMPO (fuente determinística): su último mensaje fue «${loQueDijoElCliente(ultimoDelCliente).slice(0, 140)}». ` +
+        "Él retoma cuando pueda (no tiene la plata, está ocupado o avisa él). PROHIBIDO preguntarle el día, el local o «¿le agendo?», " +
+        "y PROHIBIDO cerrar con «quedo pendiente de su mensaje» a secas: si hay cotización, recuérdele que queda guardada con su total. " +
+        "Un borrador sin pregunta NO es cierre_sin_pregunta_dia."
+      : null,
+    !compraADistancia && !fueraDeCobertura && !clientePidioTiempo && visitaPendiente(hechos ?? {}) && !despedidaQueCorresponde(ultimoDelCliente)
       ? `DÍA DE VISITA PENDIENTE: el local ya es ${hechos?.nearest_store} pero el cliente NO registró qué día viene. ` +
         "«Gracias», «ok» o repetir el local NO cierran la visita: si el borrador no pregunta el día, corrígelo " +
         "agregando «¿Qué día cree que puede pasar por …?» en bloque aparte (---). PROHIBIDO cerrar con " +
@@ -952,6 +964,10 @@ export async function armarContexto(
     // inventa igual que lo borra; así que viaja.
     `Locales y direcciones (ficha del negocio): ${business.stores.map((s) => `${s.name}: ${s.address}`).join(" · ")}. ` +
       "PROHIBIDO nombrar sectores, barrios o direcciones distintos; la ubicación se manda con los links de Maps.",
+    // Stock único entre locales (Competimotor, F-01 26-nov): una llanta con 1 o 2
+    // se ofrece y se cotiza, y el número no se le dice al cliente. Sin este hecho
+    // el revisor leía «stock hoy: 2» y la regla del juego, y corregía en contra.
+    stockCortoSeVende() ? REGLA_STOCK_CORTO_SE_VENDE : null,
     // SIN ESTA LÍNEA EL REVISOR ES CIEGO AL STOCK.
     //
     // El 26-ago (conv 11061) el guardián corrigió un borrador y en su
@@ -1077,6 +1093,13 @@ export async function armarContexto(
     // la marcaba como pregunta_de_mas y la reescribía.
     opciones.tipo === "seguimiento" && /¿se la cotizo\?/i.test(borrador)
       ? "SEGUIMIENTO DE OPCIÓN ÚNICA: «¿se la cotizo?» es la pregunta legítima de este recordatorio (una sola llanta, sin elección todavía). Se conserva: NO es pregunta_de_mas."
+      : null,
+    // Sprint 4 (auditoría Competimotor 26-nov, F-05 D): los dos seguimientos de
+    // Competimotor dicen cosas distintas y cierran con sí/no. Sin este hecho el
+    // revisor los «completaba» pegando otra vez la lista de opciones (el calco
+    // que se quería quitar) o los cambiaba por «quedo pendiente de su mensaje».
+    opciones.tipo === "seguimiento" && politica.seguimientos && /¿(?:Se la separo|Le agendo una cita|se la cotizo)\?/i.test(borrador)
+      ? "SEGUIMIENTO CON PREGUNTA DE SÍ/NO: este recordatorio aporta UN dato nuevo (la llanta con su precio en efectivo, o lo incluido y la dirección) y cierra con «¿Se la separo?», «¿se la cotizo?» o «¿Le agendo una cita?». Esa pregunta es la legítima y se conserva TAL CUAL: NO es pregunta_de_mas. PROHIBIDO agregarle la lista de opciones (el cliente ya la vio) y PROHIBIDO cambiarlo por «quedo pendiente de su mensaje» o «quedo atento»: un seguimiento sin dato ni pregunta no se envía."
       : null,
     // HECHO DURO (auditoría 25-27 sep, convs 23356 ×5 y 23561): la herramienta
     // rechazó cotizar por falta de autorización, el candado

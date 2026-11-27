@@ -17,7 +17,7 @@
  */
 import { tipoDeCierreDelTurno } from "./cierreTurno.js";
 import { comproEnOtroLugar } from "./cierrePerdido.js";
-import { elClienteDijoQueAvisa, pideQueLeAvisen } from "./clientePosterga.js";
+import { elClienteDijoQueAvisa, pideQueLeAvisen, pidioTiempo } from "./clientePosterga.js";
 import type { SinVisita } from "./compraADistancia.js";
 import { esAcuseSimple } from "./ofertaAceptada.js";
 import { diceQueEstaMuyLejos } from "./clienteLejos.js";
@@ -28,7 +28,9 @@ export type MotivoSinSeguimiento =
   | "el_cliente_avisa"
   | "espera_que_le_avisen"
   | "fuera_de_cobertura"
-  | "rechazo_del_cliente";
+  | "rechazo_del_cliente"
+  /** Sprint 4: pidió tiempo (él avisa, por ahora no puede, junta la plata). Solo con `respetarPlazo`. */
+  | "pidio_tiempo";
 
 /**
  * LO QUE EL CLIENTE DIJO DE VERDAD (auditoría 9-nov, 2c1). Las formas de arriba
@@ -114,6 +116,12 @@ export function motivoParaNoSeguir(input: {
    * último: mirar solo dos no lo ve (39667).
    */
   rachaDelCliente?: readonly (string | null | undefined)[];
+  /**
+   * Sprint 4 (Competimotor, `politica.seguimientos.respetarPlazoDelCliente`):
+   * quien pidió tiempo no recibe los seguimientos automáticos del ciclo. Sin la
+   * bandera (Depot) todo sigue igual que antes.
+   */
+  respetarPlazo?: boolean;
 }): MotivoSinSeguimiento | null {
   const ultimo = input.ultimo?.trim() ?? "";
   if (!ultimo) return null;
@@ -129,6 +137,7 @@ export function motivoParaNoSeguir(input: {
     if (comproEnOtroLugar(texto)) return "compro_en_otro_lugar";
     if (pideQueLeAvisen(texto)) return "espera_que_le_avisen";
     if (elClienteDijoQueAvisa(texto)) return "el_cliente_avisa";
+    if (input.respetarPlazo && pidioTiempo(texto)) return "pidio_tiempo";
   }
   if (tipoDeCierreDelTurno(ultimo, anterior) !== null) return "cierre_del_cliente";
   // Fuera de Quito, sin compra a distancia y sin cotización: no hay visita que

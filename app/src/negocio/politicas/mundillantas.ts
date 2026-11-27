@@ -118,4 +118,26 @@ export const POLITICA_MUNDILLANTAS: PoliticaComercial = {
   // Carlos y los asesores: «Promoción por la compra de 2 o 4 llantas… Incluye
   // sin costo». Las líneas son las de la tabla `benefits` del panel.
   encabezadoDelIncluye: "sin costo, comprando 2 o 4 llantas",
+  // Sprint 1 — F-01 (auditoría 26-nov-2026): un solo stock entre locales y los
+  // asesores consiguen las que faltan («Sí tenemos», 1331/1344/469). Con stock
+  // ≥ 1 se muestra y se cotiza lo pedido; al cliente no se le nombra el stock.
+  stockCortoSeVende: true,
+  // «Pantanera» = M/T, y R/T también sirve (Carlos y Jenny): el M/T que pone el
+  // modelo no deja fuera a la R/T cuando el cliente solo dijo el uso (469).
+  usoDelClienteAmpliaElTipo: true,
+  // Sprint 4 — familia F-05, auditoría 26-nov-2026. «Lo incluido» es lo que
+  // confirmaron Jenny y Carlos (incluido comprando 2 o 4; alineación solo con
+  // 4), dicho para el juego de 4 que es el que se cotiza por defecto.
+  seguimientos: {
+    respetarPlazoDelCliente: true,
+    diasHastaRetomar: 3,
+    incluidoEnLaCompra:
+      "Comprando las 4 le incluye sin costo enllantaje, balanceo, nitrógeno y alineación, y el mantenimiento cada 10.000 km (rotación, revisión mecánica y nitrógeno)",
+    retomadaSinSeparador: true,
+    preguntaConDiaNoAgenda: true,
+    recordatorioSoloConCotizacion: true,
+  },
+  // Sprint 3 — auditoría 26-nov-2026 (F-04): la apertura larga (guía + «sin ese
+  // dato no le puedo asegurar…») dio medida en 58 % de los chats; la corta, 73 %.
+  aperturaCorta: true,
 };

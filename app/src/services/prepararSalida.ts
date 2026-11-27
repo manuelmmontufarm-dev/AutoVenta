@@ -25,11 +25,12 @@
  * guardián volvió a prometer «4 × KENDA KR203 … $262.60» cuando había 3,
  * borrando el aviso que un candado anterior ya había pegado.
  */
+import { seguimientoSinContenido } from "../domain/followUpMessages.js";
 import { alternativaDelCatalogo, borradorNiegaElStock, CATEGORIAS_CON_ALTERNATIVA, type AlternativaDelCatalogo } from "./alternativaDelCatalogo.js";
 import { fraseDelAvisoEn, ORACION_DE_MEDIDAS_DISTINTAS } from "../domain/avisoDeMedidas.js";
 import { preguntaElDia } from "../domain/customerCommitment.js";
 import { hayQueElegirLocal, preguntaElLocal } from "../domain/storeSelection.js";
-import { elClienteDijoQueAvisa } from "../domain/clientePosterga.js";
+import { elClienteDijoQueAvisa, pidioTiempo } from "../domain/clientePosterga.js";
 import { sinRepartoInventado } from "../domain/porcentajeDeUso.js";
 import { todasLasLineas } from "../domain/tireTypes.js";
 import { dondeEstaElClienteSegunLoDicho, porQueNoPasaPorElLocal } from "./dondeEstaElCliente.js";
@@ -169,7 +170,7 @@ export interface ContextoDeSalida {
    * Lo lee `followUpProcessor` para cancelar el job con ese motivo.
    */
   motivoDeSupresion?: "insiste_tras_rechazo" | "calco_del_hilo" | "el_cliente_avisa" | "cliente_fuera_de_cobertura" | "compra_a_distancia"
-    | "guardian_rechazo_sin_salida" | "lista_ya_enviada";
+    | "guardian_rechazo_sin_salida" | "lista_ya_enviada" | "seguimiento_vacio";
   /**
    * El job de seguimiento que se está preparando. Va en la clave de las alertas
    * del candado `guardian_no_vende_solo`: dos seguimientos del mismo ciclo que
@@ -762,6 +763,10 @@ export const PASOS: readonly PasoDeSalida[] = [
     corre: ["respuesta", "retomada"],
     async aplicar(texto, ctx) {
       if (ctx.suprimirEmpujeComercial) return texto;
+      // Sprint 4 (Competimotor, 1011): a quien acaba de pedir tiempo («la
+      // próxima semana… me quedé sin fondos») no se le pega «¿Qué día cree que
+      // puede ir?». Sin la política (Depot), igual que antes.
+      if (politica.seguimientos?.respetarPlazoDelCliente && pidioTiempo(ctx.textoDelCliente)) return texto;
       // El cliente todavía no eligió del menú: la pregunta del turno es «¿Cuál
       // le cotizo…?» y el local no corresponde (auditoría 19-oct, familia 2).
       if (esPreguntaCualLeCotizo(texto)) return texto;
@@ -1498,6 +1503,23 @@ export const PASOS: readonly PasoDeSalida[] = [
         }
       }
       return texto;
+    },
+  },
+  {
+    // UN SEGUIMIENTO QUE SOLO DICE «QUEDO PENDIENTE» NO SALE (Sprint 4,
+    // auditoría Competimotor 26-nov, chat 1273 — vale para todos los clientes).
+    // «Claro, quedo pendiente de su mensaje cuando pueda retomarlo 👍» salió
+    // dos veces al otro día: era la corrección del Guardián a un recordatorio
+    // que ya no correspondía. Va al final, sobre el texto definitivo, porque el
+    // Guardián es el último que reescribe. Ver `seguimientoSinContenido`.
+    nombre: "sin_seguimiento_vacio",
+    corre: ["seguimiento"],
+    silencioEsCorrecto: true,
+    async aplicar(texto, ctx) {
+      if (!seguimientoSinContenido(texto)) return texto;
+      console.warn(`🤐 Seguimiento suprimido en la conv ${ctx.conversation.id}: solo decía «quedo pendiente» («${texto.slice(0, 80)}»).`);
+      ctx.motivoDeSupresion = "seguimiento_vacio";
+      return null;
     },
   },
   {

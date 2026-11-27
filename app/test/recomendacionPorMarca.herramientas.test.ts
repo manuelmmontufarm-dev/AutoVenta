@@ -162,9 +162,15 @@ describe("preparar_opciones arma la lámina con la regla, mande lo que mande el 
     expect(salida.mensaje_para_enviar).not.toContain("¿Le cotizo la 1, la 2 o la 3?");
   });
 
-  it("215/65R16 pidiendo 4: Falken y Winrun (2 c/u) no alcanzan → Kenda + Townhall", async () => {
+  // Hasta el 26-nov Falken y Winrun (2 c/u) quedaban fuera por no alcanzar
+  // para el juego. Auditoría 26-nov (F-01, «Sí tenemos»): en Competimotor el
+  // stock es uno solo entre locales y con 1 o más se muestran
+  // (`politica.stockCortoSeVende`). La regla por marca vuelve a mandar entera.
+  it("215/65R16 pidiendo 4: Falken y Winrun (2 c/u) SÍ entran (stock único) → Falken, Winrun, Kenda + la de mayor inventario", async () => {
     const salida = await prepararOpciones("215/65R16", ["A0044", "A0541", "A0239"]);
-    expect(new Set(marcasDe(codigosDeLaPieza(salida)))).toEqual(new Set(["KENDA", "TOWNHALL"]));
+    const marcas = marcasDe(codigosDeLaPieza(salida));
+    expect(marcas.slice(0, 3)).toEqual(["FALKEN", "WINRUN", "KENDA"]);
+    expect(marcas).toHaveLength(4);
   });
 
   it("«qué más tiene» en 265/70R17 tras la primera: 6 nuevas, ninguna repetida (10 en total)", async () => {
@@ -186,7 +192,8 @@ describe("preparar_opciones arma la lámina con la regla, mande lo que mande el 
   });
 
   it("«qué más tiene» y queda UNA (215/65R16, simulador 18-nov): se muestra y se pregunta, NO se cotiza de una", async () => {
-    piezasPrevias = [{ codes: ["A0239", "A0486"], sizeLabel: "215/65R16" }];
+    // Con stock único (F-01) la Falken y la Winrun de 2 también se muestran: ya las vio en la primera.
+    piezasPrevias = [{ codes: ["A0044", "A0541", "A0239", "A0486"], sizeLabel: "215/65R16" }];
     entrantes = ["qué más tiene?", "Buenas, cuánto cuestan las llantas 215/65R16?"];
     const salida = await prepararOpciones("qué más tiene?", ["1997"]);
     expect(codigosDeLaPieza()).toEqual(["1997"]);
