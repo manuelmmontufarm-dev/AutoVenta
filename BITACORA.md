@@ -10,8 +10,9 @@
   Depot —idénticos a `main`—, unidad en la cantidad). Guardas de Depot 38/38, fidelidad 12/12, `sim:humo` Depot y
   mundillantas 8/8. Costo de la conversación estándar (Depot): mediana $0.287 en `main` y $0.311 en la rama (+8 %,
   rangos solapados, entrada del guardián idéntica: 15108 y 15111).
-- **Pendiente:** «sí» a la cita y volver a ofrecer el día tras la pregunta del viernes negro (rama
-  `claude/s5-cita-y-dia-wip`, sin integrar); «necesito las 4» con menú de 2–3 opciones; botones con la medida cuando
+- **Segundo paso (27-nov):** «sí» a «¿Le agendo una cita?» pregunta el día y el día vuelve tras contestar el precio o
+  la promo (669c852, 3 de 3 en el simulador; suite 5075 pasan).
+- **Pendiente:** «necesito las 4» con menú de 2–3 opciones; botones con la medida cuando
   dos opciones se llaman igual; «está caro» + otra pregunta en el mismo mensaje; la guía tras la venta (469).
   Para Manuel: equivalente hasta 30 mm de ancho en Competimotor, cheques, forma de pago a distancia, y si la apertura
   corta, «asesor» a secas y el aviso de traspaso se prenden también en Depot.

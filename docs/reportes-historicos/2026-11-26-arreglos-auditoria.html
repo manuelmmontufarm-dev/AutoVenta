@@ -65,13 +65,13 @@
   </div>
 
   <div class="tarjeta veredicto">
-    <b>Las cinco familias de error quedaron arregladas y probadas con los chats reales; el otro negocio no cambia.</b> En la repetición final, con todos los arreglos juntos, pasaron 43 de 44 comprobaciones. Quedan ocho detalles pendientes, listados abajo sin maquillar.
+    <b>Las cinco familias de error quedaron arregladas y probadas con los chats reales; el otro negocio no cambia.</b> En la repetición final, con todos los arreglos juntos, pasaron 43 de 44 comprobaciones; la que faltaba se arregló después y pasó 3 de 3. Quedan seis detalles pendientes, listados abajo sin maquillar.
   </div>
 
   <div class="numeros">
     <div class="numero"><b>5 de 5</b><span>familias arregladas (más el chat de la venta)</span></div>
     <div class="numero"><b>43 de 44</b><span>comprobaciones con chats reales que pasan las dos vueltas finales</span></div>
-    <div class="numero"><b>5.052</b><span>pruebas automáticas en verde (2 fallan, y ya fallaban antes)</span></div>
+    <div class="numero"><b>5.075</b><span>pruebas automáticas en verde (2 fallan, y ya fallaban antes)</span></div>
     <div class="numero"><b>5</b><span>rondas de revisión de código entre los cinco sprints</span></div>
   </div>
 
@@ -139,8 +139,8 @@
         <td><b>Seguimientos y datos falsos</b></td>
         <td>Mandaba «quedo pendiente de su mensaje» a quien pidió tiempo; registró una visita por «viernes negro»; el recordatorio decía «ya tenemos listas sus llantas» de una medida que no había.</td>
         <td>Quien pide tiempo no recibe seguimientos automáticos: queda una revisión para el asesor. «Viernes negro» ya no es un día. Los dos seguimientos dicen cosas distintas y terminan en sí o no. El recordatorio nombra lo cotizado.</td>
-        <td>13 comprobaciones; 12 pasan las dos vueltas finales.</td>
-        <td><span class="chip ok">Arreglada</span> <span class="chip medio">1 detalle</span></td>
+        <td>13 comprobaciones; 12 pasaron las dos vueltas finales y la restante se arregló después (3 de 3).</td>
+        <td><span class="chip ok">Arreglada</span></td>
       </tr>
       <tr>
         <td><b>Casos sueltos y el chat de la venta</b></td>
@@ -159,9 +159,9 @@
       <tr><td>Chats de «Sí tenemos», 2 vueltas</td><td>7 de 7 pasan las dos</td></tr>
       <tr><td>Chats de precio y cierre, 2 vueltas</td><td>11 de 11 pasan las dos</td></tr>
       <tr><td>Chats de apertura, 2 vueltas</td><td>13 de 13 pasan las dos</td></tr>
-      <tr><td>Comprobaciones de seguimientos, 2 vueltas</td><td>12 de 13. Falla el «sí» a «¿Le agendo una cita?»: ya no cotiza por error, pero tampoco pregunta el día</td></tr>
-      <tr><td>Pruebas automáticas completas</td><td>5.052 pasan; 2 fallan, las mismas que fallan hoy en producción</td></tr>
-      <tr><td>El otro negocio no cambia</td><td>Sus piezas salen idénticas a producción y pasan las cuatro guardas (38 de 38)</td></tr>
+      <tr><td>Comprobaciones de seguimientos, 2 vueltas</td><td>12 de 13. Fallaba el «sí» a «¿Le agendo una cita?» (no preguntaba el día). Arreglado en un segundo paso: ahora pregunta el día, y «sí, mañana» registra la visita; 3 de 3</td></tr>
+      <tr><td>Pruebas automáticas completas</td><td>5.075 pasan; 2 fallan, las mismas que ya fallaban antes de estos cambios</td></tr>
+      <tr><td>El otro negocio no cambia</td><td>Sus piezas salen idénticas a producción y pasan las cinco guardas</td></tr>
       <tr><td>Prueba de humo del simulador, los dos negocios</td><td>8 de 8 cada uno</td></tr>
       <tr><td>Fidelidad del simulador con producción</td><td>12 de 12</td></tr>
     </table>
@@ -210,8 +210,6 @@
   <h2>Lo que quedó pendiente y por qué</h2>
   <div class="tarjeta">
     <ul>
-      <li><b>«Sí» a «¿Le agendo una cita?»</b>: ya no cotiza por error, pero contesta «¿Se la cotizo?» en vez de preguntar el día. El arreglo está escrito y sin probar; no se publica a medias.</li>
-      <li><b>Volver a ofrecer el día después de la pregunta del viernes negro</b>: salió bien 2 de 3 veces; otra regla (la que evita repetir una pregunta idéntica) la borra en la tercera.</li>
       <li><b>«Necesito las 4» con dos o tres opciones en pantalla</b>: el bot no sabe cuál de ellas y vuelve a preguntar con cuál se queda. Solo cotiza directo cuando se ofreció una sola.</li>
       <li><b>«¿Solo dispone en ese modelo?»</b> se contesta bien 2 de 3 veces.</li>
       <li><b>Botones con la medida</b> cuando dos opciones se llaman igual: no se hizo.</li>
