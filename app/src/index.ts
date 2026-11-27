@@ -107,6 +107,7 @@ import { tryRecomendarConLaPieza } from "./services/recomendarConLaPieza.js";
 import { tryMasOpcionesPorMarca } from "./services/masOpcionesPorMarca.js";
 import { PREGUNTA_TRAS_NO_GRACIAS, tryOtraOpcionTrasNoGracias } from "./services/otraOpcionTrasNoGracias.js";
 import { firstContactReply, isGenericFirstContact, pedidoDeMedidaDelPrimerContacto } from "./domain/firstContact.js";
+import { esAperturaDeAnuncio, respuestaDeUbicacionDeEntrada, vistaDeApertura } from "./services/aperturaCorta.js";
 import { despedidaQueCorresponde } from "./domain/cierrePerdido.js";
 import { botonesParaBloque, recortarTitulo, textoDeBoton, type BloqueConBotones } from "./domain/botones.js";
 import { esComandoDeReinicio, MENSAJE_DE_REINICIO } from "./domain/reinicio.js";
@@ -421,7 +422,14 @@ async function atenderTurno(
   // siguiente «hola» pierde la bienvenida (producción, 31-ago 17:30 y 17:36).
   // Y NUNCA DESPUÉS DE UNA PERSONA (conv 15426, 22-sep): para el cliente la
   // conversación con el asesor sigue, aunque el ciclo sea nuevo.
-  const saludoPermitido = puedeSaludarComoPrimerContacto(ultimoSaliente?.author_kind);
+  // Sprint 3 (F-04, Competimotor): con `politica.aperturaCorta` la
+  // auto-respuesta de WhatsApp Business no cuenta como saliente — con ella
+  // adentro salía la apertura larga (guía + «sin ese dato no le puedo
+  // asegurar…») en vez del saludo corto. Con Depot devuelve lo de siempre.
+  const apertura = await vistaDeApertura(conversation.id, {
+    previousOutbound, autorDelUltimoSaliente: ultimoSaliente?.author_kind,
+  });
+  const saludoPermitido = puedeSaludarComoPrimerContacto(apertura.autorDelUltimoSaliente);
   // EL CLIENTE QUE VUELVE NO RECIBE LA PRESENTACIÓN OTRA VEZ (CM31, simulador
   // Competimotor 18-nov): un ciclo nuevo tras una compra cerrada no es «abrirse
   // la conversación». Su «hola» lo contesta el agente, que tiene el contexto.
@@ -433,9 +441,9 @@ async function atenderTurno(
   const clienteQueVuelve = yaComproAntes || esClienteQueVuelve(await ultimoSalienteDeOtroCiclo(conversation.id));
   const isFirstGenericMessage = conversation.stage === "nuevo"
     && !clienteQueVuelve
-    && (previousOutbound === null || previousOutbound === MENSAJE_DE_REINICIO)
+    && (apertura.previousOutbound === null || apertura.previousOutbound === MENSAJE_DE_REINICIO)
     && saludoPermitido
-    && isGenericFirstContact(textoConLinks);
+    && (isGenericFirstContact(textoConLinks) || esAperturaDeAnuncio(textoConLinks));
   // Al abrirse la conversación el negocio se presenta ANTES de ponerse a
   // trabajar (decisión de Manuel, 31-ago). Va como mensaje propio y va aquí,
   // antes del agente, porque las herramientas mandan sus piezas —las opciones,
@@ -451,11 +459,17 @@ async function atenderTurno(
   // turno: es texto fijo de la política y el guardián no tiene nada que
   // corregirle. Con un saludo pelado, la presentación sale aquí también y el
   // turno solo pide la medida.
-  const promoDelSaludo = saludoPermitido && (previousOutbound === null || previousOutbound === MENSAJE_DE_REINICIO)
+  const promoDelSaludo = saludoPermitido && (apertura.previousOutbound === null || apertura.previousOutbound === MENSAJE_DE_REINICIO)
     ? mensajeDeTemporadaParaElSaludo()
     : null;
   const presentadoAntes = saludoPermitido && !clienteQueVuelve
-    && ((!isFirstGenericMessage && previousOutbound === null) || (isFirstGenericMessage && Boolean(promoDelSaludo)));
+    && ((!isFirstGenericMessage && apertura.previousOutbound === null) || (isFirstGenericMessage && Boolean(promoDelSaludo)));
+  // «Dónde las consigo» como primer mensaje (conv 902): el local y después la
+  // pregunta de la medida, sin guía (Sprint 3, solo con la apertura corta).
+  const ubicacionDeEntrada = conversation.stage === "nuevo" && !clienteQueVuelve && saludoPermitido
+    && apertura.previousOutbound === null
+    ? respuestaDeUbicacionDeEntrada(textoConLinks)
+    : null;
   if (presentadoAntes) {
     const presentacion = presentacionDeApertura(name);
     try {
@@ -522,6 +536,8 @@ async function atenderTurno(
       ? respuestaDePlazoDeDecision()
       : ubicacionFueraDeCobertura
         ? ubicacionFueraDeCobertura
+      : ubicacionDeEntrada
+        ? ubicacionDeEntrada
       : isFirstGenericMessage
       ? (presentadoAntes ? pedidoDeMedidaDelPrimerContacto() : firstContactReply())
       // Media medida en pulgadas («MT 30.5 r15»): se pregunta el ancho, sin
@@ -598,7 +614,7 @@ async function atenderTurno(
     // ventana en la que el cliente puede escribir antes del pedido de medida.
     suprimirEmpujeComercial: Boolean(
       cierreAntesDeHerramientas || cierreDelTurno || plazoDeDecision || ubicacionFueraDeCobertura
-        || isFirstGenericMessage
+        || ubicacionDeEntrada || isFirstGenericMessage
         // La pregunta de qué busca tras el «no gracias» también es una constante.
         || otraOpcionTrasNoGracias === PREGUNTA_TRAS_NO_GRACIAS,
     ),

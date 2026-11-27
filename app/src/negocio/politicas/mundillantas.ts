@@ -122,4 +122,7 @@ export const POLITICA_MUNDILLANTAS: PoliticaComercial = {
     preguntaConDiaNoAgenda: true,
     recordatorioSoloConCotizacion: true,
   },
+  // Sprint 3 — auditoría 26-nov-2026 (F-04): la apertura larga (guía + «sin ese
+  // dato no le puedo asegurar…») dio medida en 58 % de los chats; la corta, 73 %.
+  aperturaCorta: true,
 };
