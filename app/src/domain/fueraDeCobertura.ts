@@ -36,6 +36,7 @@
 import { negocio, sinTildes } from "../negocio/index.js";
 import { diceQueEstaLejos, diceQueNoPuedeIr } from "./clienteLejos.js";
 import { mantieneLaVenta } from "./sinSeguimiento.js";
+import { politica } from "../negocio/politica.js";
 
 const normalizar = (t: string): string =>
   t.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
@@ -51,7 +52,8 @@ const normalizar = (t: string): string =>
 const OTRAS_CIUDADES: readonly (readonly [string, RegExp])[] = [
   // Quito es «otra ciudad» para un negocio que no está en Quito. Para Depot
   // sale de la lista sola (`FUERA` quita la ciudad del negocio).
-  ["Quito", /\bquito\b/],
+  // «quitto» (chat 1142 de Competimotor, 26-nov): la t doble es la misma ciudad.
+  ["Quito", /\bquit+o\b/],
   ["Guayaquil", /\bguayaquil\b|\bgye\b/],
   ["Cuenca", /\bcuenca\b/],
   ["Santo Domingo", /\bsanto\s*domingo\b|\bsto\.?\s*domingo\b|\btsachilas\b/],
@@ -225,8 +227,19 @@ const HAY_PLAZO = new RegExp(`\\b${PLAZO}`);
 const NO_HACIA_ACA = new RegExp(`\\bno\\s+(?:a|para|hacia|por)\\s+(?:la\\s+ciudad\\s+de\\s+)?${DESTINO}\\b`);
 /** ¿Anuncia que vuelve a la ciudad del negocio, con plazo? Texto ya normalizado (sin tildes, en minúscula). */
 export function anunciaQueVuelve(n: string): boolean {
+  if (politica.casosSueltosF06 && ESTA_DE_PASO.test(n) && HAY_PLAZO_DE_VISITA.test(n) && !NO_HACIA_ACA.test(n)) return true;
   return VUELTA.test(n) && HAY_PLAZO.test(n) && !NO_HACIA_ACA.test(n);
 }
+
+/**
+ * ESTÁ DE PASO Y AVISA CUÁNDO VIENE (chat 845 de Competimotor, 21-nov, caso
+ * sano): «Listo amigo, entonces será para el próximo fin de semana porque estoy
+ * por Manta ahorita». «Ahorita / ahora / por el momento» dice que la otra ciudad
+ * es de paso; con el plazo de la visita en el mismo mensaje, viene. Solo con
+ * `politica.casosSueltosF06` (Depot no cambia).
+ */
+const ESTA_DE_PASO = /\b(?:estoy|ando|estamos|andamos)\s+(?:por|en)\s+[^.?!]{2,30}?\b(?:ahorita|ahora|en\s+este\s+momento|por\s+el\s+momento|de\s+momento|por\s+ahora)\b|\b(?:ahorita|ahora)\s+(?:estoy|ando)\s+(?:por|en)\b/;
+const HAY_PLAZO_DE_VISITA = new RegExp(`\\b(?:${PLAZO}|el\\s+(?:proximo|otro)\\s+fin\\s+de\\s+semana)\\b`);
 
 /** Niega estar o ir a Quito: «no vivo en Quito», «no viajo a Quito». */
 const NIEGA_QUITO = new RegExp(`\\bno\\s+(?:viv|estoy|soy|viaj|voy|subo|paso|puedo\\s+ir)\\w*\\b[^.?!]{0,25}\\b${C}\\b`);

@@ -40,6 +40,8 @@
  * alta») también vive aquí (`direccionPedida`, `respetaDireccion`).
  */
 import { negocio } from "../negocio/index.js";
+import { politica } from "../negocio/politica.js";
+import { esLlantaDeCarga, pideLlantaDeCarga } from "./llantaDeCarga.js";
 import { extractFlotationSizes, extractTireSizes, formatFlotationSize } from "./tireSize.js";
 
 /** Una pulgada, en milímetros. El aro se dice en pulgadas y el resto en mm. */
@@ -61,7 +63,7 @@ const ANCHO_CERCANO_MM = 10;
  * mismo rin; la 245/75R16 del chat 18225, 2 cm más angosta que la 265/70R16,
  * sigue siendo equivalente.
  */
-const ANCHO_MAXIMO_MM = 20;
+const ANCHO_MAXIMO_MM = negocio.anchoMaximoEquivalenteMm ?? 20;
 
 /**
  * El diámetro exterior en milímetros, o `null` si la etiqueta no alcanza para
@@ -317,6 +319,12 @@ export function direccionVigente(textosDelCliente: readonly (string | null | und
 export interface RequisitoDeCarga {
   xl: boolean;
   indice: number | null;
+  /**
+   * Pidió llanta de CARGA (C / LT, furgoneta, «para cargar»): una de pasajero no
+   * la reemplaza aunque el diámetro cuadre (Competimotor, F-06: 1717 «195R15C»,
+   * 1632 «225/65/R16LT»). Solo con `politica.casosSueltosF06`. Ver domain/llantaDeCarga.ts.
+   */
+  comercial?: boolean;
 }
 
 const MARCA_XL = /\bxl\b|\bextra\s*load\b|\breforzad[ao]s?\b|\breinforced\b/i;
@@ -337,6 +345,8 @@ export function requisitoDeCarga(textosDelCliente: readonly (string | null | und
       if (n >= 60 && n <= 130) indice = Math.max(indice ?? 0, n);
     }
   }
+  const comercial = politica.casosSueltosF06 === true && textosDelCliente.some((t) => pideLlantaDeCarga(t));
+  if (comercial) return { xl, indice, comercial: true };
   return xl || indice !== null ? { xl, indice } : null;
 }
 
@@ -357,6 +367,8 @@ export interface LlantaConCarga {
  */
 export function cargaAlcanza(requisito: RequisitoDeCarga | null, pedida: string, llanta: LlantaConCarga): boolean {
   if (!requisito) return true;
+  if (requisito.comercial && !esLlantaDeCarga({ name: llanta.name ?? "", sizeLabel: llanta.sizeLabel })) return false;
+  if (requisito.comercial && !requisito.xl && requisito.indice === null) return true;
   const indiceDeLaLlanta = llanta.loadSpeed?.loadIndex ?? null;
   if (requisito.indice !== null) return indiceDeLaLlanta !== null && indiceDeLaLlanta >= requisito.indice;
   if (!MARCA_XL.test(llanta.name ?? "")) return false;

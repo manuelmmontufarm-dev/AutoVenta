@@ -46,6 +46,7 @@ import { asegurarAvisoDeStock } from "./stockCorto.js";
 import { sinPrecioViejoDeLaCotizacion } from "./precioViejo.js";
 import { insistirConLoQueFalta, sinPreguntaPendienteConsecutiva } from "./insistirCierre.js";
 import { createBotAlert } from "./followUps.js";
+import { notifyAdvisor } from "./advisorNotifications.js";
 import { composeBlocks, MAX_BLOCKS, textoDeLaPieza } from "./quoteMessages.js";
 import { sinCuestionarLaMedidaDada, sinPreguntasProhibidas } from "../domain/preguntasProhibidas.js";
 import { medidasDelMensaje, medidasEscritasPorElCliente } from "../domain/medidaDelCliente.js";
@@ -60,7 +61,8 @@ import { sinJsonCrudo } from "../domain/jsonCrudo.js";
 import { sinTrastienda } from "../domain/sinTrastienda.js";
 import { conLocalesReales } from "./localesReales.js";
 import { sql } from "../db/client.js";
-import { respuestaDeUbicacionFueraDeCobertura, respuestaFijaFueraDeCobertura, sinVisitaNiMapas } from "../domain/visitaImposible.js";
+import { formaDePagoSinDefinir } from "../domain/preguntaDirecta.js";
+import { conElEnvioExplicado, respuestaDeUbicacionFueraDeCobertura, respuestaFijaFueraDeCobertura, sinPreguntaDeLocalConUnoSolo, sinVisitaNiMapas } from "../domain/visitaImposible.js";
 import { localesQueLeQuedanLejos, sinElLocalLejano } from "../domain/localLejano.js";
 import {
   BENEFICIO_DE_REDES,
@@ -86,6 +88,7 @@ import { precioDeLaOpcionGuardada, precioDelProducto, promocionVigente, type Seg
 import { sinPrecioPorLlantaConPromo } from "../domain/sinPrecioPorLlantaConPromo.js";
 import { lineasConPromoDelCiclo, respaldoDelCatalogo } from "./lineasConPromo.js";
 import { politica } from "../negocio/politica.js";
+import { negocio } from "../negocio/index.js";
 import { conPreguntaEnSuPropioMensaje } from "../domain/preguntaSola.js";
 import { despedidaQueCorresponde } from "../domain/cierrePerdido.js";
 import { motivoDeUbicacion, ofrecioLaUbicacion } from "../domain/ubicacionPedida.js";
@@ -311,6 +314,45 @@ export const PASOS: readonly PasoDeSalida[] = [
         ctx.conversation.id, ctx.conversation.current_cycle, ctx.textoDelCliente,
       );
       return estado === "fuera" ? respuestaDeUbicacionFueraDeCobertura(texto) : texto;
+    },
+  },
+  {
+    // LA FORMA DE PAGO QUE EL NEGOCIO NO DEFINIÓ LA CONFIRMA EL ASESOR, Y SE LE
+    // AVISA (F-06, chat 697 «Si acepta cheques»). El texto no se toca: lo juzga
+    // el Guardián con el hecho de `domain/preguntaDirecta.ts`; acá va el aviso,
+    // para que «se lo confirma un asesor» no sea una promesa vacía. Solo Competimotor.
+    nombre: "forma_de_pago_sin_definir_al_asesor",
+    corre: ["respuesta"],
+    async aplicar(texto, ctx) {
+      const forma = formaDePagoSinDefinir(ctx.textoDelCliente);
+      if (!politica.casosSueltosF06 || !forma) return texto;
+      const ciclo = ctx.conversation.current_cycle;
+      const dedupeKey = `${ctx.conversation.id}:${ciclo}:forma_de_pago_${forma}`;
+      await createBotAlert({
+        conversationId: ctx.conversation.id, cycle: ciclo, type: "caso_sin_resolver", priority: "medium",
+        summary: `Pregunta si aceptan ${forma}`, exactReason: (ctx.textoDelCliente ?? "").slice(0, 300),
+        suggestedAction: `Confirmarle al cliente si se acepta ${forma}: la política del negocio no lo define.`, dedupeKey,
+      }).catch(() => undefined);
+      await notifyAdvisor({
+        conversationId: ctx.conversation.id, cycle: ciclo, eventType: "caso_sin_resolver", dedupeKey,
+        title: `Pregunta si aceptan ${forma}`,
+        reason: `Mensaje del cliente: “${(ctx.textoDelCliente ?? "").slice(0, 200)}”. El bot le dijo que se lo confirma un asesor.`,
+        action: `Confirmarle si se acepta ${forma}.`,
+      }).catch(() => undefined);
+      console.log(`💳 Conv ${ctx.conversation.id}: preguntó por ${forma} (no definido): aviso al asesor.`);
+      return texto;
+    },
+  },
+  {
+    // EL ENVÍO SE EXPLICA EN EL TURNO EN QUE DICE DE DÓNDE ES (Competimotor,
+    // F-06: 1614 «Soy de manta», 1142 «Estoy. De quitto»). Antes del Guardián,
+    // que tiene la frase en sus hechos. Ver domain/visitaImposible.ts.
+    nombre: "envio_al_cliente_de_otra_ciudad",
+    corre: ["respuesta", "retomada"],
+    async aplicar(texto, ctx) {
+      const con = conElEnvioExplicado(texto, ctx.textoDelCliente);
+      if (con !== texto) console.log(`🚚 Conv ${ctx.conversation.id}: el cliente dijo que está en otra ciudad; el turno explica el envío.`);
+      return con;
     },
   },
   {
@@ -746,7 +788,10 @@ export const PASOS: readonly PasoDeSalida[] = [
       console.log(
         `📍 Ubicación pegada en la conv ${ctx.conversation.id} (${motivo})`,
       );
-      if (!hayQueElegirLocal) return await conElLocalUnico(texto, mapas, ctx.conversation.id);
+      if (!hayQueElegirLocal) {
+        return await conElLocalUnico(texto, mapas, ctx.conversation.id,
+          politica.casosSueltosF06 && motivo === "la_pidio" ? { primero: true, textoDelCliente: ctx.textoDelCliente } : {});
+      }
       return `${texto}\n---\n${mapas}`;
     },
   },
@@ -1485,6 +1530,24 @@ export const PASOS: readonly PasoDeSalida[] = [
     },
   },
   {
+    // «CLARO, QUEDO PENDIENTE DE SU CONFIRMACIÓN 👍» NO ES UNA RESPUESTA (F-06 /
+    // P2, chat 1273: el cliente dijo que escribe cuando reúna la plata). El
+    // mismo criterio que `sin_seguimiento_vacio` (S4), pero en el chat no se
+    // calla: se le dice qué queda hecho. Solo con `politica.casosSueltosF06`.
+    nombre: "respuesta_sin_quedo_pendiente",
+    corre: ["respuesta", "retomada"],
+    async aplicar(texto, ctx) {
+      if (!politica.casosSueltosF06 || !texto.trim() || !seguimientoSinContenido(texto)) return texto;
+      const [cot] = await sql<{ x: number }[]>`
+        select 1 as x from quotes where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle} limit 1
+      `;
+      console.log(`🤐 Conv ${ctx.conversation.id}: «quedo pendiente» sin contenido reemplazado.`);
+      return cot
+        ? "Claro, sin problema 👍 Su cotización queda guardada: cuando esté listo, me escribe por aquí y la retomamos 🤝"
+        : "Claro, sin problema 👍 Cuando esté listo, me escribe por aquí y le ayudo con su cotización 🤝";
+    },
+  },
+  {
     // EL «¿CUÁL LE COTIZO…?» QUE TIENE QUE SALIR, SALE (revisión final del
     // 21-oct). El cliente contestó el menú sin elegir y la puerta lo declaró
     // (`ofertaDelTurno.sinElegir`). El paso de antes del Guardián ya dejó la
@@ -1696,6 +1759,16 @@ export const PASOS: readonly PasoDeSalida[] = [
     },
   },
   {
+    // CON UN SOLO LOCAL NO SE PREGUNTA «¿CUÁL LOCAL?» (Competimotor, F-06, chat
+    // 1142). Solo quita. Ver domain/visitaImposible.ts.
+    nombre: "sin_cual_local_con_un_solo_local",
+    corre: ["respuesta", "retomada", "seguimiento"],
+    async aplicar(texto) {
+      const limpio = sinPreguntaDeLocalConUnoSolo(texto);
+      return limpio.trim() ? limpio : texto;
+    },
+  },
+  {
     // NINGÚN MENSAJE SALE CORTADO CON SU COMA. La red del final: el 12-sep
     // (conv 3, 17:29) salió «Perfecto. Para dejarle todo claro antes de su
     // visita del lunes,». Solo recorta. Ver domain/fraseColgando.ts.
@@ -1780,7 +1853,17 @@ export interface SalidaPreparada {
  * salía dos veces (simulador, 18-nov: el guardián la agregó en texto). Con dos
  * o más locales no se llama: Depot sigue por el camino de siempre.
  */
-export async function conElLocalUnico(texto: string, mapas: string, conversationId: number): Promise<string> {
+export async function conElLocalUnico(
+  texto: string,
+  mapas: string,
+  conversationId: number,
+  /**
+   * F-06 / N4 (chat 1456, «Dnd estan ubicados»): salió primero el HORARIO, la
+   * oferta otra vez y la dirección al final. Con `primero`, la dirección y el
+   * mapa van al frente, y el horario sale solo si el cliente lo preguntó.
+   */
+  opciones: { primero?: boolean; textoDelCliente?: string | null } = {},
+): Promise<string> {
   const local = business.stores[0];
   const normal = (v: string) => v.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   const repiten = [local?.address, local?.referencia]
@@ -1792,7 +1875,23 @@ export async function conElLocalUnico(texto: string, mapas: string, conversation
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
-  const bloques = [sinDireccion, ubicacionDelLocalUnico(undefined, mapas)];
+  const preguntoElHorario = /\b(?:horario|hora|horas|abren|cierran|atienden|atencion|domingo|sabado|feriado)\b/
+    .test((opciones.textoDelCliente ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase());
+  const delTurno = opciones.primero && !preguntoElHorario
+    ? sinDireccion
+      .split(/\n---\n/)
+      .map((b) => b.split("\n").map((l) => l.split(/(?<=[.!?;])\s+/)
+        .filter((o) => !/\b(?:\d{1,2}:\d{2}|lunes\s+a\s+viernes|s[aá]bados?\s+de|domingos?\s+cerrado|horario)\b/i.test(o))
+        // La ubicación ya va al frente con su mapa: lo que el borrador decía de ella sobra.
+        .filter((o) => !/\b(?:estamos\s+en|ubicaci[oó]n|el\s+mapa|aqu[ií]\s+queda\s+nuestro\s+local)\b/i.test(o))
+        .join(" "))
+        .join("\n").replace(/\n{3,}/g, "\n\n").trim())
+      .filter(Boolean).join("\n---\n")
+    : sinDireccion;
+  const direccion = (local?.address ?? "").replace(new RegExp(`,\\s*${negocio.ciudad}\\s*$`, "i"), "").trim();
+  const bloques = opciones.primero
+    ? [direccion ? `Estamos en ${negocio.ciudad}: *${local?.name ?? ""}*, ${direccion}.\n${mapas}` : ubicacionDelLocalUnico(undefined, mapas), delTurno]
+    : [sinDireccion, ubicacionDelLocalUnico(undefined, mapas)];
   // La pregunta del día va si el turno no pregunta ya otra cosa y la visita
   // no está registrada: dos preguntas en un turno se contestan a medias.
   const [estado] = await sql<{ visit_date: Date | null; con_cotizacion: boolean }[]>`
@@ -1800,7 +1899,7 @@ export async function conElLocalUnico(texto: string, mapas: string, conversation
       exists(select 1 from quotes q where q.conversation_id=c.id and q.cycle=c.current_cycle) as con_cotizacion
     from conversations c where c.id=${conversationId}
   `;
-  if (!estado?.visit_date && !sinDireccion.includes("?")) {
+  if (!estado?.visit_date && !delTurno.includes("?")) {
     bloques.push(buildVisitPlanQuestion({
       conDescuentoAutorizado: false,
       locales: business.stores.map((store) => store.name),

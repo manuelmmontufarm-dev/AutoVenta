@@ -27,6 +27,7 @@ import {
   codigoDeLoOfrecido, esMenuDeOpciones, ofreceCotizarEn, palabrasDelAcuse, respondeQueSi, seApartoDeLaOferta,
 } from "./ofertaAceptada.js";
 import { ofrecioCotizarLaUnica } from "./cotizarLaUnica.js";
+import { politica } from "../negocio/politica.js";
 import { eligePosicionDelMenu, pidioPrecioOCotizacion, respuestaDePreferencia } from "./salesIntent.js";
 
 export interface OfertaDeCotizar {
@@ -177,6 +178,12 @@ export function ofertaVigente(hilo: readonly FilaDelHilo[]): OfertaLeida {
     if (metadata.piece === "quote") {
       return { oferta: null, fuente: "hecho", turnosAtras: clientesEnMedio };
     }
+    // «¿Le agendo una cita?» (2.º seguimiento de Competimotor) es lo último que
+    // se le ofreció: el «sí» contesta ESA pregunta, no la oferta de cotizar de
+    // antes (F-06 / P2: el «sí» cotizaba antes de preguntar el día).
+    if (politica.casosSueltosF06 && metadata.ofrece_cita === true) {
+      return { oferta: null, fuente: "hecho", turnosAtras: clientesEnMedio };
+    }
     if (!("oferta" in metadata)) {
       // Las piezas (lámina, cotización) nunca llevan la clave: no cuentan.
       if (!("piece" in metadata)) filaSinHecho = true;
@@ -225,12 +232,30 @@ export function esSiFuerte(mensajeDelCliente: string): boolean {
 export function aceptaLaOferta(leida: OfertaLeida, mensajeDelCliente: string): boolean {
   const oferta = leida.oferta;
   if (!oferta || oferta.clase !== "una") return false;
+  // «XQ NECESITO LAS 4 LLANTAS» ES COMPRARLA (F-06 / N3, chat 1456; 1258 «Si /
+  // Deseó 4»): a la oferta de UNA llanta, pedir la cantidad es aceptarla. Sin
+  // esto el cliente recibió cuatro veces «¿Le cotizo…?». Solo Competimotor.
+  if (politica.casosSueltosF06 && leida.turnosAtras <= 1 && pideCantidadDeLaOfrecida(mensajeDelCliente)) return true;
   if (leida.turnosAtras === 0) {
     return respondeQueSi(mensajeDelCliente)
       || (Boolean(oferta.unica) && mensajeDelCliente.length <= 60
         && !/\?[^?]*\?|,\s*y\b/.test(mensajeDelCliente) && pidioPrecioOCotizacion(mensajeDelCliente));
   }
   return esSiFuerte(mensajeDelCliente);
+}
+
+/**
+ * «Necesito las 4», «Deseo 4», «quiero las cuatro», «me llevo 2», «las 4»: el
+ * cliente dice cuántas de ESA quiere. Una línea del mensaje basta («Y ese es el
+ * precio tope…» + «Xq necesito las 4 llantas»), salvo que esa línea pregunte.
+ */
+export function pideCantidadDeLaOfrecida(mensajeDelCliente: string): boolean {
+  return (mensajeDelCliente ?? "").split(/\n/).some((linea) => {
+    const n = linea.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[.,!¡]/g, " ").replace(/\s+/g, " ").trim();
+    if (!n || n.includes("?")) return false;
+    return /^(?:(?:si|ok|dale|listo|claro|ya)\s+)?(?:(?:x\s*q|porque|por\s+que|pq)\s+)?(?:necesito|quiero|deseo|dame|deme|me\s+llevo|llevo|me\s+da|seria[n]?)\s+(?:las\s+|unas\s+)?(?:[1-8]|dos|tres|cuatro|seis|ocho)(?:\s+llantas?)?(?:\s+(?:de\s+esas?|por\s+favor|porfa|gracias))*$/.test(n)
+      || /^(?:si\s+)?las\s+(?:4|cuatro)(?:\s+llantas?)?$/.test(n);
+  });
 }
 
 /** Opciones del menú abierto según el hecho; 0 si no hay menú vigente. */
@@ -266,4 +291,13 @@ export function hechoDeOfertaVigente(leida: OfertaLeida, nombre?: string | null)
   }
   const llanta = nombre ? `la *${nombre}*${oferta.medida ? ` en ${oferta.medida}` : ""}` : "UNA llanta";
   return `OFERTA VIGENTE (hecho guardado al enviarla): el bot ofreció cotizar ${llanta}${leida.turnosAtras ? ` (hace ${leida.turnosAtras} mensaje(s) del cliente)` : ""}. Un sí del cliente acepta ESA llanta y nada más.`;
+}
+
+/**
+ * ¿El texto que SALE ofrece agendar la visita? («¿Le agendo una cita?», 2.º
+ * seguimiento de Competimotor). Solo con `politica.casosSueltosF06`.
+ */
+export function ofreceCita(textoQueSeEnvia: string | null | undefined): boolean {
+  if (!politica.casosSueltosF06) return false;
+  return /¿\s*le\s+agendo\s+(?:una\s+)?cita\b|¿\s*le\s+separo\s+(?:una\s+)?cita\b|¿\s*agendamos\s+(?:una\s+)?cita\b/i.test(textoQueSeEnvia ?? "");
 }

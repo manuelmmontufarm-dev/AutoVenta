@@ -21,7 +21,7 @@ import {
 } from "../domain/followUpMessages.js";
 import { buildStoreLinksBlock } from "./quoteMessages.js";
 import { emitLiveEvent } from "./liveEvents.js";
-import { pideUnAsesor } from "../domain/pideAsesor.js";
+import { aceptaElAsesor, pideUnAsesor } from "../domain/pideAsesor.js";
 import { motivoParaNoSeguir, sinVisitaDelSeguimiento, type MotivoSinSeguimiento } from "../domain/sinSeguimiento.js";
 import { parseTireSize } from "../domain/tireSize.js";
 import { generateFollowUpCopy } from "./followUpCopy.js";
@@ -867,7 +867,20 @@ export async function handleInboundFollowUpState(
   // tienda» en casi todos los turnos; con el detector viejo bastaba con que el
   // cliente lo repitiera para quedar en `assigned_to='human'` y pausa infinita.
   // Ver `domain/pideAsesor.ts` y la auditoría de los 151 clientes callados.
-  const requestedHuman = pideUnAsesor(text);
+  // «Sí» a «¿Desea que le ayude… con un asesor?» también es pedirlo (F-06, chat
+  // 720). La oferta se lee del HECHO guardado al enviarla (`ofrece_asesor`).
+  // El último turno del bot (los salientes entre el mensaje anterior del cliente y este).
+  const recientes = await sql<{ direction: string; ofrece: boolean | null }[]>`
+    select direction, (metadata->>'ofrece_asesor')::boolean as ofrece from messages
+    where conversation_id=${conversationId} and type <> 'note'
+      and (direction='inbound' or author_kind='bot')
+    order by created_at desc, id desc limit 12
+  `;
+  let i = 0;
+  while (i < recientes.length && recientes[i].direction === "inbound") i++;
+  let ofrecioAsesor = false;
+  for (; i < recientes.length && recientes[i].direction !== "inbound"; i++) if (recientes[i].ofrece) ofrecioAsesor = true;
+  const requestedHuman = pideUnAsesor(text) || aceptaElAsesor(text, ofrecioAsesor);
   // INFINITY SOLO PARA EL OPT-OUT.
   //
   // "No me escriban más" es consentimiento y no vence. Estar MOLESTO o pedir un
@@ -1137,7 +1150,13 @@ export async function reconcileFollowUpAlerts(now = new Date()): Promise<void> {
         and m.direction = 'inbound' and m.created_at > (
           select max(j.executed_at) from follow_up_jobs j where j.conversation_id = c.id and j.cycle = c.current_cycle and j.status = 'sent'
         )
-    ) on conflict do nothing
+    )
+    -- F-06 / N6 (chat 1456, solo Competimotor): con la visita confirmada para hoy
+    -- o un día que no pasó, dos seguimientos sin respuesta no son un cliente
+    -- perdido: el cliente ya dijo cuándo viene.
+    and not (${politica.casosSueltosF06 === true} and c.visit_date is not null
+      and (c.visit_date at time zone 'America/Guayaquil')::date >= (${now}::timestamptz at time zone 'America/Guayaquil')::date)
+    on conflict do nothing
   `).count);
   nuevas.push((await sql`
     insert into bot_alerts (conversation_id, cycle, type, priority, summary, exact_reason, suggested_action, dedupe_key)
@@ -1162,6 +1181,13 @@ export async function reconcileFollowUpAlerts(now = new Date()): Promise<void> {
       -- El DÍA de la visita ya terminó (en Quito), no la hora de relleno que
       -- lleva visit_date: a las 12:37 del mismo sábado todavía puede venir (6145).
       and (c.visit_date at time zone 'America/Guayaquil')::date < (${now}::timestamptz at time zone 'America/Guayaquil')::date
+      -- F-06 / N6 (chat 1456, solo Competimotor): «Ya estoy aquí afuera» el día de
+      -- la visita es venir. Si el cliente escribió ese día (o después), la visita
+      -- no quedó «sin confirmar».
+      and not (${politica.casosSueltosF06 === true} and exists (
+        select 1 from messages m where m.conversation_id = c.id and m.direction = 'inbound'
+          and (m.created_at at time zone 'America/Guayaquil')::date >= (c.visit_date at time zone 'America/Guayaquil')::date
+      ))
     on conflict do nothing
   `).count);
   if (nuevas.some((cantidad) => cantidad > 0)) emitLiveEvent("alert");

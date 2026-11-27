@@ -1,3 +1,34 @@
+## 27-nov-2026 · Bot · Competimotor: casos sueltos (F-06) y la venta de 1456 (sprint 5)
+
+- **Qué:** todo detrás de `politica.casosSueltosF06` (solo `mundillantas`), salvo el doble botón.
+  - **Otra ciudad:** a quien dice que está en otra ciudad se le explica el envío en ese turno (frase del perfil
+    `envioAlClienteDeOtraCiudad`: Laar Courier / Transportes Bemaut, lo paga el cliente, el costo lo confirma un asesor)
+    en vez de «no tenemos local fuera» o del relleno («Claro, le ayudo con eso»); la respuesta fija con un solo local dice
+    dirección + envío; «Estoy. De quitto» ya es Quito y no agenda visita de hoy; «estoy por Manta ahorita… el próximo fin
+    de semana» (845, caso sano) es `viene`; con un solo local no sale «¿cuál local le queda mejor?».
+  - **Asesor:** «Asesor» / «Un asesor» a secas es pedirlo; la oferta «¿Desea que le ayude… con un asesor?» se guarda como
+    hecho al enviarla (`metadata.ofrece_asesor`) y el «sí» la acepta; el aviso «ya le avisé a un asesor» sale con su actor
+    propio (`handoff_notice`: con `human_control` salía mudo); tras el traspaso, «¿qué tiempo demora?» se contesta en una
+    línea fija.
+  - **Carga:** C / LT / furgoneta / «para cargar» pide llanta de carga (`domain/llantaDeCarga.ts`) y las equivalentes de
+    pasajero no pasan (`requisitoDeCarga.comercial`, mismo juez `porQueNoEquivale`); «índice de carga» y el XL de una SUV
+    ya no son uso de carga (454).
+  - **Preguntas directas:** hechos al Guardián (`domain/preguntaDirecta.ts`: fotos, forma de pago no definida, marca
+    pedida que no está en la lámina —tolera «Maxiis»—, «¿solo ese modelo?»); a la foto no se reenvía la misma lámina;
+    «cheques» deja aviso al asesor (no se inventa la respuesta).
+  - **1456:** las equivalentes admiten 30 mm de ancho en Competimotor (`negocio.anchoMaximoEquivalenteMm`; Depot 20): salen
+    la HAIDA HD829 y la KENDA KR628 275/55R20 que vendió el asesor; «Xq necesito las 4» acepta la única ofrecida; «dónde
+    están» pone dirección y mapa primero y no el horario; el 1.er seguimiento no repite una visita recién confirmada;
+    «cliente_sin_respuesta» nace pospuesto 10 min; «dos seguimientos sin respuesta» y «visita no confirmada» no salen con
+    la visita vigente o con el cliente escribiendo ese día. «Claro, quedo pendiente…» en el chat dice qué queda hecho;
+    «¿Le agendo una cita?» mata la oferta de cotizar vieja.
+  - **Doble botón (error de hecho, también Depot):** «la 1» + «la 2» en la misma ráfaga son un turno y manda el último toque.
+- **Por qué:** auditoría de Competimotor del 26-nov, familia F-06 (1142, 1258, 1614, 710, 1202, 720, 469, 1717, 1632,
+  1652, 454, 697, 538, 859, 884, 1085, 1295, 227, 293) y la única venta del periodo (1456, $842,40) que el bot escondió.
+- **Probado:** `test/s5CasosSueltos.test.ts` (rojo antes del arreglo), `test/s5CasosSueltos.depot.test.ts` (Depot igual),
+  `stockCortoViaja` (orden de la cadena con los pasos nuevos); simulador `--perfil mundillantas` ×3 (ver cuadro del sprint).
+- **Horas:** 6.
+
 ## 26-nov-2026 · Bot · Competimotor: «Sí tenemos» — lo que tiene 1 o 2 se muestra y se cotiza (F-01)
 
 - **Qué:** perillas nuevas de la política (bloque «Sprint 1»): `stockCortoSeVende` y `usoDelClienteAmpliaElTipo`, las
@@ -6828,6 +6859,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-11-27 | _(este mismo)_ | Sprint 5 F-06 Competimotor: otra ciudad con envío, asesor a secas, carga C/LT, preguntas directas, doble botón; venta 1456 (equivalentes 275/55R20, foto, ubicación, alertas falsas) | 6 |
 | 2026-11-26 | _(este mismo)_ | Competimotor «Sí tenemos»: stock 1–2 se muestra y se cotiza, sin nombrar el stock; pantanera = M/T y R/T (F-01) | 2 |
 | 2026-11-26 | _(este mismo)_ | Sprint 4 ronda 1: Depot igual en visitas y recordatorio, seguimiento sin precio con promo, texto fijo solo en los dos | 1,5 |
 | 2026-11-26 | _(este mismo)_ | Sprint 4 F-05 Competimotor: seguimientos tras pedir tiempo, visita inventada, recordatorio con lo cotizado, dos seguimientos distintos | 4 |

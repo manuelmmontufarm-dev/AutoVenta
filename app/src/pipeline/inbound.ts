@@ -9,7 +9,7 @@
  *  4. Tope global — como mucho config.pipeline.maxConcurrent handlers a la vez.
  */
 import { config } from "../config.js";
-import { gruposDeLaRafaga } from "../domain/rafaga.js";
+import { gruposDeLaRafaga, textoDeLaRafaga } from "../domain/rafaga.js";
 
 interface PendingBuffer {
   parts: { text: string; waMessageId: string; quotedWaMessageId: string | null; receivedAt: Date }[];
@@ -128,7 +128,7 @@ export class InboundPipeline {
       this.encolar(from, {
         from,
         name: buffer.name,
-        text: partes.map((p) => p.text).join("\n"),
+        text: textoDeLaRafaga(partes.map((p) => p.text)),
         waMessageIds: partes.map((p) => p.waMessageId),
         // El reply MÁS RECIENTE del grupo. Si el cliente cita el menú y después
         // agrega un mensaje suelto, lo citado sigue valiendo; si cita dos cosas

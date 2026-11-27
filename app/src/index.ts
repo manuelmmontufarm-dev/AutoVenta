@@ -90,7 +90,7 @@ import { splitBlocks } from "./services/quoteMessages.js";
 import { prepararSalida, type ContextoDeSalida } from "./services/prepararSalida.js";
 import { metadataDeOferta } from "./services/ofertaVigente.js";
 import { bloqueDeLaOferta } from "./domain/ofertaVigente.js";
-import { AVISO_DE_TRASPASO } from "./domain/pideAsesor.js";
+import { AVISO_DE_TRASPASO, ofreceAsesor } from "./domain/pideAsesor.js";
 import { flagRepetitiveConversation } from "./services/conversationQuality.js";
 import { notifyPendingHumanRequests } from "./services/advisorNotifications.js";
 import { startEmbeddedFollowUpWorker } from "./workers/embeddedFollowUpWorker.js";
@@ -125,6 +125,7 @@ import {
 } from "./domain/cierreTurno.js";
 import { esAcuseSimple, esPreguntaCualLeCotizo } from "./domain/ofertaAceptada.js";
 import { respuestaDirectaDeUbicacionFueraDeCobertura } from "./domain/visitaImposible.js";
+import { dondeEstaElCliente } from "./domain/fueraDeCobertura.js";
 import { puedeSaludarComoPrimerContacto } from "./domain/turnoDelHumano.js";
 import { decidirQuienContesta, vaAContestarElBot } from "./services/turnoDelHumano.js";
 import { quiereComprarADistancia } from "./domain/compraADistancia.js";
@@ -241,6 +242,14 @@ async function atenderTurno(
   // la herramienta: se mira el horario real del local elegido (o de cualquiera).
   const commitment = await (async () => {
     if (!commitmentLeido?.visitDate) return commitmentLeido;
+    // «ESTOY. DE QUITTO» NO ES «VOY HOY» (F-06, simulador 27-nov, chat 1142):
+    // contestando «¿Qué día cree que puede ir?», el «Estoy» se leyó como visita
+    // de hoy y se le avisó al asesor. Quien en el mismo mensaje dice que está en
+    // otra ciudad (y no que viene) no agenda. Solo Competimotor.
+    if (politica.casosSueltosF06 && dondeEstaElCliente(text)?.estado === "fuera") {
+      console.log(`📅 Conv ${conversation.id}: visita NO registrada: el mismo mensaje dice que está en otra ciudad.`);
+      return null;
+    }
     const hours = await getStoreHours();
     const [ficha] = await sql<{ nearest_store: string | null }[]>`
       select nearest_store from conversations where id=${conversation.id}
@@ -361,7 +370,10 @@ async function atenderTurno(
   // la alerta. Si la pausa venció y el último fue el bot, el chat vuelve al bot
   // (decisión del 8-ago). La regla entera vive en domain/turnoDelHumano.ts.
   const turno = await decidirQuienContesta(conversation.id, text);
-  if (turno.contesta === "humano") return;
+  if (turno.contesta === "humano") {
+    await contestarDemoraDelAsesor(conversation.id, from, text);
+    return;
+  }
 
   // ¿Podríamos siquiera ENVIAR la respuesta? Preguntarlo antes de escribirla.
   //
@@ -694,7 +706,13 @@ async function atenderTurno(
       // cliente, y tienen que ver la misma pregunta que se hizo.
       const { sentId, conBotones: salieronBotones } = await enviarBloque(conversation.id, from, bloque, botones);
       salioAlgo = true;
-      const metadataDelBloque = indice === indiceDeLaOferta ? metadatoDeOferta : { oferta: null };
+      const metadataDelBloque = {
+        ...(indice === indiceDeLaOferta ? metadatoDeOferta : { oferta: null }),
+        // LA OFERTA DE ASESOR TAMBIÉN ES UN HECHO (F-06, chat 720): «¿Desea que le
+        // ayude a validar disponibilidad con un asesor?» → «Sí» se lee de acá,
+        // nunca releyendo el texto del bot. Ver domain/pideAsesor.ts.
+        ...(ofreceAsesor(bloque) ? { ofrece_asesor: true } : {}),
+      };
       await appendMessage(conversation.id, "assistant", bloque, sentId, {
         authorKind: "bot",
         status: "sent",
@@ -818,12 +836,40 @@ async function avisarTraspasoSiLoPidio(
   inboundSafety: { requestedHuman: boolean; optedOut: boolean },
 ): Promise<void> {
   if (!inboundSafety.requestedHuman || inboundSafety.optedOut) return;
-  const providerId = await sendCustomerText(conversationId, telefono, AVISO_DE_TRASPASO)
-    .catch(() => null);
+  // Con `politica.casosSueltosF06` el aviso sale con su actor propio: el chat ya
+  // quedó en manos del asesor y como «bot» lo frenaba `human_control` (F-06,
+  // simulador 27-nov: «Asesor» y «Un asesor» quedaban sin respuesta). Depot:
+  // como siempre (anotado en el cuadro del sprint para que Manuel decida).
+  const providerId = await sendCustomerText(conversationId, telefono, AVISO_DE_TRASPASO,
+    politica.casosSueltosF06 ? "handoff_notice" : "bot")
+    .catch((error) => { console.warn(`⚠️ Aviso de traspaso no enviado en la conv ${conversationId}:`, error instanceof Error ? error.message : error); return null; });
   await appendMessage(conversationId, "assistant", AVISO_DE_TRASPASO, providerId ?? undefined, {
     authorKind: "bot", status: providerId ? "sent" : "failed", metadata: { oferta: null },
   }).catch(() => undefined);
   console.log(`🤝 Traspaso avisado en la conv ${conversationId}: el cliente pidió un asesor.`);
+}
+
+/**
+ * «¿QUÉ TIEMPO DEMORA?» JUSTO DESPUÉS DEL TRASPASO ES POR EL ASESOR (F-06, chat
+ * 469, 20-nov: «Un asesor» → «Que tiempo demora» → el bot contestó la hora y
+ * media de la instalación). Con la pausa `pidio_asesor` vigente el bot calla,
+ * salvo esta pregunta, que se contesta en una línea fija: no hay nada del
+ * modelo que decir y el cliente no queda sin respuesta. Solo Competimotor.
+ */
+async function contestarDemoraDelAsesor(conversationId: number, telefono: string, texto: string): Promise<void> {
+  if (!politica.casosSueltosF06) return;
+  const n = texto.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (!/\b(?:que\s+tiempo|cuanto\s+(?:tiempo|se\s+demora|demora|tarda)|se\s+demora|demora|a\s+que\s+hora\s+me\s+(?:escribe|contesta|llama)|cuando\s+me\s+(?:escribe|contesta|llama))\b/.test(n)) return;
+  const [conv] = await sql<{ motivo: string | null; pausa: Date | null }[]>`
+    select bot_paused_reason as motivo, bot_paused_until as pausa from conversations where id=${conversationId}
+  `;
+  if (conv?.motivo !== "pidio_asesor" || !conv.pausa || conv.pausa < new Date()) return;
+  const respuesta = "El asesor ya tiene su caso y le escribe por aquí en unos minutos 🤝";
+  const providerId = await sendCustomerText(conversationId, telefono, respuesta, "handoff_notice").catch(() => null);
+  await appendMessage(conversationId, "assistant", respuesta, providerId ?? undefined, {
+    authorKind: "bot", status: providerId ? "sent" : "failed", metadata: { oferta: null },
+  }).catch(() => undefined);
+  console.log(`⏱️ Conv ${conversationId}: preguntó cuánto demora el asesor; se le contestó.`);
 }
 
 // Handlers del webhook: se registran una vez y se re-aplican solos cada vez que

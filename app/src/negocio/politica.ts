@@ -70,6 +70,21 @@ export interface PoliticaComercial {
    */
   nuncaDecirNoHay?: boolean;
   /**
+   * OPCIONAL: los arreglos de la familia F-06 de la auditoría de Competimotor
+   * (26-nov-2026): «Asesor» a secas es pedirlo; el cliente de otra ciudad
+   * recibe el envío explicado en vez del mapa y del día; una medida C/LT o el
+   * uso de carga no recibe equivalentes de pasajero; la pregunta directa se
+   * contesta antes del guion. Sin el campo (Depot) nada de eso cambia: se le
+   * anota a Manuel en el cuadro del sprint para que decida si lo prende.
+   */
+  casosSueltosF06?: boolean;
+  /**
+   * OPCIONAL: cómo se le explica el envío al cliente de otra ciudad, en una
+   * frase para el chat (no para el prompt). Con `casosSueltosF06`, es lo que
+   * reemplaza al mapa y al «¿qué día puede ir?». Sin el campo, el texto de siempre.
+   */
+  envioAlClienteDeOtraCiudad?: string;
+  /**
    * El texto del beneficio por venir de redes sociales, palabra por palabra,
    * o null si el negocio no lo ofrece: entonces no se menciona en ninguna salida.
    */

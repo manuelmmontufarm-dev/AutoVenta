@@ -9,7 +9,13 @@ export type OutboundContentType = "text" | "image" | "pdf" | "template";
  * chat (de las visitas de octubre, 113 de 132 estaban en manos humanas). El
  * opt-out y la molestia sí lo frenan, como a todo.
  */
-export type OutboundActor = "bot" | "owner" | "worker" | "authorized_campaign" | "visit_reminder";
+/**
+ * `handoff_notice`: el ÚNICO mensaje del bot que sale con el chat ya en manos de
+ * una persona — «ya le avisé a un asesor» en el mismo turno en que el cliente lo
+ * pidió (F-06, chats 720 y 469: el traspaso marcaba `assigned_to='human'` antes
+ * del aviso y la política lo bloqueaba por `human_control`: el pedido salía mudo).
+ */
+export type OutboundActor = "bot" | "owner" | "worker" | "authorized_campaign" | "visit_reminder" | "handoff_notice";
 
 export interface OutboundPolicyInput {
   contentType: OutboundContentType;
@@ -59,7 +65,7 @@ export function evaluateOutboundPolicy(input: OutboundPolicyInput): OutboundDeci
   if (input.negativeSentimentAt && !volvioAEscribir(input.negativeSentimentAt)) {
     return { allowed: false, code: "negative_sentiment", windowClosesAt };
   }
-  if (input.actor !== "owner" && input.actor !== "authorized_campaign" && input.actor !== "visit_reminder" && input.pauseOnHumanControl && input.assignedTo === "human") {
+  if (input.actor !== "owner" && input.actor !== "authorized_campaign" && input.actor !== "visit_reminder" && input.actor !== "handoff_notice" && input.pauseOnHumanControl && input.assignedTo === "human") {
     return { allowed: false, code: "human_control", windowClosesAt };
   }
   if (input.contentType === "template") {

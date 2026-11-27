@@ -32,6 +32,8 @@
  * Puro a propósito: se prueba sin base y sin modelo.
  */
 
+import { politica } from "../negocio/politica.js";
+
 const normalizar = (texto: string) =>
   (texto ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 
@@ -64,8 +66,20 @@ const PIDE_ASESOR = new RegExp(
  * enseña a decir en cada turno— y preguntar por él.
  */
 export function pideUnAsesor(mensajeDelCliente: string): boolean {
-  return PIDE_ASESOR.test(normalizar(mensajeDelCliente));
+  const n = normalizar(mensajeDelCliente);
+  return PIDE_ASESOR.test(n) || (politica.casosSueltosF06 === true && SOLO_EL_ASESOR.test(n.trim()));
 }
+
+/**
+ * EL MENSAJE ENTERO ES «ASESOR» (auditoría Competimotor 26-nov: chat 720,
+ * «Asesor»; chat 469, «Un asesor»). No es una mención dentro de una frase: es
+ * la respuesta completa, y no hay otra lectura posible. Con cortesías alrededor
+ * («un asesor por favor», «asesor gracias») sigue siendo el pedido.
+ */
+const SOLO_EL_ASESOR = new RegExp(
+  `^(?:(?:si|ok|bueno|listo|mejor|ya)[,.!\\s]+)?(?:con\\s+)?(?:un[ao]?\\s+|el\\s+|la\\s+)?(?:asesor\\w*|vendedor\\w*|humano|persona)`
+  + `(?:[,.!\\s]+(?:por\\s+favor|porfa|xfa|gracias|please))?[.!¡]*$`,
+);
 
 /**
  * Lo que el bot contesta ANTES de callarse.
@@ -77,3 +91,28 @@ export function pideUnAsesor(mensajeDelCliente: string): boolean {
 export const AVISO_DE_TRASPASO =
   "Listo, ya le avisé a un asesor para que le escriba por aquí 🤝\n"
   + "Si mientras tanto necesita un precio o una medida, dígame nomás y se lo paso al toque.";
+
+/**
+ * ¿El texto que el bot está ENVIANDO le ofrece un asesor? (F-06, chat 720:
+ * «¿Desea que le ayude a validar disponibilidad con un asesor?»; 697: «¿Desea que
+ * le pida a un asesor que le confirme…?»). Corre sobre lo que sale, una vez, y
+ * se guarda como `metadata.ofrece_asesor`: el «sí» del turno siguiente lee el
+ * hecho (`aceptaElAsesor`). Solo con `politica.casosSueltosF06`.
+ */
+export function ofreceAsesor(textoQueSeEnvia: string | null | undefined): boolean {
+  if (!politica.casosSueltosF06) return false;
+  const n = normalizar(textoQueSeEnvia ?? "");
+  return /¿[^?]*\b(?:asesor\w*|vendedor\w*)\b[^?]*\?/.test(n)
+    && /¿\s*(?:desea|quiere|le\s+parece|prefiere|gusta|le\s+ayudo|le\s+paso|lo\s+paso|la\s+paso|le\s+pido|le\s+comunico)\b[^?]*\b(?:asesor\w*|vendedor\w*)\b/.test(n);
+}
+
+/**
+ * ¿El cliente dice que sí a la oferta de asesor del último mensaje del bot? El
+ * hecho viene de la base (`ofrece_asesor` del último saliente del bot); acá
+ * solo se lee si la respuesta es un sí.
+ */
+export function aceptaElAsesor(mensajeDelCliente: string, ultimoSalienteOfrecioAsesor: boolean): boolean {
+  if (!ultimoSalienteOfrecioAsesor || !politica.casosSueltosF06) return false;
+  const n = normalizar(mensajeDelCliente).replace(/[.,!¡]/g, " ").replace(/\s+/g, " ").trim();
+  return /^(?:si|sii+|sí|ok|okey|okay|dale|listo|claro|bueno|ya|por\s+favor|porfa|si\s+por\s+favor|si\s+porfa|si\s+gracias|ok\s+gracias|esta\s+bien|de\s+una|correcto|perfecto)$/.test(n);
+}

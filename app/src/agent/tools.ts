@@ -106,6 +106,8 @@ import { armarLista, ordenDeLaLista, confirmacionDeLaOpcion, opcionPorPosicion, 
 import { escalonesDelConjunto, marcaNombradaEnLaMedida, marcasRechazadas, recomendacionDeLaMedida, type ModoDeRecomendacion } from "../domain/recomendacionPorMarca.js";
 import { cotizarLaUnicaDeUnaVez, laNombradaConCantidad, ultimoTurnoDelBot } from "../domain/cotizarLaUnica.js";
 import { consienteEsta, type OfertaDeCotizar } from "../domain/ofertaVigente.js";
+import { pideFotos } from "../domain/preguntaDirecta.js";
+import { esLlantaDeCarga, pideLlantaDeCarga } from "../domain/llantaDeCarga.js";
 import { leerOfertaVigente } from "../services/ofertaVigente.js";
 import { traeMarcaDelMenu, autorizaCotizacionEnEsteTurno, canGenerateFinalQuote, cantidadParaPrepararOpciones, describeUso, escalonesDeOpciones, pideAlternativaMasBarata, pideRecomendacion, respuestaDePreferencia, pideOpcionesNoCotizacion } from "../domain/salesIntent.js";
 import { equivalenteSinConsentimiento, preguntaDeEquivalente } from "../domain/equivalentePendiente.js";
@@ -1488,13 +1490,33 @@ export function buildTools(ctx: AgentContext) {
       const tipoQueFiltra = tipoQueFiltraLaBusqueda(
         tipo, usoDelCliente, [ctx.currentUserText ?? "", ...dichoEnLaVisita.map((m) => m.content)],
       );
-      const { pedido, enElAro, delTipo, seleccion, avisoTipo, suMedida, sinTipoEnSuMedida, sinEquivalenteQueCalce } =
-        opcionesEnAro(aro, tipoQueFiltra, ficha?.tire_size, esDeCamioneta, usoDelCliente, anchoPedido);
+      const {
+        pedido, enElAro: enElAroTodas, delTipo: delTipoTodas, seleccion: seleccionTodas, avisoTipo, suMedida, sinTipoEnSuMedida, sinEquivalenteQueCalce,
+      } = opcionesEnAro(aro, tipoQueFiltra, ficha?.tire_size, esDeCamioneta, usoDelCliente, anchoPedido);
+      // LLANTA DE CARGA (F-06, chat 1717: «195R15C» → 195/45R15 y 195/60R15 de
+      // auto). Con C / LT / furgoneta / «para cargar» solo pasan las de carga del
+      // aro; si no queda ninguna, se dice y va al asesor. Solo Competimotor.
+      const pideCarga = politica.casosSueltosF06 === true
+        && [ctx.currentUserText, ...dichoEnLaVisita.map((m) => m.content)].some((t) => pideLlantaDeCarga(t));
+      const deCarga = <T extends { name: string }>(xs: T[]): T[] => (pideCarga ? xs.filter((x) => esLlantaDeCarga(x)) : xs);
+      const enElAro = deCarga(enElAroTodas);
+      const delTipo = deCarga(delTipoTodas);
+      // La escalera eligió de pasajero: las de carga del aro pasan a ser la selección.
+      const seleccion = !pideCarga || deCarga(seleccionTodas).length ? deCarga(seleccionTodas) : delTipo.slice(0, 3);
+      const sinCargaQueSirva = pideCarga && !seleccion.length;
       // Del ancho pedido no hay NADA en el aro: se dice, con los anchos
       // cercanos que sí hay — nunca se sustituye el ancho en silencio (la
       // demo del 4-nov: «235 rin 15» salió como 205/65, 185/65 y 195/55).
       const sinNoHayAro = (json: string, medida: string | null) =>
         conSinNoHay(json, { medida, tipo: pedido || null, marca: null, aro });
+      if (sinCargaQueSirva) {
+        return sinNoHayAro(JSON.stringify({
+          encontrado: false,
+          aro,
+          pide_llanta_de_carga: true,
+          regla: `El cliente pidió llanta de CARGA (C / LT) en aro ${aro} y no hay ninguna de carga con stock que le sirva. PROHIBIDO ofrecerle llantas de pasajero (de auto) como reemplazo. Dígale que un asesor le revisa la de carga y llama notificar_vendedor (caso_sin_resolver).`,
+        }), `${anchoPedido ?? ""} aro ${aro} de carga`.trim());
+      }
       if (anchoPedido !== null && !enElAro.length) {
         const anchosDelAro = [...new Set(
           searchByRim(aro)
@@ -2145,6 +2167,28 @@ export function buildTools(ctx: AgentContext) {
     }),
     run: async ({ codes, nombre_cliente, recomendado, motivo, cantidad }) => {
       await ensureCatalogReady();
+      // LA FOTO YA ES LA LÁMINA (F-06 / N2, chats 1456 y 538): «Me podria enviar
+      // una foto» → la misma lámina y el mismo texto, tres veces en tres minutos.
+      // Si el cliente pide foto y la última lámina del ciclo ya trae estas mismas
+      // llantas, no se reenvía: se dice en una línea y se ofrece algo nuevo.
+      if (politica.casosSueltosF06 && pideFotos(ctx.currentUserText)) {
+        const [ultima] = await sql<{ codes: unknown }[]>`
+          select metadata->'codes' as codes from messages
+          where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
+            and metadata->>'piece'='options'
+          order by created_at desc, id desc limit 1
+        `;
+        const yaMostradas = Array.isArray(ultima?.codes) ? ultima.codes.map(String) : [];
+        // Las mismas llantas (o casi: el modelo suele sumar una que la lámina igual recorta).
+        const nuevas = codes.filter((c) => !yaMostradas.includes(c)).length;
+        console.log(`📷 Conv ${ctx.conversation.id}: pide fotos; ya mostradas ${yaMostradas.join(",") || "ninguna"}, pedidas ${codes.join(",")}.`);
+        if (yaMostradas.length && nuevas < codes.length / 2) {
+          return JSON.stringify({
+            error: "foto_ya_enviada",
+            regla: `La imagen de opciones que el cliente ya recibió ES la foto de ${yaMostradas.length > 1 ? "esas llantas" : "esa llanta"}: PROHIBIDO reenviarla o repetir el mismo texto. Dilo en UNA línea («La imagen que le mandé arriba es la foto de la llanta 👆») y ofrece algo nuevo: que ${politica.asesorEnReglas} le mande fotos reales de la llanta (llama notificar_vendedor con motivo caso_sin_resolver: «pide fotos reales»), o ver otra opción.`,
+          });
+        }
+      }
       const encontrados = codes
         .map((code) => findByCode(code))
         .filter((product): product is NonNullable<typeof product> => Boolean(product));

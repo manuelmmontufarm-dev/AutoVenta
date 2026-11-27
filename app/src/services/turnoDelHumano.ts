@@ -22,6 +22,10 @@ import {
 } from "../domain/turnoDelHumano.js";
 import { devolverAlBotSiVencioLaPausa } from "./conversations.js";
 import { emitLiveEvent } from "./liveEvents.js";
+import { politica } from "../negocio/politica.js";
+
+/** Minutos que espera la alerta «nadie le contesta» antes de mostrarse (solo Competimotor). */
+const ESPERA_ANTES_DE_ALERTAR_MIN = 10;
 
 /** `author_kind` del último saliente del hilo (cualquier ciclo, sin notas). */
 export async function autorDelUltimoSaliente(conversationId: number): Promise<string | null> {
@@ -138,19 +142,31 @@ export async function decidirQuienContesta(
   const porQue = decision.motivo === "pausa_vigente"
     ? "El chat está en pausa de asesor: el bot no contesta."
     : "La última respuesta del chat la escribió una persona y nadie se lo devolvió al bot: el bot no se mete.";
+  // UNA ESPERA REAL ANTES DE ALARMAR (F-06 / N6, chat 1456): nueve «el cliente
+  // escribió y nadie le contesta» mientras el asesor contestaba en 1–3 minutos,
+  // porque la alerta nacía en el mismo minuto del mensaje. Con
+  // `politica.casosSueltosF06` nace POSPUESTA (`snoozed`) los minutos de
+  // `ESPERA_ANTES_DE_ALERTAR_MIN`: el panel no la muestra hasta entonces, y si
+  // el asesor contesta antes, `setConversationAssignee('human')` la resuelve.
+  // Depot: igual que siempre (abierta al instante).
+  const pospuesta = politica.casosSueltosF06 === true;
+  const hasta = pospuesta ? new Date(Date.now() + ESPERA_ANTES_DE_ALERTAR_MIN * 60_000) : null;
   await sql`
     insert into bot_alerts (
-      conversation_id, cycle, type, priority, summary, exact_reason, suggested_action, dedupe_key
+      conversation_id, cycle, type, priority, summary, exact_reason, suggested_action, dedupe_key, status, snoozed_until
     ) values (
       ${conversationId}, ${conv.current_cycle}, ${TIPO_CLIENTE_SIN_RESPUESTA}, 'high',
       'El cliente escribió y nadie le contesta',
       ${`Último mensaje del cliente: «${textoDelCliente.slice(0, 300)}». ${porQue}`},
       'Contéstale desde el panel o desde tu WhatsApp. Si quieres que siga el bot, devuélvele el chat desde el panel.',
-      ${claveClienteSinRespuesta(conversationId, conv.current_cycle)}
+      ${claveClienteSinRespuesta(conversationId, conv.current_cycle)},
+      ${pospuesta ? "snoozed" : "open"}, ${hasta}
     )
     on conflict (dedupe_key) where status in ('open', 'snoozed')
-    do update set exact_reason = excluded.exact_reason, status = 'open',
-      snoozed_until = null, created_at = now()
+    do update set exact_reason = excluded.exact_reason,
+      status = case when ${pospuesta} and bot_alerts.status = 'snoozed' then 'snoozed' else 'open' end,
+      snoozed_until = case when ${pospuesta} and bot_alerts.status = 'snoozed' then bot_alerts.snoozed_until else null end,
+      created_at = case when ${pospuesta} and bot_alerts.status = 'snoozed' then bot_alerts.created_at else now() end
   `;
   emitLiveEvent("alert", conversationId);
   console.log(`🤐 Conv ${conversationId}: el turno es del humano (${decision.motivo}); alerta al asesor.`);

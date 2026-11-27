@@ -73,10 +73,33 @@ function completaLoAnterior(texto: string): boolean {
     || aroEnTexto(texto) !== null;
 }
 
+/**
+ * DOS BOTONES SEGUIDOS SON UNA SOLA ELECCIÓN (auditoría Competimotor 26-nov,
+ * chats 1085 y 1295): el cliente tocó «la 1» y «la 2» en el mismo segundo; la
+ * regla de abajo los partía en dos turnos y salían dos cotizaciones cruzadas,
+ * cada una con su mapa y su pregunta del día. Es un error de hecho, igual para
+ * Depot: toda una ráfaga hecha SOLO de posiciones del menú va en un turno.
+ */
+function soloPosicionesDelMenu(textos: readonly string[]): boolean {
+  return textos.length >= 2 && textos.every((t) => /^\s*la\s+[123]\s*$/i.test(t) || /^\s*[123]\s*$/.test(t));
+}
+
+/**
+ * El texto del turno de una ráfaga. De las posiciones tocadas seguidas manda la
+ * ÚLTIMA: es la que el cliente dejó (simulador 27-nov: unidas como «la 1 y la 2»
+ * salía una comparativa sin cotización ni cierre). Una cotización, un cierre. Lo
+ * demás, con salto de línea como siempre.
+ */
+export function textoDeLaRafaga(textos: readonly string[]): string {
+  if (!soloPosicionesDelMenu(textos)) return textos.join("\n");
+  return `la ${textos[textos.length - 1].replace(/\D/g, "")}`;
+}
+
 /** Índices de los mensajes de la ráfaga, agrupados por turno y en orden. */
 export function gruposDeLaRafaga(textos: readonly string[]): number[][] {
   const todos = textos.map((_, i) => i);
   if (textos.length < 2) return [todos];
+  if (soloPosicionesDelMenu(textos)) return [todos];
   const primero = textos[0].trim();
   const resto = textos.slice(1).join("\n");
   const completo = respuestaDePreferencia(primero) !== null || esSoloMedida(primero);

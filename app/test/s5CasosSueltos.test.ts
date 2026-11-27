@@ -109,3 +109,74 @@ describe("1b · lo que se le dice a quien está en otra ciudad (710, 1614)", () 
     expect(r).not.toMatch(/qu[eé] ciudad le queda/i);
   });
 });
+
+describe("N1 · las equivalentes de 1456 (305/50R20)", () => {
+  it("275/55R20 (la KR628 que vendió el asesor) es equivalente; 285/55R20 también", async () => {
+    const { esEquivalente } = await import("../src/domain/equivalencia.js");
+    expect(esEquivalente("305/50R20", "275/55R20")).toBe(true);
+    expect(esEquivalente("305/50R20", "285/55R20")).toBe(true);
+    // El diámetro sigue mandando: 275/60R20 (838 mm, +3,1 %) no.
+    expect(esEquivalente("305/50R20", "275/60R20")).toBe(false);
+  });
+});
+
+describe("N3 · «Xq necesito las 4 llantas» acepta la única ofrecida", () => {
+  it("pedir la cantidad de la ofrecida es aceptarla", async () => {
+    const { aceptaLaOferta, pideCantidadDeLaOfrecida } = await import("../src/domain/ofertaVigente.js");
+    expect(pideCantidadDeLaOfrecida("Y ese es el precio tope mi estimado de las llantas\nXq necesito las 4 llantas")).toBe(true);
+    expect(pideCantidadDeLaOfrecida("Deseó 4")).toBe(true);
+    expect(pideCantidadDeLaOfrecida("¿necesito las 4?")).toBe(false);
+    expect(pideCantidadDeLaOfrecida("y en 185 tiene?")).toBe(false);
+    const leida = { oferta: { tipo: "oferta_de_cotizar" as const, clase: "una" as const, codigo: "A0455" }, fuente: "hecho" as const, turnosAtras: 0 };
+    expect(aceptaLaOferta(leida, "Y ese es el precio tope mi estimado de las llantas\nXq necesito las 4 llantas")).toBe(true);
+  });
+});
+
+describe("2b · la oferta de asesor es un hecho y su «sí» es pedirlo (720)", () => {
+  it("detecta la oferta en el texto que se envía y el sí la acepta", async () => {
+    const { ofreceAsesor, aceptaElAsesor } = await import("../src/domain/pideAsesor.js");
+    expect(ofreceAsesor("¿Desea que le ayude a validar disponibilidad con un asesor?")).toBe(true);
+    expect(ofreceAsesor("¿Desea que le pida a un asesor que le confirme si pueden recibir cheque?")).toBe(true);
+    expect(ofreceAsesor("Un asesor le confirma el envío. ¿Le cotizo la 1 o la 2?")).toBe(false);
+    expect(aceptaElAsesor("Sí", true)).toBe(true);
+    expect(aceptaElAsesor("Sí", false)).toBe(false);
+    expect(aceptaElAsesor("Sí, la 2", true)).toBe(false);
+  });
+});
+
+describe("4 · preguntas directas (697, 538, 884, 1456)", () => {
+  it("fotos, cheques y la marca con la letra doble", async () => {
+    const { pideFotos, formaDePagoSinDefinir, marcaQueNombro, hechosDePreguntaDirecta } = await import("../src/domain/preguntaDirecta.js");
+    expect(pideFotos("De puede enviar foto de las dos para verlas")).toBe(true);
+    expect(pideFotos("Me podria enviar una foto")).toBe(true);
+    expect(pideFotos("le mando una foto del costado")).toBe(false);
+    expect(formaDePagoSinDefinir("Si acepta cheques")).toBe("cheque");
+    expect(formaDePagoSinDefinir("aceptan transferencia?")).toBeNull();
+    expect(marcaQueNombro("Maxiis 195/50/15")).toBe("maxxis");
+    expect(hechosDePreguntaDirecta("Si acepta cheques").join(" ")).toMatch(/cheque/);
+  });
+});
+
+describe("1c · el envío se explica en el turno en que dice de dónde es (1142, 1614)", () => {
+  it("«Claro, le ayudo con eso.» a «Estoy. De quitto» pasa a la respuesta del envío", async () => {
+    const { conElEnvioExplicado } = await import("../src/domain/visitaImposible.js");
+    const r = conElEnvioExplicado("Claro, le ayudo con eso.", "Estoy.  De quitto");
+    expect(r).toMatch(/Laar Courier/);
+    expect(r).not.toMatch(/le ayudo con eso/);
+  });
+  it("si el borrador ya habla del envío no se toca", async () => {
+    const { conElEnvioExplicado } = await import("../src/domain/visitaImposible.js");
+    const t = "Hacemos envíos a Manta por Laar Courier.";
+    expect(conElEnvioExplicado(t, "Soy de manta")).toBe(t);
+  });
+  it("con un solo local, «¿Cuál local le queda mejor?» se quita", async () => {
+    const { sinPreguntaDeLocalConUnoSolo } = await import("../src/domain/visitaImposible.js");
+    expect(sinPreguntaDeLocalConUnoSolo("Aquí queda nuestro local:\n---\n¿Cuál local le queda mejor?")).toBe("Aquí queda nuestro local:");
+  });
+  it("el doble botón: manda el último toque", async () => {
+    const { textoDeLaRafaga } = await import("../src/domain/rafaga.js");
+    expect(textoDeLaRafaga(["la 1", "la 2"])).toBe("la 2");
+    expect(textoDeLaRafaga(["la 2", "la 2"])).toBe("la 2");
+    expect(textoDeLaRafaga(["hola", "la 2"])).toBe("hola\nla 2");
+  });
+});
